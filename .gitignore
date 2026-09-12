@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Firebase service account / admin credentials — never committed.
+# The Phase 2 Firestore seed script reads its key from an out-of-repo path
+# (see docs/FIREBASE-SETUP.md); these patterns are defense-in-depth only.
+serviceAccountKey*.json
+service-account*.json
+firebase-adminsdk*.json
+.firebase/
+*.firebase-key.json

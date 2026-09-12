@@ -10,7 +10,8 @@ implemented and verified.
 |---|---|---|---|
 | 1 | Fix broken staff-portal wiring, sidebar layout, salted password hashing, rate limiting | ✅ Done | See commit `641fd45`. Client-only hardening — documented limitations still apply (see `ARCHITECTURE.md` §A). |
 | 2 | Target data model + architecture docs + additive domain/data-access layer + legacy migration function | ✅ Done | See below. |
-| 3 | Firebase Authentication + Cloud Functions + strict Security Rules | ⏳ Blocked | Requires a provisioned Firebase project (Auth + Firestore + Storage + Functions, Blaze plan). Code will be written deployable-but-inactive until a real project is connected, per user decision. |
+| 2b | Activate the Phase 2 data model in the real Firebase project (`activa-ethicalert-47246`) | ✅ Done | See `docs/FIREBASE-SETUP.md`. 3 demo cases + full child collections + audit trail really written to and re-read from Firestore via `scripts/seedFirestore.ts`. Rules update drafted but **not yet deployed** (one manual console step, documented). This is data only — no Auth, no Cloud Functions, UI still unaware of this data. |
+| 3 | Firebase Authentication + Cloud Functions + strict Security Rules | ⏳ Not started | The project itself is now available (`activa-ethicalert-47246`), which unblocks this phase — it was previously blocked on provisioning. Still needs: Blaze plan confirmation for Cloud Functions, Auth provider setup, and a proper (non-chat-pasted) service credential for ongoing backend use. |
 | 4 | Control Panel (Overview, Alerts, Triage, Assignment, SLA & Escalations views) | 🔜 Not started | Depends on Phase 3 for real permission enforcement. |
 | 5 | Case Management UI on the new `Case` model | 🔜 Not started | Depends on Phase 3/4. |
 | 6 | Investigation Workspace (Tasks, Interviews, Findings UI) | 🔜 Not started | Depends on Phase 5. |
@@ -47,3 +48,28 @@ implemented and verified.
 **DOCUMENT** → this file + `ARCHITECTURE.md` + `DATABASE.md`.
 
 **Explicitly out of scope for Phase 2** (deferred to later phases, not forgotten): wiring this model into any screen, real Firestore/Cloud Functions backing, SLA/notification engines actually running on a schedule, evidence binary upload. Building any of those now, without Phase 3's real backend, would mean shipping UI that "gives the impression the system works" without the engine behind it — which the brief explicitly forbids.
+
+---
+
+## Phase 2b — Detail (activating Phase 2's data in the real Firebase project)
+
+**AUDIT** → confirmed no `.firebaserc`/`firebase.json`/credentials/CLI existed anywhere in the repo or session before this phase — nothing to reuse.
+
+**PLAN** → given a service-account key to project `activa-ethicalert-47246`: (1) prove connectivity/auth with a throwaway read-write-delete probe before touching real data, (2) build a Node/Admin-SDK-only `CaseRepository` implementation reusing the exact same `domain/workflow.ts` + `domain/permissions.ts` logic as the browser-side `LocalCaseRepository` (single source of truth, not a re-implementation), (3) run the same, already-tested `migrateLegacyAlertsToCases()` function from Phase 2 against it, (4) verify with an independent fresh read, (5) explicitly close off the new collections in `firestore.rules` rather than relying on Firestore's implicit default-deny.
+
+**IMPLEMENT**:
+- `scripts/firestoreAdminRepository.ts` — Node-only, never imported from `src/`, uses `firebase-admin` (full-access, rules-bypassing by design — this is a trusted backend context, the seed script today and Cloud Functions in Phase 3).
+- `scripts/seedFirestore.ts` — entry point, reads credentials from `GOOGLE_APPLICATION_CREDENTIALS_PATH`/`FIRESTORE_DATABASE_ID` env vars (never hard-coded), runs the migration, prints real counts per case.
+- `firestore.rules` updated (additively — legacy `/alerts`, `/audit_logs`, `/users` rules untouched) to explicitly `allow read, write: if false` on `cases/**`, `reporter_credentials/*`, `reporter_identities/*`, `counters/*`.
+- `firebase.json`, `.firebaserc`, `firestore.indexes.json` added for future `firebase deploy` use.
+- `.gitignore` hardened against ever committing a service account key, even though the actual key used lived entirely outside the repo (session scratchpad only).
+
+**TEST / VERIFY**:
+- Connectivity probe: wrote, read back, and deleted a throwaway document in a `_connectivity_check` collection — first attempt failed with a gRPC `NOT_FOUND` (wrong database id assumption — the project uses a named database `default`, not the special `(default)`), fixed and re-verified.
+- Ran the real seed: 3 `Case` documents created with correct field mapping, each with the expected child-collection documents (confirmed by an independent second script re-reading from a fresh Admin SDK connection, not the same process that wrote them): allegations, persons, evidence metadata, corrective actions, communications, investigation notes, timeline — matching the same counts already verified against `LocalCaseRepository` in Phase 2.
+- Confirmed `reporter_credentials` holds only hash+salt (no plaintext) and `reporter_identities` has exactly 1 document (the one non-anonymous legacy alert).
+- Confirmed 18 `audit_logs` entries written, one per creation event, by the same repository code path a production import would use.
+- Attempted `firebase deploy --only firestore:rules`: failed on a Service Usage API permission the given service account does not hold (it has Firestore data-plane access but not project-level Service Usage read access) — documented as a known, honestly-reported gap rather than silently left undone or falsely claimed as deployed. The rules file is ready; deployment needs either a one-time manual paste in the console or one additional IAM role, both documented in `docs/FIREBASE-SETUP.md`.
+- `tsc --noEmit` clean (default project config).
+
+**DOCUMENT** → `docs/FIREBASE-SETUP.md` (full status, what's live, what isn't, how to redeploy rules, how to revoke the shared key) + this entry.

@@ -29,5 +29,35 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null && request.auth.token.role == 'system_admin';
     }
+
+    // === AMÉLIORATION AJOUTÉE (Phase 2) ===
+    // Target normalized model (docs/DATABASE.md): cases/{caseId}/... and the
+    // isolated reporter identity/credentials collections. There is no client
+    // authentication or custom-claims scheme yet (that is Phase 3), so these
+    // paths are explicitly closed to the client SDK entirely — all writes so
+    // far come exclusively from the Admin SDK (scripts/seedFirestore.ts),
+    // which bypasses these rules by design. This is intentionally stricter
+    // than the legacy `/alerts` rules above (kept as-is, untouched, so the
+    // live app in production is not affected) and will be replaced by real
+    // role/scope-based rules once Firebase Authentication is wired up.
+    match /cases/{caseId} {
+      allow read, write: if false;
+
+      match /{subcollection}/{docId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /reporter_credentials/{caseId} {
+      allow read, write: if false;
+    }
+
+    match /reporter_identities/{caseId} {
+      allow read, write: if false;
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if false;
+    }
   }
 }
