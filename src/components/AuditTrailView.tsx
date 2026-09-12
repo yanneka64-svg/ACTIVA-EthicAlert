@@ -118,6 +118,7 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
             <option value="all">Tous types d'actions</option>
             <option value="ALERT_SUBMITTED">Création d'alerte</option>
             <option value="ALERT_ACCESSED">Consultation de dossier</option>
+            <option value="ACCESS_DENIED">Accès refusé (échec authentification)</option>
             <option value="INVESTIGATOR_ASSIGNED">Attribution de gestionnaire</option>
             <option value="PRIORITY_MODIFIED">Modification de priorité</option>
             <option value="INTERNAL_NOTE_ADDED">Note interne ajoutée</option>

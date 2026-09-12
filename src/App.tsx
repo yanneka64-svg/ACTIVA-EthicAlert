@@ -16,104 +16,152 @@ import { ReportingDashboard } from './components/ReportingDashboard';
 import { AuditTrailView } from './components/AuditTrailView';
 import { AdminConfigView } from './components/AdminConfigView';
 import { QrCodeModal } from './components/QrCodeModal';
-import { ShieldCheck, Lock, Globe, Building2, ExternalLink } from 'lucide-react';
+import { StaffPortalLayout } from './components/StaffPortalLayout';
+import { ShieldCheck, Lock, Building2, ShieldOff } from 'lucide-react';
+
+// Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings'
 
 export default function App() {
   const [lang, setLang] = useState<Language>('fr');
-  const [activeTab, setActiveTab] = useState<string>('whistleblower_home');
+  const [currentTab, setCurrentTab] = useState<string>('home');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
 
-  // Current logged in / active profile (defaults to functional_admin for easy testing and governance)
-  const users = storage.getUsers();
-  const [activeUser, setActiveUser] = useState<UserProfile>(
-    users.find(u => u.role === 'functional_admin') || users[0]
-  );
+  // Active user profile (role-switcher for demo/testing across CDC profiles; defaults to the
+  // functional admin / point de contact so the staff portal is visible on first load).
+  const [activeUser, setActiveUser] = useState<UserProfile>(storage.getActiveUser());
 
-  // When switching to whistleblower view, set a public view or adjust
-  const handleRoleChange = (newUserId: string) => {
-    const found = users.find(u => u.id === newUserId);
-    if (found) {
-      setActiveUser(found);
-      // If switching to whistleblower, navigate to home if in admin views
-      if (found.role === 'whistleblower' && (activeTab === 'investigation_desk' || activeTab === 'reporting' || activeTab === 'audit' || activeTab === 'admin_config')) {
-        setActiveTab('whistleblower_home');
-      }
+  // Live alert count for the Navbar badge & role-based access guards below.
+  const [alertCount, setAlertCount] = useState(() => storage.getAlerts().length);
+  useEffect(() => {
+    const unsub = storage.subscribe(() => setAlertCount(storage.getAlerts().length));
+    return unsub;
+  }, []);
+
+  const isGlobalViewer =
+    activeUser.role === 'functional_admin' ||
+    activeUser.role === 'system_admin' ||
+    activeUser.role === 'auditor';
+
+  // Count of "new" alerts visible to the active user (mirrors the visibility rule enforced in
+  // InvestigationDesk: a non-admin only sees cases explicitly assigned to them).
+  const pendingAlertsCount = React.useMemo(() => {
+    const alerts = storage.getAlerts();
+    return alerts.filter((a) => {
+      if (a.status !== 'new') return false;
+      if (isGlobalViewer) return true;
+      return a.assignedInvestigators.includes(activeUser.id);
+    }).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeUser.id, isGlobalViewer, alertCount]);
+
+  const handleUserChange = (user: UserProfile) => {
+    setActiveUser(user);
+    storage.setActiveUser(user);
+    // Leaving admin/investigator-only screens when switching to the public whistleblower profile.
+    if (
+      user.role === 'whistleblower' &&
+      ['portal', 'reports', 'audit', 'settings'].includes(currentTab)
+    ) {
+      setCurrentTab('home');
     }
   };
 
-  const handleSubmittedAlert = (trackingNumber: string) => {
+  const handleAlertSubmitted = (trackingNumber: string) => {
     setPrefilledTrackingNumber(trackingNumber);
-    setActiveTab('whistleblower_track');
+    setCurrentTab('track');
   };
+
+  // Access-denied guard for role-restricted staff screens (defense in depth: the Navbar and
+  // sidebar already hide these entries, but the active view is re-validated here too since
+  // authorization must never rely on UI visibility alone).
+  const renderAccessDenied = (label: string) => (
+    <div className="max-w-xl mx-auto py-16 px-4 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto mb-4 text-rose-600">
+        <ShieldOff className="w-7 h-7" />
+      </div>
+      <h2 className="text-lg font-bold text-slate-900">Accès restreint</h2>
+      <p className="text-xs text-slate-600 mt-2">
+        Votre profil ({activeUser.roleTitle}) ne dispose pas des habilitations nécessaires pour
+        consulter « {label} ». Cette restriction est appliquée conformément au principe du
+        moindre privilège (CDC 3.2.3).
+      </p>
+    </div>
+  );
+
+  const renderStaffContent = () => {
+    if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} />;
+    if (currentTab === 'reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
+    if (currentTab === 'audit') {
+      return isGlobalViewer ? (
+        <AuditTrailView lang={lang} activeUser={activeUser} />
+      ) : (
+        renderAccessDenied('Piste d’Audit')
+      );
+    }
+    if (currentTab === 'settings') {
+      return activeUser.role === 'system_admin' ? (
+        <AdminConfigView lang={lang} activeUser={activeUser} />
+      ) : (
+        renderAccessDenied('Administration')
+      );
+    }
+    return null;
+  };
+
+  const isStaffTab = ['portal', 'reports', 'audit', 'settings'].includes(currentTab);
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       {/* Top Main Navigation */}
       <Navbar
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
         lang={lang}
-        onLanguageChange={setLang}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
+        setLang={setLang}
         activeUser={activeUser}
-        onUserChange={handleRoleChange}
+        setActiveUser={handleUserChange}
         onOpenQrModal={() => setShowQrModal(true)}
+        pendingAlertsCount={pendingAlertsCount}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 pb-16">
-        {activeTab === 'whistleblower_home' && (
+        {currentTab === 'home' && (
           <WhistleblowerHome
             lang={lang}
-            onStartNewAlert={() => setActiveTab('whistleblower_submit')}
-            onGoToTrack={() => setActiveTab('whistleblower_track')}
+            onStartNewAlert={() => setCurrentTab('new_alert')}
+            onGoToTrack={() => setCurrentTab('track')}
             onOpenQrModal={() => setShowQrModal(true)}
-            onOpenDesk={() => setActiveTab('investigation_desk')}
+            onOpenDesk={() => setCurrentTab('portal')}
           />
         )}
 
-        {activeTab === 'whistleblower_submit' && (
+        {currentTab === 'new_alert' && (
           <AlertSubmissionFlow
             lang={lang}
-            onComplete={handleSubmittedAlert}
-            onCancel={() => setActiveTab('whistleblower_home')}
+            onSuccessNavigateToTrack={handleAlertSubmitted}
+            onCancel={() => setCurrentTab('home')}
           />
         )}
 
-        {activeTab === 'whistleblower_track' && (
+        {currentTab === 'track' && (
           <AlertTrackingView
             lang={lang}
             initialTrackingNumber={prefilledTrackingNumber}
-            onBackToHome={() => setActiveTab('whistleblower_home')}
+            onGoToNewAlert={() => setCurrentTab('new_alert')}
           />
         )}
 
-        {activeTab === 'investigation_desk' && (
-          <InvestigationDesk
+        {isStaffTab && (
+          <StaffPortalLayout
             lang={lang}
             activeUser={activeUser}
-          />
-        )}
-
-        {activeTab === 'reporting' && (
-          <ReportingDashboard
-            lang={lang}
-            activeUser={activeUser}
-          />
-        )}
-
-        {activeTab === 'audit' && (
-          <AuditTrailView
-            lang={lang}
-            activeUser={activeUser}
-          />
-        )}
-
-        {activeTab === 'admin_config' && (
-          <AdminConfigView
-            lang={lang}
-            activeUser={activeUser}
-          />
+            currentTab={currentTab}
+            setCurrentTab={setCurrentTab}
+          >
+            {renderStaffContent()}
+          </StaffPortalLayout>
         )}
       </main>
 

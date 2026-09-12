@@ -202,7 +202,9 @@ export const INITIAL_ALERTS: AlertRecord[] = [
   {
     id: 'alt-001',
     trackingNumber: 'ACT-2026-0418',
-    accessCodeHash: 'Activa2026!',
+    // === AMÉLIORATION AJOUTÉE : mot de passe démo stocké sous forme de hash salé (jamais en clair) ===
+    accessCodeHash: '963328f618f6d7b271122d80c93eec1d37d84d3956ed115f185f34179ab2d306',
+    accessCodeSalt: 'a1b2c3d4e5f60718',
     channel: 'web',
     createdAt: '2026-09-08T10:14:00Z',
     updatedAt: '2026-09-11T14:30:00Z',
@@ -302,7 +304,9 @@ export const INITIAL_ALERTS: AlertRecord[] = [
   {
     id: 'alt-002',
     trackingNumber: 'ACT-2026-0391',
-    accessCodeHash: 'Secret2026!',
+    // === AMÉLIORATION AJOUTÉE : mot de passe démo stocké sous forme de hash salé (jamais en clair) ===
+    accessCodeHash: '01f405bc3bd87150bdfa4fc5c2c9a1e71566fcd4e82fe3706a95b0ffe3e2b144',
+    accessCodeSalt: '2b7e151628aed2a6',
     channel: 'qr_code',
     createdAt: '2026-08-28T14:00:00Z',
     updatedAt: '2026-09-05T09:00:00Z',
@@ -376,7 +380,9 @@ export const INITIAL_ALERTS: AlertRecord[] = [
   {
     id: 'alt-003',
     trackingNumber: 'ACT-2026-0210',
-    accessCodeHash: 'Ghana2026!',
+    // === AMÉLIORATION AJOUTÉE : mot de passe démo stocké sous forme de hash salé (jamais en clair) ===
+    accessCodeHash: '7fe7057524f3c5eb830295658e64aea1b718abc7dc6483da6d11ec1e0a8a5d8e',
+    accessCodeSalt: '9c0e2f3a4b5d6e7f',
     channel: 'web',
     createdAt: '2026-07-15T08:30:00Z',
     updatedAt: '2026-08-01T11:00:00Z',
