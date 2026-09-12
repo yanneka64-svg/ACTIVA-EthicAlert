@@ -15,6 +15,7 @@ import { InvestigationDesk } from './components/InvestigationDesk';
 import { ReportingDashboard } from './components/ReportingDashboard';
 import { AuditTrailView } from './components/AuditTrailView';
 import { AdminConfigView } from './components/AdminConfigView';
+import { EnterpriseArchitectureView } from './components/EnterpriseArchitectureView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { ShieldCheck, Lock, Globe, Building2, ExternalLink } from 'lucide-react';
 
@@ -111,6 +112,13 @@ export default function App() {
 
         {activeTab === 'admin_config' && (
           <AdminConfigView
+            lang={lang}
+            activeUser={activeUser}
+          />
+        )}
+
+        {activeTab === 'architecture' && (
+          <EnterpriseArchitectureView
             lang={lang}
             activeUser={activeUser}
           />
