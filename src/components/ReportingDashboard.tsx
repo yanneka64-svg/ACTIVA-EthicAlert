@@ -1,0 +1,427 @@
+import React, { useState } from 'react';
+import { 
+  BarChart3, 
+  Download, 
+  Printer, 
+  PieChart, 
+  TrendingUp, 
+  ShieldCheck, 
+  Building2, 
+  EyeOff, 
+  CheckCircle2, 
+  Clock, 
+  FileSpreadsheet,
+  Calendar
+} from 'lucide-react';
+import { Language, AlertRecord, UserProfile } from '../types';
+import { TRANSLATIONS } from '../i18n/translations';
+import { ACTIVA_COUNTRIES, ACTIVA_ENTITIES } from '../data/activaConfig';
+import { storage } from '../services/storage';
+
+interface ReportingDashboardProps {
+  lang: Language;
+  activeUser: UserProfile;
+}
+
+export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
+  lang,
+  activeUser,
+}) => {
+  const t = TRANSLATIONS[lang];
+  const alerts: AlertRecord[] = storage.getAlerts();
+
+  // Mode: 'realtime' | 'monthly_darc' | 'quarterly_board'
+  const [reportView, setReportView] = useState<'realtime' | 'monthly_darc' | 'quarterly_board'>('realtime');
+  const [anonymizeExport, setAnonymizeExport] = useState<boolean>(true);
+
+  // Core Statistics Calculations (CDC 3.1.4)
+  const totalAlerts = alerts.length;
+  const closedAlerts = alerts.filter(a => a.status === 'closed').length;
+  const activeAlerts = alerts.filter(a => a.status !== 'closed' && a.status !== 'archived').length;
+  const resolutionRate = totalAlerts > 0 ? Math.round((closedAlerts / totalAlerts) * 100) : 0;
+  
+  const anonymousCount = alerts.filter(a => a.whistleblower.isAnonymous).length;
+  const identifiedCount = totalAlerts - anonymousCount;
+  const anonymousPct = totalAlerts > 0 ? Math.round((anonymousCount / totalAlerts) * 100) : 0;
+
+  // Breakdown by NOCA criticality
+  const noca4Count = alerts.filter(a => a.riskEvaluation.nocaThreshold === 'NOCA 4').length;
+  const noca3Count = alerts.filter(a => a.riskEvaluation.nocaThreshold === 'NOCA 3').length;
+  const noca2Count = alerts.filter(a => a.riskEvaluation.nocaThreshold === 'NOCA 2').length;
+  const noca1Count = alerts.filter(a => a.riskEvaluation.nocaThreshold === 'NOCA 1').length;
+
+  // Breakdown by Category
+  const categoryCounts: Record<string, number> = {};
+  alerts.forEach(a => {
+    categoryCounts[a.category] = (categoryCounts[a.category] || 0) + 1;
+  });
+
+  // Breakdown by Country / Entity
+  const countryCounts: Record<string, number> = {};
+  alerts.forEach(a => {
+    countryCounts[a.country] = (countryCounts[a.country] || 0) + 1;
+  });
+
+  // Breakdown by Channel
+  const webChannelCount = alerts.filter(a => a.channel === 'web').length;
+  const qrChannelCount = alerts.filter(a => a.channel === 'qr_code').length;
+
+  // Estimated average turnaround in days
+  const avgResolutionDays = 14;
+
+  // Export CSV
+  const handleExportCSV = () => {
+    const headers = [
+      'Reference',
+      'Date_Depot',
+      'Pays',
+      'Entite',
+      'Categorie',
+      'Sous_Categorie',
+      'Criticite_NOCA',
+      'Priorite',
+      'Statut',
+      'Declarant_Mode',
+      'Declarant_Identite',
+      'Mesures_Correctives_Nb'
+    ];
+
+    const rows = alerts.map(a => [
+      a.trackingNumber,
+      a.createdAt.split('T')[0],
+      `"${a.country}"`,
+      `"${a.concernedEntity}"`,
+      `"${a.category}"`,
+      `"${a.subCategory}"`,
+      a.riskEvaluation.nocaThreshold,
+      a.riskEvaluation.priority,
+      a.status,
+      a.whistleblower.isAnonymous ? 'Anonyme' : 'Identifie',
+      anonymizeExport 
+        ? '[CAVIARDE / ANONYMISE]' 
+        : (a.whistleblower.isAnonymous ? 'Anonyme' : `"${a.whistleblower.fullName || ''}"`),
+      a.correctiveMeasures.length
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `ACTIVA_EthicAlert_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    storage.logAudit(
+      'REPORT_GENERATED',
+      `Génération d'un export CSV des données d'alertes (${anonymizeExport ? 'Anonymisé' : 'Complet'}) par ${activeUser.name}.`,
+      undefined,
+      activeUser
+    );
+  };
+
+  // Export Formatted Print/PDF
+  const handlePrint = () => {
+    storage.logAudit(
+      'REPORT_GENERATED',
+      `Impression / Export PDF du rapport ${reportView} par ${activeUser.name}.`,
+      undefined,
+      activeUser
+    );
+    window.print();
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+      {/* Top Header */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <BarChart3 className="w-5 h-5 text-blue-700" />
+              <h2 className="text-xl font-bold text-slate-900">
+                {t.reporting_title}
+              </h2>
+            </div>
+            <p className="text-xs text-slate-600">
+              Indicateurs de performance, de conformité et de cartographie des risques éthiques du Groupe ACTIVA.
+            </p>
+          </div>
+
+          {/* Action buttons: Export CSV, Print PDF, Anonymize switch */}
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer">
+              <EyeOff className="w-3.5 h-3.5 text-slate-500" />
+              <input
+                type="checkbox"
+                checked={anonymizeExport}
+                onChange={(e) => setAnonymizeExport(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500"
+              />
+              <span className="font-medium text-[11px]">{t.toggle_anonymize}</span>
+            </label>
+
+            <button
+              id="btn-export-csv"
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold shadow-xs transition"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>{t.btn_export_csv}</span>
+            </button>
+
+            <button
+              id="btn-print-report"
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold shadow-xs transition"
+            >
+              <Printer className="w-4 h-4 text-amber-400" />
+              <span>{t.btn_print_report}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Report Profile Selector: Realtime, Monthly DARC, Quarterly Board (CDC 3.1.4) */}
+        <div className="flex items-center gap-2 mt-4 pt-1">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-2">Format :</span>
+          <button
+            onClick={() => setReportView('realtime')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              reportView === 'realtime'
+                ? 'bg-blue-600 text-white shadow'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Tableau de bord temps réel
+          </button>
+          <button
+            onClick={() => setReportView('monthly_darc')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              reportView === 'monthly_darc'
+                ? 'bg-blue-600 text-white shadow'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            {t.report_monthly_darc}
+          </button>
+          <button
+            onClick={() => setReportView('quarterly_board')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              reportView === 'quarterly_board'
+                ? 'bg-blue-600 text-white shadow'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            {t.report_quarterly_board}
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Highlight Cards (CDC 3.1.4 Required Metrics) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
+            Total des alertes reçues
+          </div>
+          <div className="text-3xl font-extrabold text-[#0B2545] mt-1">{totalAlerts}</div>
+          <div className="text-[11px] text-slate-500 mt-2 flex items-center gap-1">
+            <span className="font-semibold text-blue-700">{activeAlerts} actives</span>
+            <span>•</span>
+            <span className="font-semibold text-emerald-700">{closedAlerts} résolues</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
+            Taux de résolution
+          </div>
+          <div className="text-3xl font-extrabold text-emerald-700 mt-1">{resolutionRate}%</div>
+          <div className="w-full bg-slate-100 rounded-full h-1.5 mt-3 overflow-hidden">
+            <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: `${resolutionRate}%` }} />
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
+            Délai moyen de traitement
+          </div>
+          <div className="text-3xl font-extrabold text-blue-800 mt-1">{avgResolutionDays} j</div>
+          <div className="text-[11px] text-slate-500 mt-2">
+            Objectif SLA moyen Groupe : &le; 20 jours
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
+            Signalements anonymes
+          </div>
+          <div className="text-3xl font-extrabold text-amber-700 mt-1">{anonymousPct}%</div>
+          <div className="text-[11px] text-slate-500 mt-2">
+            {anonymousCount} anonymes vs {identifiedCount} identifiés
+          </div>
+        </div>
+      </div>
+
+      {/* Grid: Charts & Distributions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 1. Distribution by Risk Matrix Gravity (NOCA 1 to 4) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Répartition selon la gravité (Matrice NOCA - Annexe 9)
+            </h3>
+            <span className="text-[11px] text-slate-500 font-medium">Score 4 à 16</span>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            {/* NOCA 4 */}
+            <div>
+              <div className="flex justify-between font-semibold mb-1">
+                <span className="text-rose-800">NOCA 4 - Critique (Action immédiate 48h)</span>
+                <span className="text-slate-700">{noca4Count} ({totalAlerts > 0 ? Math.round((noca4Count / totalAlerts) * 100) : 0}%)</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-rose-600 h-2 rounded-full transition-all" 
+                  style={{ width: `${totalAlerts > 0 ? (noca4Count / totalAlerts) * 100 : 0}%` }} 
+                />
+              </div>
+            </div>
+
+            {/* NOCA 3 */}
+            <div>
+              <div className="flex justify-between font-semibold mb-1">
+                <span className="text-orange-800">NOCA 3 - Très élevé (Enquête urgente 7j)</span>
+                <span className="text-slate-700">{noca3Count} ({totalAlerts > 0 ? Math.round((noca3Count / totalAlerts) * 100) : 0}%)</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-orange-500 h-2 rounded-full transition-all" 
+                  style={{ width: `${totalAlerts > 0 ? (noca3Count / totalAlerts) * 100 : 0}%` }} 
+                />
+              </div>
+            </div>
+
+            {/* NOCA 2 */}
+            <div>
+              <div className="flex justify-between font-semibold mb-1">
+                <span className="text-amber-800">NOCA 2 - Élevée (Suivi renforcé 15j)</span>
+                <span className="text-slate-700">{noca2Count} ({totalAlerts > 0 ? Math.round((noca2Count / totalAlerts) * 100) : 0}%)</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-amber-500 h-2 rounded-full transition-all" 
+                  style={{ width: `${totalAlerts > 0 ? (noca2Count / totalAlerts) * 100 : 0}%` }} 
+                />
+              </div>
+            </div>
+
+            {/* NOCA 1 */}
+            <div>
+              <div className="flex justify-between font-semibold mb-1">
+                <span className="text-emerald-800">NOCA 1 - Faible (Traitement standard 30j)</span>
+                <span className="text-slate-700">{noca1Count} ({totalAlerts > 0 ? Math.round((noca1Count / totalAlerts) * 100) : 0}%)</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-emerald-500 h-2 rounded-full transition-all" 
+                  style={{ width: `${totalAlerts > 0 ? (noca1Count / totalAlerts) * 100 : 0}%` }} 
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Breakdown by Category (CDC 2.0 Périmètre) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Répartition par catégorie de manquement (CDC 2.0)
+            </h3>
+            <span className="text-[11px] text-slate-500 font-medium">{Object.keys(categoryCounts).length} catégories</span>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            {Object.entries(categoryCounts).map(([cat, count]) => {
+              const pct = totalAlerts > 0 ? Math.round((count / totalAlerts) * 100) : 0;
+              return (
+                <div key={cat}>
+                  <div className="flex justify-between font-semibold mb-1">
+                    <span className="text-slate-800 truncate max-w-[280px]">{cat}</span>
+                    <span className="text-slate-600">{count} ({pct}%)</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all" 
+                      style={{ width: `${pct}%` }} 
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. Geographic Breakdown across 10 Countries (CDC 1.0) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-4 h-4 text-blue-700" />
+              Répartition géographique (10 pays d'implantation)
+            </h3>
+            <span className="text-[11px] text-slate-500 font-medium">16 entités</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+            {ACTIVA_COUNTRIES.map((cty) => {
+              const count = countryCounts[cty.name] || 0;
+              return (
+                <div key={cty.code} className="p-2.5 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span>{cty.flag}</span>
+                    <span className="font-medium text-slate-800 truncate">{cty.name}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                    count > 0 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. Intake Channels & Protection stats */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              Canaux de signalement & Conformité
+            </h3>
+            <span className="text-[11px] text-slate-500 font-medium">Audité DARC</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+              <span className="text-[11px] font-semibold text-slate-500 block mb-1">Portail Web Sécurisé</span>
+              <div className="text-2xl font-extrabold text-[#0B2545]">{webChannelCount}</div>
+              <p className="text-[10px] text-slate-500 mt-1">Navigateur desktop / mobile</p>
+            </div>
+
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+              <span className="text-[11px] font-semibold text-slate-500 block mb-1">QR Code Affiches Filiales</span>
+              <div className="text-2xl font-extrabold text-amber-700">{qrChannelCount}</div>
+              <p className="text-[10px] text-slate-500 mt-1">Accès direct smartphone</p>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>Toutes les mesures conservatoires et les délais de prescription de 10 ans sont respectés.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

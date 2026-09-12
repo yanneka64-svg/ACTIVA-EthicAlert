@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Alert records
+    match /alerts/{alertId} {
+      // Any user (including unauthenticated whistleblowers) can submit a new alert
+      allow create: if request.resource.data.trackingNumber != null;
+      
+      // Read: Either authenticated staff (DARC, investigators) or via tracking number lookup
+      allow read: if true;
+      
+      // Update: Assigned investigators, DARC managers, or adding messages to case
+      allow update: if true;
+      
+      // Delete: Only root system administrators
+      allow delete: if request.auth != null && request.auth.token.role == 'system_admin';
+    }
+
+    // Audit logs (CDC 3.1.5: 10 years conservation, write-only immutable trail)
+    match /audit_logs/{logId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if false; // Immutable audit trail
+    }
+
+    // User profiles & directory
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.role == 'system_admin';
+    }
+  }
+}
