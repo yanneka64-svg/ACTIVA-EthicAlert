@@ -150,7 +150,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setCurrentTab('home')}
             className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
           >
-            <ActivaLogo className="h-10 shrink-0" compact={isStaffContext} />
+            <ActivaLogo className="h-10 shrink-0" />
             {isStaffContext && (
               <>
                 <div className="hidden md:block w-px h-8 bg-slate-200" />
