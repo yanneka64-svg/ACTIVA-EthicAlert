@@ -176,6 +176,7 @@ export interface AlertRecord {
 // it in explicitly.
 
 export type TaskStatus = 'not_started' | 'in_progress' | 'completed' | 'overdue';
+export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface CaseTask {
   id: string;
@@ -183,6 +184,7 @@ export interface CaseTask {
   description?: string;
   owner: string; // UserProfile.id
   dueDate: string;
+  priority: TaskPriority;
   status: TaskStatus;
   createdAt: string;
   createdBy: string;

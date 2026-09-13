@@ -16,20 +16,26 @@ import {
   RotateCcw, 
   Plus, 
   Send, 
-  Lock, 
+  Lock,
   FileCheck2,
   SlidersHorizontal,
-  ChevronRight
+  ChevronRight,
+  ListTodo,
+  History,
+  CheckSquare,
+  Square
 } from 'lucide-react';
-import { 
-  Language, 
-  AlertRecord, 
-  UserProfile, 
-  PriorityLevel, 
-  InternalNote, 
-  CaseMessage, 
+import {
+  Language,
+  AlertRecord,
+  UserProfile,
+  PriorityLevel,
+  InternalNote,
+  CaseMessage,
   CorrectiveMeasure,
-  AlertStatus
+  AlertStatus,
+  CaseTask,
+  TaskPriority
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { ACTIVA_ENTITIES } from '../data/activaConfig';
@@ -71,8 +77,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [unassignedOnlyFilter, setUnassignedOnlyFilter] = useState<boolean>(!!initialFilter?.unassignedOnly);
   const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);
 
-  // Selected case active tab: 'overview' | 'investigation' | 'messages' | 'corrective'
-  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'investigation' | 'messages' | 'corrective'>('overview');
+  // Selected case active tab
+  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'investigation' | 'messages' | 'corrective' | 'tasks' | 'timeline'>('overview');
 
   // Interactive modal / action states
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -101,6 +107,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [measureResp, setMeasureResp] = useState('');
   const [measureDueDate, setMeasureDueDate] = useState('');
   const [measureStatus, setMeasureStatus] = useState<CorrectiveMeasure['status']>('planned');
+
+  // === AMÉLIORATION AJOUTÉE (Phase 6) === Task form inputs
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskOwnerId, setTaskOwnerId] = useState('');
+  const [taskDueDate, setTaskDueDate] = useState('');
+  const [taskPriority, setTaskPriority] = useState<TaskPriority>('medium');
 
   // Subscribe to storage updates
   useEffect(() => {
@@ -300,6 +314,50 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setMeasureDesc('');
     setMeasureResp('');
     setShowAddMeasureModal(false);
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 6) === Task management, via the Phase 1
+  // storage.addTask/updateTask pair — same audit+notify pattern as every
+  // other mutation here.
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskTitle.trim() || !taskOwnerId || !taskDueDate || !selectedAlert) return;
+
+    const newTask: CaseTask = {
+      id: 'tsk-' + Date.now(),
+      title: taskTitle.trim(),
+      description: taskDescription.trim() || undefined,
+      owner: taskOwnerId,
+      dueDate: taskDueDate,
+      priority: taskPriority,
+      status: 'not_started',
+      createdAt: new Date().toISOString(),
+      createdBy: activeUser.id,
+    };
+
+    storage.addTask(selectedAlert.id, newTask, activeUser);
+
+    setTaskTitle('');
+    setTaskDescription('');
+    setTaskOwnerId('');
+    setTaskDueDate('');
+    setTaskPriority('medium');
+    setShowAddTaskModal(false);
+  };
+
+  const handleToggleTaskStatus = (task: CaseTask) => {
+    if (!selectedAlert) return;
+    const nextStatus: CaseTask['status'] = task.status === 'completed' ? 'not_started' : 'completed';
+    storage.updateTask(selectedAlert.id, task.id, {
+      status: nextStatus,
+      completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined,
+    }, activeUser);
+  };
+
+  const taskEffectiveStatus = (task: CaseTask): CaseTask['status'] => {
+    if (task.status === 'completed') return 'completed';
+    if (new Date(task.dueDate).getTime() < Date.now()) return 'overdue';
+    return task.status;
   };
 
   // Close Alert (CDC 3.1.3: Vérifier complétude, clôturer, informer le lanceur)
@@ -735,11 +793,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </div>
             </div>
 
-            {/* Case Tabs: Overview, Investigation notes, Messages, Corrective measures */}
-            <div className="flex border-b border-slate-200 px-6 text-xs font-semibold">
+            {/* Case Tabs: Overview, Investigation notes, Messages, Corrective measures, Tasks, Timeline */}
+            {/* === AMÉLIORATION AJOUTÉE (Phase 6) === overflow-x-auto + shrink-0/whitespace-nowrap on
+                each button: 6 tabs no longer fit this panel's fixed width at some viewports: without
+                this the browser scrolled the whole card horizontally instead of just the tab row. */}
+            <div className="flex overflow-x-auto border-b border-slate-200 px-6 text-xs font-semibold">
               <button
                 onClick={() => setActiveCaseTab('overview')}
-                className={`py-3 px-4 border-b-2 transition ${
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap ${
                   activeCaseTab === 'overview'
                     ? 'border-blue-600 text-blue-700'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -749,7 +810,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </button>
               <button
                 onClick={() => setActiveCaseTab('investigation')}
-                className={`py-3 px-4 border-b-2 transition flex items-center gap-1.5 ${
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
                   activeCaseTab === 'investigation'
                     ? 'border-blue-600 text-blue-700'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -762,7 +823,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </button>
               <button
                 onClick={() => setActiveCaseTab('messages')}
-                className={`py-3 px-4 border-b-2 transition flex items-center gap-1.5 ${
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
                   activeCaseTab === 'messages'
                     ? 'border-blue-600 text-blue-700'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -775,7 +836,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </button>
               <button
                 onClick={() => setActiveCaseTab('corrective')}
-                className={`py-3 px-4 border-b-2 transition flex items-center gap-1.5 ${
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
                   activeCaseTab === 'corrective'
                     ? 'border-blue-600 text-blue-700'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -787,6 +848,30 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 }`}>
                   {selectedAlert.correctiveMeasures.length}
                 </span>
+              </button>
+              {/* === AMÉLIORATION AJOUTÉE (Phase 6) === */}
+              <button
+                onClick={() => setActiveCaseTab('tasks')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                  activeCaseTab === 'tasks'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>{t.tab_tasks}</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px]">
+                  {(selectedAlert.tasks ?? []).length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveCaseTab('timeline')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap ${
+                  activeCaseTab === 'timeline'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {t.tab_timeline}
               </button>
             </div>
 
@@ -1067,6 +1152,100 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 )}
               </div>
             )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 6) === TAB CONTENT: TASKS */}
+            {activeCaseTab === 'tasks' && (
+              <div className="p-6 space-y-4 max-h-[560px] overflow-y-auto text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                    {t.tab_tasks} ({(selectedAlert.tasks ?? []).length})
+                  </span>
+                  <button
+                    onClick={() => setShowAddTaskModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{t.btn_add_task}</span>
+                  </button>
+                </div>
+
+                {(selectedAlert.tasks ?? []).length === 0 ? (
+                  <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
+                    {t.tasks_empty}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(selectedAlert.tasks ?? []).map((task) => {
+                      const effStatus = taskEffectiveStatus(task);
+                      const owner = allUsers.find((u) => u.id === task.owner);
+                      return (
+                        <div key={task.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                          <button onClick={() => handleToggleTaskStatus(task)} className="mt-0.5 shrink-0 text-slate-500 hover:text-blue-700">
+                            {task.status === 'completed' ? <CheckSquare className="w-4 h-4 text-emerald-600" /> : <Square className="w-4 h-4" />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`font-semibold text-slate-900 ${task.status === 'completed' ? 'line-through text-slate-400' : ''}`}>{task.title}</span>
+                              <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${
+                                effStatus === 'overdue' ? 'bg-rose-100 text-rose-800'
+                                : effStatus === 'completed' ? 'bg-emerald-100 text-emerald-800'
+                                : effStatus === 'in_progress' ? 'bg-blue-100 text-blue-800'
+                                : 'bg-slate-200 text-slate-700'
+                              }`}>
+                                {t[`task_status_${effStatus}` as keyof typeof t]}
+                              </span>
+                            </div>
+                            {task.description && <p className="text-slate-600 mt-0.5">{task.description}</p>}
+                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-1.5">
+                              <span>{t.task_owner_label} : <strong className="text-slate-700">{owner?.name ?? task.owner}</strong></span>
+                              <span>{t.task_due_date_label} : <strong className="text-slate-700">{task.dueDate}</strong></span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 6) === TAB CONTENT: TIMELINE — derived from real audit_logs + messages for this case, never hand-authored. */}
+            {activeCaseTab === 'timeline' && (
+              <div className="p-6 max-h-[560px] overflow-y-auto text-xs">
+                {(() => {
+                  type TimelineItem = { timestamp: string; label: string };
+                  const auditItems: TimelineItem[] = storage
+                    .getAuditLogs()
+                    .filter((log) => log.trackingNumber === selectedAlert.trackingNumber)
+                    .map((log) => ({ timestamp: log.timestamp, label: log.details }));
+                  const messageItems: TimelineItem[] = selectedAlert.messages.map((m) => ({
+                    timestamp: m.createdAt,
+                    label: `${t.timeline_message_from} ${m.senderDisplayName} : « ${m.content.slice(0, 80)}${m.content.length > 80 ? '…' : ''} »`,
+                  }));
+                  const items = [...auditItems, ...messageItems].sort(
+                    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                  );
+                  if (items.length === 0) {
+                    return <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">{t.timeline_empty}</div>;
+                  }
+                  return (
+                    <ol className="relative border-l-2 border-slate-200 ml-2 space-y-5">
+                      {items.map((item, i) => (
+                        <li key={i} className="ml-4">
+                          <div className="absolute w-2.5 h-2.5 bg-blue-600 rounded-full -left-[5px] mt-1 border-2 border-white" />
+                          <time className="text-[10px] font-bold text-slate-400 uppercase">
+                            {new Date(item.timestamp).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR', {
+                              day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                            })}
+                          </time>
+                          <p className="text-slate-700 mt-0.5">{item.label}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         ) : (
           <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center text-slate-400 text-xs">
@@ -1291,6 +1470,90 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
                   Enregistrer la mesure
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 6) === MODAL: ADD TASK */}
+      {showAddTaskModal && selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">{t.btn_add_task}</h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">{selectedAlert.trackingNumber}</p>
+            </div>
+
+            <form onSubmit={handleAddTask} className="space-y-3">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">{t.task_title_label} *</label>
+                <input
+                  type="text"
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">{t.task_description_label}</label>
+                <textarea
+                  rows={2}
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.task_owner_label} *</label>
+                  <select
+                    value={taskOwnerId}
+                    onChange={(e) => setTaskOwnerId(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                    required
+                  >
+                    <option value="">—</option>
+                    {investigatorUsers.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.task_due_date_label} *</label>
+                  <input
+                    type="date"
+                    value={taskDueDate}
+                    onChange={(e) => setTaskDueDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">{t.task_priority_label}</label>
+                <select
+                  value={taskPriority}
+                  onChange={(e: any) => setTaskPriority(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                >
+                  <option value="low">{t.task_priority_low}</option>
+                  <option value="medium">{t.task_priority_medium}</option>
+                  <option value="high">{t.task_priority_high}</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => setShowAddTaskModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
+                  {t.btn_cancel}
+                </button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                  {t.btn_add_task}
                 </button>
               </div>
             </form>
