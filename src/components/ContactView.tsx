@@ -55,8 +55,8 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
               <MessageCircle className="w-7 h-7" />
             </span>
             <div>
-              <div className="font-bold text-slate-900">{t.contact_whatsapp_title}</div>
-              <div className="text-xs font-semibold text-emerald-700">{t.contact_whatsapp_available}</div>
+              <div className="text-base font-bold text-slate-900">{t.contact_whatsapp_title}</div>
+              <div className="text-sm font-semibold text-emerald-700">{t.contact_whatsapp_available}</div>
             </div>
           </div>
 
@@ -71,7 +71,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
             >
               <Copy className="w-4 h-4" />
             </button>
-            {copiedField === 'phone' && <span className="text-[11px] text-emerald-700 font-semibold">{t.btn_copy} ✓</span>}
+            {copiedField === 'phone' && <span className="text-xs text-emerald-700 font-semibold">{t.btn_copy} ✓</span>}
           </div>
 
           <a
@@ -107,8 +107,8 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
               <Mail className="w-7 h-7" />
             </span>
             <div>
-              <div className="font-bold text-slate-900">{t.contact_email_title}</div>
-              <div className="text-xs font-semibold text-blue-700">{t.contact_email_recommended}</div>
+              <div className="text-base font-bold text-slate-900">{t.contact_email_title}</div>
+              <div className="text-sm font-semibold text-blue-700">{t.contact_email_recommended}</div>
             </div>
           </div>
 
@@ -125,7 +125,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
             >
               <Copy className="w-4 h-4" />
             </button>
-            {copiedField === 'email' && <span className="text-[11px] text-blue-700 font-semibold">{t.btn_copy} ✓</span>}
+            {copiedField === 'email' && <span className="text-xs text-blue-700 font-semibold">{t.btn_copy} ✓</span>}
           </div>
 
           <a
@@ -157,8 +157,8 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
           <ShieldCheck className="w-5 h-5" />
         </span>
         <div>
-          <div className="font-bold text-sm text-blue-900">{t.sidebar_confidentiality_title}</div>
-          <p className="text-xs text-slate-600">{t.contact_confidentiality_desc}</p>
+          <div className="font-bold text-base text-blue-900">{t.sidebar_confidentiality_title}</div>
+          <p className="text-sm text-slate-600">{t.contact_confidentiality_desc}</p>
         </div>
       </div>
     </div>
