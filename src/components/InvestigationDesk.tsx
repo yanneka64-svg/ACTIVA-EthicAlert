@@ -23,7 +23,8 @@ import {
   ListTodo,
   History,
   CheckSquare,
-  Square
+  Square,
+  ArrowLeft
 } from 'lucide-react';
 import {
   Language,
@@ -73,6 +74,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // Live storage sync
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
+
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — séparation liste / détail des dossiers) ===
+  // A real list screen and a real full-width detail screen, instead of the
+  // previous always-both split-pane. A trackingNumber deep link (from the
+  // Control Panel, a notification, or Recent Alerts) opens straight into
+  // detail, matching what the caller actually asked for; every other entry
+  // point (a plain tab switch, or a status/unassigned/overdue filter from a
+  // KPI card) lands on the list — closer to the brief's own wording ("KPIs
+  // must link to filtered case LISTS", §61) than the old auto-open-first
+  // behavior was. Nothing about case selection, filtering, or any handler
+  // below changes — only which of the two panels is shown.
+  const [viewMode, setViewMode] = useState<'list' | 'detail'>(initialFilter?.trackingNumber ? 'detail' : 'list');
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>(initialFilter?.status ?? 'all');
@@ -172,7 +185,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   });
 
   // Currently active selected alert
-  const selectedAlert = alerts.find(a => a.id === selectedAlertId) || visibleAlerts[0] || null;
+  // Only auto-falls-back to the first visible case while actually in detail
+  // mode (e.g. a trackingNumber deep link narrows the search to one match) —
+  // in list mode there is deliberately no "current" case.
+  const selectedAlert = alerts.find(a => a.id === selectedAlertId) || (viewMode === 'detail' ? visibleAlerts[0] : undefined) || null;
 
   // Handlers
   const handleAssignInvestigators = () => {
@@ -604,10 +620,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         )}
       </div>
 
-      {/* Main split view: Left list of cases, Right deep investigation workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Cases List */}
-        <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 6 — liste et détail séparés) ===
+          A real dedicated list screen and a real dedicated full-width detail
+          screen, shown one at a time via viewMode — replacing the previous
+          always-both split-pane. Same data, same filters, same handlers. */}
+      {viewMode === 'list' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
             <span className="font-bold text-slate-700 uppercase tracking-wider">
               Dossiers ({visibleAlerts.length})
@@ -617,19 +635,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             </span>
           </div>
 
-          <div className="divide-y divide-slate-100 max-h-[700px] overflow-y-auto">
-            {visibleAlerts.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500">
-                Aucun dossier ne correspond à vos critères de filtrage.
-              </div>
-            ) : (
-              visibleAlerts.map((alert) => {
+          {visibleAlerts.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500">
+              Aucun dossier ne correspond à vos critères de filtrage.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-4">
+              {visibleAlerts.map((alert) => {
                 const isSelected = selectedAlert?.id === alert.id;
                 return (
                   <div
                     key={alert.id}
                     onClick={() => {
                       setSelectedAlertId(alert.id);
+                      setViewMode('detail');
                       storage.logAudit(
                         'ALERT_ACCESSED',
                         `Consultation de la fiche dossier ${alert.trackingNumber} par ${activeUser.name}.`,
@@ -637,10 +656,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                         activeUser
                       );
                     }}
-                    className={`p-4 cursor-pointer transition ${
-                      isSelected 
-                        ? 'bg-blue-50/70 border-l-4 border-l-blue-600' 
-                        : 'hover:bg-slate-50'
+                    className={`p-4 rounded-xl border cursor-pointer transition ${
+                      isSelected
+                        ? 'bg-blue-50/70 border-blue-400 ring-1 ring-blue-200'
+                        : 'border-slate-200 hover:border-blue-300 hover:shadow-sm'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
@@ -680,14 +699,25 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     </div>
                   </div>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </div>
+      )}
 
-        {/* Case Detail & Investigation Workspace */}
-        {selectedAlert ? (
-          <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* Case Detail & Investigation Workspace */}
+      {viewMode === 'detail' && (selectedAlert ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            {/* Back to list */}
+            <div className="px-6 pt-4">
+              <button
+                onClick={() => setViewMode('list')}
+                className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:underline"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                {t.btn_back_to_list}
+              </button>
+            </div>
             {/* Header with Case Info and Management Controls */}
             <div className="p-6 bg-slate-50 border-b border-slate-200">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -1254,11 +1284,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             )}
           </div>
         ) : (
-          <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center text-slate-400 text-xs">
-            Sélectionnez une alerte dans la liste de gauche pour afficher son dossier complet.
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center text-slate-400 text-xs space-y-3">
+            <p>Aucun dossier ne correspond à vos critères de filtrage.</p>
+            <button
+              onClick={() => setViewMode('list')}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:underline"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              {t.btn_back_to_list}
+            </button>
           </div>
-        )}
-      </div>
+        ))}
 
       {/* MODAL: ASSIGN INVESTIGATORS */}
       {showAssignModal && selectedAlert && (

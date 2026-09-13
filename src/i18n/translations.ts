@@ -308,6 +308,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     timeline_message_from: 'Message de',
     timeline_empty: 'Aucun événement enregistré pour ce dossier.',
     btn_cancel: 'Annuler',
+    // === AMÉLIORATION AJOUTÉE (Phase 6 — séparation liste / détail) ===
+    btn_back_to_list: 'Retour à la liste des dossiers',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign : période, graphiques, tableau) ===
     cp_kpi_delta_vs_previous: 'vs période précédente',
@@ -647,6 +649,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     timeline_message_from: 'Message from',
     timeline_empty: 'No recorded events for this case.',
     btn_cancel: 'Cancel',
+    // === AMÉLIORATION AJOUTÉE (Phase 6 — list/detail separation) ===
+    btn_back_to_list: 'Back to case list',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
     cp_kpi_delta_vs_previous: 'vs previous period',
@@ -986,6 +990,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     timeline_message_from: 'Mensagem de',
     timeline_empty: 'Nenhum evento registrado para este caso.',
     btn_cancel: 'Cancelar',
+    // === AMÉLIORATION AJOUTÉE (Phase 6 — separação lista / detalhe) ===
+    btn_back_to_list: 'Voltar à lista de casos',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
     cp_kpi_delta_vs_previous: 'vs período anterior',
