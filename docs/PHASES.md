@@ -435,3 +435,72 @@ already live-verified in `firestore.rules` and in `assignCase`/
 Storage), `addTask`, `addInterview`, `addInvestigationNote`,
 `addCommunication`, `addCorrectiveAction`, `recordRiskAssessment`,
 `declareConflictOfInterest`, `getReporterIdentity`.
+
+---
+
+## Remaining backlog Cloud Functions: `addTask`, `addInterview`, `addInvestigationNote`, `addCommunication`, `addCorrectiveAction`, `recordRiskAssessment`, `declareConflictOfInterest`
+
+**AUDIT** → seven straightforward remaining ports, all following the exact
+pattern already established across the last two phases (`requireCaseAccess`
++ mirror an existing, already-verified repository method). Worth doing as
+one batch rather than one-by-one, since none introduces new architectural
+questions — with two exceptions caught while porting, both worth a real fix
+rather than a literal port: `addCommunication` and `declareConflictOfInterest`
+both take an identity-bearing parameter (`sender`/`senderDisplayName`,
+`userId`) directly from the caller in the repository-layer signature — safe
+for a trusted migration script, not for a public callable a signed-in
+attacker could call with a spoofed identity in the request body.
+
+**PLAN** → port all seven mirroring `LocalCaseRepository`/
+`FirestoreAdminCaseRepository` field-for-field, gate each on the closest
+existing `Permission` (`cases.edit` for five of them — there is no more
+specific permission for tasks/interviews/notes/corrective actions/risk
+assessments in the `Permission` union — `communications.send` for
+`addCommunication`, which already has one), and for the two
+identity-spoofing risks: always force the identity field from the verified
+token, never accept it from `request.data`, and say so explicitly in both
+the code and `docs/API.md` rather than let it pass as an unremarked detail.
+
+**IMPLEMENT**:
+- `addTask` (`cases.edit`) — new task always `status: 'not_started'`.
+- `addInterview` (`cases.edit`) — `conductedBy` forced to the caller; new
+  interview always `status: 'planned'`.
+- `addInvestigationNote` (`cases.edit`) — `authorId`/`createdBy` forced to
+  the caller (accountable internal record, never reporter-visible).
+- `addCommunication` (`communications.send`) — `sender` forced to
+  `'investigator'`, `senderDisplayName` forced to the caller's own token
+  name; a reporter-side equivalent is explicitly left on the backlog
+  (reporters have no Firebase Auth token to check `communications.send`
+  against in the first place).
+- `addCorrectiveAction` (`cases.edit`) — new action always `status: 'open'`.
+- `recordRiskAssessment` (`cases.edit`) — deactivates every previously-
+  active risk assessment and writes the new one, then updates
+  `Case.riskScore`/`Case.priority`, all in one atomic `batch()` (mirrors
+  both repository implementations' "only one active assessment per case"
+  invariant, `caseTypes.ts`). Audited as `RISK_OVERRIDDEN`/`RISK_ASSESSED`.
+- `declareConflictOfInterest` (`cases.edit`) — `userId` forced to the
+  verified caller, never accepted from `request.data`.
+- Widened imports (`ConflictOfInterestDeclaration`, `Interview`,
+  `RiskAssessment`, `Task`) from `caseTypes.ts`; updated the file's header
+  comment and the trailing backlog comment to reflect the true remaining
+  set (`addEvidence`, `getReporterIdentity`, a reporter-side
+  `addCommunication`).
+
+**TEST / VERIFY**: `npm run build` inside `functions/` — clean on the first
+attempt after fixing one leftover type-authoring slip (`recordRiskAssessment`'s
+`priority` field type briefly referenced an unrelated `CaseStatus` type
+while being drafted — caught by the same build, corrected before commit,
+not shipped). Root `tsc --noEmit` — clean. No live network test possible
+(undeployed, Spark decision, unchanged) — stated plainly. Correctness rests
+on matching both existing, already-tested repository implementations
+field-for-field, and the two identity-spoofing fixes being a deliberate,
+documented hardening over the repository-layer signatures, not an
+oversight either way.
+
+**DOCUMENT** → `docs/API.md` (all seven moved from "planned" to
+"implemented", numerator corrected from an approximate "~15" to the exact
+14-implemented / 3-remaining count), this entry. Cloud Functions backlog
+now only: `addEvidence` (+ Storage Security Rules, a genuinely larger
+unit), `getReporterIdentity` (mandatory audit logging), a reporter-side
+`addCommunication`. Every other write path in `CaseRepository` is now a
+real, type-checked Cloud Function — undeployed, but no longer unwritten.

@@ -11,7 +11,7 @@ of truth.
 | | Status |
 |---|---|
 | `CaseRepository` interface (~24 operations) | Fully specified in TypeScript. Fully implemented twice: `LocalCaseRepository` (localStorage, used by nothing in the shipped UI yet) and `FirestoreAdminCaseRepository` (Admin SDK, used by the one-off seed/migration scripts). Both pass the same behavior (see `docs/PHASES.md` Phase 2/2b). |
-| Cloud Functions (the real network-callable API) | **7 of ~15 mutation/read operations implemented and type-checked**: `createCase`, `assignCase`, `changeCaseStatus`, `addAllegation`, `setAllegationFinding`, `addPerson`, `getCaseForReporter`. **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). Nothing below is reachable over the network right now. |
+| Cloud Functions (the real network-callable API) | **14 mutation/read operations implemented and type-checked**: `createCase`, `assignCase`, `changeCaseStatus`, `addAllegation`, `setAllegationFinding`, `addPerson`, `addTask`, `addInterview`, `addInvestigationNote`, `addCommunication`, `addCorrectiveAction`, `recordRiskAssessment`, `declareConflictOfInterest`, `getCaseForReporter`. Only 3 mutation-shaped operations remain (`addEvidence`, `getReporterIdentity`, a reporter-side `addCommunication` — see the backlog table below), plus the read-side callables (`getCase`/`listCases`) still blocked on the same wall as ever. **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). Nothing below is reachable over the network right now. |
 | Reads | Not a Cloud Function today — direct Firestore reads via `firestore.rules`, single-document `getDoc` only (see `docs/PERMISSIONS.md`/`docs/FIREBASE-SETUP.md` — list queries are blocked outright by Firestore itself, a Cloud Function is the architecturally-required fix, same billing blocker as above). |
 
 This document describes the API **as designed and as far as it is built**,
@@ -123,6 +123,25 @@ convenience).
 | `setAllegationFinding` | Request `{ allegationId, finding, rationale }` → `{ ok: true }`. Only `allegationId` is known here (not its case), so — like `scripts/firestoreAdminRepository.ts`'s identical method — this runs a `collectionGroup('allegations')` query to locate it first. `finding` is validated against the real `FindingOutcome` union (`SUBSTANTIATED`/`PARTIALLY_SUBSTANTIATED`/`UNSUBSTANTIATED`/`INCONCLUSIVE`/`OUT_OF_SCOPE`/`DUPLICATE`) before anything is written. Sets `status: 'assessed'` and the `findingDocumentedBy`/`findingDocumentedAt` fields — this is what ultimately feeds `deriveOverallFinding()` (`docs/WORKFLOW.md`) once every allegation on a case has one. Writes both a `FINDING_DOCUMENTED` timeline event and audit entry. |
 | `addPerson` | Request `{ caseId, kind, name, ... }` (the rest of `Person`, minus server-set fields) → `{ personId }`. `kind` is validated to be exactly `'subject'` or `'witness'`. **=== AMÉLIORATION AJOUTÉE : la vérification de sécurité la plus importante de ce fichier ===** when `kind === 'subject'` and `linkedUserId` is set, this appends to `Case.implicatedUserIds` (`FieldValue.arrayUnion`) in the same call — the one write in the entire file that `firestore.rules`' `isNotImplicated` check directly depends on (rule #9, `docs/PERMISSIONS.md`). Skipping or reordering this relative to the person-document write would silently reopen the exact gap rule #9 exists to close, so it is called out explicitly in the code, not just here. |
 
+### `addTask`, `addInterview`, `addInvestigationNote`, `addCommunication`, `addCorrectiveAction`, `recordRiskAssessment`, `declareConflictOfInterest`
+
+All seven go through `requireCaseAccess` too. Most require `cases.edit` (the
+same closest-fit permission `addAllegation`/`addPerson` use — there is no
+finer-grained `Permission` for tasks/interviews/notes/corrective
+actions/risk assessments/COI declarations in the `Permission` union);
+`addCommunication` is the exception, gated on the actual dedicated
+permission that already exists for it, `communications.send`.
+
+| | |
+|---|---|
+| `addTask` | `{ caseId, title, description?, owner, priority, dueDate }` → `{ taskId }`. New task always starts `status: 'not_started'`, matching both repository implementations. |
+| `addInterview` | `{ caseId, intervieweePersonId?, intervieweeLabel, scheduledAt? }` → `{ interviewId }`. `conductedBy` is always the verified caller; new interview always starts `status: 'planned'`. |
+| `addInvestigationNote` | `{ caseId, content }` → `{ noteId }`. `authorId`/`createdBy` are always the verified caller, never client input — an investigation note's whole point is an accountable internal record reporters never see (`docs/DATABASE.md`). Writes an `INVESTIGATION_NOTE_ADDED` audit entry. |
+| `addCommunication` | `{ caseId, content }` → `{ messageId }`. **=== AMÉLIORATION AJOUTÉE ===** the repository-layer signature (`scripts/firestoreAdminRepository.ts`) takes `sender`/`senderDisplayName` as caller-supplied values — fine for a trusted migration script, not safe for a public callable. This callable forces `sender: 'investigator'` and `senderDisplayName` from the verified token's own name, never from `request.data` — this path is reached only by an authenticated staff member; a reporter-side equivalent (through `getCaseForReporter`'s credential model, not a Firebase Auth token) is still on the backlog. Writes a `MESSAGE_SENT` timeline event. |
+| `addCorrectiveAction` | `{ caseId, description, owner, entity?, dueDate, priority }` → `{ actionId }`. New action always starts `status: 'open'` — this is the status a case's closure gating (`checkTransition`, `docs/WORKFLOW.md`) requires to be resolved (`completed`/`not_applicable`) before a case can reach `closed`. |
+| `recordRiskAssessment` | `{ caseId, financialImpact, hierarchicalLevel, recurrence, reputationRisk, totalScore, priority, isOverride, originalScore?, overrideReason? }` → `{ assessmentId }`. Marks every previously-`active` risk assessment on the case `active: false` and the new one `active: true` in one atomic batch (mirrors both repository implementations — "only one `RiskAssessment` per case should be active at a time", `caseTypes.ts`), then updates `Case.riskScore`/`Case.priority` from the new assessment in the same batch. This is the operation `createCase`'s own doc note says should follow case creation (which deliberately never lets a client set an inflated `priority`/`riskScore` directly). Audited as `RISK_OVERRIDDEN` when `isOverride` is true, `RISK_ASSESSED` otherwise, with `previousValue`/`newValue` recording `originalScore`/`totalScore`. |
+| `declareConflictOfInterest` | `{ caseId, outcome, details? }` → `{ ok: true }`. `outcome` validated to be exactly `'no_conflict'` or `'conflict_identified'`. **=== AMÉLIORATION AJOUTÉE ===** the repository-layer signature takes `userId` as a plain parameter — fine for a trusted script, but a public callable must never let a caller declare a conflict of interest **as someone else**; this callable always uses the verified caller's own uid, never a client-supplied one. |
+
 ### `getCaseForReporter`
 
 | | |
@@ -156,17 +175,10 @@ vague "more to come":
 
 | Operation | Purpose |
 |---|---|
-| `listAllegations`, `listPersons` | Read-side of the two mutations above — not yet a callable (see the `getCase`/`listCases` row below on reads generally). |
-| `addEvidence`, `listEvidence` | Evidence metadata + (once built) a signed, short-lived Storage upload/download URL — deliberately never a public URL (see `Evidence.storagePath`'s comment in `caseTypes.ts`). |
-| `addTask`, `listTasks` | Investigation task tracking. |
-| `addInterview`, `listInterviews` | Interview scheduling/summaries. |
-| `addInvestigationNote`, `listInvestigationNotes` | Internal notes — never reporter-visible, a distinct collection from `Communication` on purpose. |
-| `addCommunication`, `listCommunications` | Reporter⇄investigator messaging. |
-| `addCorrectiveAction`, `listCorrectiveActions` | Corrective action tracking — feeds the closure-gating check in `checkTransition`. |
-| `recordRiskAssessment`, `getActiveRiskAssessment` | Risk scoring, preserving original vs. override (see `RiskAssessment.isOverride` in `caseTypes.ts`). Is what should ultimately set `Case.priority`/`riskScore` after `createCase` — not yet wired. |
-| `declareConflictOfInterest` | Conflict-of-interest declarations. |
+| `listAllegations`, `listPersons`, `listTasks`, `listInterviews`, `listInvestigationNotes`, `listCommunications`, `listCorrectiveActions`, `getActiveRiskAssessment`, `listAuditEvents` | Read-side of the mutations above — none are callables yet (see the `getCase`/`listCases` row below on reads generally). |
+| `addEvidence`, `listEvidence` | Evidence metadata + (once built) a signed, short-lived Storage upload/download URL — deliberately never a public URL (see `Evidence.storagePath`'s comment in `caseTypes.ts`). The one remaining mutation that's a genuinely larger unit than the others (needs Storage Security Rules too), not just an oversight. |
 | `getReporterIdentity` | Must log a `REPORTER_IDENTITY_ACCESSED` audit entry on every call — see `docs/DATABASE.md`. |
-| `listAuditEvents` | Audit trail retrieval (`audit.read` permission). |
+| A reporter-side `addCommunication` | The staff-side `addCommunication` above is implemented; reporters (no Firebase Auth token) still need an equivalent reached through `getCaseForReporter`'s `caseNumber`+`accessCode` credential model, not `requireAppUser()`. |
 | `getCase`, `listCases` | Reads. `getCase` already has a real, deployed, direct-Firestore equivalent (`getDoc`, see `docs/PERMISSIONS.md`) — a callable version would mainly matter for reporters or for hiding fields server-side. `listCases` is the one genuinely blocked by Firestore's list-query wall (`docs/FIREBASE-SETUP.md` Phase 4 finding) — this is the callable every future Control Panel screen needs before it can be built for real. |
 
 ## Where this fits in `docs/ARCHITECTURE.md`'s principle
