@@ -34,6 +34,7 @@ import {
 import { TRANSLATIONS } from '../i18n/translations';
 import { ACTIVA_ENTITIES } from '../data/activaConfig';
 import { storage } from '../services/storage';
+import { PriorityBadge } from './ui';
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -369,18 +370,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     );
   };
 
+  // === AMÉLIORATION AJOUTÉE (Phase 0) === delegates to the shared PriorityBadge
+  // primitive (src/components/ui) instead of a locally-duplicated switch —
+  // same colors/text as before, verified to render identically.
   const getPriorityBadge = (alert: AlertRecord) => {
     const p = alert.overridePriority || alert.riskEvaluation.priority;
-    switch (p) {
-      case 'critique':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">CRITIQUE (48h)</span>;
-      case 'tres_elevee':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200">TRÈS ÉLEVÉE (7j)</span>;
-      case 'elevee':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">ÉLEVÉE (15j)</span>;
-      default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">FAIBLE (30j)</span>;
-    }
+    const labels: Record<typeof p, string> = {
+      critique: 'CRITIQUE (48h)',
+      tres_elevee: 'TRÈS ÉLEVÉE (7j)',
+      elevee: 'ÉLEVÉE (15j)',
+      faible: 'FAIBLE (30j)',
+    };
+    return <PriorityBadge priority={p} label={labels[p]} />;
   };
 
   return (
