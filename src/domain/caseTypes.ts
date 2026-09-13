@@ -346,6 +346,19 @@ export interface ConflictOfInterestDeclaration {
 // Users, roles, permissions (see src/domain/permissions.ts for the enforcement logic)
 // ---------------------------------------------------------------------------
 
+// === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu à 10 rôles) ===
+// Extension purement additive du modèle existant (8 rôles, déjà mature et
+// testé — voir permissions.test.ts) pour couvrir les 2 concepts distincts
+// que le brief nomme et qu'aucun rôle existant ne couvre : un rôle dédié à
+// la sécurité (auth/MFA/politiques d'accès, jamais l'accès aux dossiers —
+// même logique de moindre privilège que system_admin) et un comité d'audit
+// en lecture seule, distinct d'`executive`. Les 8 rôles existants ne sont
+// ni renommés ni supprimés ; le reste de la liste "10 rôles" du brief
+// (Case Officer/Investigator, Compliance Officer/Manager/Director) se
+// recouvre déjà avec investigator/senior_investigator/darc_compliance/
+// functional_admin/executive — fragmenter davantage aurait ajouté des rôles
+// quasi-doublons sans capacité réellement nouvelle, ce que le principe
+// REUSE > ADAPT > CREATE > REPLACE du brief lui-même déconseille.
 export type RoleId =
   | 'reporter'
   | 'investigator'
@@ -354,7 +367,9 @@ export type RoleId =
   | 'darc_compliance'
   | 'consultation'
   | 'system_admin'
-  | 'executive';
+  | 'executive'
+  | 'security_admin'
+  | 'audit_committee';
 
 export interface AppUser {
   userId: string;

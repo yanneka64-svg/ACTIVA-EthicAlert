@@ -362,7 +362,11 @@ service cloud.firestore {
   // a different role vocabulary from this local demo's UserRole — the
   // screen says so explicitly so it's never mistaken for the currently
   // enforced local access rules.
-  const ALL_ROLE_IDS: RoleId[] = ['reporter', 'investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation', 'system_admin', 'executive'];
+  // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu à 10 rôles) === les 2
+  // nouveaux rôles (security_admin, audit_committee) suivent exactement le
+  // même principe d'affichage pur que les 8 précédents — voir
+  // src/domain/permissions.ts pour leur table de permissions réelle.
+  const ALL_ROLE_IDS: RoleId[] = ['reporter', 'investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation', 'system_admin', 'security_admin', 'audit_committee', 'executive'];
   const ROLE_ID_LABELS: Record<RoleId, string> = {
     reporter: 'Lanceur d’alerte',
     investigator: 'Investigateur',
@@ -371,6 +375,8 @@ service cloud.firestore {
     darc_compliance: 'Conformité DARC',
     consultation: 'Consultation',
     system_admin: 'Administrateur système',
+    security_admin: 'Administrateur sécurité',
+    audit_committee: 'Comité d’audit',
     executive: 'Direction / Exécutif',
   };
   const PERMISSION_GROUPS: { group: string; permissions: { key: Permission; label: string }[] }[] = [
@@ -415,6 +421,8 @@ service cloud.firestore {
         { key: 'configuration.manage', label: 'Gérer la configuration' },
         { key: 'users.manage', label: 'Gérer les comptes utilisateurs' },
         { key: 'audit.read', label: 'Consulter la piste d’audit' },
+        // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu) ===
+        { key: 'security.manage', label: 'Gérer la sécurité (authentification, MFA, sessions)' },
       ],
     },
   ];

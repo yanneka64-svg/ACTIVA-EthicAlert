@@ -33,7 +33,12 @@ export type Permission =
   | 'reports.export'
   | 'configuration.manage'
   | 'users.manage'
-  | 'audit.read';
+  | 'audit.read'
+  // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu, rôle Security Admin) ===
+  // Distinct de `configuration.manage` (système/utilisateurs) et de tout
+  // accès aux dossiers : politiques de sécurité, authentification, MFA,
+  // sessions — brief section 19 "SECURITY ADMIN".
+  | 'security.manage';
 
 /**
  * Role → permission set. Deliberately explicit and flat (no inheritance
@@ -91,6 +96,19 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
   // "System Administrator ≠ Case Access" (section 30 of the brief) — least privilege.
   system_admin: ['configuration.manage', 'users.manage', 'audit.read'],
   executive: ['reports.read'], // aggregated/anonymized dashboards only, never raw case content
+  // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu à 10 rôles) ===
+  // Security Admin: même principe de moindre privilège que system_admin —
+  // aucun accès aux dossiers/preuves/communications, uniquement la gestion
+  // des politiques de sécurité (brief section 19).
+  security_admin: ['security.manage', 'audit.read'],
+  // Audit Committee: lecture seule agrégée — jamais de cases.read direct
+  // (accès uniquement via les rapports/l'Exécutif, comme `executive`),
+  // mais avec en plus `audit.read` que `executive` n'a pas (brief section
+  // 20 : "Executive Dashboard, Aggregated Reports... Audit information").
+  // Interdiction explicite de modifier dossiers/preuves/permissions/
+  // utilisateurs/workflows : obtenue simplement en n'accordant aucune de
+  // ces permissions, jamais par une exception codée en dur.
+  audit_committee: ['reports.read', 'audit.read'],
 };
 
 export function roleHasPermission(roleId: RoleId, permission: Permission): boolean {
@@ -112,6 +130,9 @@ const ROLE_MAX_CONFIDENTIALITY: Record<RoleId, ConfidentialityLevel | null> = {
   consultation: 'confidential',
   system_admin: null,
   executive: 'restricted',
+  // === AMÉLIORATION AJOUTÉE (Phase 12) ===
+  security_admin: null, // aucun accès aux dossiers, quel que soit leur niveau
+  audit_committee: 'restricted', // même plafond qu'executive — vision agrégée, pas le contenu brut des dossiers
 };
 
 const CONFIDENTIALITY_RANK: Record<ConfidentialityLevel, number> = {

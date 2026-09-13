@@ -64,6 +64,24 @@ describe('roleHasPermission', () => {
     expect(roleHasPermission('system_admin', 'communications.read')).toBe(false);
     expect(roleHasPermission('system_admin', 'configuration.manage')).toBe(true);
   });
+
+  // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu à 10 rôles) ===
+  it('never grants a case-scoped permission to security_admin either — same least-privilege principle', () => {
+    expect(roleHasPermission('security_admin', 'cases.read')).toBe(false);
+    expect(roleHasPermission('security_admin', 'evidence.read')).toBe(false);
+    expect(roleHasPermission('security_admin', 'security.manage')).toBe(true);
+    expect(roleHasPermission('security_admin', 'configuration.manage')).toBe(false);
+  });
+
+  it('grants audit_committee read-only reporting + audit access, and nothing that modifies data', () => {
+    expect(roleHasPermission('audit_committee', 'reports.read')).toBe(true);
+    expect(roleHasPermission('audit_committee', 'audit.read')).toBe(true);
+    expect(roleHasPermission('audit_committee', 'cases.read')).toBe(false);
+    expect(roleHasPermission('audit_committee', 'cases.edit')).toBe(false);
+    expect(roleHasPermission('audit_committee', 'evidence.delete')).toBe(false);
+    expect(roleHasPermission('audit_committee', 'users.manage')).toBe(false);
+    expect(roleHasPermission('audit_committee', 'configuration.manage')).toBe(false);
+  });
 });
 
 describe('can — basic gates', () => {
@@ -155,6 +173,17 @@ describe('can — assigned vs. global visibility', () => {
   it('denies system_admin even when technically "assigned" — it has no cases.read permission at all', () => {
     const ctx = caseContext({ assignee: 'u-1' });
     expect(can(user({ userId: 'u-1', roleId: 'system_admin' }), 'cases.read', ctx)).toBe(false);
+  });
+
+  // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu à 10 rôles) ===
+  it('denies audit_committee direct case read even when assigned — reports/audit only, never raw case content', () => {
+    const ctx = caseContext({ assignee: 'u-1' });
+    expect(can(user({ userId: 'u-1', roleId: 'audit_committee' }), 'cases.read', ctx)).toBe(false);
+  });
+
+  it('denies security_admin direct case read under any circumstance', () => {
+    const ctx = caseContext({ assignee: 'u-1', additionalInvestigators: [] });
+    expect(can(user({ userId: 'u-1', roleId: 'security_admin', countries: [], entities: [] }), 'cases.read', ctx)).toBe(false);
   });
 });
 

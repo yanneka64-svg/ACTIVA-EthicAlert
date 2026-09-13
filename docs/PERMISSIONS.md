@@ -29,6 +29,33 @@ ready-to-use logic, not yet wired into a live screen for the new model
 (the deployed `firestore.rules`, below, is the one place this logic is
 already live and enforced today).
 
+## === AMÉLIORATION AJOUTÉE (Phase 12) === 10-role mapping
+
+A later brief asked for (at least) 10 named roles: WHISTLEBLOWER,
+CASE_OFFICER, INVESTIGATOR, COMPLIANCE_OFFICER, COMPLIANCE_MANAGER,
+COMPLIANCE_DIRECTOR, AUDIT_COMMITTEE, SYSTEM_ADMIN, SECURITY_ADMIN,
+COMPLIANCE_ADMIN. Per `REUSE > ADAPT > CREATE > REPLACE`, the 8 already
+mature, tested roles below are kept exactly as they are (no renames) and
+mapped onto that list rather than duplicated under new names, since
+fragmenting further would only add near-duplicate roles with no distinct
+capability:
+
+| Brief's name | This model's `RoleId` |
+|---|---|
+| WHISTLEBLOWER | `reporter` |
+| CASE_OFFICER / INVESTIGATOR | `investigator` / `senior_investigator` |
+| COMPLIANCE_OFFICER | `darc_compliance` |
+| COMPLIANCE_MANAGER | `functional_admin` |
+| COMPLIANCE_DIRECTOR | `executive` |
+| SYSTEM_ADMIN | `system_admin` |
+| COMPLIANCE_ADMIN | *(covered by `system_admin`'s `configuration.manage` in this app's simpler admin model)* |
+| AUDIT_COMMITTEE | `audit_committee` **(new)** |
+| SECURITY_ADMIN | `security_admin` **(new)** |
+
+Only `security_admin` and `audit_committee` are genuinely new — the only
+two capabilities (security-policy management; read-only oversight distinct
+from `executive`) nothing in the original 8-role model already covered.
+
 ## Permissions (`Permission` union)
 
 | Permission | Meaning |
@@ -60,6 +87,8 @@ already live and enforced today).
 | `consultation` | read-only across the board: `cases.read`, `evidence.read`, `communications.read`, `reports.read` |
 | `system_admin` | `configuration.manage`, `users.manage`, `audit.read` **only** — deliberately excludes every `cases.*`/`evidence.*`/`communications.*` permission |
 | `executive` | `reports.read` only — aggregated/anonymized dashboards, never raw case content |
+| `security_admin` | `security.manage`, `audit.read` **only** — same least-privilege exclusion of every `cases.*`/`evidence.*`/`communications.*` permission as `system_admin`; manages authentication/MFA/access-policy settings, never case content |
+| `audit_committee` | `reports.read`, `audit.read` **only** — read-only oversight distinct from `executive` (adds `audit.read`), never a `cases.*`/`evidence.*`/`users.*`/`configuration.*` permission, so it can never modify a case, evidence, permission, user, or workflow |
 
 **"System Administrator ≠ Case Access"** (section 30 of the brief, quoted
 directly in `permissions.ts`) is enforced by omission: `system_admin` simply
@@ -84,6 +113,8 @@ by `CONFIDENTIALITY_RANK`):
 | `consultation` | `confidential` (deliberately capped **below** `highly_confidential` even though it has `cases.read` — see the comment in `permissions.ts`) |
 | `system_admin` | *(n/a — no case access at all)* |
 | `executive` | `restricted` only |
+| `security_admin` | *(n/a — no case access at all)* |
+| `audit_committee` | `restricted` only — same ceiling as `executive`, aggregated visibility only |
 
 ## Scope (`isInScope`)
 
