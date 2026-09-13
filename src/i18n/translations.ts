@@ -51,11 +51,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     
     // Whistleblower home
     hero_title: 'EthicsAlert.Com',
-    hero_desc: 'Le canal officiel du Groupe Activa pour signaler, en toute confiance, tout manquement à l’éthique ou à la conformité.',
+    // === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
+    // Titre du hero remplacé par un message d'action en deux lignes, sur
+    // demande explicite ("le modèle que je t'ai donné"). `hero_title` reste
+    // inchangé (utilisé ailleurs comme nom de produit, ex. en-tête du
+    // portail collaborateur) — seul le hero utilise désormais ces 2 clés.
+    hero_headline_line1: 'Signalez en toute',
+    hero_headline_line2: 'confiance',
+    hero_desc: 'Un comportement contraire à nos valeurs, à l’éthique ou à la réglementation ? Parlez-en. Nous vous écoutons.',
     hero_paragraph: 'L’intégrité est au cœur de notre culture d’entreprise. EthicsAlert vous permet de signaler, en toute confidentialité et sans crainte, tout comportement contraire à nos valeurs, à notre code d’éthique ou à la réglementation en vigueur. Chaque signalement est pris au sérieux et traité avec rigueur.',
     hero_tags: '100% CONFIDENTIEL · SÉCURISÉ · CONFORME',
     hero_how_it_works_link: 'Comment ça marche ?',
-    hero_quote: 'Ensemble, construisons une entreprise responsable, transparente et durable.',
+    hero_quote: 'Ensemble, pour un Groupe plus éthique et plus solide.',
     // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
     hero_eyebrow: 'Canal éthique du Groupe ACTIVA',
     hero_anonymous_note: 'Vous pouvez effectuer un signalement de manière anonyme.',
@@ -66,6 +73,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_value2_desc: 'Une culture d’ouverture',
     hero_value3_title: 'Confiance',
     hero_value3_desc: 'Un Groupe plus durable',
+    // === AMÉLIORATION AJOUTÉE (Phase 23 — bandeau utilitaire + bouton Connexion) ===
+    topbar_about: 'À propos du Groupe ACTIVA',
+    nav_connexion: 'Connexion',
     process_subtitle: 'Quatre étapes pour faire entendre votre voix en toute confiance.',
     categories_eyebrow: 'Des sujets qui comptent',
     categories_heading: 'Quels types de préoccupations pouvez-vous signaler ?',
@@ -90,7 +100,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_q6: 'Que faire si j’ai perdu mon mot de passe de suivi ?',
     faq_a6: 'Le mot de passe n’est affiché qu’une seule fois, à la soumission du signalement, et n’est jamais stocké en clair ni récupérable — conservez-le précieusement. Si vous l’avez perdu, contactez la DARC via les canaux officiels du Groupe.',
     btn_new_alert: 'Signaler une préoccupation',
-    btn_track_existing: 'Suivre un signalement',
+    btn_track_existing: 'Suivre mon signalement',
     btn_view_policy: 'Consulter la Charte Éthique',
     
     // Alert form steps
@@ -522,15 +532,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     tab_audit_journal: 'Journal d’audit',
     tab_overview_exact: 'Vue d’ensemble',
     hero_feature_confidentiality_title: 'Confidentialité',
-    hero_feature_confidentiality_desc: 'Votre identité reste strictement confidentielle',
+    hero_feature_confidentiality_desc: 'Vos informations sont protégées et accessibles uniquement aux personnes habilitées.',
     hero_feature_anonymity_title: 'Anonymat',
-    hero_feature_anonymity_desc: 'Signalez de manière anonyme si vous le souhaitez',
+    hero_feature_anonymity_desc: 'Vous pouvez signaler de manière anonyme si vous le souhaitez.',
     hero_feature_no_retaliation_title: 'Pas de représailles',
-    hero_feature_no_retaliation_desc: 'Toute forme de représailles est interdite et sanctionnée',
+    hero_feature_no_retaliation_desc: 'Toute forme de représailles est interdite et sanctionnée par le Groupe ACTIVA.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 13 — refonte de l'accueil, maquette photo) ===
     nav_secure_space: 'Espace sécurisé',
-    nav_public_contact: 'Nous contacter',
+    nav_public_contact: 'Contact',
     process_label: 'Un processus simple et sécurisé',
     process_heading: 'Comment ça marche ?',
     process_view_faq: 'Voir la FAQ',
@@ -593,11 +603,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_subcollections_note: 'Allegations, persons, evidence, notes and communications are not shown here: reading them requires a Cloud Function (not deployed, project on Spark plan). See docs/FIREBASE-SETUP.md.',
 
     hero_title: 'EthicsAlert.Com',
-    hero_desc: 'The official Groupe Activa channel to report, in full confidence, any breach of ethics or compliance.',
+    // === AMÉLIORATION AJOUTÉE (Phase 23 — matching the supplied model) ===
+    hero_headline_line1: 'Report with complete',
+    hero_headline_line2: 'confidence',
+    hero_desc: 'Something contrary to our values, ethics, or regulations? Speak up. We’re listening.',
     hero_paragraph: 'Integrity is at the heart of our corporate culture. EthicsAlert lets you report, in full confidentiality and without fear, any behavior contrary to our values, our code of ethics, or applicable regulations. Every report is taken seriously and handled rigorously.',
     hero_tags: '100% CONFIDENTIAL · SECURE · COMPLIANT',
     hero_how_it_works_link: 'How does it work?',
-    hero_quote: 'Together, let’s build a responsible, transparent and sustainable company.',
+    hero_quote: 'Together, for a more ethical and resilient Group.',
     // === AMÉLIORATION AJOUTÉE (Phase 17 — homepage reorganization) ===
     hero_eyebrow: 'ACTIVA Group ethics channel',
     hero_anonymous_note: 'You can file a report anonymously.',
@@ -608,6 +621,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_value2_desc: 'A culture of openness',
     hero_value3_title: 'Trust',
     hero_value3_desc: 'A more sustainable Group',
+    // === AMÉLIORATION AJOUTÉE (Phase 23 — utility bar + Login button) ===
+    topbar_about: 'About the ACTIVA Group',
+    nav_connexion: 'Log in',
     process_subtitle: 'Four steps to make your voice heard with complete confidence.',
     categories_eyebrow: 'Topics that matter',
     categories_heading: 'What kinds of concerns can you report?',
@@ -1043,11 +1059,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     tab_audit_journal: 'Audit Journal',
     tab_overview_exact: 'Overview',
     hero_feature_confidentiality_title: 'Confidentiality',
-    hero_feature_confidentiality_desc: 'Your identity remains strictly confidential',
+    hero_feature_confidentiality_desc: 'Your information is protected and only accessible to authorized personnel.',
     hero_feature_anonymity_title: 'Anonymity',
-    hero_feature_anonymity_desc: 'Report anonymously if you wish',
+    hero_feature_anonymity_desc: 'You can report anonymously if you wish.',
     hero_feature_no_retaliation_title: 'No retaliation',
-    hero_feature_no_retaliation_desc: 'Any form of retaliation is prohibited and sanctioned',
+    hero_feature_no_retaliation_desc: 'Any form of retaliation is prohibited and sanctioned by the ACTIVA Group.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 13 — home page redesign, photo mockup) ===
     nav_secure_space: 'Secure area',
@@ -1114,11 +1130,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_subcollections_note: 'Alegações, pessoas, provas, notas e comunicações não são exibidas aqui: sua leitura requer uma Cloud Function (não implantada, projeto no plano Spark). Ver docs/FIREBASE-SETUP.md.',
 
     hero_title: 'EthicsAlert.Com',
-    hero_desc: 'O canal oficial do Grupo Activa para reportar, com toda a confiança, qualquer falta de ética ou de conformidade.',
+    // === AMÉLIORATION AJOUTÉE (Phase 23 — fidelidade ao modelo fornecido) ===
+    hero_headline_line1: 'Denuncie com toda a',
+    hero_headline_line2: 'confiança',
+    hero_desc: 'Um comportamento contrário aos nossos valores, à ética ou à regulamentação? Fale sobre isso. Estamos a ouvir.',
     hero_paragraph: 'A integridade está no centro da nossa cultura empresarial. O EthicsAlert permite-lhe reportar, em total confidencialidade e sem receio, qualquer comportamento contrário aos nossos valores, ao nosso código de ética ou à regulamentação em vigor. Cada denúncia é levada a sério e tratada com rigor.',
     hero_tags: '100% CONFIDENCIAL · SEGURO · CONFORME',
     hero_how_it_works_link: 'Como funciona?',
-    hero_quote: 'Juntos, vamos construir uma empresa responsável, transparente e sustentável.',
+    hero_quote: 'Juntos, por um Grupo mais ético e mais sólido.',
     // === AMÉLIORATION AJOUTÉE (Phase 17 — reorganização da página inicial) ===
     hero_eyebrow: 'Canal de ética do Grupo ACTIVA',
     hero_anonymous_note: 'Pode efetuar uma denúncia de forma anónima.',
@@ -1129,6 +1148,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_value2_desc: 'Uma cultura de abertura',
     hero_value3_title: 'Confiança',
     hero_value3_desc: 'Um Grupo mais sustentável',
+    // === AMÉLIORATION AJOUTÉE (Phase 23 — barra utilitária + botão Entrar) ===
+    topbar_about: 'Sobre o Grupo ACTIVA',
+    nav_connexion: 'Entrar',
     process_subtitle: 'Quatro etapas para fazer ouvir a sua voz com toda a confiança.',
     categories_eyebrow: 'Temas que importam',
     categories_heading: 'Que tipos de preocupações pode denunciar?',
@@ -1564,11 +1586,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     tab_audit_journal: 'Diário de Auditoria',
     tab_overview_exact: 'Visão geral',
     hero_feature_confidentiality_title: 'Confidencialidade',
-    hero_feature_confidentiality_desc: 'A sua identidade permanece estritamente confidencial',
+    hero_feature_confidentiality_desc: 'As suas informações estão protegidas e acessíveis apenas a pessoas autorizadas.',
     hero_feature_anonymity_title: 'Anonimato',
-    hero_feature_anonymity_desc: 'Denuncie de forma anónima se preferir',
+    hero_feature_anonymity_desc: 'Pode denunciar de forma anónima se preferir.',
     hero_feature_no_retaliation_title: 'Sem represálias',
-    hero_feature_no_retaliation_desc: 'Qualquer forma de represália é proibida e sancionada',
+    hero_feature_no_retaliation_desc: 'Qualquer forma de represália é proibida e sancionada pelo Grupo ACTIVA.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 13 — redesenho da página inicial) ===
     nav_secure_space: 'Área segura',

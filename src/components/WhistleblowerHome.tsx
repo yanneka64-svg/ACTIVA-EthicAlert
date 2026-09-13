@@ -76,8 +76,12 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             {t.hero_eyebrow}
           </span>
 
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#0B2545] leading-tight">
-            {t.hero_title}
+          {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
+              Titre en deux lignes bicolores, comme sur la maquette de
+              référence, à la place du nom de produit utilisé jusqu'ici. */}
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+            <span className="block text-[#0B2545]">{t.hero_headline_line1}</span>
+            <span className="block text-blue-600">{t.hero_headline_line2}</span>
           </h1>
 
           <p className="text-base sm:text-lg font-semibold text-slate-800 leading-snug max-w-md">
@@ -88,7 +92,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             <button
               id="hero-btn-new-alert"
               onClick={onStartNewAlert}
-              className="flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition"
+              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition whitespace-nowrap"
             >
               <Send className="w-4 h-4" />
               <span>{t.btn_new_alert}</span>
@@ -98,7 +102,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             <button
               id="hero-btn-track"
               onClick={onGoToTrack}
-              className="flex items-center justify-center gap-2 px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm border border-slate-300 transition"
+              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm border border-slate-300 transition whitespace-nowrap"
             >
               <Search className="w-4 h-4" />
               <span>{t.btn_track_existing}</span>
@@ -116,9 +120,9 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             la photo. Contrairement à la bulle de citation, celle-ci garde
             un fond opaque (le contenu change toutes les 5 secondes, il a
             besoin de rester net dans tous les cas). */}
-        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-white/95 backdrop-blur shadow-lg border border-slate-100 p-4">
+        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4">
           <div key={valueIndex} className="flex items-center gap-3 activa-fade-in">
-            <span className="w-10 h-10 bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <span className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
               <CurrentValueIcon className="w-5 h-5" />
             </span>
             <div>
@@ -130,7 +134,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             {heroValues.map((_, i) => (
               <span
                 key={i}
-                className={`h-1.5 transition-all ${i === valueIndex ? 'w-4 bg-blue-600' : 'w-1.5 bg-slate-200'}`}
+                className={`h-1.5 rounded-full transition-all ${i === valueIndex ? 'w-4 bg-blue-600' : 'w-1.5 bg-slate-200'}`}
               />
             ))}
           </div>
@@ -147,33 +151,36 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
       </div>
 
       <div className="space-y-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {/* Feature strip — coins nets (plus de rounded-2xl/overflow-hidden) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border border-slate-200 bg-white">
-        <div className="p-5 flex items-center gap-3">
-          <span className="w-11 h-11 bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5" />
+      {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
+          Icônes rondes, texte centré sous chaque icône, simples séparateurs
+          verticaux entre colonnes plutôt qu'une carte à bordure — comme sur
+          la maquette de référence. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+        <div className="p-5 flex flex-col items-center text-center gap-2">
+          <span className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-6 h-6" />
           </span>
           <div>
             <div className="font-bold text-slate-900 text-sm">{t.hero_feature_confidentiality_title}</div>
-            <div className="text-xs text-slate-500">{t.hero_feature_confidentiality_desc}</div>
+            <div className="text-xs text-slate-500 max-w-[220px]">{t.hero_feature_confidentiality_desc}</div>
           </div>
         </div>
-        <div className="p-5 flex items-center gap-3">
-          <span className="w-11 h-11 bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <UserX className="w-5 h-5" />
+        <div className="p-5 flex flex-col items-center text-center gap-2">
+          <span className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <UserX className="w-6 h-6" />
           </span>
           <div>
             <div className="font-bold text-slate-900 text-sm">{t.hero_feature_anonymity_title}</div>
-            <div className="text-xs text-slate-500">{t.hero_feature_anonymity_desc}</div>
+            <div className="text-xs text-slate-500 max-w-[220px]">{t.hero_feature_anonymity_desc}</div>
           </div>
         </div>
-        <div className="p-5 flex items-center gap-3">
-          <span className="w-11 h-11 bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-            <HeartHandshake className="w-5 h-5" />
+        <div className="p-5 flex flex-col items-center text-center gap-2">
+          <span className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <HeartHandshake className="w-6 h-6" />
           </span>
           <div>
             <div className="font-bold text-slate-900 text-sm">{t.hero_feature_no_retaliation_title}</div>
-            <div className="text-xs text-slate-500">{t.hero_feature_no_retaliation_desc}</div>
+            <div className="text-xs text-slate-500 max-w-[220px]">{t.hero_feature_no_retaliation_desc}</div>
           </div>
         </div>
       </div>

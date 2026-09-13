@@ -1,29 +1,5 @@
 @import "tailwindcss";
 
-/* === AMÉLIORATION AJOUTÉE (Phase 21 — bandeau d'information en boucle) ===
-   Bande fine défilant en continu au-dessus de l'en-tête public (voir
-   Navbar.tsx) — le contenu y est dupliqué une fois, l'animation translate
-   exactement de la moitié de la largeur pour un bouclage sans coupure. */
-@keyframes activa-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-.activa-marquee-track {
-  animation: activa-marquee 20s linear infinite;
-}
-/* === AMÉLIORATION AJOUTÉE === une cible qui défile en continu est
-   impossible à cliquer précisément — pause au survol/focus clavier pour que
-   chaque bouton reste réellement utilisable, pas seulement visible. */
-.activa-marquee-track:hover,
-.activa-marquee-track:focus-within {
-  animation-play-state: paused;
-}
-@media (prefers-reduced-motion: reduce) {
-  .activa-marquee-track {
-    animation: none;
-  }
-}
-
 /* === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui tourne) ===
    Petite transition d'entrée à chaque changement (toutes les 5 secondes,
    voir WhistleblowerHome.tsx) — un remplacement instantané sans transition

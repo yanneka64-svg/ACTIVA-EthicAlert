@@ -13,6 +13,7 @@ import {
   FileCheck2,
   Lock,
   Send,
+  User,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -175,52 +176,24 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-40">
-      {/* === AMÉLIORATION AJOUTÉE (Phase 21 — bandeau d'information en
-          boucle) === Fine bande au-dessus de l'en-tête public, sur demande
-          explicite : les raccourcis "Comment ça marche" (retiré de la
-          navigation Phase 20), "FAQ" et "Nous contacter" défilent en boucle
-          continue au lieu d'occuper une place fixe. Contenu dupliqué une
-          fois pour un bouclage sans coupure ; l'animation s'arrête pour les
-          utilisateurs ayant demandé moins de mouvement (prefers-reduced-motion,
-          voir index.css). Chaque item reste un vrai bouton fonctionnel,
-          jamais un texte décoratif. */}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
+          Remplace le bandeau défilant (Phase 21, construit sur une
+          incompréhension — la vraie demande de défilement visait la carte
+          de valeurs du hero, voir Phase 22) par la bande utilitaire statique
+          de la maquette de référence : "À propos", "Mentions légales",
+          "Politique de confidentialité", alignés à droite. Les deux derniers
+          réutilisent exactement les mêmes clés que le pied de page (même
+          contenu, cohérent), volontairement non cliquables comme leurs
+          équivalents du pied de page (pas de page dédiée dans cette démo —
+          jamais un lien qui prétend mener quelque part). */}
       {!isStaffContext && (
-        <div className="overflow-hidden bg-sky-50 border-b border-sky-100">
-          <div className="flex w-max activa-marquee-track">
-            {[0, 1].map((rep) => (
-              <div
-                key={rep}
-                aria-hidden={rep === 1}
-                className="flex items-center gap-8 pr-8 py-1.5 shrink-0 text-[11px] font-semibold text-blue-900"
-              >
-                <button
-                  tabIndex={rep === 1 ? -1 : 0}
-                  onClick={() => {
-                    setCurrentTab('home');
-                    setTimeout(() => document.getElementById('how-it-works-section')?.scrollIntoView({ behavior: 'smooth' }), 50);
-                  }}
-                  className="hover:text-blue-700 transition whitespace-nowrap"
-                >
-                  {t.nav_public_how}
-                </button>
-                <span className="text-blue-300">•</span>
-                <button
-                  tabIndex={rep === 1 ? -1 : 0}
-                  onClick={() => setCurrentTab('faq')}
-                  className="hover:text-blue-700 transition whitespace-nowrap"
-                >
-                  {t.nav_public_faq}
-                </button>
-                <span className="text-blue-300">•</span>
-                <button
-                  tabIndex={rep === 1 ? -1 : 0}
-                  onClick={() => document.querySelector('footer')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="hover:text-blue-700 transition whitespace-nowrap"
-                >
-                  {t.nav_public_contact}
-                </button>
-              </div>
-            ))}
+        <div className="bg-sky-50 border-b border-sky-100">
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex justify-end items-center gap-4 text-[11px] font-medium text-blue-900">
+            <span>{t.topbar_about}</span>
+            <span className="text-blue-200">|</span>
+            <span>{t.footer_legal_notice}</span>
+            <span className="text-blue-200">|</span>
+            <span>{t.footer_privacy_policy}</span>
           </div>
         </div>
       )}
@@ -448,7 +421,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="btn-language-selector"
                 onClick={() => setShowLangDropdown(!showLangDropdown)}
-                className={`flex items-center gap-1 transition text-xs ${
+                className={`flex items-center gap-1 rounded-lg transition text-xs ${
                   isStaffContext
                     ? 'px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600'
                     : 'px-2 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50'
@@ -461,7 +434,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {showLangDropdown && (
                 <div
-                  className="absolute right-0 mt-1 w-32 bg-white text-slate-900 shadow-xl border border-slate-200 py-1 z-50 text-xs"
+                  className="absolute right-0 mt-1 w-32 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-xs"
                   onClick={() => setShowLangDropdown(false)}
                 >
                   <button
@@ -490,51 +463,74 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {!isStaffContext && (
-              /* === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de
-                  l'accueil) === Les deux actions principales de la maquette
-                  adoptée, dans l'en-tête plutôt qu'uniquement dans le hero
-                  (elles y restent aussi, inchangées) — utile une fois la
-                  page défilée au-delà du hero. Coins nets, sans exception. */
+              /* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
+                  fourni) === "Suivre mon signalement" reprend le style
+                  large façon barre de recherche de la maquette (icône +
+                  texte dans un encadré large, coins arrondis) plutôt qu'un
+                  simple bouton contour ; "Signaler une préoccupation" passe
+                  en coins arrondis, comme le reste du modèle. */
               <>
                 <button
                   id="nav-btn-track"
                   onClick={() => setCurrentTab('track')}
-                  className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold transition"
+                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold transition whitespace-nowrap"
                 >
-                  <Lock className="w-3.5 h-3.5" />
+                  <Search className="w-4 h-4 shrink-0" />
                   <span>{t.btn_track_existing}</span>
                 </button>
                 <button
                   id="nav-btn-new-alert"
                   onClick={() => setCurrentTab('new_alert')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>{t.btn_new_alert}</span>
                 </button>
+                <div className="hidden sm:block w-px h-6 bg-slate-200" />
               </>
             )}
 
             {/* Account / role-switcher menu (role-switching stays crucial for demo & CDC 3.2.3 access testing) */}
             <div className="relative">
+              {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
+                  fourni) === Sur les pages publiques, le déclencheur reprend
+                  l'apparence "Connexion" (icône + libellé) de la maquette au
+                  lieu de l'avatar/nom — mais ouvre exactement le même menu
+                  de changement de profil en dessous : rien n'est perdu, la
+                  fonction de test des rôles (CDC 3.2.3) reste entière. Dans
+                  l'espace collaborateur, l'avatar + nom + rôle reste affiché
+                  (contexte où savoir "qui est connecté" a du sens). */}
               <button
                 id="btn-role-switcher"
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center gap-2 pl-1 pr-2 py-1 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+                className={
+                  isStaffContext
+                    ? 'flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 border border-transparent hover:border-slate-200 transition'
+                    : 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100 transition'
+                }
               >
-                <span className="w-8 h-8 bg-amber-500 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
-                  {initials}
-                </span>
-                <span className="hidden sm:block text-left leading-tight">
-                  <span className="block text-xs font-bold text-slate-800 max-w-[140px] truncate">{activeUser.name}</span>
-                  <span className="block text-[10px] text-slate-500 max-w-[140px] truncate">{badge?.label}</span>
-                </span>
+                {isStaffContext ? (
+                  <>
+                    <span className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
+                      {initials}
+                    </span>
+                    <span className="hidden sm:block text-left leading-tight">
+                      <span className="block text-xs font-bold text-slate-800 max-w-[140px] truncate">{activeUser.name}</span>
+                      <span className="block text-[10px] text-slate-500 max-w-[140px] truncate">{badge?.label}</span>
+                    </span>
+                  </>
+                ) : (
+                  <span className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                    <User className="w-4 h-4" />
+                  </span>
+                )}
+                {!isStaffContext && <span className="hidden sm:block text-xs font-bold">{t.nav_connexion}</span>}
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
               </button>
 
               {showUserDropdown && (
                 <div
-                  className="absolute right-0 mt-1 w-72 bg-white text-slate-800 shadow-2xl border border-slate-200 py-1.5 z-50 text-xs"
+                  className="absolute right-0 mt-1 w-72 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 py-1.5 z-50 text-xs"
                   onClick={() => setShowUserDropdown(false)}
                 >
                   <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">
