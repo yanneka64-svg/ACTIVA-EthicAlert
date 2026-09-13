@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   ShieldCheck,
   UserX,
@@ -36,23 +36,17 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  // === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui tourne) ===
-  // Carte flottante sur la photo du hero, sur demande explicite : au lieu
-  // d'afficher les 3 valeurs en permanence, une seule est visible à la
-  // fois et la carte passe à la suivante toutes les 5 secondes, en boucle.
+  // === AMÉLIORATION AJOUTÉE (Phase 22, révisée Phase 25) ===
+  // La carte affichait une seule valeur à la fois, en boucle toutes les 5
+  // secondes. Sur nouvelle capture de référence montrant les 3 valeurs
+  // affichées ensemble en permanence, revient à un affichage statique des
+  // 3 lignes — la logique de rotation (état, minuteur) est retirée en
+  // conséquence, elle n'a plus d'usage.
   const heroValues = [
     { icon: Shield, title: t.hero_value1_title, desc: t.hero_value1_desc },
     { icon: Users, title: t.hero_value2_title, desc: t.hero_value2_desc },
     { icon: Leaf, title: t.hero_value3_title, desc: t.hero_value3_desc },
   ];
-  const [valueIndex, setValueIndex] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setValueIndex((i) => (i + 1) % heroValues.length), 5000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const currentValue = heroValues[valueIndex];
-  const CurrentValueIcon = currentValue.icon;
 
   return (
     <div className="space-y-12 pb-8">
@@ -115,72 +109,72 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </p>
         </div>
 
-        {/* === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui
-            tourne) === Positionnée en haut à droite du hero, au-dessus de
-            la photo. Contrairement à la bulle de citation, celle-ci garde
-            un fond opaque (le contenu change toutes les 5 secondes, il a
-            besoin de rester net dans tous les cas). */}
-        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4">
-          <div key={valueIndex} className="flex items-center gap-3 activa-fade-in">
-            <span className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <CurrentValueIcon className="w-5 h-5" />
-            </span>
-            <div>
-              <div className="font-bold text-slate-900 text-sm">{currentValue.title}</div>
-              <div className="text-xs text-slate-500">{currentValue.desc}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 mt-3">
-            {heroValues.map((_, i) => (
-              <span
-                key={i}
-                className={`h-1.5 rounded-full transition-all ${i === valueIndex ? 'w-4 bg-blue-600' : 'w-1.5 bg-slate-200'}`}
-              />
-            ))}
-          </div>
+        {/* === AMÉLIORATION AJOUTÉE (Phase 25 — fidélité à la capture
+            fournie) === Carte de valeurs statique : les 3 lignes
+            (Intégrité/Transparence/Confiance) affichées ensemble en
+            permanence, séparées par un fin trait, au lieu d'une rotation. */}
+        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4 space-y-3">
+          {heroValues.map((v, i) => {
+            const Icon = v.icon;
+            return (
+              <div key={i} className={`flex items-center gap-3 ${i > 0 ? 'pt-3 border-t border-slate-100' : ''}`}>
+                <span className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4" />
+                </span>
+                <div>
+                  <div className="font-bold text-slate-900 text-sm">{v.title}</div>
+                  <div className="text-xs text-slate-500">{v.desc}</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* === AMÉLIORATION AJOUTÉE (Phase 20) === bulle de citation sans
-            fond (sur demande explicite) : plus de bloc bleu marine derrière
-            le texte, juste une ombre portée sur le texte lui-même pour
-            rester lisible par-dessus la photo. */}
-        <div className="hidden sm:flex absolute right-8 bottom-8 z-10 items-start gap-2 max-w-xs text-white text-xs">
-          <Quote className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,.6))' }} />
-          <span className="leading-relaxed" style={{ textShadow: '0 1px 4px rgba(0,0,0,.65)' }}>{t.hero_quote}</span>
+        {/* === AMÉLIORATION AJOUTÉE (Phase 25) === bulle de citation avec
+            fond opaque bleu marine à nouveau (remplace le fond transparent
+            de la Phase 20, sur nouvelle capture de référence), avec le
+            petit trait décoratif sous le texte comme sur la capture. */}
+        <div className="hidden sm:flex flex-col absolute right-8 bottom-8 z-10 max-w-xs bg-[#0B2545]/95 text-white text-xs rounded-xl px-4 py-3 shadow-lg">
+          <div className="flex items-start gap-2">
+            <Quote className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+            <span className="leading-relaxed">{t.hero_quote}</span>
+          </div>
+          <div className="w-8 h-px bg-white/30 mt-2 ml-6" />
         </div>
       </div>
 
       <div className="space-y-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
-          Icônes rondes, texte centré sous chaque icône, simples séparateurs
-          verticaux entre colonnes plutôt qu'une carte à bordure — comme sur
-          la maquette de référence. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
-        <div className="p-5 flex flex-col items-center text-center gap-2">
-          <span className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-7 h-7" />
+      {/* === AMÉLIORATION AJOUTÉE (Phase 25 — fidélité à la capture
+          fournie) === Retour à une carte à bordure/ombre (Phase 17), icône
+          rond plein (fond bleu, glyphe blanc) à gauche du texte plutôt
+          qu'icône pâle centrée au-dessus (Phase 23) — taille d'icône
+          reprise précisément de la capture (rond de 36px, glyphe de 16px). */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border border-slate-200 rounded-2xl bg-white shadow-sm">
+        <div className="p-5 flex items-center gap-3">
+          <span className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-4 h-4" />
           </span>
           <div>
             <div className="font-bold text-slate-900 text-sm">{t.hero_feature_confidentiality_title}</div>
-            <div className="text-xs text-slate-500 max-w-[220px]">{t.hero_feature_confidentiality_desc}</div>
+            <div className="text-xs text-slate-500">{t.hero_feature_confidentiality_desc}</div>
           </div>
         </div>
-        <div className="p-5 flex flex-col items-center text-center gap-2">
-          <span className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <UserX className="w-7 h-7" />
+        <div className="p-5 flex items-center gap-3">
+          <span className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+            <UserX className="w-4 h-4" />
           </span>
           <div>
             <div className="font-bold text-slate-900 text-sm">{t.hero_feature_anonymity_title}</div>
-            <div className="text-xs text-slate-500 max-w-[220px]">{t.hero_feature_anonymity_desc}</div>
+            <div className="text-xs text-slate-500">{t.hero_feature_anonymity_desc}</div>
           </div>
         </div>
-        <div className="p-5 flex flex-col items-center text-center gap-2">
-          <span className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <HeartHandshake className="w-7 h-7" />
+        <div className="p-5 flex items-center gap-3">
+          <span className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+            <HeartHandshake className="w-4 h-4" />
           </span>
           <div>
             <div className="font-bold text-slate-900 text-sm">{t.hero_feature_no_retaliation_title}</div>
-            <div className="text-xs text-slate-500 max-w-[220px]">{t.hero_feature_no_retaliation_desc}</div>
+            <div className="text-xs text-slate-500">{t.hero_feature_no_retaliation_desc}</div>
           </div>
         </div>
       </div>

@@ -1,18 +1,1 @@
 @import "tailwindcss";
-
-/* === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui tourne) ===
-   Petite transition d'entrée à chaque changement (toutes les 5 secondes,
-   voir WhistleblowerHome.tsx) — un remplacement instantané sans transition
-   se remarque à peine, celle-ci rend le changement lisible. */
-@keyframes activa-fade-in {
-  from { opacity: 0; transform: translateY(-3px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.activa-fade-in {
-  animation: activa-fade-in .35s ease;
-}
-@media (prefers-reduced-motion: reduce) {
-  .activa-fade-in {
-    animation: none;
-  }
-}
