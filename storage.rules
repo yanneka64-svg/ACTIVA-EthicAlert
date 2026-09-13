@@ -68,28 +68,65 @@ service firebase.storage {
       function confidentialityRank(level) {
         return level == 'highly_confidential' ? 3 : (level == 'confidential' ? 2 : 1);
       }
+      // === AMÉLIORATION AJOUTÉE : repli corrigé après une revue de sécurité ===
+      // Previously fell back to rank 1 for any role outside the two lists —
+      // the same mistake firestore.rules' maxConfidentialityRank() had (see
+      // that file's own comment and docs/SECURITY.md). Corrected the same
+      // way here: no-case-access roles get rank 0, 'executive' its own
+      // explicit rank-1 branch.
       function maxConfidentialityRank() {
         return claimRole() in ['senior_investigator', 'functional_admin', 'darc_compliance']
           ? 3
-          : (claimRole() in ['investigator', 'consultation'] ? 2 : 1);
+          : (claimRole() in ['investigator', 'consultation']
+            ? 2
+            : (claimRole() == 'executive' ? 1 : 0));
       }
-      function canEditCase() {
-        let kase = caseData();
+      // === AMÉLIORATION AJOUTÉE : nom corrigé, sans vérification de rôle avant une revue de sécurité ===
+      // This used to be named canEditCase() and was used directly as the
+      // write-authorization check — but it only ever mirrored the READ
+      // path (signed-in ∧ not-implicated ∧ in-scope ∧ confidentiality ∧
+      // assigned-or-global), never checking that the caller's role
+      // actually holds 'evidence.upload' in permissions.ts. That let
+      // read-only roles (`consultation`, and `darc_compliance`, which has
+      // `evidence.read` but not `evidence.upload`) overwrite evidence
+      // files outright — a real, confirmed finding (docs/SECURITY.md).
+      // Kept as isCaseAccessible() (the read-mirroring part alone, still
+      // useful/correct on its own) and combined with an explicit role
+      // check below for the actual write gate.
+      function isCaseAccessible(kase) {
         return isSignedIn()
           && isNotImplicated(kase)
           && isInScope(kase)
           && confidentialityRank(kase.confidentialityLevel) <= maxConfidentialityRank()
           && (hasGlobalCaseVisibility() || isAssignedTo(kase));
       }
+      // Mirrors ROLE_PERMISSIONS's actual 'evidence.upload' holders in
+      // permissions.ts: investigator, senior_investigator, functional_admin
+      // only — NOT darc_compliance (evidence.read only) or consultation
+      // (read-only role entirely), even though both are in
+      // hasGlobalCaseVisibility() above.
+      function hasEvidenceUploadPermission() {
+        return claimRole() in ['investigator', 'senior_investigator', 'functional_admin'];
+      }
+      function canUploadEvidence() {
+        return hasEvidenceUploadPermission() && isCaseAccessible(caseData());
+      }
 
       // Never a direct read — see header comment. All evidence access goes
       // through getEvidenceDownloadUrl (audited, short-lived signed URL).
       allow read: if false;
 
-      // Upload only: same authorization firestore.rules would apply to
-      // editing this case, plus a hard 25MB cap (arbitrary but explicit —
-      // matches no existing config value, since none existed before this).
-      allow write: if canEditCase() && request.resource.size < 25 * 1024 * 1024;
+      // === AMÉLIORATION AJOUTÉE : écriture non destructive après une revue de sécurité ===
+      // `resource == null` is true only when no object exists yet at this
+      // path — so this allows a brand-new upload but denies overwriting an
+      // existing one (a caller with genuine evidence.upload rights could
+      // otherwise silently replace evidence an investigator has already
+      // downloaded/hashed) AND denies deletion (a delete request has no
+      // existing-object-is-null case to satisfy). Evidence removal is
+      // modelled as `Evidence.status = 'deleted'` in Firestore, not by
+      // actually deleting the Storage object — intentional, not an
+      // oversight. Same 25MB cap as before (arbitrary but explicit).
+      allow write: if canUploadEvidence() && resource == null && request.resource.size < 25 * 1024 * 1024;
     }
 
     // Everything else: closed. No public bucket browsing, no forgotten path.

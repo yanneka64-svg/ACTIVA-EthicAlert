@@ -63,6 +63,22 @@ service cloud.firestore {
     function hasGlobalCaseVisibility() {
       return claimRole() in ['functional_admin', 'darc_compliance', 'consultation'];
     }
+    // === AMÉLIORATION AJOUTÉE : vérification du rôle ajoutée après une revue de sécurité ===
+    // A security review (see docs/SECURITY.md) found that the `cases/{caseId}`
+    // read rule never actually checked `roleHasPermission(role, 'cases.read')`
+    // the way `can()` does first in permissions.ts — it fell straight to
+    // scope/confidentiality/assignment. Combined with `maxConfidentialityRank()`'s
+    // old fallback (see below), a `system_admin` account added to
+    // `additionalInvestigators` by any `assignCase` caller could read a
+    // `restricted` case directly via the client SDK, contradicting
+    // "System Administrator ≠ Case Access" (section 30). Mirrors
+    // ROLE_PERMISSIONS's actual `cases.read` holders exactly — note
+    // `executive` is deliberately excluded here too, consistent with
+    // `hasGlobalCaseVisibility()` above (it holds `reports.read`, not
+    // `cases.read`, in permissions.ts).
+    function hasCaseReadPermission() {
+      return claimRole() in ['investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation'];
+    }
     function isInScope(kase) {
       return (claimCountries().size() == 0 || kase.country in claimCountries())
         && (claimEntities().size() == 0 || kase.entity in claimEntities());
@@ -85,14 +101,25 @@ service cloud.firestore {
     function confidentialityRank(level) {
       return level == 'highly_confidential' ? 3 : (level == 'confidential' ? 2 : 1);
     }
-    // Mirrors ROLE_MAX_CONFIDENTIALITY. reporter/system_admin have no case
-    // permission at all (see permissions.ts), so their rank value here is
-    // moot in practice — kept at the lowest rank (1) rather than 0 so this
-    // function has no undefined/null case to handle in rules syntax.
+    // === AMÉLIORATION AJOUTÉE : correction du repli après une revue de sécurité ===
+    // Previously fell back to rank 1 (restricted) for EVERY role not in the
+    // two lists below, on the (wrong, per the security review — see
+    // docs/SECURITY.md) assumption that this was "moot in practice" because
+    // `reporter`/`system_admin` have no case permission. The rules never
+    // actually checked that assumption (see `hasCaseReadPermission()`
+    // above, added by the same review) — so the rank-1 fallback was
+    // load-bearing, not moot. Now mirrors ROLE_MAX_CONFIDENTIALITY exactly:
+    // `reporter`/`system_admin` map to `null` in permissions.ts (no case
+    // access at all) → rank 0 here (fails every isConfidentialityAllowed
+    // check, since confidentialityRank's minimum is 1); `executive` maps to
+    // `restricted` → rank 1, its own explicit branch rather than falling
+    // into the same bucket as the no-access roles.
     function maxConfidentialityRank() {
       return claimRole() in ['senior_investigator', 'functional_admin', 'darc_compliance']
         ? 3
-        : (claimRole() in ['investigator', 'consultation'] ? 2 : 1);
+        : (claimRole() in ['investigator', 'consultation']
+          ? 2
+          : (claimRole() == 'executive' ? 1 : 0));
     }
     function isConfidentialityAllowed(kase) {
       return confidentialityRank(kase.confidentialityLevel) <= maxConfidentialityRank();
@@ -120,6 +147,7 @@ service cloud.firestore {
     // in a rules file. See docs/FIREBASE-SETUP.md.
     match /cases/{caseId} {
       allow read: if isSignedIn()
+        && hasCaseReadPermission()
         && isNotImplicated(resource.data)
         && isInScope(resource.data)
         && isConfidentialityAllowed(resource.data)
@@ -146,6 +174,7 @@ service cloud.firestore {
       // Writes stay closed — Cloud Functions only, same as the parent case.
       match /{subcollection}/{docId} {
         allow read: if isSignedIn()
+          && hasCaseReadPermission()
           && isNotImplicated(get(/databases/$(database)/documents/cases/$(caseId)).data)
           && isInScope(get(/databases/$(database)/documents/cases/$(caseId)).data)
           && isConfidentialityAllowed(get(/databases/$(database)/documents/cases/$(caseId)).data)

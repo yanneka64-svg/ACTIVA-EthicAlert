@@ -7,6 +7,106 @@ access, ... role escalation, ... audit log manipulation"). Every claim here was
 verified with a real request, not reasoned about in the abstract — see the linked
 evidence in `docs/PHASES.md`/`docs/FIREBASE-SETUP.md` for the exact calls made.
 
+## Security review of the full branch diff — 3 confirmed findings, all fixed
+
+A structured review of every file changed on this branch (vs `origin/main`) was
+run in two passes: (1) an initial scan against 46 changed files identified 5
+candidate vulnerabilities; (2) each candidate was independently re-verified
+against the actual current code (not the summary) by a separate pass, scored
+for confidence, and only kept at confidence ≥ 8/10. Two candidates — `audit_logs`
+being world-readable, and the reporter access-code hash being a weak KDF —
+were rejected on re-verification: both are **pre-existing** (the open
+`audit_logs`/`alerts` rules predate this branch; `src/services/crypto.ts`'s
+hash predates this branch and this branch's Cloud Functions consume it
+without weakening it, and in the `alerts`-vs-`reporter_credentials` case
+the change is a strict improvement, not a regression). The other 3 were
+confirmed real and are fixed below.
+
+### Fix 1 (was High): Storage write rule didn't check the `evidence.upload` permission
+
+`storage.rules`' write rule (`canEditCase()`, now split) mirrored only the
+**read**-path authorization (signed-in/scope/confidentiality/assigned-or-global)
+for both reads *and* writes — never checking that the caller's role actually
+holds `evidence.upload`. Concretely, `consultation` (strictly read-only in
+`ROLE_PERMISSIONS`) and `darc_compliance` (has `evidence.read`, not
+`evidence.upload`) could both overwrite an existing evidence file's bytes at
+its known `storagePath`, silently corrupting evidence an investigator would
+later download via `getEvidenceDownloadUrl` with no Firestore trace (the
+metadata, `sha256Hash` included, is untouched by a Storage-level overwrite).
+
+**Fix**: added `hasEvidenceUploadPermission()` (mirrors `ROLE_PERMISSIONS`'s
+actual `evidence.upload` holders — `investigator`/`senior_investigator`/
+`functional_admin` only), required by a new `canUploadEvidence()`. Also made
+the write itself non-destructive: `allow write: if canUploadEvidence() &&
+resource == null && ...` — `resource == null` is true only for a brand-new
+object, so both overwrite *and* delete are now denied outright (evidence
+removal stays a Firestore-only `status: 'deleted'` flag, never an actual
+Storage delete). **Not independently verified live** — the Storage bucket
+still doesn't exist on this project (see `docs/FIREBASE-SETUP.md`), so this
+fix could not be deployed or exercised against a real bucket; correctness
+rests on a careful reading of the Storage Rules Language semantics for
+`resource == null`.
+
+### Fix 2 (was Medium): Firestore case-read rule never checked the role held `cases.read`, and the confidentiality fallback was wrong
+
+`firestore.rules`' `cases/{caseId}` read rule (and the identical subcollection
+rule) never had an equivalent of `can()`'s first check in `permissions.ts` —
+`roleHasPermission(role, 'cases.read')`. Combined with `maxConfidentialityRank()`
+falling back to rank 1 ("restricted") for *any* role outside its two explicit
+lists — including `reporter` and `system_admin`, which map to `null` (no
+access at all) in `permissions.ts` — a `system_admin` account added to a
+case's `additionalInvestigators` (e.g. via `assignCase`, which validated
+nothing about the target's role) could read that case directly through the
+client SDK, on any case at `restricted` confidentiality. This directly
+contradicted the project's own repeatedly-stated invariant, "System
+Administrator ≠ Case Access."
+
+**Fix**: added `hasCaseReadPermission()` (mirrors the real `cases.read`
+holders: `investigator`/`senior_investigator`/`functional_admin`/
+`darc_compliance`/`consultation`, excluding `reporter` and `system_admin`),
+required in both read rules. Corrected `maxConfidentialityRank()`'s fallback
+from rank 1 to rank 0 for `reporter`/`system_admin` (matching their `null`
+max in `permissions.ts`), with `executive` broken out into its own explicit
+rank-1 branch so it isn't accidentally caught by the same fallback.
+Defense-in-depth: `assignCase` now also calls `assertCaseBearingRole()`
+(Admin SDK `getUser().customClaims`) on every target uid before writing, so
+even a future rules regression wouldn't be the only thing stopping this.
+
+**Live-verified** (real signed-in requests, real accounts, against the
+redeployed rules): a throwaway `restricted` case with `system_admin`
+(`d.mendy@group-activa.com`) added to `additionalInvestigators` → **403**
+(was the exploit's `200` before this fix). `a.kouassi` re-reading her own
+real assigned case after the redeploy → **200** (no regression). Throwaway
+case deleted after the test.
+
+### Fix 3 (was Medium): `addPerson` let any `cases.edit` holder permanently lock other staff out of a case, unaudited and irreversible
+
+`addPerson` accepted `linkedUserId` straight from the client, gated only by
+`cases.edit` — held by every plain `investigator`. When `kind === 'subject'`,
+that uid was `arrayUnion`-ed into `Case.implicatedUserIds`, the single field
+`isNotImplicated()` depends on in both `firestore.rules` and `storage.rules`,
+and the check `can()` evaluates *before* scope/confidentiality/assignment/
+global-visibility — overriding all of them, with no exemption for any role.
+No callable removed a person or cleared `implicatedUserIds`, and no audit
+entry was written for the link. An investigator under review (or named in
+their own case) could therefore call `addPerson` twice — once naming the
+`functional_admin`, once naming the `darc_compliance` officer — and
+permanently detach the case from every oversight role able to reach it,
+while remaining able to work the case themselves.
+
+**Fix**: setting `linkedUserId` on a `subject` now additionally requires
+`cases.assign` (held only by `functional_admin`/`darc_compliance` — the two
+oversight roles, not plain investigators); recording an ordinary witness or
+an unlinked subject is unaffected. Every link now writes a
+`PERSON_LINKED_TO_USER` audit entry. Added a new `removePersonLink` callable
+(same `cases.assign` gate, mandatory `reason`) that clears `linkedUserId`
+and pulls the uid back out of `implicatedUserIds` — the reversal path that
+didn't exist before. **Not independently live-tested against the real
+project** (the callable is a Cloud Function, undeployed like the rest —
+see `docs/FIREBASE-SETUP.md`); correctness rests on a clean
+`npm --prefix functions run build` and a careful reading against the
+`addPerson`/`requireCaseAccess` pattern already exercised in earlier phases.
+
 ## Finding: shared env var names silently link Phase 1's legacy sync to Phase 4's real config
 
 **Severity: Medium (data-hygiene, not an access-control break) — found and mitigated in this session.**

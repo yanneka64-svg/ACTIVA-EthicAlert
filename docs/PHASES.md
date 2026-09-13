@@ -695,3 +695,70 @@ type-check under the project's existing strict config.
 business logic and the ones this session's documentation phase just
 finished writing reference docs for — not a blanket attempt at full
 project coverage in one pass.
+
+---
+
+## Security review of the full branch diff, and 3 confirmed findings fixed
+
+**AUDIT** → with the branch now carrying a large, security-relevant diff
+(46 files vs `origin/main`), ran a structured review rather than assuming
+everything already built was correct: a first pass over the whole diff
+identified 5 candidate vulnerabilities; each was then independently
+re-verified against the live code (not the candidate summary) in its own
+pass, scored for confidence, and kept only at ≥ 8/10. Full report and
+methodology in the chat transcript; outcome and fixes recorded in
+`docs/SECURITY.md`.
+
+**Result**: 2 candidates rejected on re-verification (both genuinely
+pre-existing — `audit_logs`/`alerts` open rules predate this branch; the
+reporter access-code hash predates this branch and this branch's Cloud
+Functions consume it without weakening it). 3 confirmed:
+1. `storage.rules`' write rule never checked `evidence.upload` — read-only
+   roles could overwrite evidence bytes.
+2. `firestore.rules`' case-read rule never checked `cases.read`, and its
+   confidentiality fallback (rank 1 for any unlisted role) let a
+   `system_admin` uid added to `additionalInvestigators` read a
+   `restricted` case — contradicting "System Administrator ≠ Case Access."
+3. `addPerson` let any `cases.edit` holder (a plain investigator) lock
+   `functional_admin`/`darc_compliance` out of a case permanently and
+   unaudited, via `linkedUserId` → `Case.implicatedUserIds`.
+
+**PLAN / IMPLEMENT** (all three, detailed in `docs/SECURITY.md`):
+- `storage.rules`: split the read-mirroring helper (renamed
+  `isCaseAccessible`) from a new `canUploadEvidence()` that also requires
+  `hasEvidenceUploadPermission()`; made the write non-destructive
+  (`resource == null`, denying both overwrite and delete).
+- `firestore.rules`: added `hasCaseReadPermission()`, required in both the
+  case and subcollection read rules; fixed `maxConfidentialityRank()`'s
+  fallback from rank 1 to rank 0 for no-case-access roles, with `executive`
+  broken into its own explicit branch.
+- `functions/src/index.ts`: `assignCase` now validates every target uid via
+  a new `assertCaseBearingRole()` (Admin SDK role lookup) before writing —
+  defense-in-depth on top of the rules fix. `addPerson`'s `linkedUserId`
+  path now additionally requires `cases.assign` (not just `cases.edit`)
+  and writes a `PERSON_LINKED_TO_USER` audit entry. New `removePersonLink`
+  callable (same `cases.assign` gate, mandatory `reason`) provides the
+  reversal path that didn't exist before.
+- New `vitest.config.ts`: excludes `functions/lib/**` from test discovery
+  — an unrelated hygiene fix found while re-running the test suite after
+  a `functions/` rebuild left compiled `.test.js` files vitest was
+  wrongly picking up (a false failure, not a real regression; now robust
+  either way).
+
+**TEST / VERIFY**: `npm --prefix functions run build` and root
+`tsc --noEmit` both clean. `npx vitest run` — 41/41 still passing. The
+new `firestore.rules` was **redeployed live** (same direct API pattern as
+every prior rules change) and re-verified with real signed-in requests: a
+throwaway `restricted` case with the real `system_admin` account
+(`d.mendy@group-activa.com`) added to `additionalInvestigators` →
+**403** (was the exploit's `200` before this fix, confirmed by
+reproducing the exact scenario); `a.kouassi` re-reading her own real
+assigned case afterward → **200**, no regression. `storage.rules` and the
+`addPerson`/`removePersonLink` Cloud Function changes could **not** be
+live-tested (no Storage bucket exists; Cloud Functions remain undeployed
+on Spark) — stated plainly rather than implied, same discipline as every
+other undeployed piece of this project.
+
+**DOCUMENT** → `docs/SECURITY.md` (new "Security review" section with all
+3 fixes), `docs/API.md` (`removePersonLink` added, `addPerson`'s new gate
+noted), inline code comments in all three changed files, this entry.
