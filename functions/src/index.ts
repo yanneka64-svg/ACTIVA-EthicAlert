@@ -27,9 +27,17 @@ import { initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { CallableRequest, HttpsError, onCall } from 'firebase-functions/v2/https';
 
-import { Allegation, AppUser, Case, CaseStatus, CorrectiveAction, Person, RoleId } from '../../src/domain/caseTypes';
+import { Allegation, AppUser, Case, CaseStatus, Communication, CorrectiveAction, Person, RoleId } from '../../src/domain/caseTypes';
 import { can, implicatedUserIdsFromPersons } from '../../src/domain/permissions';
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
+// === AMÉLIORATION AJOUTÉE : réutilise le HASH/SALT existant, jamais réimplémenté ===
+// Same salted, iterated-SHA256 verification already used by the legacy
+// client-side AlertTrackingView (src/components/AlertTrackingView.tsx) —
+// imported, not re-derived, so client and server can never disagree about
+// what a valid access code hash looks like. Works in this Node 20 runtime
+// because `crypto.subtle`/`crypto.getRandomValues` are Node's built-in
+// global WebCrypto implementation, not a browser-only API.
+import { verifyPassword } from '../../src/services/crypto';
 
 initializeApp();
 const db = getFirestore();
@@ -220,12 +228,116 @@ export const changeCaseStatus = onCall(async (request) => {
 });
 
 // ---------------------------------------------------------------------------
+// getCaseForReporter
+// === AMÉLIORATION AJOUTÉE ===
+// The one operation reporters actually need — they hold no Firebase Auth
+// token in this design (see docs/DATABASE.md), so this deliberately does
+// NOT call requireAppUser(): access is granted purely by knowing the real
+// caseNumber + accessCode pair, verified server-side against
+// `reporter_credentials/{caseId}` (never exposed to any client directly —
+// `firestore.rules` closes that collection entirely). This finally moves
+// password verification and rate limiting to a trusted backend, which is
+// exactly what src/services/rateLimiter.ts's own header comment says is
+// still missing ("true rate limiting must ultimately be enforced
+// server-side"): the client-side limiter in that file is a real, useful
+// throttle for the legacy demo, but it is not this function's authority —
+// this one tracks attempts in Firestore (`rate_limits/{caseNumber}`),
+// which a client cannot reset by clearing localStorage or switching
+// browsers. Same thresholds as the client limiter (5 attempts / 5 minute
+// lockout) so the UX doesn't change, only where it's actually enforced.
+//
+// Never distinguishes "no such case" from "wrong access code" in its
+// response — same discipline as the Phase 4b CaseLookup finding
+// (docs/SECURITY.md): existence is never leaked to an unauthorized caller.
+// ---------------------------------------------------------------------------
+
+const REPORTER_RATE_LIMIT_MAX_ATTEMPTS = 5; // mirrors src/services/rateLimiter.ts MAX_ATTEMPTS
+const REPORTER_RATE_LIMIT_LOCKOUT_MS = 5 * 60 * 1000; // mirrors src/services/rateLimiter.ts LOCKOUT_MS
+
+async function assertReporterNotRateLimited(key: string): Promise<void> {
+  const snap = await db.collection('rate_limits').doc(key).get();
+  const data = snap.exists ? (snap.data() as { lockedUntil?: number }) : undefined;
+  if (data?.lockedUntil && data.lockedUntil > Date.now()) {
+    const remainingSeconds = Math.ceil((data.lockedUntil - Date.now()) / 1000);
+    throw new HttpsError('resource-exhausted', `Too many failed attempts. Try again in ${remainingSeconds}s.`);
+  }
+}
+
+async function recordReporterAttempt(key: string, success: boolean): Promise<void> {
+  const ref = db.collection('rate_limits').doc(key);
+  if (success) {
+    await ref.delete().catch(() => undefined); // clears the counter, mirrors clearAttempts()
+    return;
+  }
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    const data = snap.exists ? (snap.data() as { count?: number; lockedUntil?: number }) : {};
+    let count = data.count ?? 0;
+    if (data.lockedUntil && data.lockedUntil <= now) count = 0; // previous lock expired, start fresh
+    count += 1;
+    const update: { count: number; lockedUntil?: number } = { count };
+    if (count >= REPORTER_RATE_LIMIT_MAX_ATTEMPTS) update.lockedUntil = now + REPORTER_RATE_LIMIT_LOCKOUT_MS;
+    tx.set(ref, update, { merge: true });
+  });
+}
+
+export const getCaseForReporter = onCall(async (request) => {
+  const { caseNumber, accessCode } = request.data as { caseNumber?: string; accessCode?: string };
+  if (!caseNumber || !accessCode) {
+    throw new HttpsError('invalid-argument', 'caseNumber and accessCode are required.');
+  }
+  const key = caseNumber.trim().toUpperCase();
+  const invalid = () => new HttpsError('permission-denied', 'Invalid case number or access code.');
+
+  await assertReporterNotRateLimited(key);
+
+  const querySnap = await db.collection('cases').where('caseNumber', '==', key).limit(1).get();
+  if (querySnap.empty) {
+    await recordReporterAttempt(key, false);
+    throw invalid();
+  }
+  const caseDoc = querySnap.docs[0];
+  const kase = caseDoc.data() as Case;
+
+  const credsSnap = await db.collection('reporter_credentials').doc(caseDoc.id).get();
+  if (!credsSnap.exists) {
+    await recordReporterAttempt(key, false);
+    throw invalid();
+  }
+  const creds = credsSnap.data() as { accessCodeHash: string; accessCodeSalt: string };
+  const passwordOk = await verifyPassword(accessCode, creds.accessCodeSalt, creds.accessCodeHash);
+  if (!passwordOk) {
+    await recordReporterAttempt(key, false);
+    throw invalid();
+  }
+
+  await recordReporterAttempt(key, true);
+
+  const commsSnap = await caseDoc.ref.collection('communications').orderBy('createdAt', 'asc').get();
+  const communications = commsSnap.docs.map((d) => d.data() as Communication);
+
+  await appendAudit({ actorId: 'reporter', action: 'CASE_ACCESSED_BY_REPORTER', caseId: caseDoc.id });
+
+  // Deliberately narrow, reporter-safe view — mirrors exactly what the
+  // legacy AlertTrackingView already shows a reporter (status, description,
+  // communications), never allegations/persons/evidence/investigation_notes/
+  // assignee identity/confidentialityLevel, none of which a reporter is
+  // meant to see (see docs/DATABASE.md).
+  return {
+    caseNumber: kase.caseNumber,
+    status: kase.status,
+    receivedAt: kase.receivedAt,
+    description: kase.description,
+    communications,
+  };
+});
+
+// ---------------------------------------------------------------------------
 // Remaining Phase 3 backlog (same pattern as above — not yet implemented):
 //   addAllegation, setAllegationFinding, addPerson, addEvidence (+ Storage
 //   upload URL issuance), addTask, addInterview, addInvestigationNote,
 //   addCommunication, addCorrectiveAction, recordRiskAssessment,
-//   declareConflictOfInterest, getCaseForReporter (verifies case number +
-//   access code server-side and returns a reporter-safe view — this is the
-//   one reporters actually need, since they hold no Firebase Auth token at
-//   all), getReporterIdentity (with mandatory audit logging).
+//   declareConflictOfInterest, getReporterIdentity (with mandatory audit
+//   logging).
 // ---------------------------------------------------------------------------

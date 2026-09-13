@@ -11,7 +11,7 @@ of truth.
 | | Status |
 |---|---|
 | `CaseRepository` interface (~24 operations) | Fully specified in TypeScript. Fully implemented twice: `LocalCaseRepository` (localStorage, used by nothing in the shipped UI yet) and `FirestoreAdminCaseRepository` (Admin SDK, used by the one-off seed/migration scripts). Both pass the same behavior (see `docs/PHASES.md` Phase 2/2b). |
-| Cloud Functions (the real network-callable API) | **3 of ~15 mutation operations implemented and type-checked**: `createCase`, `assignCase`, `changeCaseStatus`. **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). Nothing below is reachable over the network right now. |
+| Cloud Functions (the real network-callable API) | **4 of ~15 mutation/read operations implemented and type-checked**: `createCase`, `assignCase`, `changeCaseStatus`, `getCaseForReporter`. **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). Nothing below is reachable over the network right now. |
 | Reads | Not a Cloud Function today — direct Firestore reads via `firestore.rules`, single-document `getDoc` only (see `docs/PERMISSIONS.md`/`docs/FIREBASE-SETUP.md` — list queries are blocked outright by Firestore itself, a Cloud Function is the architecturally-required fix, same billing blocker as above). |
 
 This document describes the API **as designed and as far as it is built**,
@@ -103,6 +103,30 @@ thrown, so a pattern of repeated rejected attempts is visible in
 and a `STATUS_CHANGED` audit entry (with `previousValue`/`newValue` as the
 old/new status) are always written on success.
 
+### `getCaseForReporter`
+
+| | |
+|---|---|
+| Auth required | **None** — deliberately does not call `requireAppUser()`. Reporters hold no Firebase Auth token in this design (see `docs/DATABASE.md`); this is the one callable every reporter-facing flow depends on. Access is granted purely by knowing a real `caseNumber` + `accessCode` pair. |
+| Request | `{ caseNumber, accessCode }` |
+| Response | `{ caseNumber, status, receivedAt, description, communications }` — deliberately narrow, mirroring exactly what the legacy `AlertTrackingView` already shows a reporter today. Never includes allegations, persons, evidence, `investigation_notes`, the assignee's identity, `confidentialityLevel`, or `riskScore` — none of which a reporter is meant to see (`docs/DATABASE.md`). |
+| Errors | `invalid-argument` (missing `caseNumber`/`accessCode`), `resource-exhausted` (rate-limited, see below), `permission-denied` (`'Invalid case number or access code.'` — covers both a nonexistent case number **and** a wrong access code, deliberately identical wording and error code for both, so existence is never leaked; same discipline as the Phase 4b `CaseLookup` finding in `docs/SECURITY.md`) |
+
+**=== AMÉLIORATION AJOUTÉE : server-side rate limiting ===** Verifies the
+access code with `verifyPassword()` from `src/services/crypto.ts` —
+imported, not re-derived, so this can never quietly diverge from the exact
+salted-hash check the legacy `AlertTrackingView` already performs
+client-side. That file's own client-side rate limiter
+(`src/services/rateLimiter.ts`) states plainly in its header comment that
+"true rate limiting must ultimately be enforced server-side" — this
+callable is that server-side enforcement: failed attempts are tracked in a
+`rate_limits/{caseNumber}` document (Cloud Function/Admin SDK only, closed
+to every client by `firestore.rules`, same as `counters/*`), using the
+same thresholds as the client limiter (5 attempts, 5-minute lockout) so the
+UX is unchanged — only where it's actually enforced. A client cannot reset
+this counter by clearing `localStorage` or switching browsers, unlike the
+purely client-side version.
+
 ## Planned, not yet implemented (the remaining `CaseRepository` surface)
 
 Same pattern as the three above (verify identity from the token, call
@@ -122,7 +146,6 @@ vague "more to come":
 | `addCorrectiveAction`, `listCorrectiveActions` | Corrective action tracking — feeds the closure-gating check in `checkTransition`. |
 | `recordRiskAssessment`, `getActiveRiskAssessment` | Risk scoring, preserving original vs. override (see `RiskAssessment.isOverride` in `caseTypes.ts`). Is what should ultimately set `Case.priority`/`riskScore` after `createCase` — not yet wired. |
 | `declareConflictOfInterest` | Conflict-of-interest declarations. |
-| `getCaseForReporter` | **The one reporters actually need.** Verifies a case number + access code pair server-side (`ReporterCredentials`, never exposed to any client per `firestore.rules`) and returns a reporter-safe view. Reporters hold no Firebase Auth token in this design, so every single thing they can do must be a callable like this one — there is currently no reporter-facing path to case data at all, by design (building a UI on top of an unimplemented callable would be exactly the "interface that gives the impression the system works" this project has consistently refused to ship). |
 | `getReporterIdentity` | Must log a `REPORTER_IDENTITY_ACCESSED` audit entry on every call — see `docs/DATABASE.md`. |
 | `listAuditEvents` | Audit trail retrieval (`audit.read` permission). |
 | `getCase`, `listCases` | Reads. `getCase` already has a real, deployed, direct-Firestore equivalent (`getDoc`, see `docs/PERMISSIONS.md`) — a callable version would mainly matter for reporters or for hiding fields server-side. `listCases` is the one genuinely blocked by Firestore's list-query wall (`docs/FIREBASE-SETUP.md` Phase 4 finding) — this is the callable every future Control Panel screen needs before it can be built for real. |

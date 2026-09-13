@@ -308,3 +308,68 @@ now present (`ARCHITECTURE.md`, `DATABASE.md`, `SECURITY.md`, `WORKFLOW.md`,
 `PERMISSIONS.md`, `API.md`). `CONTROL-PANEL.md`/`INVESTIGATION.md` remain
 the only two genuinely blocked — both would require describing screens that
 don't exist, still tied to the same Spark/Cloud-Functions decision as ever.
+
+---
+
+## `getCaseForReporter` implemented — closes a real, self-documented gap
+
+**AUDIT** → `docs/API.md` had just flagged `getCaseForReporter` as "the one
+reporters actually need" (no other path to case data exists for them at
+all). Separately, `src/services/rateLimiter.ts`'s own header comment
+(written in an earlier phase) says outright that "true rate limiting must
+ultimately be enforced server-side" — a pre-existing, self-documented TODO,
+not a new idea introduced here. Both point at the same next unit of work,
+and neither requires Cloud Functions to be *deployed* to be written and
+verified by build — only to go live.
+
+**PLAN** → implement the callable reusing existing, already-verified pieces
+exactly rather than re-deriving them: `verifyPassword()` from
+`src/services/crypto.ts` (the same salted-hash check the legacy
+`AlertTrackingView` already performs) for the password check, and a new
+Firestore-backed attempt counter for the part that file's own comment says
+is still missing. Response shape kept deliberately narrow, mirroring what
+the legacy reporter view already exposes today — not a new UI capability,
+a faithful port of an existing one onto the new `Case` model's server side.
+
+**IMPLEMENT**:
+- `functions/tsconfig.json`: added `../src/services/crypto.ts` to `include`
+  (previously only `domain/**` was reachable from the functions package).
+- `functions/src/index.ts`: `getCaseForReporter` — no `requireAppUser()`
+  call (reporters have no Firebase Auth token, by design); looks up the
+  case by `caseNumber` (Admin SDK query, bypasses rules, safe in a trusted
+  server context), verifies the access code via the imported
+  `verifyPassword()`, and returns `{ caseNumber, status, receivedAt,
+  description, communications }` only. Every failure path — case not
+  found, credentials doc missing, wrong access code — returns the exact
+  same `permission-denied`/`'Invalid case number or access code.'`, so
+  existence is never leaked (same discipline as the Phase 4b finding).
+  New `rate_limits/{caseNumber}` Firestore-backed counter
+  (`assertReporterNotRateLimited`/`recordReporterAttempt`, transactional on
+  the increment path) mirrors the client limiter's thresholds exactly (5
+  attempts, 5-minute lockout) so the UX contract doesn't change, only where
+  it's enforced.
+- `firestore.rules`: added `match /rate_limits/{key} { allow read, write:
+  if false; }` — functionally a no-op (an undeclared collection already
+  denies by default in this rules file, which has no catch-all `match
+  /{document=**}`), added for the same explicit-and-auditable style as
+  `counters/*`. Deployed live via the same direct API pattern as every
+  other rules change this session.
+
+**TEST / VERIFY**:
+- `npm run build` inside `functions/` — clean.
+- Root `tsc --noEmit` — clean (the new `src/services/crypto.ts` include
+  didn't disturb anything else).
+- Redeployed `firestore.rules` (the `rate_limits` addition) live, then
+  re-ran a live signed-in read of `a.kouassi`'s real assigned case
+  (custom-token-minted ID token, same technique as the previous phase) →
+  `200`, confirming the redeploy introduced no regression.
+- `getCaseForReporter` itself could not be exercised as a live network call
+  in this pass (Cloud Functions remain undeployed on Spark, by standing
+  decision) — stated plainly rather than implied tested. Its correctness
+  rests on: a clean TypeScript build, direct reuse of `verifyPassword()`
+  (already exercised by the shipped `AlertTrackingView`, itself
+  unit-equivalent to real client usage), and line-by-line review of the
+  three failure paths converging on one identical error.
+
+**DOCUMENT** → `docs/API.md` (moved from "planned" to "implemented",
+with the rate-limiting design noted), this entry.

@@ -165,5 +165,14 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read, write: if false;
     }
+
+    // === AMÉLIORATION AJOUTÉE ===
+    // Server-tracked rate-limit counters for getCaseForReporter (Cloud
+    // Function only — see functions/src/index.ts). Closed exactly like
+    // `counters/*`: a client resetting or reading its own lockout state
+    // would defeat the point of a server-side rate limit.
+    match /rate_limits/{key} {
+      allow read, write: if false;
+    }
   }
 }
