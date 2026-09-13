@@ -175,6 +175,55 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-40">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 21 — bandeau d'information en
+          boucle) === Fine bande au-dessus de l'en-tête public, sur demande
+          explicite : les raccourcis "Comment ça marche" (retiré de la
+          navigation Phase 20), "FAQ" et "Nous contacter" défilent en boucle
+          continue au lieu d'occuper une place fixe. Contenu dupliqué une
+          fois pour un bouclage sans coupure ; l'animation s'arrête pour les
+          utilisateurs ayant demandé moins de mouvement (prefers-reduced-motion,
+          voir index.css). Chaque item reste un vrai bouton fonctionnel,
+          jamais un texte décoratif. */}
+      {!isStaffContext && (
+        <div className="overflow-hidden bg-sky-50 border-b border-sky-100">
+          <div className="flex w-max activa-marquee-track">
+            {[0, 1].map((rep) => (
+              <div
+                key={rep}
+                aria-hidden={rep === 1}
+                className="flex items-center gap-8 pr-8 py-1.5 shrink-0 text-[11px] font-semibold text-blue-900"
+              >
+                <button
+                  tabIndex={rep === 1 ? -1 : 0}
+                  onClick={() => {
+                    setCurrentTab('home');
+                    setTimeout(() => document.getElementById('how-it-works-section')?.scrollIntoView({ behavior: 'smooth' }), 50);
+                  }}
+                  className="hover:text-blue-700 transition whitespace-nowrap"
+                >
+                  {t.nav_public_how}
+                </button>
+                <span className="text-blue-300">•</span>
+                <button
+                  tabIndex={rep === 1 ? -1 : 0}
+                  onClick={() => setCurrentTab('faq')}
+                  className="hover:text-blue-700 transition whitespace-nowrap"
+                >
+                  {t.nav_public_faq}
+                </button>
+                <span className="text-blue-300">•</span>
+                <button
+                  tabIndex={rep === 1 ? -1 : 0}
+                  onClick={() => document.querySelector('footer')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="hover:text-blue-700 transition whitespace-nowrap"
+                >
+                  {t.nav_public_contact}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3 sm:gap-5 py-3">
           {/* === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) === Le
