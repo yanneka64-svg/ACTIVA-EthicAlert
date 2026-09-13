@@ -265,6 +265,7 @@ export interface AuditLogEntry {
     | 'ALERT_ARCHIVED'
     | 'REPORT_GENERATED'
     | 'CONFIG_UPDATED'
+    | 'LEGAL_HOLD_TOGGLED'
     // === AMÉLIORATION AJOUTÉE : traçabilité des tentatives d'accès refusées (rate limiting) ===
     | 'ACCESS_DENIED';
   details: string;
