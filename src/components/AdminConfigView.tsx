@@ -4,7 +4,6 @@ import {
   ShieldCheck,
   Building2,
   Users,
-  Layers,
   Clock,
   Globe,
   Plus,

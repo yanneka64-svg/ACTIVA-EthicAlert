@@ -107,7 +107,7 @@ export interface WhistleblowerInfo {
   fullName?: string;
   jobTitle?: string;
   department?: string;
-  declarantType?: 'Employé' | 'Consultant' | 'Prestataire' | 'Client' | 'Autre';
+  declarantType?: 'Employé' | 'Consultant' | 'Prestataire' | 'Fournisseur' | 'Client' | 'Partenaire' | 'Autre';
   entity?: string;
   email?: string;
   phone?: string;
@@ -116,6 +116,7 @@ export interface WhistleblowerInfo {
 export interface AlertRecord {
   id: string;
   trackingNumber: string; // ex: ACT-2026-0842
+  accessCode?: string; // ex: 7F3K-9Q2Q
   accessCodeHash: string; // salted iterated-SHA-256 hash of the access password (never plaintext)
   accessCodeSalt: string; // per-record random salt used to compute accessCodeHash
   channel: 'web' | 'qr_code' | 'direct';
