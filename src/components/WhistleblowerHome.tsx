@@ -5,7 +5,16 @@ import {
   QrCode,
   HeartHandshake,
   ChevronDown,
+  ChevronRight,
+  ArrowRight,
   HelpCircle,
+  Send,
+  Search,
+  PlayCircle,
+  Quote,
+  Lock,
+  CheckCircle2,
+  FileText,
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -40,20 +49,32 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
 
   return (
     <div className="space-y-12 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {/* === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la
-          maquette) === Hero reconstruit : bloc de texte à gauche (titre
-          court + sous-titre + 2 boutons + 3 badges Confidentialité/
-          Anonymat/Pas de représailles), visuel dégradé à droite en
-          remplacement de la photographie de la maquette (aucun asset photo
-          réel n'étant disponible pour ce projet). */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 rounded-3xl overflow-hidden shadow-xl border border-slate-200">
-        <div className="bg-white p-8 sm:p-12 space-y-6">
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#0B2545] leading-tight">
-            {t.hero_title}
-          </h2>
+      {/* === AMÉLIORATION AJOUTÉE (Phase 13 — reproduction fidèle de la
+          nouvelle maquette d'accueil, photo) === Hero plein largeur : tags,
+          titre, sous-titre, paragraphe, 2 boutons + lien "Comment ça
+          marche ?", bulle de citation. Le fond est un dégradé décoratif en
+          remplacement de la photographie (bâtiment + palmiers) de la
+          maquette, dont l'asset réel n'est pas disponible dans ce dépôt. */}
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200 shadow-xl min-h-[480px] flex items-center">
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-100 via-sky-50 to-emerald-100" />
+        <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
 
-          <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-md">
+        <div className="relative z-10 max-w-xl p-8 sm:p-12 space-y-4">
+          <span className="inline-block px-3 py-1.5 rounded-full bg-white/80 backdrop-blur border border-slate-200 text-[11px] font-bold tracking-wider text-slate-600">
+            {t.hero_tags}
+          </span>
+
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#0B2545] leading-tight">
+            {t.hero_title}
+          </h1>
+
+          <p className="text-base sm:text-lg font-semibold text-slate-800 leading-snug">
             {t.hero_desc}
+          </p>
+
+          <p className="text-sm text-slate-600 leading-relaxed max-w-md">
+            {t.hero_paragraph}
           </p>
 
           {/* Action buttons */}
@@ -63,7 +84,9 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               onClick={onStartNewAlert}
               className="flex items-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition"
             >
+              <Send className="w-4 h-4" />
               <span>{t.btn_new_alert}</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
 
             <button
@@ -71,7 +94,9 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               onClick={onGoToTrack}
               className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm border border-slate-300 transition"
             >
+              <Search className="w-4 h-4" />
               <span>{t.btn_track_existing}</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
 
             <button
@@ -84,85 +109,105 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             </button>
           </div>
 
-          {/* Guarantee Badges — exact match with the reference mockup's 3 feature icons */}
-          <div className="pt-6 border-t border-slate-100 grid grid-cols-3 gap-3 text-xs">
-            <div className="flex flex-col items-start gap-1.5">
-              <ShieldCheck className="w-5 h-5 text-blue-600" />
-              <span className="font-bold text-slate-800">{t.hero_feature_confidentiality_title}</span>
-              <span className="text-slate-500 text-[11px] leading-snug">{t.hero_feature_confidentiality_desc}</span>
-            </div>
-            <div className="flex flex-col items-start gap-1.5">
-              <UserX className="w-5 h-5 text-blue-600" />
-              <span className="font-bold text-slate-800">{t.hero_feature_anonymity_title}</span>
-              <span className="text-slate-500 text-[11px] leading-snug">{t.hero_feature_anonymity_desc}</span>
-            </div>
-            <div className="flex flex-col items-start gap-1.5">
-              <HeartHandshake className="w-5 h-5 text-blue-600" />
-              <span className="font-bold text-slate-800">{t.hero_feature_no_retaliation_title}</span>
-              <span className="text-slate-500 text-[11px] leading-snug">{t.hero_feature_no_retaliation_desc}</span>
-            </div>
-          </div>
+          <button
+            onClick={() => document.getElementById('how-it-works-section')?.scrollIntoView({ behavior: 'smooth' })}
+            className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 hover:text-blue-700 transition"
+          >
+            <PlayCircle className="w-5 h-5" />
+            {t.hero_how_it_works_link}
+          </button>
         </div>
 
-        {/* Decorative visual (stand-in for the mockup's photograph) */}
-        <div className="relative hidden lg:block bg-gradient-to-br from-blue-700 via-teal-600 to-emerald-500 min-h-[380px] overflow-hidden">
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, white 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-          <div className="absolute -right-10 -bottom-10 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-          <div className="absolute left-10 top-16 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+        {/* Quote bubble (bottom-right, over the decorative visual) */}
+        <div className="hidden lg:flex absolute right-8 bottom-8 z-10 items-start gap-2 max-w-xs bg-[#0B2545]/90 backdrop-blur text-white text-xs rounded-2xl px-4 py-3 shadow-lg">
+          <Quote className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+          <span className="leading-relaxed">{t.hero_quote}</span>
         </div>
       </div>
 
-      {/* How it works (Process) — id targeted by the Navbar's "Comment ça marche" link */}
-      <div id="how-it-works-section" className="bg-slate-900 text-white rounded-3xl p-8 sm:p-10 space-y-8">
-        <div className="max-w-xl">
-          <span className="text-xs uppercase font-bold tracking-wider text-amber-400">
-            Processus de traitement sécurisé
+      {/* Feature strip — exact match with the reference mockup's 3 icons row below the hero */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 border border-slate-200 rounded-2xl bg-white overflow-hidden">
+        <div className="p-5 flex items-center gap-3">
+          <span className="w-11 h-11 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-5 h-5" />
           </span>
-          <h3 className="text-2xl font-bold mt-1">
-            Comment votre alerte est-elle gérée par la DARC ?
-          </h3>
+          <div>
+            <div className="font-bold text-slate-900 text-sm">{t.hero_feature_confidentiality_title}</div>
+            <div className="text-xs text-slate-500">{t.hero_feature_confidentiality_desc}</div>
+          </div>
+        </div>
+        <div className="p-5 flex items-center gap-3">
+          <span className="w-11 h-11 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <UserX className="w-5 h-5" />
+          </span>
+          <div>
+            <div className="font-bold text-slate-900 text-sm">{t.hero_feature_anonymity_title}</div>
+            <div className="text-xs text-slate-500">{t.hero_feature_anonymity_desc}</div>
+          </div>
+        </div>
+        <div className="p-5 flex items-center gap-3">
+          <span className="w-11 h-11 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+            <HeartHandshake className="w-5 h-5" />
+          </span>
+          <div>
+            <div className="font-bold text-slate-900 text-sm">{t.hero_feature_no_retaliation_title}</div>
+            <div className="text-xs text-slate-500">{t.hero_feature_no_retaliation_desc}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 13) === "Comment ça marche ?" —
+          section claire à 4 cartes numérotées, en remplacement du bloc
+          sombre précédent, id ciblé par le lien "Comment ça marche ?" de la
+          Navbar et par le bouton "▷ Comment ça marche ?" du hero. */}
+      <div id="how-it-works-section" className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+          <div>
+            <span className="text-xs uppercase font-bold tracking-wider text-blue-600">
+              {t.process_label}
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
+              {t.process_heading}
+            </h3>
+          </div>
+          <button
+            onClick={() => document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' })}
+            className="flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:underline shrink-0"
+          >
+            {t.process_view_faq}
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 text-xs">
-          <div className="space-y-2">
-            <div className="w-8 h-8 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-bold">
-              1
-            </div>
-            <div className="font-bold text-white text-sm">Dépôt sécurisé</div>
-            <p className="text-slate-300 leading-relaxed">
-              Formulaire anonyme ou identifié, génération d'un numéro unique et mot de passe de suivi.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
-              2
-            </div>
-            <div className="font-bold text-white text-sm">Évaluation NOCA</div>
-            <p className="text-slate-300 leading-relaxed">
-              Classification selon la matrice de risques officielle (impact, hiérarchie, récidive, réputation).
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold">
-              3
-            </div>
-            <div className="font-bold text-white text-sm">Investigation & Échanges</div>
-            <p className="text-slate-300 leading-relaxed">
-              Attribution aux auditeurs assermentés, dialogue chiffré sans lever votre anonymat.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold">
-              4
-            </div>
-            <div className="font-bold text-white text-sm">Mesures & Clôture</div>
-            <p className="text-slate-300 leading-relaxed">
-              Documentation obligatoire des plans d'action correctifs et information du déclarant.
-            </p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {[
+            { icon: FileText, title: t.process_step1_title, desc: t.process_step1_desc, tone: 'blue' as const },
+            { icon: Lock, title: t.process_step2_title, desc: t.process_step2_desc, tone: 'amber' as const },
+            { icon: Search, title: t.process_step3_title, desc: t.process_step3_desc, tone: 'purple' as const },
+            { icon: CheckCircle2, title: t.process_step4_title, desc: t.process_step4_desc, tone: 'emerald' as const },
+          ].map((step, idx) => {
+            const Icon = step.icon;
+            const toneClasses: Record<string, string> = {
+              blue: 'bg-blue-50 text-blue-600',
+              amber: 'bg-amber-50 text-amber-600',
+              purple: 'bg-purple-50 text-purple-600',
+              emerald: 'bg-emerald-50 text-emerald-600',
+            };
+            return (
+              <div key={idx} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center shrink-0">
+                    {idx + 1}
+                  </span>
+                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${toneClasses[step.tone]}`}>
+                    <Icon className="w-5 h-5" />
+                  </span>
+                </div>
+                <h4 className="font-bold text-slate-900 text-sm">{step.title}</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">{step.desc}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -29,7 +29,7 @@ import { TasksRegistry } from './components/TasksRegistry';
 import { EvidenceRegistry } from './components/EvidenceRegistry';
 import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
-import { ShieldCheck, ShieldOff } from 'lucide-react';
+import { ShieldOff } from 'lucide-react';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -314,20 +314,17 @@ export default function App() {
           l'exact contenu de la maquette de référence : un simple lien de
           liens à gauche, la garantie "Plateforme sécurisée" à droite — plus
           de bloc de branding épais. */}
-      <footer className="bg-white border-t border-slate-200 text-[11px] text-slate-500 py-4 px-4 sm:px-6 lg:px-8">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 13) === Pied de page bleu marine,
+          conforme à la nouvelle maquette d'accueil (au lieu du pied clair
+          précédent). */}
+      <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
           <div className="flex items-center gap-4">
-            <span>© {new Date().getFullYear()} Groupe ACTIVA.</span>
-            <button className="hover:text-blue-700 hover:underline">{t.footer_confidentiality}</button>
-            <button className="hover:text-blue-700 hover:underline">{t.footer_legal}</button>
-            <button className="hover:text-blue-700 hover:underline">{t.footer_contact}</button>
+            <button className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
+            <button className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>
+            <button className="hover:text-white hover:underline">{t.footer_contact}</button>
           </div>
-          <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="font-medium text-slate-600">{t.footer_secure}</span>
-            <span className="text-slate-300">|</span>
-            <span>{t.footer_secure_sub}</span>
-          </span>
         </div>
       </footer>
 

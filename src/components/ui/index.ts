@@ -15,3 +15,6 @@ export type { BreadcrumbItem } from './Breadcrumb';
 // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
 export { MiniLineChart, MiniDonutChart, MiniBarChart } from './Charts';
 export type { TrendPoint, DonutSlice, BarDatum } from './Charts';
+
+// === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
+export { ActivaLogo } from './ActivaLogo';

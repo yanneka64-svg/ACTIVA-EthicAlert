@@ -50,8 +50,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_subcollections_note: 'Allégations, personnes, preuves, notes et échanges ne sont pas affichés ici : leur lecture nécessite une Cloud Function (non déployée, projet en forfait Spark). Voir docs/FIREBASE-SETUP.md.',
     
     // Whistleblower home
-    hero_title: 'EthicAlert.com',
+    hero_title: 'EthicsAlert.Com',
     hero_desc: 'Un canal sécurisé pour signaler les préoccupations éthiques et de conformité.',
+    hero_paragraph: 'Chez ACTIVA, nous agissons avec intégrité. Ce dispositif vous permet de signaler, en toute confidentialité, toute situation contraire à nos valeurs, à notre code d’éthique ou aux lois et réglementations applicables.',
+    hero_tags: 'CONFIDENTIEL | SÛR | ÉTHIQUE',
+    hero_how_it_works_link: 'Comment ça marche ?',
+    hero_quote: 'Une entreprise responsable pour un avenir durable.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — section FAQ, absente jusqu'ici) ===
     faq_title: 'Questions fréquentes',
@@ -468,7 +472,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la
     // maquette : logo, sidebar, onglets de la fiche dossier, pied de page) ===
-    app_title: 'EthicAlert.com',
+    app_title: 'EthicsAlert.Com',
     app_subtitle: 'Canal sécurisé pour signaler les préoccupations éthiques et de conformité',
     brand_tagline: 'passionnément clients',
     navbar_search_placeholder: 'Rechercher un dossier, une personne, un mot-clé...',
@@ -506,6 +510,23 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_feature_anonymity_desc: 'C’est votre choix',
     hero_feature_no_retaliation_title: 'Pas de représailles',
     hero_feature_no_retaliation_desc: 'Nous vous protégeons',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 13 — refonte de l'accueil, maquette photo) ===
+    nav_secure_space: 'Espace sécurisé',
+    nav_public_contact: 'Nous contacter',
+    process_label: 'Un processus simple et sécurisé',
+    process_heading: 'Comment ça marche ?',
+    process_view_faq: 'Voir la FAQ',
+    process_step1_title: 'Signalez',
+    process_step1_desc: 'Remplissez notre formulaire en quelques étapes. Vous pouvez rester anonyme.',
+    process_step2_title: 'Recevez vos accès',
+    process_step2_desc: 'Un identifiant et un code d’accès vous sont fournis pour suivre votre signalement.',
+    process_step3_title: 'Suivez',
+    process_step3_desc: 'Connectez-vous à votre espace sécurisé pour consulter l’avancement et échanger en toute confidentialité.',
+    process_step4_title: 'Agissons ensemble',
+    process_step4_desc: 'Chaque signalement est analysé de manière sérieuse et confidentielle par les équipes compétentes.',
+    footer_legal_notice: 'Mentions légales',
+    footer_privacy_policy: 'Politique de confidentialité',
   },
   en: {
     // app_title/app_subtitle are defined further below, in the "Phase 11" block.
@@ -553,8 +574,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Description',
     fb_lookup_subcollections_note: 'Allegations, persons, evidence, notes and communications are not shown here: reading them requires a Cloud Function (not deployed, project on Spark plan). See docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'EthicAlert.com',
+    hero_title: 'EthicsAlert.Com',
     hero_desc: 'A secure channel to report ethical and compliance concerns.',
+    hero_paragraph: 'At ACTIVA, we act with integrity. This channel lets you report, in full confidentiality, any situation contrary to our values, our code of ethics, or applicable laws and regulations.',
+    hero_tags: 'CONFIDENTIAL | SAFE | ETHICAL',
+    hero_how_it_works_link: 'How does it work?',
+    hero_quote: 'A responsible company for a sustainable future.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section) ===
     faq_title: 'Frequently Asked Questions',
@@ -950,7 +975,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_add: 'Add',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — faithful mockup reproduction) ===
-    app_title: 'EthicAlert.com',
+    app_title: 'EthicsAlert.Com',
     app_subtitle: 'Secure channel to report ethical and compliance concerns',
     brand_tagline: 'passionately serving clients',
     navbar_search_placeholder: 'Search a case, a person, a keyword...',
@@ -988,6 +1013,23 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_feature_anonymity_desc: 'It’s your choice',
     hero_feature_no_retaliation_title: 'No retaliation',
     hero_feature_no_retaliation_desc: 'We protect you',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 13 — home page redesign, photo mockup) ===
+    nav_secure_space: 'Secure area',
+    nav_public_contact: 'Contact us',
+    process_label: 'A simple, secure process',
+    process_heading: 'How does it work?',
+    process_view_faq: 'See the FAQ',
+    process_step1_title: 'Report',
+    process_step1_desc: 'Fill out our form in a few steps. You can stay anonymous.',
+    process_step2_title: 'Get your access',
+    process_step2_desc: 'You receive an ID and access code to track your report.',
+    process_step3_title: 'Follow up',
+    process_step3_desc: 'Log in to your secure area to check progress and exchange messages confidentially.',
+    process_step4_title: 'We act together',
+    process_step4_desc: 'Every report is reviewed seriously and confidentially by the competent teams.',
+    footer_legal_notice: 'Legal notice',
+    footer_privacy_policy: 'Privacy policy',
   },
   pt: {
     // app_title/app_subtitle são definidos mais abaixo, no bloco "Phase 11".
@@ -1035,8 +1077,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Descrição',
     fb_lookup_subcollections_note: 'Alegações, pessoas, provas, notas e comunicações não são exibidas aqui: sua leitura requer uma Cloud Function (não implantada, projeto no plano Spark). Ver docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'EthicAlert.com',
+    hero_title: 'EthicsAlert.Com',
     hero_desc: 'Um canal seguro para reportar preocupações éticas e de conformidade.',
+    hero_paragraph: 'Na ACTIVA, agimos com integridade. Este canal permite-lhe reportar, em total confidencialidade, qualquer situação contrária aos nossos valores, ao nosso código de ética ou às leis e regulamentos aplicáveis.',
+    hero_tags: 'CONFIDENCIAL | SEGURO | ÉTICO',
+    hero_how_it_works_link: 'Como funciona?',
+    hero_quote: 'Uma empresa responsável por um futuro sustentável.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — seção de perguntas frequentes) ===
     faq_title: 'Perguntas frequentes',
@@ -1432,7 +1478,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_add: 'Adicionar',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reprodução fiel da maquete) ===
-    app_title: 'EthicAlert.com',
+    app_title: 'EthicsAlert.Com',
     app_subtitle: 'Canal seguro para reportar preocupações éticas e de conformidade',
     brand_tagline: 'apaixonadamente clientes',
     navbar_search_placeholder: 'Pesquisar um caso, uma pessoa, uma palavra-chave...',
@@ -1470,5 +1516,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_feature_anonymity_desc: 'A escolha é sua',
     hero_feature_no_retaliation_title: 'Sem represálias',
     hero_feature_no_retaliation_desc: 'Nós o protegemos',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 13 — redesenho da página inicial) ===
+    nav_secure_space: 'Área segura',
+    nav_public_contact: 'Contacte-nos',
+    process_label: 'Um processo simples e seguro',
+    process_heading: 'Como funciona?',
+    process_view_faq: 'Ver a FAQ',
+    process_step1_title: 'Reporte',
+    process_step1_desc: 'Preencha o nosso formulário em poucas etapas. Pode permanecer anónimo.',
+    process_step2_title: 'Receba os seus acessos',
+    process_step2_desc: 'Um identificador e um código de acesso são-lhe fornecidos para acompanhar a sua denúncia.',
+    process_step3_title: 'Acompanhe',
+    process_step3_desc: 'Aceda à sua área segura para consultar o progresso e trocar mensagens com confidencialidade.',
+    process_step4_title: 'Agimos em conjunto',
+    process_step4_desc: 'Cada denúncia é analisada de forma séria e confidencial pelas equipas competentes.',
+    footer_legal_notice: 'Aviso legal',
+    footer_privacy_policy: 'Política de privacidade',
   }
 };
