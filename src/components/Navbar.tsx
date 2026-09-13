@@ -23,6 +23,8 @@ import { generateNotifications } from '../services/statusMapping';
 // maquette) === partagée avec App.tsx pour ne jamais diverger sur ce qui
 // compte comme un onglet "staff" (couvert par la barre latérale).
 import { STAFF_TAB_KEYS } from '../constants/staffTabs';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer } from '../services/authz';
 
 interface NavbarProps {
   currentTab: string;
@@ -84,9 +86,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     return unsub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const isGlobalViewer =
-    activeUser.role === 'functional_admin' || activeUser.role === 'system_admin' || activeUser.role === 'auditor';
-  const isStaffUser = isGlobalViewer || activeUser.role === 'investigator';
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+  // Remplace l'ancienne comparaison à 3 rôles codée en dur par la vraie
+  // permission `cases.read` + visibilité globale (src/services/authz.ts).
+  // `isStaffUser` (tout profil hors lanceur d'alerte) n'a plus besoin de
+  // dépendre d'`isGlobalViewer` : le nouveau modèle compte désormais 8
+  // rôles "collaborateur" distincts (contre 3 avant), donc `role !== 'reporter'`
+  // exprime directement l'intention.
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
+  const isStaffUser = activeUser.role !== 'reporter';
   const notifications = React.useMemo(
     () =>
       isStaffUser
@@ -96,17 +104,33 @@ export const Navbar: React.FC<NavbarProps> = ({
     [isStaffUser, isGlobalViewer, activeUser.id, dismissedIds, notifRefresh]
   );
 
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === étendu de 5 à 10 rôles ; les
+  // 5 libellés/couleurs déjà en production restent strictement identiques
+  // (`functional_admin`/`investigator`/`system_admin`/`reporter` gardent
+  // leur rendu exact — `reporter` est le nouveau nom de l'ancien
+  // `whistleblower`, `consultation` celui de l'ancien `auditor`), les 5
+  // nouveaux suivent la même convention visuelle.
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'functional_admin':
         return { label: 'Admin Fonctionnel / DARC', color: 'bg-amber-100 text-amber-900 border-amber-300' };
       case 'investigator':
         return { label: 'Investigateur DARC', color: 'bg-blue-100 text-blue-900 border-blue-300' };
+      case 'senior_investigator':
+        return { label: 'Investigateur Senior DARC', color: 'bg-indigo-100 text-indigo-900 border-indigo-300' };
+      case 'darc_compliance':
+        return { label: 'Conformité DARC', color: 'bg-teal-100 text-teal-900 border-teal-300' };
       case 'system_admin':
         return { label: 'Admin Système', color: 'bg-purple-100 text-purple-900 border-purple-300' };
-      case 'auditor':
+      case 'security_admin':
+        return { label: 'Admin Sécurité', color: 'bg-rose-100 text-rose-900 border-rose-300' };
+      case 'consultation':
         return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-800 border-slate-300' };
-      case 'whistleblower':
+      case 'audit_committee':
+        return { label: 'Comité d’Audit', color: 'bg-cyan-100 text-cyan-900 border-cyan-300' };
+      case 'executive':
+        return { label: 'Direction / Exécutif', color: 'bg-slate-800 text-white border-slate-700' };
+      case 'reporter':
         return { label: 'Lanceur d’alerte', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
     }
   };
@@ -372,7 +396,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         id: 'usr-whistleblower',
                         name: 'Lanceur d’alerte (Visiteur)',
                         email: 'anonyme@declare.activa',
-                        role: 'whistleblower',
+                        role: 'reporter',
                         roleTitle: 'Déclarant externe ou employé',
                         entity: 'Toutes entités',
                         country: 'Groupe ACTIVA',

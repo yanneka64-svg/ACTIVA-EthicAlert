@@ -45,6 +45,8 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { PriorityBadge } from './ui';
 import { computeSlaStatus } from '../services/statusMapping';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer, userCan } from '../services/authz';
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -162,12 +164,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const allUsers = storage.getUsers();
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
   const entities = storage.getEntities();
-  const investigatorUsers = allUsers.filter(u => u.role === 'investigator' || u.role === 'functional_admin');
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+  // Candidats à l'attribution d'un dossier : tout profil qui fait
+  // réellement de l'investigation (permission `cases.edit`) — remplace la
+  // comparaison à 2 rôles, inclut désormais aussi `senior_investigator`.
+  const investigatorUsers = allUsers.filter(u => userCan(u, 'cases.edit'));
 
   // Role visibility logic (CDC 3.1.4):
   // "Chaque gestionnaire n'aura de la visibilité que sur les alertes qui lui sont attribuées.
   // Seul l'administrateur aura une vue sur toutes les alertes enregistrées dans le système."
-  const isGlobalViewer = activeUser.role === 'functional_admin' || activeUser.role === 'system_admin' || activeUser.role === 'auditor';
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === `system_admin` n'a plus
+  // accès aux dossiers (brief section 30) — voir src/services/authz.ts.
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
 
   const visibleAlerts = alerts.filter(alert => {
     // Role filter
@@ -814,7 +822,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               {/* ACTION TOOLBAR (CDC 3.1.2 & 3.1.3: Attribution, Priorité, Clôture, Réouverture) */}
               <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-200">
                 {/* Attribution (Point de contact / Functional Admin only) */}
-                {(activeUser.role === 'functional_admin' || activeUser.role === 'system_admin') && (
+                {/* === AMÉLIORATION AJOUTÉE (Phase 12.3) === permission
+                    `cases.assign` — remplace `functional_admin`/`system_admin` :
+                    `system_admin` n'a plus accès aux dossiers (brief section 30),
+                    `darc_compliance` peut désormais attribuer un dossier
+                    (cohérent avec son rôle de supervision). */}
+                {userCan(activeUser, 'cases.assign') && (
                   <button
                     id="btn-desk-assign"
                     onClick={() => {
@@ -829,7 +842,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 )}
 
                 {/* Priority & Turnaround SLA modification (Point de contact) */}
-                {(activeUser.role === 'functional_admin' || activeUser.role === 'system_admin') && (
+                {/* === AMÉLIORATION AJOUTÉE (Phase 12.3) === même permission
+                    `cases.assign` que l'attribution ci-dessus (délibéré : pas
+                    `cases.edit`, pour ne pas élargir ce contrôle sensible aux
+                    investigateurs de base, qui n'y avaient jamais accès). */}
+                {userCan(activeUser, 'cases.assign') && (
                   <button
                     id="btn-desk-priority"
                     onClick={() => {

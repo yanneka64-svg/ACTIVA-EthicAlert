@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from '../services/authz';
 
 /**
  * === AMÉLIORATION AJOUTÉE : mise en page "portail sécurisé" avec navigation latérale ===
@@ -47,14 +49,15 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const canSeeAudit =
-    activeUser.role === 'functional_admin' ||
-    activeUser.role === 'system_admin' ||
-    activeUser.role === 'auditor';
-  const canSeeSettings = activeUser.role === 'system_admin';
-
-  // === AMÉLIORATION AJOUTÉE (Phase 5) === same visibility rule as InvestigationDesk's isGlobalViewer.
-  const canSeeControlPanel = canSeeAudit;
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de
+  // rôles) === `canSeeAudit` (piste d'audit) et `canSeeControlPanel`
+  // (dossiers) partageaient auparavant la même comparaison à 3 rôles ; ce
+  // sont maintenant deux permissions distinctes — `system_admin` garde
+  // `audit.read` mais n'a plus `cases.read` (brief section 30), donc les
+  // deux valeurs divergent désormais volontairement pour ce rôle.
+  const canSeeAudit = canSeeAuditTrail(activeUser);
+  const canSeeSettings = canManageConfiguration(activeUser);
+  const canSeeControlPanel = isGlobalCaseViewer(activeUser);
 
   // === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation
   // façon maquette) ===

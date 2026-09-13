@@ -1,11 +1,19 @@
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+// `UserRole` était un union à 5 valeurs propre à ce modèle de démonstration
+// local, en parallèle du modèle RBAC à 10 rôles + permissions granulaires
+// déjà construit et testé dans src/domain/ (Phase 2, puis étendu Phase 12.1)
+// mais jamais branché sur l'application réelle. Décision explicite de
+// l'utilisateur : remplacer ce modèle, pas le dupliquer — `UserRole` est
+// désormais un simple alias de `RoleId`, source de vérité unique. Toute la
+// logique d'habilitation (qui voit quoi) passe maintenant par
+// `src/services/authz.ts`, qui s'appuie sur `src/domain/permissions.ts`
+// (roleHasPermission / can) au lieu de comparaisons de rôle codées en dur
+// éparpillées dans chaque écran.
+import { RoleId } from './domain/caseTypes';
+
 export type Language = 'fr' | 'en' | 'pt';
 
-export type UserRole = 
-  | 'whistleblower' 
-  | 'investigator' 
-  | 'functional_admin' 
-  | 'system_admin' 
-  | 'auditor';
+export type UserRole = RoleId;
 
 export interface UserProfile {
   id: string;

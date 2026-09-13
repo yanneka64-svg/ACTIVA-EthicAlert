@@ -357,15 +357,18 @@ service cloud.firestore {
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
   // Pure display data over the real ROLE_PERMISSIONS table — "no new logic
-  // needed, just a UI" per the plan. RoleId here is the target RBAC model
-  // for the future Cloud Functions / Firestore case system (src/domain),
-  // a different role vocabulary from this local demo's UserRole — the
-  // screen says so explicitly so it's never mistaken for the currently
-  // enforced local access rules.
+  // needed, just a UI" per the plan.
   // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu à 10 rôles) === les 2
   // nouveaux rôles (security_admin, audit_committee) suivent exactement le
   // même principe d'affichage pur que les 8 précédents — voir
   // src/domain/permissions.ts pour leur table de permissions réelle.
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === `RoleId` n'est plus un
+  // vocabulaire séparé "cible" pour un futur système Cloud Functions —
+  // c'est désormais exactement le même type que `UserRole` (src/types.ts),
+  // réellement appliqué par cette application (voir
+  // src/services/authz.ts). Ce tableau reste néanmoins la bonne source
+  // d'affichage : il énumère TOUTES les valeurs possibles, y compris
+  // celles qu'aucun compte de démonstration n'utilise encore.
   const ALL_ROLE_IDS: RoleId[] = ['reporter', 'investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation', 'system_admin', 'security_admin', 'audit_committee', 'executive'];
   const ROLE_ID_LABELS: Record<RoleId, string> = {
     reporter: 'Lanceur d’alerte',
@@ -850,11 +853,11 @@ service cloud.firestore {
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
           6. ROLES & PERMISSIONS TAB — read-only visualization of the real
-          ROLE_PERMISSIONS table already defined in src/domain/permissions.ts
-          (built for the future Cloud Functions / Firestore case system).
-          No new permission logic here, purely a UI over existing data — and
-          clearly labeled as a different role model from this local demo's
-          own UserRole, so it's never mistaken for currently-enforced access. */}
+          ROLE_PERMISSIONS table (src/domain/permissions.ts). No new
+          permission logic here, purely a UI over existing data.
+          === AMÉLIORATION AJOUTÉE (Phase 12.3) === this table is no longer
+          a separate/future model — it is the exact set of permissions this
+          application actually enforces (see src/services/authz.ts). */}
       {configTab === 'roles' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
           <div className="border-b border-slate-100 pb-3">
@@ -863,12 +866,16 @@ service cloud.firestore {
               Matrice des rôles & permissions
             </h3>
             <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
-              Modèle RBAC granulaire (18 permissions atomiques) défini pour la future architecture
-              Cloud Functions / Firestore de gestion des dossiers (<code className="font-mono text-slate-600">src/domain/permissions.ts</code>) —
-              la même table sera réutilisée côté serveur afin que client et serveur ne divergent jamais
-              sur ce qu'un rôle peut faire. Les rôles listés ici (ex. « Investigateur senior », « Conformité DARC »)
-              appartiennent à ce modèle cible et sont distincts des rôles actuellement actifs dans cette
-              version de démonstration locale (onglet « Comptes & Habilitations » ci-dessus).
+              Modèle RBAC granulaire (19 permissions atomiques, <code className="font-mono text-slate-600">src/domain/permissions.ts</code>) —
+              la même table sera réutilisée côté serveur (future architecture Cloud Functions / Firestore)
+              afin que client et serveur ne divergent jamais sur ce qu'un rôle peut faire.
+              {/* === AMÉLIORATION AJOUTÉE (Phase 12.3) === ce n'est plus un
+                  modèle "cible" séparé : ce sont exactement les 10 rôles et
+                  permissions réellement appliqués par cette application
+                  (onglet « Comptes & Habilitations » ci-dessus utilise ces
+                  mêmes valeurs). */}
+              {' '}Ce sont exactement les rôles et permissions réellement appliqués par cette
+              application — l'onglet « Comptes & Habilitations » ci-dessus utilise ces mêmes valeurs.
             </p>
           </div>
 
@@ -1228,11 +1235,22 @@ service cloud.firestore {
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Rôle *</label>
+                  {/* === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du
+                      modèle de rôles) === les 10 rôles réels de l'application
+                      (auparavant 4 options ne couvrant que l'ancien modèle à
+                      5 valeurs — "Lanceur d'alerte" n'y figurait jamais non
+                      plus, un compte créé ici étant toujours un compte
+                      collaborateur). */}
                   <select value={userRole} onChange={(e) => setUserRole(e.target.value as UserRole)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
                     <option value="investigator">Investigateur</option>
+                    <option value="senior_investigator">Investigateur senior</option>
                     <option value="functional_admin">Administrateur fonctionnel</option>
+                    <option value="darc_compliance">Conformité DARC</option>
+                    <option value="consultation">Consultation / Audit</option>
+                    <option value="executive">Direction / Exécutif</option>
                     <option value="system_admin">Administrateur système</option>
-                    <option value="auditor">Consultation / Audit</option>
+                    <option value="security_admin">Administrateur sécurité</option>
+                    <option value="audit_committee">Comité d’Audit</option>
                   </select>
                 </div>
                 <div>

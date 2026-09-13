@@ -13,6 +13,7 @@ import { Wrench } from 'lucide-react';
 import { Language, AlertRecord, UserProfile, CorrectiveMeasure } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+import { isGlobalCaseViewer } from '../services/authz';
 import { DataTable, DataTableColumn } from './ui';
 
 interface CorrectiveActionsRegistryProps {
@@ -42,8 +43,8 @@ export const CorrectiveActionsRegistry: React.FC<CorrectiveActionsRegistryProps>
     return unsub;
   }, []);
 
-  const isGlobalViewer =
-    activeUser.role === 'functional_admin' || activeUser.role === 'system_admin' || activeUser.role === 'auditor';
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
 
   const rows: MeasureRow[] = alerts
     .filter((a) => isGlobalViewer || a.assignedInvestigators.includes(activeUser.id))

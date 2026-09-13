@@ -218,8 +218,34 @@ export const INITIAL_USERS: UserProfile[] = [
     id: 'usr-auditor',
     name: 'Comité d’Audit (Consultation)',
     email: 'audit-board@group-activa.com',
-    role: 'auditor',
+    // === AMÉLIORATION AJOUTÉE (Phase 12.3) === l'ancien rôle `auditor`
+    // (5 valeurs) devient `consultation` dans le nouveau modèle RBAC à 10
+    // rôles — même comportement (lecture seule, vision globale des
+    // dossiers), voir src/services/authz.ts.
+    role: 'consultation',
     roleTitle: 'Membre du Comité d’Audit & Conseil d’Administration',
+    entity: 'ACTIVA Finance',
+    country: 'Maurice',
+  },
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === 2 nouveaux comptes de
+  // démonstration pour les 2 rôles réellement nouveaux (security_admin,
+  // audit_committee), accessibles via le même sélecteur de profil que les
+  // 5 comptes ci-dessus — purement additif.
+  {
+    id: 'usr-security-admin',
+    name: 'Farid Haidara (Admin Sécurité)',
+    email: 'f.haidara@group-activa.com',
+    role: 'security_admin',
+    roleTitle: 'Responsable Sécurité des Systèmes d’Information',
+    entity: 'Africa Technology Services (ATS)',
+    country: 'Maurice',
+  },
+  {
+    id: 'usr-audit-committee',
+    name: 'Comité d’Audit Groupe',
+    email: 'comite-audit@group-activa.com',
+    role: 'audit_committee',
+    roleTitle: 'Membre indépendant, Comité d’Audit du Conseil d’Administration',
     entity: 'ACTIVA Finance',
     country: 'Maurice',
   },

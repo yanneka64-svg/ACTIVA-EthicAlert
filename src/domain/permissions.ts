@@ -157,6 +157,18 @@ function isInScope(user: AppUser, kase: Pick<Case, 'country' | 'entity'>): boole
 /** Global-visibility roles see every in-scope case; others only see cases they're explicitly assigned to. */
 const GLOBAL_VISIBILITY_ROLES: RoleId[] = ['functional_admin', 'darc_compliance', 'consultation', 'executive'];
 
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles
+// dans l'app réelle) === Exposé pour que `src/services/authz.ts` (couche
+// fine côté app locale) puisse répliquer "un rôle voit-il tous les
+// dossiers ou seulement les siens" sans dupliquer GLOBAL_VISIBILITY_ROLES.
+// N'évalue que le rôle, pas le périmètre pays/entité ni la confidentialité
+// (voir `can()` ci-dessous pour la version complète, à contexte de dossier) —
+// suffisant pour cette app locale tant qu'`AlertRecord` n'a pas de champ de
+// confidentialité (prévu en Phase 12.5).
+export function hasGlobalCaseVisibility(roleId: RoleId): boolean {
+  return roleHasPermission(roleId, 'cases.read') && GLOBAL_VISIBILITY_ROLES.includes(roleId);
+}
+
 export interface CaseAccessContext {
   case: Pick<Case, 'country' | 'entity' | 'confidentialityLevel' | 'assignee'> & {
     additionalInvestigators: string[];

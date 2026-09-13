@@ -35,6 +35,8 @@ import { STAFF_TAB_KEYS } from './constants/staffTabs';
 // === AMÉLIORATION AJOUTÉE (Phase 12.2 — routage par URL réel) ===
 import { resolveRoute, pathForTab } from './routing/routes';
 import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer, canManageConfiguration, canSeeAuditTrail } from './services/authz';
 import { ShieldCheck, Lock, Building2 } from 'lucide-react';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
@@ -124,10 +126,12 @@ function AppShell() {
     return unsub;
   }, []);
 
-  const isGlobalViewer =
-    activeUser.role === 'functional_admin' ||
-    activeUser.role === 'system_admin' ||
-    activeUser.role === 'auditor';
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === remplace l'ancienne
+  // comparaison à 3 rôles codée en dur. Diffère volontairement de l'ancien
+  // comportement pour `system_admin`, qui n'a plus accès aux dossiers
+  // (brief section 30, « System Administrator ≠ Case Access » — voir
+  // src/services/authz.ts).
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
 
   // Count of "new" alerts visible to the active user (mirrors the visibility rule enforced in
   // InvestigationDesk: a non-admin only sees cases explicitly assigned to them).
@@ -145,7 +149,7 @@ function AppShell() {
     setActiveUser(user);
     storage.setActiveUser(user);
     // Leaving admin/investigator-only screens when switching to the public whistleblower profile.
-    if (user.role === 'whistleblower' && STAFF_TAB_KEYS.includes(currentTab)) {
+    if (user.role === 'reporter' && STAFF_TAB_KEYS.includes(currentTab)) {
       navigate('/');
     }
   };
@@ -266,15 +270,19 @@ function AppShell() {
       );
     }
     if (currentTab === 'audit') {
+      // === AMÉLIORATION AJOUTÉE (Phase 12.3) === garde désormais sur la
+      // vraie permission `audit.read`, pas `isGlobalViewer` — `system_admin`
+      // n'a plus accès aux dossiers mais garde bien accès à la piste
+      // d'audit (il a `audit.read`), exactement comme dans l'ancien modèle.
       return (
-        <PermissionGuard allowed={isGlobalViewer} label="Piste d’Audit">
+        <PermissionGuard allowed={canSeeAuditTrail(activeUser)} label="Piste d’Audit">
           <AuditTrailView lang={lang} activeUser={activeUser} />
         </PermissionGuard>
       );
     }
     if (currentTab === 'settings') {
       return (
-        <PermissionGuard allowed={activeUser.role === 'system_admin'} label="Administration">
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Administration">
           <AdminConfigView lang={lang} activeUser={activeUser} />
         </PermissionGuard>
       );
@@ -285,14 +293,14 @@ function AppShell() {
     // sélecteur d'onglets complet reste visible pour ne rien masquer.
     if (currentTab === 'admin_users') {
       return (
-        <PermissionGuard allowed={activeUser.role === 'system_admin'} label="Utilisateurs & Rôles">
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Utilisateurs & Rôles">
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="users" />
         </PermissionGuard>
       );
     }
     if (currentTab === 'admin_config') {
       return (
-        <PermissionGuard allowed={activeUser.role === 'system_admin'} label="Configuration">
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Configuration">
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="matrix" />
         </PermissionGuard>
       );
