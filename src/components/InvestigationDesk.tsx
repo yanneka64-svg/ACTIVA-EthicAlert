@@ -12,10 +12,10 @@ import {
   AlertTriangle, 
   UserPlus, 
   Calendar, 
-  FolderArchive, 
-  RotateCcw, 
-  Plus, 
-  Send, 
+  FolderArchive,
+  RotateCcw,
+  Plus,
+  Send,
   Lock,
   FileCheck2,
   SlidersHorizontal,
@@ -26,7 +26,11 @@ import {
   Square,
   ArrowLeft,
   Scale,
-  UserCog
+  UserCog,
+  // === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon maquette) ===
+  ChevronDown,
+  Check,
+  Printer,
 } from 'lucide-react';
 import {
   Language,
@@ -43,7 +47,7 @@ import {
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-import { PriorityBadge } from './ui';
+import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor } from './ui';
 import { computeSlaStatus } from '../services/statusMapping';
 
 interface InvestigationDeskProps {
@@ -109,6 +113,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
   // Selected case active tab
   const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'investigation' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'conflict'>('overview');
+
+  // === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon maquette) ===
+  // Consolidates the action toolbar (Attribution/Priorité/Clôture/Réouverture/
+  // Archivage) into a single "Actions" dropdown button, matching the
+  // reference case-detail mockup — every underlying handler/condition below
+  // is unchanged, only how the buttons are grouped visually.
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
 
   // Interactive modal / action states
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -757,129 +768,188 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       )}
 
       {/* Case Detail & Investigation Workspace */}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon
+          maquette, fiche dossier) === Breadcrumb + en-tête (titre, badges,
+          jauge de score de risque, menu Actions unique) + ligne d'infos +
+          mise en page 2 colonnes (onglets/contenu à gauche, "Statut du
+          dossier" / "Informations complémentaires" / "Liens rapides" à
+          droite). Chaque bouton d'action, chaque onglet et chaque handler
+          existants sont conservés à l'identique — seule la structure
+          visuelle autour d'eux change. */}
       {viewMode === 'detail' && (selectedAlert ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            {/* Back to list */}
-            <div className="px-6 pt-4">
-              <button
-                onClick={() => setViewMode('list')}
-                className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:underline"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                {t.btn_back_to_list}
-              </button>
+        <div className="space-y-5">
+          <Breadcrumb
+            items={[
+              { label: t.breadcrumb_cases, onClick: () => setViewMode('list') },
+              { label: selectedAlert.trackingNumber },
+            ]}
+          />
+
+          {/* Title row: tracking number + badges + risk gauge + Actions menu */}
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-mono text-xl sm:text-2xl font-extrabold text-slate-900">
+                  {selectedAlert.trackingNumber}
+                </h1>
+                {getPriorityBadge(selectedAlert)}
+                <StatusBadge status={selectedAlert.status} label={selectedAlert.status.toUpperCase().replace('_', ' ')} size="sm" />
+              </div>
+              <p className="text-xs text-slate-600 mt-1">
+                {selectedAlert.category} • <span className="font-medium text-slate-800">{selectedAlert.subCategory}</span>
+              </p>
             </div>
-            {/* Header with Case Info and Management Controls */}
-            <div className="p-6 bg-slate-50 border-b border-slate-200">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-lg font-extrabold text-[#0B2545]">
-                      {selectedAlert.trackingNumber}
-                    </span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      selectedAlert.riskEvaluation.nocaThreshold === 'NOCA 4'
-                        ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                        : selectedAlert.riskEvaluation.nocaThreshold === 'NOCA 3'
-                        ? 'bg-orange-100 text-orange-900 border border-orange-300'
-                        : selectedAlert.riskEvaluation.nocaThreshold === 'NOCA 2'
-                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                        : 'bg-slate-100 text-slate-800 border border-slate-300'
-                    }`}>
-                      {selectedAlert.riskEvaluation.nocaThreshold} - {selectedAlert.riskEvaluation.expectedTreatment}
-                    </span>
+
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Risk score gauge — reuses the same totalScore/16 already
+                  computed at submission time (see the Triage tab below) */}
+              {(() => {
+                const score = selectedAlert.riskEvaluation.totalScore;
+                const tone = nocaColor(score);
+                const barColor = score >= 14 ? 'bg-rose-500' : score >= 11 ? 'bg-orange-500' : score >= 7 ? 'bg-amber-500' : 'bg-slate-400';
+                return (
+                  <div className={`w-40 rounded-2xl border ${tone.border} bg-white shadow-sm px-4 py-2.5`}>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t.case_risk_score}</div>
+                    <div className={`text-lg font-extrabold ${tone.text}`}>{score}/16</div>
+                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
+                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, (score / 16) * 100)}%` }} />
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    {selectedAlert.category} • <span className="font-medium text-slate-800">{selectedAlert.subCategory}</span>
-                  </p>
-                </div>
+                );
+              })()}
 
-                {/* Status indicator */}
-                <div className="text-right">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">Statut du dossier</div>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                    selectedAlert.status === 'closed'
-                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                      : selectedAlert.status === 'investigation'
-                      ? 'bg-purple-100 text-purple-900 border border-purple-300'
-                      : selectedAlert.status === 'reopened'
-                      ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                      : 'bg-blue-100 text-blue-900 border border-blue-300'
-                  }`}>
-                    {selectedAlert.status.toUpperCase()}
-                  </span>
-                </div>
-              </div>
+              {/* ACTIONS MENU (CDC 3.1.2 & 3.1.3: Attribution, Priorité, Clôture, Réouverture, Archivage) —
+                  every item below is the exact same button/handler as before, just grouped in one dropdown. */}
+              <div className="relative">
+                <button
+                  id="btn-case-actions-menu"
+                  onClick={() => setShowActionsMenu((v) => !v)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white text-xs font-bold shadow-sm transition"
+                >
+                  <span>{t.case_actions}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showActionsMenu ? 'rotate-180' : ''}`} />
+                </button>
 
-              {/* ACTION TOOLBAR (CDC 3.1.2 & 3.1.3: Attribution, Priorité, Clôture, Réouverture) */}
-              <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-200">
-                {/* Attribution (Point de contact / Functional Admin only) */}
-                {(activeUser.role === 'functional_admin' || activeUser.role === 'system_admin') && (
-                  <button
-                    id="btn-desk-assign"
-                    onClick={() => {
-                      setSelectedInvestigatorIds(selectedAlert.assignedInvestigators);
-                      setShowAssignModal(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold shadow-xs transition"
-                  >
-                    <UserPlus className="w-3.5 h-3.5 text-blue-600" />
-                    <span>{t.btn_assign_investigator}</span>
-                  </button>
-                )}
+                {showActionsMenu && (
+                  <div className="absolute right-0 mt-1.5 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-30 text-xs">
+                    {(activeUser.role === 'functional_admin' || activeUser.role === 'system_admin') && (
+                      <button
+                        id="btn-desk-assign"
+                        onClick={() => {
+                          setSelectedInvestigatorIds(selectedAlert.assignedInvestigators);
+                          setShowAssignModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <UserPlus className="w-3.5 h-3.5 text-blue-600" />
+                        <span>{t.btn_assign_investigator}</span>
+                      </button>
+                    )}
 
-                {/* Priority & Turnaround SLA modification (Point de contact) */}
-                {(activeUser.role === 'functional_admin' || activeUser.role === 'system_admin') && (
-                  <button
-                    id="btn-desk-priority"
-                    onClick={() => {
-                      setNewPriority(selectedAlert.overridePriority || selectedAlert.riskEvaluation.priority);
-                      setShowPriorityModal(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold shadow-xs transition"
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
-                    <span>{t.btn_change_priority}</span>
-                  </button>
-                )}
+                    {(activeUser.role === 'functional_admin' || activeUser.role === 'system_admin') && (
+                      <button
+                        id="btn-desk-priority"
+                        onClick={() => {
+                          setNewPriority(selectedAlert.overridePriority || selectedAlert.riskEvaluation.priority);
+                          setShowPriorityModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
+                        <span>{t.btn_change_priority}</span>
+                      </button>
+                    )}
 
-                {/* Close Case */}
-                {selectedAlert.status !== 'closed' && selectedAlert.status !== 'archived' && (
-                  <button
-                    id="btn-desk-close"
-                    onClick={() => setShowCloseModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{t.btn_close_case}</span>
-                  </button>
-                )}
+                    {selectedAlert.status !== 'closed' && selectedAlert.status !== 'archived' && (
+                      <button
+                        id="btn-desk-close"
+                        onClick={() => {
+                          setShowCloseModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-emerald-50 text-emerald-700 font-bold"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{t.btn_close_case}</span>
+                      </button>
+                    )}
 
-                {/* Reopen Case (with mandatory reason) */}
-                {selectedAlert.status === 'closed' && (
-                  <button
-                    id="btn-desk-reopen"
-                    onClick={() => setShowReopenModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-300 hover:bg-rose-100 text-rose-800 text-xs font-bold shadow-xs transition"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>{t.btn_reopen_case}</span>
-                  </button>
-                )}
+                    {selectedAlert.status === 'closed' && (
+                      <button
+                        id="btn-desk-reopen"
+                        onClick={() => {
+                          setShowReopenModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-rose-50 text-rose-700 font-bold"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>{t.btn_reopen_case}</span>
+                      </button>
+                    )}
 
-                {/* Archive Case */}
-                {selectedAlert.status === 'closed' && (
-                  <button
-                    onClick={handleArchiveAlert}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-                  >
-                    <FolderArchive className="w-3.5 h-3.5" />
-                    <span>{t.btn_archive_case}</span>
-                  </button>
+                    {selectedAlert.status === 'closed' && (
+                      <button
+                        onClick={() => {
+                          handleArchiveAlert();
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <FolderArchive className="w-3.5 h-3.5" />
+                        <span>{t.btn_archive_case}</span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
+          </div>
 
+          {/* Info row card: Catégorie / Entité / Pays / Date de réception / Échéance SLA / Investigateur */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_category}</div>
+                <div className="font-semibold text-slate-800 mt-0.5 truncate">{selectedAlert.category}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_entity}</div>
+                <div className="font-semibold text-slate-800 mt-0.5 truncate">{selectedAlert.concernedEntity}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_country}</div>
+                <div className="font-semibold text-slate-800 mt-0.5 truncate">{selectedAlert.country}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_received}</div>
+                <div className="font-semibold text-slate-800 mt-0.5">
+                  {new Date(selectedAlert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_sla_due}</div>
+                <div className={`font-semibold mt-0.5 ${computeSlaStatus(selectedAlert) === 'overdue' ? 'text-rose-600' : 'text-slate-800'}`}>
+                  {selectedAlert.targetCompletionDate
+                    ? new Date(selectedAlert.targetCompletionDate).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')
+                    : '—'}
+                  {computeSlaStatus(selectedAlert) === 'overdue' && <span className="ml-1">({t.case_info_late})</span>}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_investigator}</div>
+                <div className="font-semibold text-slate-800 mt-0.5 truncate">
+                  {selectedAlert.assignedInvestigatorNames.length > 0 ? selectedAlert.assignedInvestigatorNames.join(', ') : t.case_info_unassigned}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Two-column layout: tabs/content (left) + Statut/Infos/Liens (right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             {/* Case Tabs: Overview, Investigation notes, Messages, Corrective measures, Tasks, Timeline */}
             {/* === AMÉLIORATION AJOUTÉE (Phase 6) === overflow-x-auto + shrink-0/whitespace-nowrap on
                 each button: 6 tabs no longer fit this panel's fixed width at some viewports: without
@@ -1489,6 +1559,89 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </div>
             )}
           </div>
+
+          {/* Right column: Statut du dossier / Informations complémentaires / Liens rapides */}
+          <aside className="space-y-5">
+            {/* Statut du dossier — timeline verticale, dérivée du vrai statut
+                (pas de statut fantaisiste : "En attente d'informations" et
+                "En revue" ne sont pas modélisés par AlertStatus, ils restent
+                donc à l'état "à venir" tant qu'ils ne le sont pas). */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-4">{t.case_status_title}</h3>
+              {(() => {
+                const isInvestigating = ['investigation', 'corrective_action', 'closed', 'archived', 'reopened'].includes(selectedAlert.status);
+                const isClosed = ['closed', 'archived'].includes(selectedAlert.status);
+                type StepState = 'done' | 'current' | 'pending';
+                const steps: { label: string; state: StepState; date?: string }[] = [
+                  { label: t.case_status_received, state: 'done', date: selectedAlert.createdAt },
+                  { label: t.case_status_investigation, state: isClosed ? 'done' : isInvestigating ? 'current' : 'pending', date: isInvestigating ? selectedAlert.updatedAt : undefined },
+                  { label: t.case_status_pending_info, state: 'pending' },
+                  { label: t.case_status_review, state: 'pending' },
+                  { label: t.case_status_closed_step, state: isClosed ? 'done' : 'pending', date: selectedAlert.closedAt },
+                ];
+                return (
+                  <ol>
+                    {steps.map((step, i) => (
+                      <li key={i} className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                            step.state === 'done' ? 'bg-emerald-500 text-white' : step.state === 'current' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'
+                          }`}>
+                            {step.state === 'done' ? <Check className="w-3 h-3" /> : <span className="w-1.5 h-1.5 rounded-full bg-current" />}
+                          </span>
+                          {i < steps.length - 1 && <span className="w-px flex-1 min-h-[22px] bg-slate-200" />}
+                        </div>
+                        <div className="pb-4">
+                          <div className={`text-xs font-semibold ${step.state === 'pending' ? 'text-slate-400' : 'text-slate-800'}`}>{step.label}</div>
+                          {step.date && (
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              {new Date(step.date).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                );
+              })()}
+            </div>
+
+            {/* Informations complémentaires */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">{t.case_additional_info_title}</h3>
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5 text-slate-500"><Lock className="w-3.5 h-3.5" />{t.case_origin_label}</span>
+                <span className="font-semibold text-slate-800">
+                  {selectedAlert.whistleblower.isAnonymous ? t.case_origin_anonymous : t.case_origin_identified}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                <span className="flex items-center gap-1.5 text-slate-500"><ShieldAlert className="w-3.5 h-3.5" />{t.case_confidentiality_label}</span>
+                <span className="font-semibold text-emerald-700">{t.case_confidentiality_high}</span>
+              </div>
+            </div>
+
+            {/* Liens rapides */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-2">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-1">{t.case_quick_links_title}</h3>
+              <button
+                onClick={() => window.print()}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition"
+              >
+                <Printer className="w-3.5 h-3.5 text-blue-600" />
+                {t.case_btn_generate_report}
+              </button>
+              <button
+                onClick={() => setActiveCaseTab('timeline')}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition"
+              >
+                <History className="w-3.5 h-3.5 text-blue-600" />
+                {t.case_btn_view_timeline}
+              </button>
+            </div>
+          </aside>
+          </div>
+        </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center text-slate-400 text-xs space-y-3">
             <p>Aucun dossier ne correspond à vos critères de filtrage.</p>

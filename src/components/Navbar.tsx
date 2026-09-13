@@ -4,15 +4,9 @@ import {
   Globe,
   FileText,
   Search,
-  BarChart3,
-  History,
-  Settings,
   QrCode,
-  UserCheck,
-  Lock,
   ChevronDown,
   Database,
-  LayoutDashboard,
   Bell,
   Clock3,
   MessageSquare,
@@ -20,7 +14,6 @@ import {
   RotateCcw,
   Paperclip,
   FileCheck2,
-  Landmark,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -41,6 +34,14 @@ interface NavbarProps {
   // link straight into its case, reusing the same trackingNumber filter
   // already wired from the Control Panel (App.tsx's navigateToCases).
   onNavigateToCase: (trackingNumber: string) => void;
+  // === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon maquette) ===
+  // Distinguishes the "staff portal" chrome (white top bar with a search
+  // field, notification bell and account menu — the wrapped screen already
+  // has its own left sidebar via StaffPortalLayout, see App.tsx) from the
+  // "public" chrome (simple text nav for the whistleblower-facing pages).
+  // Purely presentational: every tab/handler below is unchanged and still
+  // reachable, only the layout of this bar differs.
+  isStaffContext: boolean;
 }
 
 // A real, computed notification list (see services/statusMapping.ts) never
@@ -68,11 +69,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenQrModal,
   pendingAlertsCount,
   onNavigateToCase,
+  isStaffContext,
 }) => {
   const t = TRANSLATIONS[lang];
   const allUsers = storage.getUsers();
   const [showUserDropdown, setShowUserDropdown] = React.useState(false);
   const [showLangDropdown, setShowLangDropdown] = React.useState(false);
+  const [searchValue, setSearchValue] = React.useState('');
 
   // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
   const [showNotifDropdown, setShowNotifDropdown] = React.useState(false);
@@ -98,108 +101,207 @@ export const Navbar: React.FC<NavbarProps> = ({
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'functional_admin':
-        return { label: 'Admin Fonctionnel / DARC', color: 'bg-amber-100 text-amber-900 border-amber-300' };
+        return { label: 'Admin Fonctionnel / DARC', color: 'bg-amber-50 text-amber-800 border-amber-200' };
       case 'investigator':
-        return { label: 'Investigateur DARC', color: 'bg-blue-100 text-blue-900 border-blue-300' };
+        return { label: 'Investigateur DARC', color: 'bg-blue-50 text-blue-800 border-blue-200' };
       case 'system_admin':
-        return { label: 'Admin Système', color: 'bg-purple-100 text-purple-900 border-purple-300' };
+        return { label: 'Admin Système', color: 'bg-purple-50 text-purple-800 border-purple-200' };
       case 'auditor':
-        return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-800 border-slate-300' };
+        return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-700 border-slate-200' };
       case 'whistleblower':
-        return { label: 'Lanceur d’alerte', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
+        return { label: 'Lanceur d’alerte', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
     }
   };
 
   const badge = getRoleBadge(activeUser.role);
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchValue.trim()) {
+      onNavigateToCase(searchValue.trim());
+      setSearchValue('');
+    }
+  };
+
   return (
-    <header className="bg-[#0B2545] text-white border-b border-[#134074] shadow-md sticky top-0 z-40">
-      {/* Top utility bar: Group info & Role switcher */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-2 text-xs border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <span className="font-bold tracking-wider text-amber-400 uppercase">
-              {t.group_name}
-            </span>
-            <span className="hidden sm:inline-block text-slate-300">|</span>
-            <span className="hidden sm:inline-block text-slate-300">
-              {t.darc_label}
-            </span>
-            <span className="hidden md:inline-flex items-center gap-1 text-emerald-400 font-medium">
-              <Lock className="w-3.5 h-3.5" />
-              {t.confidentiality_guarantee}
-            </span>
+    <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-40">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3 sm:gap-5 py-3">
+          {/* Logo & title */}
+          <div
+            id="brand-logo"
+            onClick={() => setCurrentTab('home')}
+            className="flex items-center gap-2.5 cursor-pointer select-none group shrink-0"
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 flex items-center justify-center shadow-sm ring-1 ring-black/5">
+              <ShieldAlert className="w-5 h-5 text-white" />
+            </div>
+            <div className="hidden sm:block leading-tight">
+              <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-blue-700 transition">
+                {t.app_title}
+              </h1>
+              <p className="text-[11px] text-slate-500 max-w-[220px] truncate">
+                {t.app_subtitle}
+              </p>
+            </div>
           </div>
 
-          {/* Role & Lang switcher */}
-          <div className="flex items-center gap-3">
-            {/* === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) === */}
-            {isStaffUser && (
-              <div className="relative">
-                <button
-                  id="btn-notification-bell"
-                  onClick={() => setShowNotifDropdown(!showNotifDropdown)}
-                  className="relative p-1.5 rounded bg-white/10 hover:bg-white/20 transition text-slate-200"
-                  title={t.notif_title}
-                >
-                  <Bell className="w-3.5 h-3.5" />
-                  {notifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
-                      {notifications.length > 9 ? '9+' : notifications.length}
-                    </span>
-                  )}
-                </button>
+          {isStaffContext ? (
+            <>
+              {/* Search bar (staff portal) */}
+              <form onSubmit={handleSearchSubmit} className="flex-1 hidden md:block max-w-xl">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    id="navbar-search"
+                    type="text"
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    placeholder={t.search_placeholder}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-100 border border-transparent text-xs text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+                  />
+                </div>
+              </form>
+              <div className="flex-1 md:hidden" />
+            </>
+          ) : (
+            <nav className="hidden md:flex items-center gap-1 flex-1">
+              <button
+                id="nav-btn-home"
+                onClick={() => setCurrentTab('home')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  currentTab === 'home' || currentTab === 'new_alert'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                {t.nav_home}
+              </button>
 
-                {showNotifDropdown && (
-                  <div className="absolute right-0 mt-1 w-80 bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 z-50 text-xs max-h-96 flex flex-col">
-                    <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
-                      <p className="font-bold text-slate-700">{t.notif_title}</p>
-                      {notifications.length > 0 && (
-                        <button
-                          onClick={() => setDismissedIds(new Set([...dismissedIds, ...notifications.map((n) => n.id)]))}
-                          className="text-[10px] font-semibold text-blue-700 hover:underline"
-                        >
-                          {t.notif_mark_all_read}
-                        </button>
-                      )}
-                    </div>
-                    <div className="overflow-y-auto flex-1">
-                      {notifications.length === 0 ? (
-                        <div className="text-center py-8 text-slate-400 text-[11px]">{t.notif_empty}</div>
-                      ) : (
-                        notifications.map((n) => {
-                          const Icon = NOTIFICATION_ICONS[n.type] ?? Bell;
-                          return (
-                            <button
-                              key={n.id}
-                              onClick={() => {
-                                setDismissedIds(new Set([...dismissedIds, n.id]));
-                                setShowNotifDropdown(false);
-                                onNavigateToCase(n.trackingNumber);
-                              }}
-                              className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 flex items-start gap-2.5"
-                            >
-                              <span
-                                className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                                  n.type === 'sla_overdue' ? 'bg-rose-50 text-rose-600' : n.type === 'sla_at_risk' || n.type === 'task_overdue' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
-                                }`}
-                              >
-                                <Icon className="w-3.5 h-3.5" />
-                              </span>
-                              <span className="flex-1 min-w-0">
-                                <span className="block text-slate-700 leading-snug">{n.message}</span>
-                                <span className="block text-[10px] text-slate-400 mt-0.5">
-                                  {new Date(n.createdAt).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
-                                </span>
-                              </span>
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
+              <button
+                id="nav-btn-track"
+                onClick={() => setCurrentTab('track')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  currentTab === 'track' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Search className="w-4 h-4" />
+                {t.nav_track}
+              </button>
+
+              {/* Entry point into the staff portal (sidebar covers the rest once inside) */}
+              <button
+                id="nav-btn-portal"
+                onClick={() => setCurrentTab('portal')}
+                className="relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                <span>{t.nav_portal}</span>
+                {pendingAlertsCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
+                    {pendingAlertsCount}
+                  </span>
                 )}
-              </div>
+              </button>
+            </nav>
+          )}
+
+          {/* Right cluster */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {isStaffContext && (
+              <>
+                {/* Notification bell */}
+                <div className="relative">
+                  <button
+                    id="btn-notification-bell"
+                    onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                    className="relative p-2 rounded-lg bg-slate-100 hover:bg-slate-200 transition text-slate-600"
+                    title={t.notif_title}
+                  >
+                    <Bell className="w-4 h-4" />
+                    {notifications.length > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                        {notifications.length > 9 ? '9+' : notifications.length}
+                      </span>
+                    )}
+                  </button>
+
+                  {showNotifDropdown && (
+                    <div className="absolute right-0 mt-1 w-80 bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 z-50 text-xs max-h-96 flex flex-col">
+                      <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+                        <p className="font-bold text-slate-700">{t.notif_title}</p>
+                        {notifications.length > 0 && (
+                          <button
+                            onClick={() => setDismissedIds(new Set([...dismissedIds, ...notifications.map((n) => n.id)]))}
+                            className="text-[10px] font-semibold text-blue-700 hover:underline"
+                          >
+                            {t.notif_mark_all_read}
+                          </button>
+                        )}
+                      </div>
+                      <div className="overflow-y-auto flex-1">
+                        {notifications.length === 0 ? (
+                          <div className="text-center py-8 text-slate-400 text-[11px]">{t.notif_empty}</div>
+                        ) : (
+                          notifications.map((n) => {
+                            const Icon = NOTIFICATION_ICONS[n.type] ?? Bell;
+                            return (
+                              <button
+                                key={n.id}
+                                onClick={() => {
+                                  setDismissedIds(new Set([...dismissedIds, n.id]));
+                                  setShowNotifDropdown(false);
+                                  onNavigateToCase(n.trackingNumber);
+                                }}
+                                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 flex items-start gap-2.5"
+                              >
+                                <span
+                                  className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                                    n.type === 'sla_overdue' ? 'bg-rose-50 text-rose-600' : n.type === 'sla_at_risk' || n.type === 'task_overdue' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
+                                  }`}
+                                >
+                                  <Icon className="w-3.5 h-3.5" />
+                                </span>
+                                <span className="flex-1 min-w-0">
+                                  <span className="block text-slate-700 leading-snug">{n.message}</span>
+                                  <span className="block text-[10px] text-slate-400 mt-0.5">
+                                    {new Date(n.createdAt).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
+                                  </span>
+                                </span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Compact links to screens not covered by the sidebar (Reports/Audit/Settings/Executive/
+                    Control Panel already live in StaffPortalLayout's sidebar — see App.tsx) */}
+                <button
+                  id="nav-btn-firebase-lookup"
+                  onClick={() => setCurrentTab('firebase_lookup')}
+                  className={`hidden lg:flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold transition ${
+                    currentTab === 'firebase_lookup' ? 'bg-purple-50 text-purple-700' : 'text-slate-500 hover:bg-slate-100'
+                  }`}
+                  title={t.nav_firebase_lookup}
+                >
+                  <Database className="w-4 h-4" />
+                </button>
+              </>
+            )}
+
+            {!isStaffContext && (
+              <button
+                id="nav-btn-qr"
+                onClick={onOpenQrModal}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-blue-700 transition"
+                title="Générer / Afficher le QR Code de signalement"
+              >
+                <QrCode className="w-4 h-4" />
+              </button>
             )}
 
             {/* Language Selector */}
@@ -207,34 +309,34 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="btn-language-selector"
                 onClick={() => setShowLangDropdown(!showLangDropdown)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition text-slate-200"
+                className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 transition text-slate-600 text-xs"
                 title="Changer de langue"
               >
                 <Globe className="w-3.5 h-3.5" />
-                <span className="font-semibold uppercase">{lang}</span>
+                <span className="font-bold uppercase">{lang}</span>
                 <ChevronDown className="w-3 h-3 opacity-70" />
               </button>
 
               {showLangDropdown && (
-                <div 
+                <div
                   className="absolute right-0 mt-1 w-32 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-xs"
                   onClick={() => setShowLangDropdown(false)}
                 >
-                  <button 
+                  <button
                     onClick={() => setLang('fr')}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'fr' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
                   >
                     <span>🇫🇷 Français</span>
                     {lang === 'fr' && <span>✓</span>}
                   </button>
-                  <button 
+                  <button
                     onClick={() => setLang('en')}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'en' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
                   >
                     <span>🇬🇧 English</span>
                     {lang === 'en' && <span>✓</span>}
                   </button>
-                  <button 
+                  <button
                     onClick={() => setLang('pt')}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'pt' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
                   >
@@ -245,23 +347,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Simulated Profile / Role Switcher (Crucial for test & review) */}
+            {/* Account / role-switcher menu (role-switching stays crucial for demo & CDC 3.2.3 access testing) */}
             <div className="relative">
               <button
                 id="btn-role-switcher"
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/30 transition"
+                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
               >
-                <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-                <span className="max-w-[140px] truncate font-medium">{activeUser.name}</span>
-                <span className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-amber-400/30 text-[10px] uppercase font-bold text-amber-300">
-                  {activeUser.role}
+                <span className="w-8 h-8 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-800 font-bold text-xs shrink-0">
+                  {activeUser.name.charAt(0)}
                 </span>
-                <ChevronDown className="w-3 h-3 text-amber-400" />
+                <span className="hidden sm:block text-left leading-tight">
+                  <span className="block text-xs font-bold text-slate-800 max-w-[140px] truncate">{activeUser.name}</span>
+                  <span className="block text-[10px] text-slate-500 max-w-[140px] truncate">{badge?.label}</span>
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
               </button>
 
               {showUserDropdown && (
-                <div 
+                <div
                   className="absolute right-0 mt-1 w-72 bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 py-1.5 z-50 text-xs"
                   onClick={() => setShowUserDropdown(false)}
                 >
@@ -314,223 +418,36 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Main Nav header */}
-        <div className="flex items-center justify-between py-3">
-          {/* Logo & title */}
-          <div 
-            id="brand-logo"
-            onClick={() => setCurrentTab('home')}
-            className="flex items-center gap-3 cursor-pointer select-none group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-2 ring-white/20">
-              <ShieldAlert className="w-6 h-6 text-[#0B2545]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-white group-hover:text-amber-300 transition">
-                  {t.app_title}
-                </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                  v2.0 DARC
-                </span>
-              </div>
-              <p className="text-xs text-slate-300">
-                {t.app_subtitle}
-              </p>
-            </div>
-          </div>
-
-          {/* Nav buttons */}
-          <nav className="hidden lg:flex items-center gap-1">
-            <button
-              id="nav-btn-home"
-              onClick={() => setCurrentTab('home')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'home' || currentTab === 'new_alert'
-                  ? 'bg-amber-500 text-slate-950 shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              {t.nav_home}
-            </button>
-
-            <button
-              id="nav-btn-track"
-              onClick={() => setCurrentTab('track')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'track'
-                  ? 'bg-amber-500 text-slate-950 shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <Search className="w-4 h-4" />
-              {t.nav_track}
-            </button>
-
-            {/* === AMÉLIORATION AJOUTÉE (Phase 5) === Control Panel, same visibility as Audit Trail */}
-            {(activeUser.role === 'functional_admin' ||
-              activeUser.role === 'system_admin' ||
-              activeUser.role === 'auditor') && (
-              <button
-                id="nav-btn-control-panel"
-                onClick={() => setCurrentTab('control_panel')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'control_panel'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'text-slate-200 hover:bg-white/10'
-                }`}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                {t.nav_control_panel}
-              </button>
-            )}
-
-            {/* Portal for investigators and admins */}
-            <button
-              id="nav-btn-portal"
-              onClick={() => setCurrentTab('portal')}
-              className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'portal'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <ShieldAlert className="w-4 h-4" />
-              <span>{t.nav_portal}</span>
-              {pendingAlertsCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
-                  {pendingAlertsCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              id="nav-btn-reports"
-              onClick={() => setCurrentTab('reports')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'reports'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              {t.nav_reports}
-            </button>
-
-            {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Vue Exécutive) === */}
-            {isGlobalViewer && (
-              <button
-                id="nav-btn-executive"
-                onClick={() => setCurrentTab('executive')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'executive'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'text-slate-200 hover:bg-white/10'
-                }`}
-              >
-                <Landmark className="w-4 h-4" />
-                {t.nav_executive}
-              </button>
-            )}
-
-            {/* Audit Trail (Accessible to Admins and Auditors) */}
-            {(activeUser.role === 'functional_admin' || 
-              activeUser.role === 'system_admin' || 
-              activeUser.role === 'auditor') && (
-              <button
-                id="nav-btn-audit"
-                onClick={() => setCurrentTab('audit')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'audit'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'text-slate-200 hover:bg-white/10'
-                }`}
-              >
-                <History className="w-4 h-4" />
-                {t.nav_audit}
-              </button>
-            )}
-
-            {/* Settings (Admin system) */}
-            {activeUser.role === 'system_admin' && (
-              <button
-                id="nav-btn-settings"
-                onClick={() => setCurrentTab('settings')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'settings'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'text-slate-200 hover:bg-white/10'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                {t.nav_settings}
-              </button>
-            )}
-
-            {/* === AMÉLIORATION AJOUTÉE (Phase 4) : outil de recherche connecté au vrai projet Firebase */}
-            <button
-              id="nav-btn-firebase-lookup"
-              onClick={() => setCurrentTab('firebase_lookup')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'firebase_lookup'
-                  ? 'bg-purple-600 text-white shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-              title={t.nav_firebase_lookup}
-            >
-              <Database className="w-4 h-4" />
-              <span className="hidden xl:inline">{t.nav_firebase_lookup}</span>
-            </button>
-
-            {/* QR Code trigger */}
-            <button
-              id="nav-btn-qr"
-              onClick={onOpenQrModal}
-              className="p-2 rounded-lg text-slate-200 hover:bg-white/10 hover:text-amber-300 transition"
-              title="Générer / Afficher le QR Code de signalement"
-            >
-              <QrCode className="w-4 h-4" />
-            </button>
-          </nav>
-        </div>
-
         {/* Mobile secondary tab bar */}
-        <div className="lg:hidden flex items-center justify-around py-2 border-t border-white/10 overflow-x-auto text-[11px] font-medium">
+        <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto py-2 border-t border-slate-100 text-[11px] font-medium">
           <button
             onClick={() => setCurrentTab('home')}
-            className={`px-2 py-1 rounded ${currentTab === 'home' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
+            className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'home' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
           >
             {t.nav_home}
           </button>
           <button
             onClick={() => setCurrentTab('track')}
-            className={`px-2 py-1 rounded ${currentTab === 'track' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
+            className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'track' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
           >
             {t.nav_track}
           </button>
           <button
             onClick={() => setCurrentTab('portal')}
-            className={`px-2 py-1 rounded flex items-center gap-1 ${currentTab === 'portal' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
+            className={`px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1 ${currentTab === 'portal' || isStaffContext ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
           >
             <span>{t.nav_portal}</span>
             {pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
           </button>
           <button
-            onClick={() => setCurrentTab('reports')}
-            className={`px-2 py-1 rounded ${currentTab === 'reports' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
-          >
-            {t.nav_reports}
-          </button>
-          <button
             onClick={() => setCurrentTab('firebase_lookup')}
-            className={`px-2 py-1 rounded flex items-center gap-1 ${currentTab === 'firebase_lookup' ? 'bg-purple-600 text-white font-bold' : 'text-slate-200'}`}
+            className={`px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1 ${currentTab === 'firebase_lookup' ? 'bg-purple-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
           >
             <Database className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onOpenQrModal}
-            className="px-2 py-1 rounded text-amber-300 flex items-center gap-0.5"
+            className="px-2.5 py-1 rounded-full whitespace-nowrap bg-slate-100 text-blue-700 flex items-center gap-1"
           >
             <QrCode className="w-3.5 h-3.5" />
             <span>QR</span>

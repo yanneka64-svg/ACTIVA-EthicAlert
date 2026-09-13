@@ -238,6 +238,7 @@ export default function App() {
         onOpenQrModal={() => setShowQrModal(true)}
         pendingAlertsCount={pendingAlertsCount}
         onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
+        isStaffContext={isStaffTab || currentTab === 'firebase_lookup'}
       />
 
       {/* Main Content Area */}
@@ -286,35 +287,38 @@ export default function App() {
         {currentTab === 'firebase_lookup' && <CaseLookup lang={lang} />}
       </main>
 
-      {/* Corporate Ethical Governance Footer */}
-      <footer className="bg-[#0B2545] text-slate-300 border-t border-slate-800 text-xs py-8 px-4 sm:px-6 lg:px-8">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon
+          maquette) === Pied de page clair (fond blanc/gris très clair,
+          liens discrets) au lieu du bleu marine précédent — même contenu,
+          mêmes garanties affichées, juste restylé. */}
+      <footer className="bg-white text-slate-500 border-t border-slate-200 text-xs py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-white/10 pb-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 pb-6">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center font-extrabold text-[#0B2545] text-sm">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 flex items-center justify-center font-extrabold text-white text-sm">
                 A
               </div>
               <div>
-                <span className="font-extrabold text-white text-sm tracking-wide">
+                <span className="font-extrabold text-[#0B2545] text-sm tracking-wide">
                   ACTIVA EthicAlert
                 </span>
-                <span className="text-[11px] text-amber-300 block">
+                <span className="text-[11px] text-blue-600 block">
                   Direction d'Audit, des Risques et de la Conformité (DARC)
                 </span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] text-slate-300">
+            <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] text-slate-500">
               <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 Conforme CDC Groupe ACTIVA
               </span>
               <span className="flex items-center gap-1.5">
-                <Lock className="w-4 h-4 text-amber-400" />
+                <Lock className="w-4 h-4 text-amber-600" />
                 Chiffrement TLS & Intégrité Piste d'Audit
               </span>
               <span className="flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-blue-300" />
+                <Building2 className="w-4 h-4 text-blue-600" />
                 16 filiales • 10 pays africains
               </span>
             </div>
