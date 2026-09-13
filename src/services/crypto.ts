@@ -48,6 +48,22 @@ export async function hashPassword(password: string, salt: string): Promise<stri
   return value;
 }
 
+// === AMÉLIORATION AJOUTÉE (Phase 26 — génération automatique du mot de passe
+// d'accès, conforme à la nouvelle maquette de référence : le code de suivi
+// est désormais généré par le système plutôt que saisi manuellement par le
+// déclarant, ce qui garantit une entropie minimale constante — la fonction
+// existante hashPassword ci-dessus continue de saler/hacher ce mot de passe
+// exactement comme avant, rien n'est modifié côté stockage/vérification) ===
+const ACCESS_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+
+/** Generates a random, unambiguous 8-character access password (client-side, CSPRNG). */
+export function generateAccessPassword(length = 8): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return Array.from(bytes)
+    .map((b) => ACCESS_PASSWORD_ALPHABET[b % ACCESS_PASSWORD_ALPHABET.length])
+    .join('');
+}
+
 /** Verifies a candidate password against a stored salt + hash pair. */
 export async function verifyPassword(
   password: string,

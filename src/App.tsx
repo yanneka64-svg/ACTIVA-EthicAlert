@@ -13,6 +13,8 @@ import { Navbar } from './components/Navbar';
 import { WhistleblowerHome } from './components/WhistleblowerHome';
 // === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
 import { FaqView } from './components/FaqView';
+// === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) ===
+import { ContactView } from './components/ContactView';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
 import { AlertTrackingView } from './components/AlertTrackingView';
 import { InvestigationDesk } from './components/InvestigationDesk';
@@ -393,6 +395,9 @@ function AppShell() {
           <FaqView lang={lang} onStartNewAlert={() => goToTab('new_alert')} />
         )}
 
+        {/* === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) === */}
+        {currentTab === 'contact' && <ContactView lang={lang} />}
+
         {currentTab === 'new_alert' && (
           <AlertSubmissionFlow
             lang={lang}
@@ -463,13 +468,5 @@ function AppShell() {
         lang={lang}
       />
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
   );
 }
