@@ -15,6 +15,7 @@ import { InvestigationDesk } from './components/InvestigationDesk';
 import { ReportingDashboard } from './components/ReportingDashboard';
 import { AuditTrailView } from './components/AuditTrailView';
 import { AdminConfigView } from './components/AdminConfigView';
+import { EnterpriseArchitectureView } from './components/EnterpriseArchitectureView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
 import { CaseLookup } from './components/CaseLookup';

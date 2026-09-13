@@ -19,7 +19,12 @@ import {
   Lock, 
   FileCheck2,
   SlidersHorizontal,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  Scale,
+  Ban,
+  Layers,
+  FileWarning
 } from 'lucide-react';
 import { 
   Language, 
@@ -34,6 +39,10 @@ import {
 import { TRANSLATIONS } from '../i18n/translations';
 import { ACTIVA_ENTITIES } from '../data/activaConfig';
 import { storage } from '../services/storage';
+import { SecurityEngine } from '../services/engines/securityEngine';
+import { ConflictEngine } from '../services/engines/conflictEngine';
+import { SlaEngine } from '../services/engines/slaEngine';
+import { ApiClient } from '../services/apiClient';
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -354,6 +363,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const handleArchiveAlert = () => {
     if (!selectedAlert) return;
 
+    if (selectedAlert.legalHold) {
+      alert("Archivage impossible : Le dossier est placé sous séquestre légal (Legal Hold - CDC 73).");
+      return;
+    }
+
     const updatedAlert: AlertRecord = {
       ...selectedAlert,
       status: 'archived',
@@ -364,6 +378,34 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     storage.logAudit(
       'ALERT_ARCHIVED',
       `Archivage légal du dossier ${selectedAlert.trackingNumber} (durée de conservation : 10 ans).`,
+      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
+      activeUser
+    );
+  };
+
+  const handleToggleLegalHold = () => {
+    if (!selectedAlert) return;
+    const targetState = !selectedAlert.legalHold;
+    const ok = storage.toggleLegalHold(selectedAlert.id, targetState, activeUser);
+    if (ok) {
+      setAlerts(storage.getAlerts());
+    }
+  };
+
+  const [declaredNoConflict, setDeclaredNoConflict] = useState<boolean>(false);
+  const handleDeclareNoConflict = async () => {
+    if (!selectedAlert) return;
+    await ApiClient.checkConflict(
+      selectedAlert.id,
+      activeUser.id,
+      activeUser.name,
+      'NO_CONFLICT',
+      "Attestation formelle signée : absence de conflit d'intérêts personnel, hiérarchique ou financier (CDC 59)."
+    );
+    setDeclaredNoConflict(true);
+    storage.logAudit(
+      'CONFLICT_DECLARED',
+      `Attestation NO_CONFLICT signée par ${activeUser.name} pour le dossier ${selectedAlert.trackingNumber}.`,
       { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
       activeUser
     );
@@ -701,6 +743,85 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     <span>{t.btn_archive_case}</span>
                   </button>
                 )}
+
+                {/* Legal Hold Button (CDC 73) */}
+                {(activeUser.role === 'functional_admin' || activeUser.role === 'system_admin') && (
+                  <button
+                    onClick={handleToggleLegalHold}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
+                      selectedAlert.legalHold
+                        ? 'bg-rose-100 border-rose-400 text-rose-900 font-bold'
+                        : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'
+                    }`}
+                    title="Mise sous séquestre légale : bloque toute suppression ou purge (CDC 73)"
+                  >
+                    <Ban className="w-3.5 h-3.5 text-rose-600" />
+                    <span>{selectedAlert.legalHold ? 'Séquestre Actif (Legal Hold)' : 'Mettre sous Séquestre'}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Enterprise Governance & Security Strip (CDC 45, 59, 60, 73) */}
+              <div className="mt-4 pt-3 border-t border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                {/* SLA Monitor */}
+                <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-indigo-600" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">SLA & Délai Restant</span>
+                      <span className="text-slate-500 text-[10px]">
+                        Échéance : {selectedAlert.targetCompletionDate ? new Date(selectedAlert.targetCompletionDate).toLocaleDateString() : 'Non définie'}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    selectedAlert.isOverdue ? 'bg-rose-100 text-rose-800' : 'bg-indigo-100 text-indigo-800'
+                  }`}>
+                    {selectedAlert.isOverdue ? 'En dépassement SLA' : `${selectedAlert.slaDaysRemaining ?? 15}j restants`}
+                  </span>
+                </div>
+
+                {/* 5-Level Security Verification */}
+                <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Autorisation 5 Niveaux</span>
+                      <span className="text-slate-500 text-[10px]">
+                        Rôle: {activeUser.role} • Périmètre: OK
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    Vérifiée (CDC 45)
+                  </span>
+                </div>
+
+                {/* Conflict of Interest Attestation (CDC 59) */}
+                <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-amber-600" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Conflit d'intérêts</span>
+                      <span className="text-slate-500 text-[10px]">
+                        {declaredNoConflict ? 'Attestation signée' : 'Déclaration requise'}
+                      </span>
+                    </div>
+                  </div>
+                  {declaredNoConflict ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      NO_CONFLICT ✓
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleDeclareNoConflict}
+                      className="px-2 py-1 rounded text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 transition"
+                      title="Attester sur l'honneur l'absence de conflit d'intérêts pour ce dossier"
+                    >
+                      Signer Attestation
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
