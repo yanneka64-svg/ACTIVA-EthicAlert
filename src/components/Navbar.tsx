@@ -11,7 +11,8 @@ import {
   UserCheck,
   Lock,
   ChevronDown,
-  Database
+  Database,
+  Layers
 } from 'lucide-react';
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -346,7 +347,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
             {/* === AMÉLIORATION AJOUTÉE (Phase 4) : outil de recherche connecté au vrai projet Firebase */}
             <button
               id="nav-btn-firebase-lookup"
-              onClick={() => setCurrentTab('firebase_lookup')}
+              onClick={() => handleTabChange('firebase_lookup')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
                 currentTab === 'firebase_lookup'
                   ? 'bg-purple-600 text-white shadow'
@@ -398,7 +399,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
             {t.nav_reports}
           </button>
           <button
-            onClick={() => setCurrentTab('firebase_lookup')}
+            onClick={() => handleTabChange('firebase_lookup')}
             className={`px-2 py-1 rounded flex items-center gap-1 ${currentTab === 'firebase_lookup' ? 'bg-purple-600 text-white font-bold' : 'text-slate-200'}`}
           >
             <Database className="w-3.5 h-3.5" />
