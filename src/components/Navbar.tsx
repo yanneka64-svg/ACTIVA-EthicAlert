@@ -22,10 +22,6 @@ import { storage } from '../services/storage';
 import { generateNotifications } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
 import { ActivaLogo } from './ui';
-// === AMÉLIORATION AJOUTÉE : correction post-fusion === cet import avait
-// été perdu lors de la fusion avec la refonte visuelle (Phase 13), alors
-// que le code plus bas l'utilise déjà — voir isGlobalViewer ci-dessous.
-import { isGlobalCaseViewer } from '../services/authz';
 
 interface NavbarProps {
   currentTab: string;
