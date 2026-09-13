@@ -78,7 +78,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             {t.hero_desc}
           </p>
 
-          <p className="text-sm text-slate-600 leading-relaxed max-w-md">
+          <p className="text-sm text-slate-600 leading-relaxed max-w-md text-justify">
             {t.hero_paragraph}
           </p>
 
