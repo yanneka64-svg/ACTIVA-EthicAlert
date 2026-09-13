@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   ShieldAlert, 
   Globe, 
@@ -17,52 +17,31 @@ import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 
-export interface NavbarProps {
-  activeTab?: string;
-  currentTab?: string;
-  onTabChange?: (tab: string) => void;
-  setCurrentTab?: (tab: string) => void;
+interface NavbarProps {
+  currentTab: string;
+  setCurrentTab: (tab: string) => void;
   lang: Language;
-  onLanguageChange?: (lang: Language) => void;
-  setLang?: (lang: Language) => void;
+  setLang: (lang: Language) => void;
   activeUser: UserProfile;
-  onUserChange?: (userId: string) => void;
-  setActiveUser?: (user: UserProfile) => void;
+  setActiveUser: (user: UserProfile) => void;
   onOpenQrModal: () => void;
-  pendingAlertsCount?: number;
+  pendingAlertsCount: number;
 }
 
-export const Navbar: React.FC<NavbarProps> = (props) => {
-  const {
-    lang,
-    activeUser,
-    onOpenQrModal
-  } = props;
-
-  const currentTab = props.activeTab || props.currentTab || 'whistleblower_home';
-  const handleTabChange = (tab: string) => {
-    if (props.onTabChange) props.onTabChange(tab);
-    else if (props.setCurrentTab) props.setCurrentTab(tab);
-  };
-
-  const handleLanguageChange = (l: Language) => {
-    if (props.onLanguageChange) props.onLanguageChange(l);
-    else if (props.setLang) props.setLang(l);
-  };
-
-  const handleUserChange = (u: UserProfile) => {
-    if (props.onUserChange) props.onUserChange(u.id);
-    else if (props.setActiveUser) props.setActiveUser(u);
-    storage.setActiveUser(u);
-  };
-
-  const t = TRANSLATIONS[lang] || TRANSLATIONS.fr;
+export const Navbar: React.FC<NavbarProps> = ({
+  currentTab,
+  setCurrentTab,
+  lang,
+  setLang,
+  activeUser,
+  setActiveUser,
+  onOpenQrModal,
+  pendingAlertsCount,
+}) => {
+  const t = TRANSLATIONS[lang];
   const allUsers = storage.getUsers();
-  const alerts = storage.getAlerts();
-  const pendingCount = props.pendingAlertsCount ?? alerts.filter(a => a.status !== 'closed' && a.status !== 'archived').length;
-
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const [showLangDropdown, setShowLangDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = React.useState(false);
+  const [showLangDropdown, setShowLangDropdown] = React.useState(false);
 
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
@@ -78,6 +57,8 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
         return { label: 'Lanceur d’alerte', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
     }
   };
+
+  const badge = getRoleBadge(activeUser.role);
 
   return (
     <header className="bg-[#0B2545] text-white border-b border-[#134074] shadow-md sticky top-0 z-40">
@@ -119,21 +100,21 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                   onClick={() => setShowLangDropdown(false)}
                 >
                   <button 
-                    onClick={() => handleLanguageChange('fr')}
+                    onClick={() => setLang('fr')}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'fr' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
                   >
                     <span>🇫🇷 Français</span>
                     {lang === 'fr' && <span>✓</span>}
                   </button>
                   <button 
-                    onClick={() => handleLanguageChange('en')}
+                    onClick={() => setLang('en')}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'en' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
                   >
                     <span>🇬🇧 English</span>
                     {lang === 'en' && <span>✓</span>}
                   </button>
                   <button 
-                    onClick={() => handleLanguageChange('pt')}
+                    onClick={() => setLang('pt')}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'pt' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
                   >
                     <span>🇵🇹 Português</span>
@@ -143,7 +124,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
               )}
             </div>
 
-            {/* Profile / Role Switcher */}
+            {/* Simulated Profile / Role Switcher (Crucial for test & review) */}
             <div className="relative">
               <button
                 id="btn-role-switcher"
@@ -165,13 +146,16 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                 >
                   <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">
                     <p className="font-semibold text-slate-600">{t.switch_role}</p>
-                    <p className="text-[11px] text-slate-500">Testez les accès selon le profil (CDC 45 & 46)</p>
+                    <p className="text-[11px] text-slate-500">Testez les accès selon le profil (CDC 3.2.3)</p>
                   </div>
 
                   {allUsers.map((u) => (
                     <button
                       key={u.id}
-                      onClick={() => handleUserChange(u)}
+                      onClick={() => {
+                        setActiveUser(u);
+                        storage.setActiveUser(u);
+                      }}
                       className={`w-full text-left px-3 py-2 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 ${
                         activeUser.id === u.id ? 'bg-blue-50/80 font-semibold' : ''
                       }`}
@@ -189,14 +173,15 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                     onClick={() => {
                       const wbUser: UserProfile = {
                         id: 'usr-whistleblower',
-                        name: 'Lanceur d’alerte (Public)',
+                        name: 'Lanceur d’alerte (Visiteur)',
                         email: 'anonyme@declare.activa',
                         role: 'whistleblower',
                         roleTitle: 'Déclarant externe ou employé',
                         entity: 'Toutes entités',
                         country: 'Groupe ACTIVA',
                       };
-                      handleUserChange(wbUser);
+                      setActiveUser(wbUser);
+                      storage.setActiveUser(wbUser);
                     }}
                     className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-800 font-medium"
                   >
@@ -213,7 +198,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
           {/* Logo & title */}
           <div 
             id="brand-logo"
-            onClick={() => handleTabChange('whistleblower_home')}
+            onClick={() => setCurrentTab('home')}
             className="flex items-center gap-3 cursor-pointer select-none group"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-2 ring-white/20">
@@ -238,9 +223,9 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
           <nav className="hidden lg:flex items-center gap-1">
             <button
               id="nav-btn-home"
-              onClick={() => handleTabChange('whistleblower_home')}
+              onClick={() => setCurrentTab('home')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'whistleblower_home' || currentTab === 'whistleblower_submit'
+                currentTab === 'home' || currentTab === 'new_alert'
                   ? 'bg-amber-500 text-slate-950 shadow'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
@@ -251,9 +236,9 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
 
             <button
               id="nav-btn-track"
-              onClick={() => handleTabChange('whistleblower_track')}
+              onClick={() => setCurrentTab('track')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'whistleblower_track'
+                currentTab === 'track'
                   ? 'bg-amber-500 text-slate-950 shadow'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
@@ -265,27 +250,27 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
             {/* Portal for investigators and admins */}
             <button
               id="nav-btn-portal"
-              onClick={() => handleTabChange('investigation_desk')}
+              onClick={() => setCurrentTab('portal')}
               className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'investigation_desk'
+                currentTab === 'portal'
                   ? 'bg-blue-600 text-white shadow'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
             >
               <ShieldAlert className="w-4 h-4" />
               <span>{t.nav_portal}</span>
-              {pendingCount > 0 && (
+              {pendingAlertsCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
-                  {pendingCount}
+                  {pendingAlertsCount}
                 </span>
               )}
             </button>
 
             <button
               id="nav-btn-reports"
-              onClick={() => handleTabChange('reporting')}
+              onClick={() => setCurrentTab('reports')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'reporting'
+                currentTab === 'reports'
                   ? 'bg-blue-600 text-white shadow'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
@@ -294,13 +279,13 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
               {t.nav_reports}
             </button>
 
-            {/* Audit Trail */}
+            {/* Audit Trail (Accessible to Admins and Auditors) */}
             {(activeUser.role === 'functional_admin' || 
               activeUser.role === 'system_admin' || 
               activeUser.role === 'auditor') && (
               <button
                 id="nav-btn-audit"
-                onClick={() => handleTabChange('audit')}
+                onClick={() => setCurrentTab('audit')}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
                   currentTab === 'audit'
                     ? 'bg-blue-600 text-white shadow'
@@ -312,28 +297,13 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
               </button>
             )}
 
-            {/* Architecture & Engines (CDC 43-77) */}
-            <button
-              id="nav-btn-architecture"
-              onClick={() => handleTabChange('architecture')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition border ${
-                currentTab === 'architecture'
-                  ? 'bg-purple-600 text-white border-purple-400 shadow-md'
-                  : 'border-purple-400/40 text-purple-200 hover:bg-purple-500/20'
-              }`}
-              title="Architecture Multi-Niveaux & Moteurs Serveur (CDC 43 à 77)"
-            >
-              <Layers className="w-4 h-4 text-purple-300" />
-              <span>Architecture (CDC 43-77)</span>
-            </button>
-
-            {/* Settings (Admin system / CDC 3.2.4) */}
-            {(activeUser.role === 'system_admin' || activeUser.role === 'functional_admin') && (
+            {/* Settings (Admin system) */}
+            {activeUser.role === 'system_admin' && (
               <button
                 id="nav-btn-settings"
-                onClick={() => handleTabChange('admin_config')}
+                onClick={() => setCurrentTab('settings')}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'admin_config'
+                  currentTab === 'settings'
                     ? 'bg-blue-600 text-white shadow'
                     : 'text-slate-200 hover:bg-white/10'
                 }`}
@@ -371,29 +341,29 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
         </div>
 
         {/* Mobile secondary tab bar */}
-        <div className="lg:hidden flex items-center justify-around py-2 border-t border-white/10 overflow-x-auto text-[11px] font-medium gap-1">
+        <div className="lg:hidden flex items-center justify-around py-2 border-t border-white/10 overflow-x-auto text-[11px] font-medium">
           <button
-            onClick={() => handleTabChange('whistleblower_home')}
-            className={`px-2 py-1 rounded shrink-0 ${currentTab === 'whistleblower_home' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
+            onClick={() => setCurrentTab('home')}
+            className={`px-2 py-1 rounded ${currentTab === 'home' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
           >
             {t.nav_home}
           </button>
           <button
-            onClick={() => handleTabChange('whistleblower_track')}
-            className={`px-2 py-1 rounded shrink-0 ${currentTab === 'whistleblower_track' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
+            onClick={() => setCurrentTab('track')}
+            className={`px-2 py-1 rounded ${currentTab === 'track' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
           >
             {t.nav_track}
           </button>
           <button
-            onClick={() => handleTabChange('investigation_desk')}
-            className={`px-2 py-1 rounded shrink-0 flex items-center gap-1 ${currentTab === 'investigation_desk' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
+            onClick={() => setCurrentTab('portal')}
+            className={`px-2 py-1 rounded flex items-center gap-1 ${currentTab === 'portal' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
           >
             <span>{t.nav_portal}</span>
-            {pendingCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingCount}</span>}
+            {pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
           </button>
           <button
-            onClick={() => handleTabChange('reporting')}
-            className={`px-2 py-1 rounded shrink-0 ${currentTab === 'reporting' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
+            onClick={() => setCurrentTab('reports')}
+            className={`px-2 py-1 rounded ${currentTab === 'reports' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
           >
             {t.nav_reports}
           </button>
@@ -407,7 +377,8 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
             onClick={onOpenQrModal}
             className="px-2 py-1 rounded text-amber-300 flex items-center gap-0.5"
           >
-            Arch.
+            <QrCode className="w-3.5 h-3.5" />
+            <span>QR</span>
           </button>
         </div>
       </div>

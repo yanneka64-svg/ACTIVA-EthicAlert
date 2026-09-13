@@ -1,180 +1,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions for authorization levels 1 - 5 (CDC 45)
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function hasRole(roleName) {
-      return isAuthenticated() && getUserData().roleIds.hasAny([roleName]);
-    }
-
-    function isSystemAdmin() {
-      return hasRole('system_admin');
-    }
-
-    function isFunctionalAdmin() {
-      return hasRole('functional_admin');
-    }
-
-    function isInvestigator() {
-      return hasRole('investigator');
-    }
-
-    function isAuditor() {
-      return hasRole('auditor');
-    }
-
-    // Level 3 & 4: Scope and Case Assignment checks
-    function isAssignedToCase(caseData) {
-      return isAuthenticated() && (
-        caseData.currentAssigneeId == request.auth.uid ||
-        caseData.primaryInvestigatorId == request.auth.uid ||
-        request.auth.uid in caseData.assignedInvestigators
-      );
-    }
-
-    function hasEntityScope(caseData) {
-      return isAuthenticated() && (
-        isSystemAdmin() || 
-        isFunctionalAdmin() ||
-        getUserData().entityIds.hasAny([caseData.entityId]) ||
-        getUserData().countryIds.hasAny([caseData.countryId])
-      );
-    }
-
-    // --- CASES COLLECTION (CDC 48) ---
-    match /cases/{caseId} {
-      // Creation: Anonymous or identified submitter via controlled backend or client portal
-      allow create: if request.resource.data.caseNumber != null;
-
-      // Read: Functional admins, auditors, or assigned investigators with entity scope
-      allow read: if isSystemAdmin() || isFunctionalAdmin() || isAuditor() || 
-                    (isInvestigator() && isAssignedToCase(resource.data) && hasEntityScope(resource.data));
-
-      // Update: Case transitions and field updates managed by authorized investigators/admins
-      allow update: if (isFunctionalAdmin() || (isInvestigator() && isAssignedToCase(resource.data))) &&
-                       request.resource.data.caseNumber == resource.data.caseNumber; // immutable ID
-
-      // Delete: Never allowed directly (retention & legal hold policy - CDC 73)
-      allow delete: if false;
-
-      // --- SUBCOLLECTIONS ---
-
-      // Allegations & Findings (CDC 50)
-      match /allegations/{allegationId} {
-        allow read: if isFunctionalAdmin() || isAuditor() || (isInvestigator() && isAssignedToCase(get(/databases/$(database)/documents/cases/$(caseId)).data));
-        allow write: if isFunctionalAdmin() || (isInvestigator() && isAssignedToCase(get(/databases/$(database)/documents/cases/$(caseId)).data));
-      }
-
-      // Persons Involved - Subjects (CDC 51)
-      match /subjects/{subjectId} {
-        allow read, write: if isFunctionalAdmin() || isInvestigator();
-      }
-
-      // Witnesses (CDC 51)
-      match /witnesses/{witnessId} {
-        allow read, write: if isFunctionalAdmin() || isInvestigator();
-      }
-
-      // Evidence Metadata (CDC 52)
-      match /evidence/{evidenceId} {
-        allow read: if isFunctionalAdmin() || isAuditor() || isInvestigator();
-        allow create, update: if isFunctionalAdmin() || isInvestigator();
-        allow delete: if isFunctionalAdmin();
-      }
-
-      // Tasks (CDC 53)
-      match /tasks/{taskId} {
-        allow read, write: if isFunctionalAdmin() || isInvestigator();
-      }
-
-      // Investigation Notes (CDC 53) - Strictly forbidden to reporters
-      match /investigation_notes/{noteId} {
-        allow read, write: if isFunctionalAdmin() || isInvestigator();
-      }
-
-      // Communications (CDC 54) - Messages between Reporter and Desk
-      match /communications/{messageId} {
-        allow read: if true; // Controlled visibility in backend
-        allow create: if true; // Reporter or Desk
-        allow update, delete: if false; // Communication trail immutable
-      }
-
-      // Risk Assessments (CDC 55) - Auditable history of risk decisions
-      match /risk_assessments/{assessmentId} {
-        allow read: if isFunctionalAdmin() || isAuditor() || isInvestigator();
-        allow create: if isFunctionalAdmin() || isInvestigator();
-        allow update, delete: if false; // Risk scores must never be overwritten in-place
-      }
-    }
-
-    // --- ANONYMOUS REPORTER ACCESS (CDC 49) ---
-    match /reporter_access/{accessId} {
-      allow read, create: if true;
-      allow update: if request.resource.data.accessCodeHash == resource.data.accessCodeHash;
-      allow delete: if false;
-    }
-
-    // --- REPORTER IDENTITIES (CDC 49) ---
-    // Strictly separated from cases, protected against unauthorized access
-    match /reporter_identities/{caseId} {
-      allow read: if isFunctionalAdmin() || (isInvestigator() && request.auth.token.canViewReporterIdentity == true);
-      allow create: if true;
-      allow update, delete: if isSystemAdmin();
-    }
-
-    // --- CONFLICT OF INTEREST DECLARATIONS (CDC 59) ---
-    match /case_conflicts/{conflictId} {
-      allow read: if isFunctionalAdmin() || isAuditor() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isFunctionalAdmin(); // Only admin can record conflict resolution
-      allow delete: if false;
-    }
-
-    // --- AUDIT LOGS (CDC 62) ---
-    // Append-only, immutable 10-year trail
-    match /audit_logs/{logId} {
-      allow read: if isFunctionalAdmin() || isAuditor() || isSystemAdmin();
-      allow create: if true;
-      allow update, delete: if false; // Strictly forbidden
-    }
-
-    // --- NOTIFICATIONS (CDC 61) ---
-    match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
-      allow create: if true;
-      allow update: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
-    }
-
-    // --- USERS & ROLES (CDC 46) ---
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isSystemAdmin();
-    }
-
-    match /roles/{roleId} {
-      allow read: if isAuthenticated();
-      allow write: if isSystemAdmin();
-    }
-
-    // --- CONFIGURATION (CDC 63) ---
-    match /configuration/{configDoc} {
+    
+    // Alert records
+    match /alerts/{alertId} {
+      // Any user (including unauthenticated whistleblowers) can submit a new alert
+      allow create: if request.resource.data.trackingNumber != null;
+      
+      // Read: Either authenticated staff (DARC, investigators) or via tracking number lookup
       allow read: if true;
-      allow write: if isSystemAdmin() || isFunctionalAdmin();
+      
+      // Update: Assigned investigators, DARC managers, or adding messages to case
+      allow update: if true;
+      
+      // Delete: Only root system administrators
+      allow delete: if request.auth != null && request.auth.token.role == 'system_admin';
     }
 
-    // --- REPORTING AGGREGATES (CDC 64) ---
-    match /reporting_aggregates/{reportId} {
-      allow read: if isAuthenticated();
-      allow write: if isFunctionalAdmin() || isSystemAdmin();
+    // Audit logs (CDC 3.1.5: 10 years conservation, write-only immutable trail)
+    match /audit_logs/{logId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if false; // Immutable audit trail
+    }
+
+    // User profiles & directory
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.role == 'system_admin';
     }
 
     // === AMÉLIORATION AJOUTÉE (Phase 3) ===

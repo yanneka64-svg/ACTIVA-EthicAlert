@@ -1,9 +1,6 @@
 import { AlertRecord, AuditLogEntry, UserProfile } from '../types';
 import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
-import { SlaEngine } from './engines/slaEngine';
-import { WorkflowEngine } from './engines/workflowEngine';
-import { ApiClient } from './apiClient';
 
 const STORAGE_KEYS = {
   ALERTS: 'activa_ethicalert_records_v1',
@@ -20,7 +17,7 @@ class StorageService {
   private alerts: AlertRecord[] = [];
   private auditLogs: AuditLogEntry[] = [];
   private users: UserProfile[] = [];
-  private activeUser: UserProfile = INITIAL_USERS[0]; // Default to B.Y. Ekani (Point de Contact DARC)
+  private activeUser: UserProfile = INITIAL_USERS[0]; // Default to B.Y. Ekani (Point de Contact)
 
   constructor() {
     this.init();
@@ -58,42 +55,13 @@ class StorageService {
       } else {
         this.activeUser = INITIAL_USERS[0];
       }
-
-      // Enrich initial cases with SLA & Enterprise statuses
-      this.alerts = this.alerts.map(a => this.enrichCaseWithEngines(a));
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
-      this.alerts = [...INITIAL_ALERTS].map(a => this.enrichCaseWithEngines(a));
+      this.alerts = [...INITIAL_ALERTS];
       this.auditLogs = [...INITIAL_AUDIT_LOGS];
       this.users = [...INITIAL_USERS];
       this.activeUser = INITIAL_USERS[0];
     }
-  }
-
-  private enrichCaseWithEngines(alert: AlertRecord): AlertRecord {
-    const priority = alert.overridePriority || alert.riskEvaluation.priority;
-    const sla = SlaEngine.calculateSla(alert.createdAt, priority);
-    const enterpriseStatus = alert.enterpriseStatus || WorkflowEngine.mapToEnterpriseStatus(alert.status);
-
-    // If case is closed, compute 10-year retention if not set (CDC 73)
-    let retentionDate = alert.retentionDate;
-    if (alert.status === 'closed' && !retentionDate) {
-      const closedTime = alert.closedAt ? new Date(alert.closedAt) : new Date();
-      const tenYearsLater = new Date(closedTime);
-      tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
-      retentionDate = tenYearsLater.toISOString();
-    }
-
-    return {
-      ...alert,
-      enterpriseStatus,
-      slaStartAt: alert.slaStartAt || sla.slaStartAt,
-      slaDueAt: alert.slaDueAt || sla.slaDueAt,
-      slaDaysRemaining: sla.daysRemaining,
-      isOverdue: alert.status === 'closed' ? false : sla.isOverdue,
-      retentionDate,
-      legalHold: alert.legalHold ?? false
-    };
   }
 
   private notify() {
@@ -140,64 +108,19 @@ class StorageService {
   }
 
   public saveAlert(alert: AlertRecord): void {
-    const enriched = this.enrichCaseWithEngines(alert);
     const existingIndex = this.alerts.findIndex(a => a.id === alert.id);
     if (existingIndex >= 0) {
-      this.alerts[existingIndex] = { ...enriched, updatedAt: new Date().toISOString() };
+      this.alerts[existingIndex] = { ...alert, updatedAt: new Date().toISOString() };
     } else {
-      this.alerts.unshift(enriched);
+      this.alerts.unshift(alert);
     }
     this.persistAlerts();
     this.notify();
-
     // Asynchronous Cloud Firestore sync
-    saveAlertToCloud(enriched).catch(() => {});
-
-    // Sync to backend API
-    ApiClient.createCase({
-      trackingNumber: enriched.trackingNumber,
-      accessCodeHash: enriched.accessCodeHash,
-      concernedEntity: enriched.concernedEntity,
-      country: enriched.country,
-      category: enriched.category,
-      subCategory: enriched.subCategory,
-      detailedDescription: enriched.detailedDescription,
-      riskScores: {
-        financialImpact: enriched.riskEvaluation.financialImpact,
-        hierarchyLevel: enriched.riskEvaluation.hierarchyLevel,
-        recidivism: enriched.riskEvaluation.recidivism,
-        reputationRisk: enriched.riskEvaluation.reputationRisk
-      },
-      whistleblower: enriched.whistleblower,
-      channel: enriched.channel
-    }).catch(() => {});
-  }
-
-  public toggleLegalHold(caseId: string, enabled: boolean, user: UserProfile): boolean {
-    const alert = this.alerts.find(a => a.id === caseId);
-    if (!alert) return false;
-
-    alert.legalHold = enabled;
-    alert.updatedAt = new Date().toISOString();
-    this.persistAlerts();
-    this.notify();
-
-    this.logAudit(
-      'LEGAL_HOLD_TOGGLED',
-      `Mise sous séquestre légale (Legal Hold) ${enabled ? 'ACTIVÉE' : 'LEVÉE'} par [${user.name}]. La suppression et l'archivage automatique sont ${enabled ? 'strictement bloqués' : 'rétablis'}.`,
-      { id: alert.id, trackingNumber: alert.trackingNumber },
-      user
-    );
-    return true;
+    saveAlertToCloud(alert).catch(() => {});
   }
 
   public deleteAlert(alertId: string): boolean {
-    const target = this.alerts.find(a => a.id === alertId);
-    if (target?.legalHold) {
-      alert("Suppression impossible : Ce dossier est sous mise sous séquestre légale (Legal Hold - CDC 73).");
-      return false;
-    }
-
     const initialLen = this.alerts.length;
     this.alerts = this.alerts.filter(a => a.id !== alertId);
     if (this.alerts.length !== initialLen) {
@@ -240,8 +163,6 @@ class StorageService {
     this.notify();
     // Asynchronous Cloud Firestore audit sync
     saveAuditLogToCloud(entry).catch(() => {});
-    // Sync to backend API
-    ApiClient.logAudit(entry).catch(() => {});
   }
 
   // --- Active User & Roles ---
@@ -306,7 +227,7 @@ class StorageService {
 
   // Reset to initial test dataset
   public resetToFactory(): void {
-    this.alerts = [...INITIAL_ALERTS].map(a => this.enrichCaseWithEngines(a));
+    this.alerts = [...INITIAL_ALERTS];
     this.auditLogs = [...INITIAL_AUDIT_LOGS];
     this.users = [...INITIAL_USERS];
     this.activeUser = INITIAL_USERS[0];
