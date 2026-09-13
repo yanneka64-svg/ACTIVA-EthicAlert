@@ -158,6 +158,88 @@ export interface AlertRecord {
   internalNotes: InternalNote[];
   messages: CaseMessage[];
   correctiveMeasures: CorrectiveMeasure[];
+
+  // === AMÉLIORATION AJOUTÉE (Phase 1) === additive, all optional — see the
+  // block above AuditLogEntry for the full rationale.
+  tasks?: CaseTask[];
+  interviews?: CaseInterview[];
+  conflictDeclarations?: ConflictDeclaration[];
+}
+
+// === AMÉLIORATION AJOUTÉE (Phase 1 — frontend completion, data model extension) ===
+// Everything below is purely additive to support the enterprise-grade
+// screens (Control Panel, investigator workspace, notifications) the
+// frontend-completion brief asks for, without touching a single existing
+// field above. All new AlertRecord fields are optional so every existing
+// record (seeded or already in a user's localStorage) keeps working
+// unchanged; nothing here is consumed by a screen until later phases wire
+// it in explicitly.
+
+export type TaskStatus = 'not_started' | 'in_progress' | 'completed' | 'overdue';
+
+export interface CaseTask {
+  id: string;
+  title: string;
+  description?: string;
+  owner: string; // UserProfile.id
+  dueDate: string;
+  status: TaskStatus;
+  createdAt: string;
+  createdBy: string;
+  completedAt?: string;
+}
+
+export interface CaseInterview {
+  id: string;
+  intervieweeName: string;
+  intervieweePersonId?: string; // InvolvedPerson.id or Witness.id, if linked
+  scheduledAt?: string;
+  conductedAt?: string;
+  conductedBy: string;
+  summary?: string;
+  status: 'planned' | 'completed' | 'cancelled';
+}
+
+export interface ConflictDeclaration {
+  id: string;
+  userId: string;
+  userName: string;
+  declaredAt: string;
+  outcome: 'no_conflict' | 'conflict_identified';
+  details?: string;
+}
+
+// Richer 12-status lifecycle the brief's Control Panel/workspace vocabulary
+// uses (§14-33). Derived FROM the existing, authoritative `AlertStatus` by
+// a pure function (src/services/statusMapping.ts) — never stored as a
+// separate source of truth, so nothing that reads `AlertRecord.status`
+// today is affected.
+export type EnterpriseWorkflowStatus =
+  | 'NEW'
+  | 'TRIAGE'
+  | 'ASSIGNED'
+  | 'INVESTIGATION'
+  | 'PENDING_INFORMATION'
+  | 'ESCALATED'
+  | 'CONCLUSION_PENDING'
+  | 'FUNCTIONAL_REVIEW'
+  | 'CLOSED'
+  | 'REOPENED'
+  | 'ARCHIVED';
+
+export type SlaStatus = 'on_track' | 'at_risk' | 'overdue';
+
+// A real, computed (never hand-authored) notification — generated from
+// existing AlertRecord/AuditLogEntry data by storage.ts, not a separately
+// persisted, editable record. See storage.getNotifications().
+export interface AppNotification {
+  id: string;
+  type: 'new_message' | 'sla_at_risk' | 'sla_overdue' | 'task_overdue' | 'case_reopened' | 'evidence_added' | 'closure_requested';
+  alertId: string;
+  trackingNumber: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
 }
 
 export interface AuditLogEntry {

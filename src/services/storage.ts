@@ -1,4 +1,4 @@
-import { AlertRecord, AuditLogEntry, UserProfile } from '../types';
+import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile } from '../types';
 import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 
@@ -129,6 +129,57 @@ class StorageService {
       return true;
     }
     return false;
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 1) ===
+  // Tasks / Interviews / Conflict-of-interest declarations — same pattern
+  // as every other mutation here: update the AlertRecord in place, persist,
+  // notify, and log an audit entry. Additive fields on AlertRecord (see
+  // types.ts), so an alert with none of these simply has empty arrays.
+
+  public addTask(alertId: string, task: CaseTask, actor: UserProfile): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return;
+    alert.tasks = [...(alert.tasks ?? []), task];
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Tâche ajoutée sur ${alert.trackingNumber} : ${task.title}`, { id: alert.id, trackingNumber: alert.trackingNumber }, actor);
+  }
+
+  public updateTask(alertId: string, taskId: string, updates: Partial<CaseTask>, actor: UserProfile): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert || !alert.tasks) return;
+    alert.tasks = alert.tasks.map((t) => (t.id === taskId ? { ...t, ...updates } : t));
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Tâche mise à jour sur ${alert.trackingNumber}.`, { id: alert.id, trackingNumber: alert.trackingNumber }, actor);
+  }
+
+  public addInterview(alertId: string, interview: CaseInterview, actor: UserProfile): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return;
+    alert.interviews = [...(alert.interviews ?? []), interview];
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Entretien planifié/consigné sur ${alert.trackingNumber}.`, { id: alert.id, trackingNumber: alert.trackingNumber }, actor);
+  }
+
+  public declareConflict(alertId: string, declaration: ConflictDeclaration, actor: UserProfile): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return;
+    alert.conflictDeclarations = [...(alert.conflictDeclarations ?? []), declaration];
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+    this.logAudit(
+      'CONFIG_UPDATED',
+      `Déclaration de conflit d'intérêt (${declaration.outcome}) sur ${alert.trackingNumber} par ${declaration.userName}.`,
+      { id: alert.id, trackingNumber: alert.trackingNumber },
+      actor
+    );
   }
 
   // --- Audit Logs API ---
