@@ -21,6 +21,10 @@ import { storage } from '../services/storage';
 import { generateNotifications } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
 import { ActivaLogo } from './ui';
+// === AMÉLIORATION AJOUTÉE : correction post-fusion === cet import avait
+// été perdu lors de la fusion avec la refonte visuelle (Phase 13), alors
+// que le code plus bas l'utilise déjà — voir isGlobalViewer ci-dessous.
+import { isGlobalCaseViewer } from '../services/authz';
 
 interface NavbarProps {
   currentTab: string;
@@ -43,6 +47,11 @@ interface NavbarProps {
   // Purely presentational: every tab/handler below is unchanged and still
   // reachable, only the layout of this bar differs.
   isStaffContext: boolean;
+  // === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
+  // Perdus lors de la fusion avec la refonte visuelle (Phase 13) alors que
+  // le bouton "Se déconnecter" plus bas s'appuie dessus — restaurés ici.
+  isStaffSessionActive: boolean;
+  onLogout: () => void;
 }
 
 // A real, computed notification list (see services/statusMapping.ts) never
@@ -71,6 +80,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   pendingAlertsCount,
   onNavigateToCase,
   isStaffContext,
+  isStaffSessionActive,
+  onLogout,
 }) => {
   const t = TRANSLATIONS[lang];
   const allUsers = storage.getUsers();
@@ -111,17 +122,32 @@ export const Navbar: React.FC<NavbarProps> = ({
   // leur rendu exact — `reporter` est le nouveau nom de l'ancien
   // `whistleblower`, `consultation` celui de l'ancien `auditor`), les 5
   // nouveaux suivent la même convention visuelle.
+  // === AMÉLIORATION AJOUTÉE : correction post-fusion === ce switch avait
+  // été réécrit sur les 5 anciens rôles (`auditor`/`whistleblower`) lors de
+  // la fusion avec la refonte visuelle (Phase 13), ce qui ne compile plus
+  // contre le modèle RBAC à 10 rôles — restauré ici avec les couleurs déjà
+  // choisies pour ce nouveau style d'en-tête (fonds `-50`/`-800`).
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'functional_admin':
         return { label: 'Admin Fonctionnel / DARC', color: 'bg-amber-50 text-amber-800 border-amber-200' };
       case 'investigator':
         return { label: 'Investigateur DARC', color: 'bg-blue-50 text-blue-800 border-blue-200' };
+      case 'senior_investigator':
+        return { label: 'Investigateur Senior DARC', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+      case 'darc_compliance':
+        return { label: 'Conformité DARC', color: 'bg-teal-50 text-teal-800 border-teal-200' };
       case 'system_admin':
         return { label: 'Admin Système', color: 'bg-purple-50 text-purple-800 border-purple-200' };
-      case 'auditor':
+      case 'security_admin':
+        return { label: 'Admin Sécurité', color: 'bg-rose-50 text-rose-800 border-rose-200' };
+      case 'consultation':
         return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-700 border-slate-200' };
-      case 'whistleblower':
+      case 'audit_committee':
+        return { label: 'Comité d’Audit', color: 'bg-cyan-50 text-cyan-800 border-cyan-200' };
+      case 'executive':
+        return { label: 'Direction / Exécutif', color: 'bg-slate-800 text-white border-slate-700' };
+      case 'reporter':
         return { label: 'Lanceur d’alerte', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
     }
   };

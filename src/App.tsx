@@ -31,6 +31,18 @@ import { EvidenceRegistry } from './components/EvidenceRegistry';
 import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
 import { ShieldOff } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE : correction post-fusion ===
+// Ces imports (routage par URL, garde-fous, pont RBAC, écran de connexion
+// interne — Phase 12.2/12.3/12.4) avaient disparu lors de la fusion avec la
+// refonte visuelle (Phase 13/16), alors que le code plus bas continuait de
+// les utiliser (`navigate`, `pathForTab`, `PermissionGuard`,
+// `AuthenticatedRoute`, `canSeeAuditTrail`, `canManageConfiguration`,
+// `isGlobalCaseViewer`, `StaffLoginView`) — d'où l'échec de compilation.
+// Restaurés ici, sans rien changer au reste de la restructuration visuelle.
+import { resolveRoute, pathForTab } from './routing/routes';
+import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from './services/authz';
+import { StaffLoginView } from './components/StaffLoginView';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -66,10 +78,30 @@ const STAFF_TAB_KEYS = [
   'admin_roles',
 ];
 
+// === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
+// `App()` redevient un mince point d'entrée qui monte le routeur ; toute la
+// logique vit dans `AppShell`, qui lit l'URL réelle via `useLocation` /
+// `useNavigate` — c'était déjà la structure voulue par le routage par URL,
+// perdue lors de la fusion avec la refonte visuelle (voir le commentaire
+// d'import ci-dessus).
 export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/*" element={<AppShell />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function AppShell() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { tab: currentTab, trackingNumber: routeTrackingNumber } = resolveRoute(location.pathname);
+  const setCurrentTab = (tab: string) => navigate(pathForTab(tab));
+
   const [lang, setLang] = useState<Language>('fr');
   const t = TRANSLATIONS[lang];
-  const [currentTab, setCurrentTab] = useState<string>('home');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
   // === AMÉLIORATION AJOUTÉE (Phase 5) === filter the Control Panel's KPI
@@ -151,7 +183,7 @@ export default function App() {
     // Comment ça marche / FAQ only), so picking a staff profile from a
     // public page needs to land somewhere real; the staff portal's own
     // sidebar (StaffPortalLayout) then covers every other screen.
-    else if (user.role !== 'whistleblower' && !STAFF_TAB_KEYS.includes(currentTab)) {
+    else if (user.role !== 'reporter' && !STAFF_TAB_KEYS.includes(currentTab)) {
       setCurrentTab('portal');
     }
   };
@@ -311,10 +343,10 @@ export default function App() {
     // maquette) === même composant/CRUD/garde que 'admin_users', onglet de
     // départ différent.
     if (currentTab === 'admin_roles') {
-      return activeUser.role === 'system_admin' ? (
-        <AdminConfigView lang={lang} activeUser={activeUser} initialTab="roles" />
-      ) : (
-        renderAccessDenied('Rôles & Permissions')
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Rôles & Permissions">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="roles" />
+        </PermissionGuard>
       );
     }
     return null;
@@ -336,6 +368,8 @@ export default function App() {
         pendingAlertsCount={pendingAlertsCount}
         onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
         isStaffContext={isStaffTab || currentTab === 'firebase_lookup'}
+        isStaffSessionActive={isStaffSessionActive}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
