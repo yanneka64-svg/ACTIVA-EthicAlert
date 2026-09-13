@@ -20,6 +20,7 @@ import {
   RotateCcw,
   Paperclip,
   FileCheck2,
+  Landmark,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -416,6 +417,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               <BarChart3 className="w-4 h-4" />
               {t.nav_reports}
             </button>
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Vue Exécutive) === */}
+            {isGlobalViewer && (
+              <button
+                id="nav-btn-executive"
+                onClick={() => setCurrentTab('executive')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  currentTab === 'executive'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-slate-200 hover:bg-white/10'
+                }`}
+              >
+                <Landmark className="w-4 h-4" />
+                {t.nav_executive}
+              </button>
+            )}
 
             {/* Audit Trail (Accessible to Admins and Auditors) */}
             {(activeUser.role === 'functional_admin' || 

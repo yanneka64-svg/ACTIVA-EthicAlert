@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, BarChart3, History, Settings, ChevronRight, LayoutDashboard } from 'lucide-react';
+import { ShieldAlert, BarChart3, History, Settings, ChevronRight, LayoutDashboard, Landmark } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 
@@ -43,6 +43,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'control_panel', label: t.nav_control_panel, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel, group: t.nav_group_control_panel },
     { key: 'portal', label: t.nav_portal, icon: <ShieldAlert className="w-4 h-4" />, visible: true, group: t.nav_group_alerts },
     { key: 'reports', label: t.nav_reports, icon: <BarChart3 className="w-4 h-4" />, visible: true, group: t.nav_group_reporting },
+    // === AMÉLIORATION AJOUTÉE (Phase 7 — Vue Exécutive) ===
+    { key: 'executive', label: t.nav_executive, icon: <Landmark className="w-4 h-4" />, visible: canSeeControlPanel, group: t.nav_group_reporting },
     { key: 'audit', label: t.nav_audit, icon: <History className="w-4 h-4" />, visible: canSeeAudit, group: t.nav_group_audit },
     { key: 'settings', label: t.nav_settings, icon: <Settings className="w-4 h-4" />, visible: canSeeSettings, group: t.nav_group_admin },
   ];

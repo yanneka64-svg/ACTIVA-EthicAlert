@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { ACTIVA_COUNTRIES, ALERT_CATEGORIES } from '../data/activaConfig';
+import { ACTIVA_COUNTRIES } from '../data/activaConfig';
+import { storage } from '../services/storage';
 
 interface WhistleblowerHomeProps {
   lang: Language;
@@ -36,6 +37,11 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   onOpenDesk,
 }) => {
   const t = TRANSLATIONS[lang];
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) === reads the
+  // real, editable category list (storage.ts) instead of the static
+  // ALERT_CATEGORIES import, so a category an admin adds/renames/removes
+  // is reflected here too, not just in the admin screen.
+  const alertCategories = storage.getCategories();
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section, absente jusqu'ici) ===
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -131,7 +137,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {ALERT_CATEGORIES.map((cat, idx) => (
+          {alertCategories.map((cat, idx) => (
             <div
               key={cat.id}
               className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-blue-400 transition space-y-3"
