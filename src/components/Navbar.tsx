@@ -1,69 +1,98 @@
-import React, { useState } from 'react';
-import { 
-  ShieldAlert, 
-  Globe, 
-  FileText, 
-  Search, 
-  BarChart3, 
-  History, 
-  Settings, 
+import React from 'react';
+import {
+  ShieldAlert,
+  Globe,
+  FileText,
+  Search,
+  BarChart3,
+  History,
+  Settings,
   QrCode,
   UserCheck,
   Lock,
   ChevronDown,
   Database,
-  Layers
+  LayoutDashboard,
+  Bell,
+  Clock3,
+  MessageSquare,
+  ListTodo,
+  RotateCcw,
+  Paperclip,
+  FileCheck2,
 } from 'lucide-react';
-import { Language, UserProfile, UserRole } from '../types';
+import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
+import { generateNotifications } from '../services/statusMapping';
 
-export interface NavbarProps {
-  activeTab?: string;
-  currentTab?: string;
-  onTabChange?: (tab: string) => void;
-  setCurrentTab?: (tab: string) => void;
+interface NavbarProps {
+  currentTab: string;
+  setCurrentTab: (tab: string) => void;
   lang: Language;
-  onLanguageChange?: (lang: Language) => void;
-  setLang?: (lang: Language) => void;
+  setLang: (lang: Language) => void;
   activeUser: UserProfile;
-  onUserChange?: (userId: string) => void;
-  setActiveUser?: (user: UserProfile) => void;
+  setActiveUser: (user: UserProfile) => void;
   onOpenQrModal: () => void;
-  pendingAlertsCount?: number;
+  pendingAlertsCount: number;
+  // === AMÉLIORATION AJOUTÉE (Phase 4) === lets a clicked notification deep
+  // link straight into its case, reusing the same trackingNumber filter
+  // already wired from the Control Panel (App.tsx's navigateToCases).
+  onNavigateToCase: (trackingNumber: string) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = (props) => {
-  const {
-    lang,
-    activeUser,
-    onOpenQrModal
-  } = props;
+// A real, computed notification list (see services/statusMapping.ts) never
+// carries persistent read/unread state of its own — this component keeps a
+// per-session "dismissed" id set, exactly as documented at the source of
+// generateNotifications(). It resets on reload, which is an accepted
+// trade-off: there is no separate AppNotification collection in storage.ts.
+const NOTIFICATION_ICONS: Record<AppNotification['type'], React.ComponentType<{ className?: string }>> = {
+  new_message: MessageSquare,
+  sla_at_risk: Clock3,
+  sla_overdue: Clock3,
+  task_overdue: ListTodo,
+  case_reopened: RotateCcw,
+  evidence_added: Paperclip,
+  closure_requested: FileCheck2,
+};
 
-  const currentTab = props.activeTab || props.currentTab || 'whistleblower_home';
-  const handleTabChange = (tab: string) => {
-    if (props.onTabChange) props.onTabChange(tab);
-    else if (props.setCurrentTab) props.setCurrentTab(tab);
-  };
-
-  const handleLanguageChange = (l: Language) => {
-    if (props.onLanguageChange) props.onLanguageChange(l);
-    else if (props.setLang) props.setLang(l);
-  };
-
-  const handleUserChange = (u: UserProfile) => {
-    if (props.onUserChange) props.onUserChange(u.id);
-    else if (props.setActiveUser) props.setActiveUser(u);
-    storage.setActiveUser(u);
-  };
-
-  const t = TRANSLATIONS[lang] || TRANSLATIONS.fr;
+export const Navbar: React.FC<NavbarProps> = ({
+  currentTab,
+  setCurrentTab,
+  lang,
+  setLang,
+  activeUser,
+  setActiveUser,
+  onOpenQrModal,
+  pendingAlertsCount,
+  onNavigateToCase,
+}) => {
+  const t = TRANSLATIONS[lang];
   const allUsers = storage.getUsers();
-  const alerts = storage.getAlerts();
-  const pendingCount = props.pendingAlertsCount ?? alerts.filter(a => a.status !== 'closed' && a.status !== 'archived').length;
+  const [showUserDropdown, setShowUserDropdown] = React.useState(false);
+  const [showLangDropdown, setShowLangDropdown] = React.useState(false);
 
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const [showLangDropdown, setShowLangDropdown] = useState(false);
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
+  const [showNotifDropdown, setShowNotifDropdown] = React.useState(false);
+  const [dismissedIds, setDismissedIds] = React.useState<Set<string>>(new Set());
+  const [notifRefresh, setNotifRefresh] = React.useState(0);
+  React.useEffect(() => {
+    const unsub = storage.subscribe(() => setNotifRefresh((n) => n + 1));
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const isGlobalViewer =
+    activeUser.role === 'functional_admin' || activeUser.role === 'system_admin' || activeUser.role === 'auditor';
+  const isStaffUser = isGlobalViewer || activeUser.role === 'investigator';
+  const notifications = React.useMemo(
+    () =>
+      isStaffUser
+        ? generateNotifications(storage.getAlerts(), storage.getAuditLogs(), activeUser.id, isGlobalViewer).filter((n) => !dismissedIds.has(n.id))
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isStaffUser, isGlobalViewer, activeUser.id, dismissedIds, notifRefresh]
+  );
 
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
@@ -79,6 +108,8 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
         return { label: 'Lanceur d’alerte', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
     }
   };
+
+  const badge = getRoleBadge(activeUser.role);
 
   return (
     <header className="bg-[#0B2545] text-white border-b border-[#134074] shadow-md sticky top-0 z-40">
@@ -101,6 +132,75 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
 
           {/* Role & Lang switcher */}
           <div className="flex items-center gap-3">
+            {/* === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) === */}
+            {isStaffUser && (
+              <div className="relative">
+                <button
+                  id="btn-notification-bell"
+                  onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                  className="relative p-1.5 rounded bg-white/10 hover:bg-white/20 transition text-slate-200"
+                  title={t.notif_title}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                      {notifications.length > 9 ? '9+' : notifications.length}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifDropdown && (
+                  <div className="absolute right-0 mt-1 w-80 bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 z-50 text-xs max-h-96 flex flex-col">
+                    <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+                      <p className="font-bold text-slate-700">{t.notif_title}</p>
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={() => setDismissedIds(new Set([...dismissedIds, ...notifications.map((n) => n.id)]))}
+                          className="text-[10px] font-semibold text-blue-700 hover:underline"
+                        >
+                          {t.notif_mark_all_read}
+                        </button>
+                      )}
+                    </div>
+                    <div className="overflow-y-auto flex-1">
+                      {notifications.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 text-[11px]">{t.notif_empty}</div>
+                      ) : (
+                        notifications.map((n) => {
+                          const Icon = NOTIFICATION_ICONS[n.type] ?? Bell;
+                          return (
+                            <button
+                              key={n.id}
+                              onClick={() => {
+                                setDismissedIds(new Set([...dismissedIds, n.id]));
+                                setShowNotifDropdown(false);
+                                onNavigateToCase(n.trackingNumber);
+                              }}
+                              className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 flex items-start gap-2.5"
+                            >
+                              <span
+                                className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                                  n.type === 'sla_overdue' ? 'bg-rose-50 text-rose-600' : n.type === 'sla_at_risk' || n.type === 'task_overdue' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
+                                }`}
+                              >
+                                <Icon className="w-3.5 h-3.5" />
+                              </span>
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-slate-700 leading-snug">{n.message}</span>
+                                <span className="block text-[10px] text-slate-400 mt-0.5">
+                                  {new Date(n.createdAt).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Language Selector */}
             <div className="relative">
               <button
@@ -120,21 +220,21 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                   onClick={() => setShowLangDropdown(false)}
                 >
                   <button 
-                    onClick={() => handleLanguageChange('fr')}
+                    onClick={() => setLang('fr')}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'fr' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
                   >
                     <span>🇫🇷 Français</span>
                     {lang === 'fr' && <span>✓</span>}
                   </button>
                   <button 
-                    onClick={() => handleLanguageChange('en')}
+                    onClick={() => setLang('en')}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'en' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
                   >
                     <span>🇬🇧 English</span>
                     {lang === 'en' && <span>✓</span>}
                   </button>
                   <button 
-                    onClick={() => handleLanguageChange('pt')}
+                    onClick={() => setLang('pt')}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'pt' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
                   >
                     <span>🇵🇹 Português</span>
@@ -144,7 +244,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
               )}
             </div>
 
-            {/* Profile / Role Switcher */}
+            {/* Simulated Profile / Role Switcher (Crucial for test & review) */}
             <div className="relative">
               <button
                 id="btn-role-switcher"
@@ -166,13 +266,16 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                 >
                   <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">
                     <p className="font-semibold text-slate-600">{t.switch_role}</p>
-                    <p className="text-[11px] text-slate-500">Testez les accès selon le profil (CDC 45 & 46)</p>
+                    <p className="text-[11px] text-slate-500">Testez les accès selon le profil (CDC 3.2.3)</p>
                   </div>
 
                   {allUsers.map((u) => (
                     <button
                       key={u.id}
-                      onClick={() => handleUserChange(u)}
+                      onClick={() => {
+                        setActiveUser(u);
+                        storage.setActiveUser(u);
+                      }}
                       className={`w-full text-left px-3 py-2 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 ${
                         activeUser.id === u.id ? 'bg-blue-50/80 font-semibold' : ''
                       }`}
@@ -190,14 +293,15 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                     onClick={() => {
                       const wbUser: UserProfile = {
                         id: 'usr-whistleblower',
-                        name: 'Lanceur d’alerte (Public)',
+                        name: 'Lanceur d’alerte (Visiteur)',
                         email: 'anonyme@declare.activa',
                         role: 'whistleblower',
                         roleTitle: 'Déclarant externe ou employé',
                         entity: 'Toutes entités',
                         country: 'Groupe ACTIVA',
                       };
-                      handleUserChange(wbUser);
+                      setActiveUser(wbUser);
+                      storage.setActiveUser(wbUser);
                     }}
                     className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-800 font-medium"
                   >
@@ -214,7 +318,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
           {/* Logo & title */}
           <div 
             id="brand-logo"
-            onClick={() => handleTabChange('whistleblower_home')}
+            onClick={() => setCurrentTab('home')}
             className="flex items-center gap-3 cursor-pointer select-none group"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-2 ring-white/20">
@@ -239,9 +343,9 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
           <nav className="hidden lg:flex items-center gap-1">
             <button
               id="nav-btn-home"
-              onClick={() => handleTabChange('whistleblower_home')}
+              onClick={() => setCurrentTab('home')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'whistleblower_home' || currentTab === 'whistleblower_submit'
+                currentTab === 'home' || currentTab === 'new_alert'
                   ? 'bg-amber-500 text-slate-950 shadow'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
@@ -252,9 +356,9 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
 
             <button
               id="nav-btn-track"
-              onClick={() => handleTabChange('whistleblower_track')}
+              onClick={() => setCurrentTab('track')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'whistleblower_track'
+                currentTab === 'track'
                   ? 'bg-amber-500 text-slate-950 shadow'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
@@ -263,30 +367,48 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
               {t.nav_track}
             </button>
 
+            {/* === AMÉLIORATION AJOUTÉE (Phase 5) === Control Panel, same visibility as Audit Trail */}
+            {(activeUser.role === 'functional_admin' ||
+              activeUser.role === 'system_admin' ||
+              activeUser.role === 'auditor') && (
+              <button
+                id="nav-btn-control-panel"
+                onClick={() => setCurrentTab('control_panel')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  currentTab === 'control_panel'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-slate-200 hover:bg-white/10'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                {t.nav_control_panel}
+              </button>
+            )}
+
             {/* Portal for investigators and admins */}
             <button
               id="nav-btn-portal"
-              onClick={() => handleTabChange('investigation_desk')}
+              onClick={() => setCurrentTab('portal')}
               className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'investigation_desk'
+                currentTab === 'portal'
                   ? 'bg-blue-600 text-white shadow'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
             >
               <ShieldAlert className="w-4 h-4" />
               <span>{t.nav_portal}</span>
-              {pendingCount > 0 && (
+              {pendingAlertsCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
-                  {pendingCount}
+                  {pendingAlertsCount}
                 </span>
               )}
             </button>
 
             <button
               id="nav-btn-reports"
-              onClick={() => handleTabChange('reporting')}
+              onClick={() => setCurrentTab('reports')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'reporting'
+                currentTab === 'reports'
                   ? 'bg-blue-600 text-white shadow'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
@@ -295,13 +417,13 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
               {t.nav_reports}
             </button>
 
-            {/* Audit Trail */}
+            {/* Audit Trail (Accessible to Admins and Auditors) */}
             {(activeUser.role === 'functional_admin' || 
               activeUser.role === 'system_admin' || 
               activeUser.role === 'auditor') && (
               <button
                 id="nav-btn-audit"
-                onClick={() => handleTabChange('audit')}
+                onClick={() => setCurrentTab('audit')}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
                   currentTab === 'audit'
                     ? 'bg-blue-600 text-white shadow'
@@ -313,28 +435,13 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
               </button>
             )}
 
-            {/* Architecture & Engines (CDC 43-77) */}
-            <button
-              id="nav-btn-architecture"
-              onClick={() => handleTabChange('architecture')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition border ${
-                currentTab === 'architecture'
-                  ? 'bg-purple-600 text-white border-purple-400 shadow-md'
-                  : 'border-purple-400/40 text-purple-200 hover:bg-purple-500/20'
-              }`}
-              title="Architecture Multi-Niveaux & Moteurs Serveur (CDC 43 à 77)"
-            >
-              <Layers className="w-4 h-4 text-purple-300" />
-              <span>Architecture (CDC 43-77)</span>
-            </button>
-
-            {/* Settings (Admin system / CDC 3.2.4) */}
-            {(activeUser.role === 'system_admin' || activeUser.role === 'functional_admin') && (
+            {/* Settings (Admin system) */}
+            {activeUser.role === 'system_admin' && (
               <button
                 id="nav-btn-settings"
-                onClick={() => handleTabChange('admin_config')}
+                onClick={() => setCurrentTab('settings')}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'admin_config'
+                  currentTab === 'settings'
                     ? 'bg-blue-600 text-white shadow'
                     : 'text-slate-200 hover:bg-white/10'
                 }`}
@@ -347,7 +454,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
             {/* === AMÉLIORATION AJOUTÉE (Phase 4) : outil de recherche connecté au vrai projet Firebase */}
             <button
               id="nav-btn-firebase-lookup"
-              onClick={() => handleTabChange('firebase_lookup')}
+              onClick={() => setCurrentTab('firebase_lookup')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
                 currentTab === 'firebase_lookup'
                   ? 'bg-purple-600 text-white shadow'
@@ -372,34 +479,34 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
         </div>
 
         {/* Mobile secondary tab bar */}
-        <div className="lg:hidden flex items-center justify-around py-2 border-t border-white/10 overflow-x-auto text-[11px] font-medium gap-1">
+        <div className="lg:hidden flex items-center justify-around py-2 border-t border-white/10 overflow-x-auto text-[11px] font-medium">
           <button
-            onClick={() => handleTabChange('whistleblower_home')}
-            className={`px-2 py-1 rounded shrink-0 ${currentTab === 'whistleblower_home' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
+            onClick={() => setCurrentTab('home')}
+            className={`px-2 py-1 rounded ${currentTab === 'home' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
           >
             {t.nav_home}
           </button>
           <button
-            onClick={() => handleTabChange('whistleblower_track')}
-            className={`px-2 py-1 rounded shrink-0 ${currentTab === 'whistleblower_track' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
+            onClick={() => setCurrentTab('track')}
+            className={`px-2 py-1 rounded ${currentTab === 'track' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
           >
             {t.nav_track}
           </button>
           <button
-            onClick={() => handleTabChange('investigation_desk')}
-            className={`px-2 py-1 rounded shrink-0 flex items-center gap-1 ${currentTab === 'investigation_desk' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
+            onClick={() => setCurrentTab('portal')}
+            className={`px-2 py-1 rounded flex items-center gap-1 ${currentTab === 'portal' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
           >
             <span>{t.nav_portal}</span>
-            {pendingCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingCount}</span>}
+            {pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
           </button>
           <button
-            onClick={() => handleTabChange('reporting')}
-            className={`px-2 py-1 rounded shrink-0 ${currentTab === 'reporting' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
+            onClick={() => setCurrentTab('reports')}
+            className={`px-2 py-1 rounded ${currentTab === 'reports' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
           >
             {t.nav_reports}
           </button>
           <button
-            onClick={() => handleTabChange('firebase_lookup')}
+            onClick={() => setCurrentTab('firebase_lookup')}
             className={`px-2 py-1 rounded flex items-center gap-1 ${currentTab === 'firebase_lookup' ? 'bg-purple-600 text-white font-bold' : 'text-slate-200'}`}
           >
             <Database className="w-3.5 h-3.5" />
@@ -408,7 +515,8 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
             onClick={onOpenQrModal}
             className="px-2 py-1 rounded text-amber-300 flex items-center gap-0.5"
           >
-            Arch.
+            <QrCode className="w-3.5 h-3.5" />
+            <span>QR</span>
           </button>
         </div>
       </div>

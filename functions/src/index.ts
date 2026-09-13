@@ -29,6 +29,7 @@
  */
 
 import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { CallableRequest, HttpsError, onCall } from 'firebase-functions/v2/https';
@@ -142,6 +143,25 @@ async function requireCaseAccess(caseId: string, user: AppUser, permission: Perm
   return { ref, kase };
 }
 
+// === AMÉLIORATION AJOUTÉE : validation ajoutée après une revue de sécurité ===
+// Roles that hold ANY case-scoped permission at all (mirrors
+// hasCaseReadPermission() in firestore.rules and ROLE_PERMISSIONS in
+// permissions.ts — deliberately excludes 'reporter' and 'system_admin',
+// which have none, per "System Administrator ≠ Case Access", section 30).
+// Used by assignCase below to stop a caller from assigning a case to a
+// uid whose role can never legitimately hold one, defense-in-depth on top
+// of the firestore.rules fix for the same finding (docs/SECURITY.md):
+// even if a rules gap ever reopened, this stops the write at the source.
+const CASE_BEARING_ROLES: RoleId[] = ['investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation'];
+
+async function assertCaseBearingRole(uid: string): Promise<void> {
+  const targetUser = await getAuth().getUser(uid).catch(() => null);
+  const role = (targetUser?.customClaims as { role?: RoleId } | undefined)?.role;
+  if (!role || !CASE_BEARING_ROLES.includes(role)) {
+    throw new HttpsError('invalid-argument', `${uid} does not hold a role that can be assigned to a case.`);
+  }
+}
+
 async function appendTimeline(caseId: string, label: string, actor: string, details?: string) {
   const eventId = newId('tl');
   await db.collection('cases').doc(caseId).collection('timeline').doc(eventId).set({
@@ -223,6 +243,11 @@ export const assignCase = onCall(async (request) => {
   if (!can(user, 'cases.assign', { case: kase, implicatedUserIds: implicated })) {
     throw new HttpsError('permission-denied', 'Not authorized to assign this case.');
   }
+
+  // === AMÉLIORATION AJOUTÉE : chaque cible doit tenir un rôle habilité ===
+  // See CASE_BEARING_ROLES' own comment — stops assigning a case to a uid
+  // whose role (e.g. 'system_admin') can never legitimately hold one.
+  await Promise.all([assignee, ...(additionalInvestigators ?? [])].map(assertCaseBearingRole));
 
   const previous = { assignee: kase.assignee, additionalInvestigators: kase.additionalInvestigators };
   await ref.update({
@@ -394,6 +419,23 @@ export const addPerson = onCall(async (request) => {
 
   await requireCaseAccess(caseId, user, 'cases.edit');
 
+  // === AMÉLIORATION AJOUTÉE : privilège renforcé pour lier un compte réel ===
+  // A security review (see docs/SECURITY.md) found that `cases.edit` alone —
+  // held by every plain investigator — was enough to set `linkedUserId` and
+  // thereby add ANY uid to `Case.implicatedUserIds` via the block below,
+  // which overrides scope/confidentiality/assignment/global-visibility in
+  // both firestore.rules and storage.rules (rule #9). That let an
+  // investigator lock a functional_admin or darc_compliance officer out of
+  // a case irreversibly (no reversal callable existed either — see
+  // removePersonLink below). Recording an ordinary witness or an
+  // unlinked subject stays available to any cases.edit holder; only
+  // actually linking a real account now requires `cases.assign` (held by
+  // `functional_admin`/`darc_compliance` — the two oversight roles trusted
+  // to determine who is implicated, not by every case-editing investigator).
+  if (input.kind === 'subject' && input.linkedUserId) {
+    await requireCaseAccess(caseId, user, 'cases.assign');
+  }
+
   const personId = newId('per');
   const nowIso = new Date().toISOString();
   const person: Person = { ...input, personId, caseId, createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId };
@@ -404,12 +446,69 @@ export const addPerson = onCall(async (request) => {
   // one write in this whole file that a security rule (firestore.rules'
   // isNotImplicated) actually depends on directly, so it must never be
   // skipped or reordered relative to the person document write above.
+  // Now also audited (it wasn't before) — every implication is
+  // individually reconstructable from audit_logs, and reversible via
+  // removePersonLink below, under the same elevated privilege.
   if (person.kind === 'subject' && person.linkedUserId) {
     await db.collection('cases').doc(caseId).update({ implicatedUserIds: FieldValue.arrayUnion(person.linkedUserId) });
+    await appendAudit({
+      actorId: user.userId,
+      action: 'PERSON_LINKED_TO_USER',
+      caseId,
+      objectType: 'person',
+      objectId: personId,
+      newValue: person.linkedUserId,
+    });
   }
   await appendTimeline(caseId, 'PERSON_ADDED', user.userId, `${input.kind}: ${input.name}`);
 
   return { personId };
+});
+
+// ---------------------------------------------------------------------------
+// removePersonLink
+// === AMÉLIORATION AJOUTÉE ===
+// The reversal addPerson's linkedUserId write never had: clears a person's
+// linkedUserId and pulls the uid back out of Case.implicatedUserIds. Same
+// cases.assign gate as the forward operation — whoever can implicate
+// someone can also correct a mistaken or malicious implication — and a
+// mandatory reason, audited the same way. Before this, an implication was
+// permanent through the API (see docs/SECURITY.md).
+// ---------------------------------------------------------------------------
+
+export const removePersonLink = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId, personId, reason } = request.data as { caseId: string; personId: string; reason: string };
+  if (!caseId || !personId || !reason) {
+    throw new HttpsError('invalid-argument', 'caseId, personId and reason are required.');
+  }
+
+  await requireCaseAccess(caseId, user, 'cases.assign');
+
+  const personRef = db.collection('cases').doc(caseId).collection('persons').doc(personId);
+  const personSnap = await personRef.get();
+  if (!personSnap.exists) throw new HttpsError('not-found', `Person ${personId} not found.`);
+  const person = personSnap.data() as Person;
+  if (!person.linkedUserId) {
+    throw new HttpsError('failed-precondition', 'This person has no linked user account to unlink.');
+  }
+
+  const nowIso = new Date().toISOString();
+  const unlinkedUserId = person.linkedUserId;
+  await personRef.update({ linkedUserId: FieldValue.delete(), updatedAt: nowIso, updatedBy: user.userId });
+  await db.collection('cases').doc(caseId).update({ implicatedUserIds: FieldValue.arrayRemove(unlinkedUserId) });
+  await appendAudit({
+    actorId: user.userId,
+    action: 'PERSON_UNLINKED_FROM_USER',
+    caseId,
+    objectType: 'person',
+    objectId: personId,
+    previousValue: unlinkedUserId,
+    reason,
+  });
+  await appendTimeline(caseId, 'PERSON_UNLINKED', user.userId, reason);
+
+  return { ok: true };
 });
 
 // ---------------------------------------------------------------------------

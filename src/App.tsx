@@ -12,10 +12,10 @@ import { WhistleblowerHome } from './components/WhistleblowerHome';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
 import { AlertTrackingView } from './components/AlertTrackingView';
 import { InvestigationDesk } from './components/InvestigationDesk';
+import { ControlPanel } from './components/ControlPanel';
 import { ReportingDashboard } from './components/ReportingDashboard';
 import { AuditTrailView } from './components/AuditTrailView';
 import { AdminConfigView } from './components/AdminConfigView';
-import { EnterpriseArchitectureView } from './components/EnterpriseArchitectureView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
 import { CaseLookup } from './components/CaseLookup';
@@ -28,6 +28,11 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
+  // === AMÉLIORATION AJOUTÉE (Phase 5) === filter the Control Panel's KPI
+  // cards/quick actions hand off to InvestigationDesk when navigating there.
+  const [pendingCaseFilter, setPendingCaseFilter] = useState<
+    { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string } | undefined
+  >(undefined);
 
   // Active user profile (role-switcher for demo/testing across CDC profiles; defaults to the
   // functional admin / point de contact so the staff portal is visible on first load).
@@ -63,10 +68,24 @@ export default function App() {
     // Leaving admin/investigator-only screens when switching to the public whistleblower profile.
     if (
       user.role === 'whistleblower' &&
-      ['portal', 'reports', 'audit', 'settings'].includes(currentTab)
+      ['control_panel', 'portal', 'reports', 'audit', 'settings'].includes(currentTab)
     ) {
       setCurrentTab('home');
     }
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 5) ===
+  // A plain tab switch (Navbar / sidebar) clears any Control-Panel-driven
+  // filter so it never leaks into a later, unrelated visit to "portal" —
+  // only navigateToCases() below sets a filter, deliberately.
+  const goToTab = (tab: string) => {
+    setPendingCaseFilter(undefined);
+    setCurrentTab(tab);
+  };
+
+  const navigateToCases = (filter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string }) => {
+    setPendingCaseFilter(filter);
+    setCurrentTab('portal');
   };
 
   const handleAlertSubmitted = (trackingNumber: string) => {
@@ -92,7 +111,20 @@ export default function App() {
   );
 
   const renderStaffContent = () => {
-    if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} />;
+    if (currentTab === 'control_panel') {
+      return isGlobalViewer ? (
+        <ControlPanel
+          lang={lang}
+          activeUser={activeUser}
+          onNavigateToCases={navigateToCases}
+          onNavigateToReports={() => goToTab('reports')}
+          onNavigateToNewCase={() => goToTab('new_alert')}
+        />
+      ) : (
+        renderAccessDenied('Centre de Pilotage')
+      );
+    }
+    if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={pendingCaseFilter} />;
     if (currentTab === 'reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
     if (currentTab === 'audit') {
       return isGlobalViewer ? (
@@ -111,20 +143,21 @@ export default function App() {
     return null;
   };
 
-  const isStaffTab = ['portal', 'reports', 'audit', 'settings'].includes(currentTab);
+  const isStaffTab = ['control_panel', 'portal', 'reports', 'audit', 'settings'].includes(currentTab);
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       {/* Top Main Navigation */}
       <Navbar
         currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
+        setCurrentTab={goToTab}
         lang={lang}
         setLang={setLang}
         activeUser={activeUser}
         setActiveUser={handleUserChange}
         onOpenQrModal={() => setShowQrModal(true)}
         pendingAlertsCount={pendingAlertsCount}
+        onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
       />
 
       {/* Main Content Area */}
@@ -135,7 +168,7 @@ export default function App() {
             onStartNewAlert={() => setCurrentTab('new_alert')}
             onGoToTrack={() => setCurrentTab('track')}
             onOpenQrModal={() => setShowQrModal(true)}
-            onOpenDesk={() => setCurrentTab('portal')}
+            onOpenDesk={() => goToTab('portal')}
           />
         )}
 
@@ -160,7 +193,7 @@ export default function App() {
             lang={lang}
             activeUser={activeUser}
             currentTab={currentTab}
-            setCurrentTab={setCurrentTab}
+            setCurrentTab={goToTab}
           >
             {renderStaffContent()}
           </StaffPortalLayout>
