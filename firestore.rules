@@ -76,6 +76,26 @@ service cloud.firestore {
       return !(request.auth.uid in kase.implicatedUserIds);
     }
 
+    // === IMPORTANT (Phase 4 finding, verified live) ===
+    // `allow read` below covers GET of one known caseId correctly (verified:
+    // 6 live scenarios in Phase 3, all passing). It does NOT make `list`
+    // (an unconstrained "give me every case I can see") work: Firestore
+    // requires a list query's rule to be PROVABLE against the query's own
+    // `where` filters alone, for every document it could possibly return —
+    // it will not evaluate the rule per-document and silently drop denied
+    // ones. Since `isNotImplicated`/`isInScope`/`isAssignedTo` all read
+    // fields (`implicatedUserIds`, `country`, `entity`, `assignee`,
+    // `additionalInvestigators`) that aren't part of any query filter, list
+    // requests against `cases` are rejected outright (confirmed: even
+    // `functional_admin`, who trivially passes every other check, gets
+    // `403 Missing or insufficient permissions` on a plain `list`).
+    // This is not a bug to fix in rules — it's exactly why
+    // docs/ARCHITECTURE.md puts "list my cases" behind a Cloud Function
+    // (server-side, Admin SDK, arbitrary filtering) rather than a raw
+    // client query: weakening isNotImplicated to make listing "provable"
+    // would mean trading away rule #9 of the brief (a person implicated in
+    // a case must never access it), which is not a call to make silently
+    // in a rules file. See docs/FIREBASE-SETUP.md.
     match /cases/{caseId} {
       allow read: if isSignedIn()
         && isNotImplicated(resource.data)
@@ -85,20 +105,28 @@ service cloud.firestore {
 
       // Child collections (allegations, persons, evidence, tasks, interviews,
       // investigation_notes, communications, corrective_actions,
-      // risk_assessments, timeline) stay closed to the client SDK for now:
-      // - investigation_notes must never be reporter-readable, and reporters
-      //   have no Firebase Auth account in this design at all (case number +
-      //   access code instead — see docs/DATABASE.md), so they can never
-      //   satisfy `isSignedIn()` here regardless.
-      // - evidence needs a per-item confidentiality check this phase hasn't
-      //   modeled in rules yet (see Evidence.confidentiality in caseTypes.ts).
-      // - communications is exactly the kind of reporter-facing read that
-      //   belongs behind a Cloud Function (which can verify the reporter's
-      //   access code server-side) rather than a Firestore rule, since there
-      //   is no reporter auth token to key a rule on.
-      // Reads for staff on these go through a Cloud Function too, for now.
+      // risk_assessments, timeline): GET of one known document id is
+      // readable under the exact same authorization as the parent case
+      // (fetched via get(), since a subcollection rule's `resource` is the
+      // child document, not the parent). `list` on a subcollection hits the
+      // identical provability wall as above (confirmed live) — even though
+      // the get() call is constant for the whole subcollection, Firestore's
+      // rule analyzer does not treat that as query-provable, so listing
+      // still requires a Cloud Function. Two further gaps intentionally NOT
+      // closed yet, flagged rather than ignored:
+      // - Evidence.confidentiality ('restricted' items) has no extra check
+      //   here — every migrated demo item is 'standard', so this doesn't
+      //   currently leak anything, but a real 'restricted' item would need
+      //   an additional per-document rule before this can be trusted as-is.
+      // - This still does not give reporters a path to their own case at
+      //   all (by design) — that remains Cloud-Function-only (section 44).
+      // Writes stay closed — Cloud Functions only, same as the parent case.
       match /{subcollection}/{docId} {
-        allow read, write: if false;
+        allow read: if isSignedIn()
+          && isNotImplicated(get(/databases/$(database)/documents/cases/$(caseId)).data)
+          && isInScope(get(/databases/$(database)/documents/cases/$(caseId)).data)
+          && (hasGlobalCaseVisibility() || isAssignedTo(get(/databases/$(database)/documents/cases/$(caseId)).data));
+        allow write: if false;
       }
     }
 

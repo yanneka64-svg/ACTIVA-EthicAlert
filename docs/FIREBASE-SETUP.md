@@ -71,6 +71,14 @@ Test #2 initially failed on the first run (denied when it should have been allow
 
 The remaining ~12 operations (evidence upload + Storage, communications, corrective actions, findings, conflict-of-interest, the reporter-facing `getCaseForReporter` that verifies a case number + access code server-side since reporters hold no Firebase Auth token at all, ...) follow the exact same pattern already established by these 3 and are listed at the bottom of `functions/src/index.ts` — not forgotten, just not worth writing further before the deployment path is unblocked and the first 3 are proven live.
 
+## Phase 4 — Control Panel (blocked on the same issue as Cloud Functions)
+
+Attempted a real, read-only Control Panel (`src/services/firebaseClient.ts`, a real Firebase Web App registered for this project — appId `1:308693813201:web:8f3bbcfcb68ee81964c2f0`, config in a gitignored `.env`). It surfaced a genuine architectural constraint rather than a bug:
+
+**Firestore rejects `list`/query operations outright** whenever the security rule depends on a field no `where` clause constrains — confirmed live, not assumed: `functional_admin` (global visibility, passes every other check) gets `403 Missing or insufficient permissions` on a plain, unconstrained `list` of the `cases` collection. The cause is `isNotImplicated()` in `firestore.rules`, which depends on `implicatedUserIds` — a per-document field, so Firestore can't prove the rule holds for every possible result of an unconstrained query, and refuses the whole request rather than silently filtering out denied documents the way a `get` effectively does. Single-document `getDoc` of one known case (or subcollection document, once extended the same way) still works correctly — that part **is** real and usable.
+
+Weakening `isNotImplicated` to make listing "provable" would mean trading away rule #9 of the brief (a person implicated in a case must never access it) — not a call to make unilaterally in a rules file. The only architecturally sound fix is what `docs/ARCHITECTURE.md` specified before this was ever attempted: list/search goes through a Cloud Function (server-side, Admin SDK, arbitrary filtering), not a raw client query. **This means Phase 4's real screens (Overview, Alerts list, etc.) are blocked on the exact same Cloud Functions deployment as the rest of Phase 3** — see above. No Control Panel UI was built against the broken capability; that would have been exactly the "interface that gives the impression the system works" the brief forbids.
+
 ## Re-running or extending the seed
 
 ```bash
