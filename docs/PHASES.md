@@ -18,7 +18,7 @@ implemented and verified.
 | 7 | Risk / SLA / Assignment engines wired to configuration | 🔜 Not started | Depends on Phase 3. |
 | 8 | Evidence upload (Storage) + Communications UI | 🔜 Not started | Depends on Phase 3. |
 | 9 | Audit trail (server-side, append-only) + 3-tier Reporting | 🔜 Not started | Depends on Phase 3. |
-| 10 | Security testing (section 54 of the brief) | 🔜 Not started | — |
+| 10 | Security testing (section 54 of the brief) | 🟡 Partial — everything currently deployed is tested | See `docs/SECURITY.md`. 10 live tests against the real project (unauthenticated/out-of-scope/implicated/least-privilege access, non-existent-id behavior, write-closure, credential-isolation), plus a real finding caught and mitigated: `.env`'s shared `VITE_FIREBASE_*` names meant Phase 4's real config silently also activated Phase 1's legacy Firestore sync (open rules) — verified no data actually leaked, then removed `.env` from this session. Remaining scope (evidence access, export abuse, reassignment abuse, role escalation *within* a deployed Cloud Function) can't be tested until Phase 3's Functions deploy. |
 | 11 | UX refinement | 🔜 Not started | — |
 | 12 | Production readiness | 🔜 Not started | — |
 
