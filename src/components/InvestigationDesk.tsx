@@ -24,7 +24,9 @@ import {
   History,
   CheckSquare,
   Square,
-  ArrowLeft
+  ArrowLeft,
+  Scale,
+  UserCog
 } from 'lucide-react';
 import {
   Language,
@@ -36,7 +38,8 @@ import {
   CorrectiveMeasure,
   AlertStatus,
   CaseTask,
-  TaskPriority
+  TaskPriority,
+  ConflictDeclaration
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
@@ -96,7 +99,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);
 
   // Selected case active tab
-  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'investigation' | 'messages' | 'corrective' | 'tasks' | 'timeline'>('overview');
+  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'investigation' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'conflict'>('overview');
 
   // Interactive modal / action states
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -133,6 +136,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [taskOwnerId, setTaskOwnerId] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
   const [taskPriority, setTaskPriority] = useState<TaskPriority>('medium');
+
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — Triage & Conflit d'intérêt) ===
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictOutcome, setConflictOutcome] = useState<ConflictDeclaration['outcome']>('no_conflict');
+  const [conflictDetails, setConflictDetails] = useState('');
 
   // Subscribe to storage updates
   useEffect(() => {
@@ -381,6 +389,37 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     if (task.status === 'completed') return 'completed';
     if (new Date(task.dueDate).getTime() < Date.now()) return 'overdue';
     return task.status;
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — Triage) === exact wording already
+  // used at submission time (AlertSubmissionFlow's step 4), reused here so
+  // the Triage tab reads the same axis scores with the same labels.
+  const RISK_AXIS_LABELS: Record<'financialImpact' | 'hierarchyLevel' | 'recidivism' | 'reputationRisk', Record<1 | 2 | 3 | 4, string>> = {
+    financialImpact: { 1: 'Faible (01) : < 5 000 Euro', 2: 'Élevé (02) : 5 000 - 10 000 Euro', 3: 'Très élevé (03) : 10 000 - 20 000 Euro', 4: 'Critique (04) : > 20 000 Euro' },
+    hierarchyLevel: { 1: 'Faible (01) : Employé', 2: 'Élevé (02) : Cadre', 3: 'Très élevé (03) : Sous Directeur', 4: 'Critique (04) : Directeur' },
+    recidivism: { 1: 'Faible (01) : Aucune', 2: 'Élevé (02) : Possible', 3: 'Très élevé (03) : Confirmée', 4: 'Critique (04) : Confirmée (Majeure)' },
+    reputationRisk: { 1: 'Faible (01) : Négligeable', 2: 'Élevé (02) : Modéré', 3: 'Très élevé (03) : Élevé', 4: 'Critique (04) : Élevé / Médiatique' },
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — Conflit d'intérêt) === uses Phase
+  // 1's ConflictDeclaration type + storage.declareConflict (already built,
+  // unused until now) — same mutate + persist + notify + logAudit pattern.
+  const handleDeclareConflict = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAlert) return;
+    if (conflictOutcome === 'conflict_identified' && !conflictDetails.trim()) return;
+    const declaration: ConflictDeclaration = {
+      id: 'cod-' + Date.now(),
+      userId: activeUser.id,
+      userName: activeUser.name,
+      declaredAt: new Date().toISOString(),
+      outcome: conflictOutcome,
+      details: conflictOutcome === 'conflict_identified' ? conflictDetails.trim() : undefined,
+    };
+    storage.declareConflict(selectedAlert.id, declaration, activeUser);
+    setShowConflictModal(false);
+    setConflictOutcome('no_conflict');
+    setConflictDetails('');
   };
 
   // Close Alert (CDC 3.1.3: Vérifier complétude, clôturer, informer le lanceur)
@@ -910,6 +949,35 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               >
                 {t.tab_timeline}
               </button>
+              {/* === AMÉLIORATION AJOUTÉE (Phase 6 — Triage & Conflit d'intérêt) === */}
+              <button
+                onClick={() => setActiveCaseTab('triage')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                  activeCaseTab === 'triage'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Scale className="w-3.5 h-3.5" />
+                <span>{t.tab_triage}</span>
+                {selectedAlert.overridePriority && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Priorité ajustée" />
+                )}
+              </button>
+              <button
+                onClick={() => setActiveCaseTab('conflict')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                  activeCaseTab === 'conflict'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <UserCog className="w-3.5 h-3.5" />
+                <span>{t.tab_conflict}</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px]">
+                  {(selectedAlert.conflictDeclarations ?? []).length}
+                </span>
+              </button>
             </div>
 
             {/* TAB CONTENT: 1. OVERVIEW */}
@@ -1281,6 +1349,132 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     </ol>
                   );
                 })()}
+              </div>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 6 — Triage) === repurposes the
+                existing NOCA risk-matrix display (AlertSubmissionFlow /
+                AdminConfigView) as an editable-override screen per the
+                brief's §24: shows the 4-axis score already computed at
+                submission time, then reuses the existing priority-override
+                modal (same button as the top toolbar's "Modifier la
+                priorité / Délais") rather than a second, parallel edit
+                path. */}
+            {activeCaseTab === 'triage' && (
+              <div className="p-6 space-y-5 max-h-[560px] overflow-y-auto text-xs">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                    {t.triage_matrix_title}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 bg-white rounded-lg border border-slate-200">
+                      <div className="text-slate-500 text-[11px]">{t.triage_axis_financial}</div>
+                      <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.financialImpact[selectedAlert.riskEvaluation.financialImpact]}</div>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-slate-200">
+                      <div className="text-slate-500 text-[11px]">{t.triage_axis_hierarchy}</div>
+                      <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.hierarchyLevel[selectedAlert.riskEvaluation.hierarchyLevel]}</div>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-slate-200">
+                      <div className="text-slate-500 text-[11px]">{t.triage_axis_recidivism}</div>
+                      <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.recidivism[selectedAlert.riskEvaluation.recidivism]}</div>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-slate-200">
+                      <div className="text-slate-500 text-[11px]">{t.triage_axis_reputation}</div>
+                      <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.reputationRisk[selectedAlert.riskEvaluation.reputationRisk]}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-xl border border-slate-200 bg-white text-center">
+                    <div className="text-2xl font-extrabold text-[#0B2545]">{selectedAlert.riskEvaluation.totalScore}/16</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{t.triage_total_score}</div>
+                  </div>
+                  <div className="p-3.5 rounded-xl border border-slate-200 bg-white text-center">
+                    <div className="text-2xl font-extrabold text-[#0B2545]">{selectedAlert.riskEvaluation.nocaThreshold}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{selectedAlert.riskEvaluation.expectedTreatment}</div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-700">{t.triage_computed_priority}</span>
+                    {getPriorityBadge({ ...selectedAlert, overridePriority: undefined } as AlertRecord)}
+                  </div>
+                  {selectedAlert.overridePriority && (
+                    <div className="flex items-center justify-between pt-2 border-t border-amber-100">
+                      <span className="font-semibold text-amber-800">{t.triage_override_priority}</span>
+                      {getPriorityBadge(selectedAlert)}
+                    </div>
+                  )}
+                  {selectedAlert.overrideReason && (
+                    <p className="text-[11px] text-slate-500 pt-1">
+                      <span className="font-semibold">{t.triage_override_reason}:</span> {selectedAlert.overrideReason}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setNewPriority(selectedAlert.overridePriority || selectedAlert.riskEvaluation.priority);
+                    setPriorityOverrideReason('');
+                    setShowPriorityModal(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  {t.triage_btn_adjust}
+                </button>
+              </div>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 6 — Conflit d'intérêt) === real,
+                persisted declarations (Phase 1's ConflictDeclaration type +
+                storage.declareConflict, built but unused until now) — never
+                a fabricated/derived list. */}
+            {activeCaseTab === 'conflict' && (
+              <div className="p-6 space-y-4 max-h-[560px] overflow-y-auto text-xs">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">{t.conflict_section_title}</div>
+                    <p className="text-slate-500 text-[11px] mt-0.5">{t.conflict_section_desc}</p>
+                  </div>
+                  <button
+                    onClick={() => { setConflictOutcome('no_conflict'); setConflictDetails(''); setShowConflictModal(true); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold shadow-xs transition shrink-0"
+                  >
+                    <UserCog className="w-3.5 h-3.5" />
+                    {t.conflict_btn_declare}
+                  </button>
+                </div>
+
+                {(selectedAlert.conflictDeclarations ?? []).length === 0 ? (
+                  <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
+                    {t.conflict_empty}
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {(selectedAlert.conflictDeclarations ?? []).map((d) => (
+                      <li key={d.id} className="p-3.5 rounded-xl border border-slate-200 bg-white">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-slate-900">{d.userName}</span>
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(d.declaredAt).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
+                          </span>
+                        </div>
+                        <span className={`inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                          d.outcome === 'no_conflict'
+                            ? 'bg-emerald-100 text-emerald-900 border-emerald-200'
+                            : 'bg-rose-100 text-rose-900 border-rose-200'
+                        }`}>
+                          {d.outcome === 'no_conflict' ? t.conflict_outcome_none : t.conflict_outcome_identified}
+                        </span>
+                        {d.details && <p className="text-slate-600 mt-1.5 leading-relaxed">{d.details}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
           </div>
@@ -1709,6 +1903,66 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 Valider la réouverture
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 6) === MODAL: DECLARE CONFLICT OF INTEREST */}
+      {showConflictModal && selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">{t.conflict_modal_title}</h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                {t.conflict_modal_subtitle} <span className="font-semibold text-slate-700">{activeUser.name}</span> — {selectedAlert.trackingNumber}
+              </p>
+            </div>
+
+            <form onSubmit={handleDeclareConflict} className="space-y-3">
+              <div className="space-y-2">
+                <label className={`flex items-start gap-2 p-3 rounded-xl border cursor-pointer transition ${conflictOutcome === 'no_conflict' ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <input type="radio" name="conflict-outcome" checked={conflictOutcome === 'no_conflict'} onChange={() => setConflictOutcome('no_conflict')} className="mt-0.5 accent-emerald-600" />
+                  <span>
+                    <span className="font-semibold text-slate-800 block">{t.conflict_outcome_none}</span>
+                    <span className="text-slate-500 text-[11px]">{t.conflict_outcome_none_desc}</span>
+                  </span>
+                </label>
+                <label className={`flex items-start gap-2 p-3 rounded-xl border cursor-pointer transition ${conflictOutcome === 'conflict_identified' ? 'border-rose-400 bg-rose-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <input type="radio" name="conflict-outcome" checked={conflictOutcome === 'conflict_identified'} onChange={() => setConflictOutcome('conflict_identified')} className="mt-0.5 accent-rose-600" />
+                  <span>
+                    <span className="font-semibold text-slate-800 block">{t.conflict_outcome_identified}</span>
+                    <span className="text-slate-500 text-[11px]">{t.conflict_outcome_identified_desc}</span>
+                  </span>
+                </label>
+              </div>
+
+              {conflictOutcome === 'conflict_identified' && (
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.conflict_details_label} *</label>
+                  <textarea
+                    rows={3}
+                    value={conflictDetails}
+                    onChange={(e) => setConflictDetails(e.target.value)}
+                    placeholder={t.conflict_details_placeholder}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => setShowConflictModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
+                  {t.btn_cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={conflictOutcome === 'conflict_identified' && !conflictDetails.trim()}
+                  className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] disabled:opacity-40 text-white font-bold"
+                >
+                  {t.conflict_btn_submit}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
