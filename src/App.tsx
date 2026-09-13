@@ -24,8 +24,6 @@ import { AdminConfigView } from './components/AdminConfigView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
 import { CaseLookup } from './components/CaseLookup';
-// === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) === logo réel dans le pied de page, comme sur la maquette adoptée.
-import { ActivaLogo } from './components/ui';
 // === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructurée façon maquette) ===
 // 4 écrans transverses réels (Tâches / Preuves / Communications / Actions
 // correctives), agrégeant des données déjà existantes sur `AlertRecord` —
@@ -385,7 +383,6 @@ function AppShell() {
             lang={lang}
             onStartNewAlert={() => goToTab('new_alert')}
             onGoToTrack={() => goToTab('track')}
-            onOpenQrModal={() => setShowQrModal(true)}
             onOpenDesk={() => goToTab('portal')}
             onGoToFaq={() => goToTab('faq')}
           />
@@ -447,13 +444,10 @@ function AppShell() {
       {/* === AMÉLIORATION AJOUTÉE (Phase 13) === Pied de page bleu marine,
           conforme à la nouvelle maquette d'accueil (au lieu du pied clair
           précédent). */}
-      <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* === AMÉLIORATION AJOUTÉE (Phase 17) === logo réel repris dans le pied de page, comme sur la maquette adoptée. */}
-          <div className="flex items-center gap-3">
-            <ActivaLogo variant="white" className="h-8" />
-            <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
-          </div>
+      <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* === AMÉLIORATION AJOUTÉE (Phase 20) === logo retiré du pied de page sur demande explicite (ajouté Phase 17). */}
+          <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
           <div className="flex items-center gap-4">
             <button className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
             <button className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>

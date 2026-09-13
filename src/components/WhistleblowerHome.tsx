@@ -2,13 +2,11 @@ import React from 'react';
 import {
   ShieldCheck,
   UserX,
-  QrCode,
   HeartHandshake,
   ChevronRight,
   ArrowRight,
   Send,
   Search,
-  PlayCircle,
   Quote,
   Lock,
   CheckCircle2,
@@ -21,7 +19,6 @@ interface WhistleblowerHomeProps {
   lang: Language;
   onStartNewAlert: () => void;
   onGoToTrack: () => void;
-  onOpenQrModal: () => void;
   onOpenDesk: () => void;
   // === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
   onGoToFaq: () => void;
@@ -31,7 +28,6 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   lang,
   onStartNewAlert,
   onGoToTrack,
-  onOpenQrModal,
   onOpenDesk,
   onGoToFaq,
 }) => {
@@ -39,84 +35,68 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
 
   return (
     <div className="space-y-12 pb-8">
-      {/* === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
-          Hero repris en deux colonnes (texte / photo) façon maquette
-          adoptée, coins nets partout (aucune forme arrondie, sur demande
-          explicite) : boutons, carte photo et bulle de citation passent
-          tous de `rounded-*` à des angles droits. Photo, titre, description
-          et logo restent ceux déjà en place (Phase 16/13) — seule la mise
-          en page change. */}
-      <div className="border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-          <div className="space-y-5">
-            <span className="block text-xs font-bold tracking-wider text-blue-700 uppercase">
-              {t.hero_eyebrow}
-            </span>
+      {/* === AMÉLIORATION AJOUTÉE (Phase 20 — hero plein cadre) ===
+          Retour à une photo en arrière-plan sur toute la largeur du hero
+          (au lieu de la colonne dédiée Phase 17), avec un léger voile bleu
+          ciel qui s'estompe vers la droite — la photo reste visible côté
+          droit, le texte reste lisible côté gauche. QR code et lien "Comment
+          ça marche ?" retirés d'ici (sur demande) ; le lien reste accessible
+          depuis la section elle-même, plus bas sur la page. */}
+      <div className="relative overflow-hidden border-b border-slate-200 min-h-[440px] sm:min-h-[540px] flex items-center">
+        <img
+          src="/brand/activa-hq.jpg"
+          alt="Siège du Groupe ACTIVA"
+          className="absolute inset-0 w-full h-full object-cover object-[75%_35%]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-sky-50 via-sky-50/75 to-transparent" />
 
-            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#0B2545] leading-tight">
-              {t.hero_title}
-            </h1>
+        <div className="relative z-10 max-w-xl p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)] space-y-5">
+          <span className="block text-xs font-bold tracking-wider text-blue-700 uppercase">
+            {t.hero_eyebrow}
+          </span>
 
-            <p className="text-base sm:text-lg font-semibold text-slate-800 leading-snug max-w-md">
-              {t.hero_desc}
-            </p>
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#0B2545] leading-tight">
+            {t.hero_title}
+          </h1>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
-              <button
-                id="hero-btn-new-alert"
-                onClick={onStartNewAlert}
-                className="flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition"
-              >
-                <Send className="w-4 h-4" />
-                <span>{t.btn_new_alert}</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
+          <p className="text-base sm:text-lg font-semibold text-slate-800 leading-snug max-w-md">
+            {t.hero_desc}
+          </p>
 
-              <button
-                id="hero-btn-track"
-                onClick={onGoToTrack}
-                className="flex items-center justify-center gap-2 px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm border border-slate-300 transition"
-              >
-                <Search className="w-4 h-4" />
-                <span>{t.btn_track_existing}</span>
-              </button>
-
-              <button
-                id="hero-btn-qr"
-                onClick={onOpenQrModal}
-                className="p-3 bg-white hover:bg-slate-50 text-blue-600 border border-slate-300 transition self-start sm:self-auto"
-                title="Afficher le QR code pour smartphone"
-              >
-                <QrCode className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="flex items-center gap-2 text-xs font-semibold text-slate-600 pt-1">
-              <Lock className="w-4 h-4 text-blue-600 shrink-0" />
-              {t.hero_anonymous_note}
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
+            <button
+              id="hero-btn-new-alert"
+              onClick={onStartNewAlert}
+              className="flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition"
+            >
+              <Send className="w-4 h-4" />
+              <span>{t.btn_new_alert}</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
 
             <button
-              onClick={() => document.getElementById('how-it-works-section')?.scrollIntoView({ behavior: 'smooth' })}
-              className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 hover:text-blue-700 transition"
+              id="hero-btn-track"
+              onClick={onGoToTrack}
+              className="flex items-center justify-center gap-2 px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm border border-slate-300 transition"
             >
-              <PlayCircle className="w-5 h-5" />
-              {t.hero_how_it_works_link}
+              <Search className="w-4 h-4" />
+              <span>{t.btn_track_existing}</span>
             </button>
           </div>
 
-          {/* Photo réelle du siège (Phase 16), coins nets, bulle de citation superposée */}
-          <div className="relative min-h-[320px] sm:min-h-[420px]">
-            <img
-              src="/brand/activa-hq.jpg"
-              alt="Siège du Groupe ACTIVA"
-              className="absolute inset-0 w-full h-full object-cover object-[75%_35%]"
-            />
-            <div className="hidden sm:flex absolute right-4 bottom-4 items-start gap-2 max-w-xs bg-[#0B2545]/90 backdrop-blur text-white text-xs px-4 py-3 shadow-lg">
-              <Quote className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{t.hero_quote}</span>
-            </div>
-          </div>
+          <p className="flex items-center gap-2 text-xs font-semibold text-slate-600 pt-1">
+            <Lock className="w-4 h-4 text-blue-600 shrink-0" />
+            {t.hero_anonymous_note}
+          </p>
+        </div>
+
+        {/* === AMÉLIORATION AJOUTÉE (Phase 20) === bulle de citation sans
+            fond (sur demande explicite) : plus de bloc bleu marine derrière
+            le texte, juste une ombre portée sur le texte lui-même pour
+            rester lisible par-dessus la photo. */}
+        <div className="hidden sm:flex absolute right-8 bottom-8 z-10 items-start gap-2 max-w-xs text-white text-xs">
+          <Quote className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,.6))' }} />
+          <span className="leading-relaxed" style={{ textShadow: '0 1px 4px rgba(0,0,0,.65)' }}>{t.hero_quote}</span>
         </div>
       </div>
 

@@ -241,16 +241,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {t.nav_public_home}
               </button>
 
-              <button
-                id="nav-btn-how-it-works"
-                onClick={() => {
-                  setCurrentTab('home');
-                  setTimeout(() => document.getElementById('how-it-works-section')?.scrollIntoView({ behavior: 'smooth' }), 50);
-                }}
-                className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-blue-700 transition"
-              >
-                {t.nav_public_how}
-              </button>
+              {/* === AMÉLIORATION AJOUTÉE (Phase 20) === lien "Comment ça
+                  marche ?" retiré de l'en-tête sur demande explicite ; la
+                  section elle-même reste sur la page d'accueil, simplement
+                  plus reliée par un raccourci direct. */}
 
               {/* === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de
                   l'accueil) === Vraie navigation vers l'onglet `/faq`
