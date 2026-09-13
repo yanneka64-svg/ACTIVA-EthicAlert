@@ -338,6 +338,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     conflict_modal_subtitle: 'Déclarant :',
     conflict_btn_submit: 'Valider la déclaration',
 
+    // === AMÉLIORATION AJOUTÉE (Phase 6 — checklist de clôture, §33) ===
+    closure_checklist_title: 'Checklist de clôture',
+    closure_check_corrective: 'Au moins une mesure corrective documentée (obligatoire)',
+    closure_check_goto: 'Compléter →',
+    closure_check_assigned: 'Au moins un investigateur a été attribué au dossier',
+    closure_check_notes: 'Notes d’investigation internes documentées',
+    closure_check_conflict: 'Déclaration de conflit d’intérêt enregistrée',
+    closure_check_tasks: 'Aucune tâche ouverte restante',
+
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign : période, graphiques, tableau) ===
     cp_kpi_delta_vs_previous: 'vs période précédente',
     cp_kpi_sub_new: 'Nécessite un tri',
@@ -706,6 +715,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     conflict_modal_subtitle: 'Declarant:',
     conflict_btn_submit: 'Submit Declaration',
 
+    // === AMÉLIORATION AJOUTÉE (Phase 6 — closure checklist, §33) ===
+    closure_checklist_title: 'Closure Checklist',
+    closure_check_corrective: 'At least one corrective measure documented (mandatory)',
+    closure_check_goto: 'Complete →',
+    closure_check_assigned: 'At least one investigator has been assigned to the case',
+    closure_check_notes: 'Internal investigation notes documented',
+    closure_check_conflict: 'Conflict-of-interest declaration on file',
+    closure_check_tasks: 'No open tasks remaining',
+
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
     cp_kpi_delta_vs_previous: 'vs previous period',
     cp_kpi_sub_new: 'Requires triage',
@@ -1073,6 +1091,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     conflict_modal_title: 'Declaração de Conflito de Interesses',
     conflict_modal_subtitle: 'Declarante:',
     conflict_btn_submit: 'Enviar Declaração',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 6 — checklist de encerramento, §33) ===
+    closure_checklist_title: 'Checklist de Encerramento',
+    closure_check_corrective: 'Pelo menos uma medida corretiva documentada (obrigatório)',
+    closure_check_goto: 'Completar →',
+    closure_check_assigned: 'Pelo menos um investigador foi designado ao caso',
+    closure_check_notes: 'Notas internas de investigação documentadas',
+    closure_check_conflict: 'Declaração de conflito de interesses registrada',
+    closure_check_tasks: 'Nenhuma tarefa em aberto restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
     cp_kpi_delta_vs_previous: 'vs período anterior',

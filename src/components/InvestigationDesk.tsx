@@ -1801,7 +1801,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       {/* MODAL: CLOSE CASE */}
       {showCloseModal && selectedAlert && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs max-h-[90vh] overflow-y-auto">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -1811,6 +1811,55 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 Vérification de complétude et information du lanceur d'alerte (CDC 3.1.3).
               </p>
             </div>
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 6 — checklist de clôture, §33) ===
+                A real, computed checklist over the case's own data — not a
+                separate stored list. Only the first item (corrective measure)
+                is a hard gate, exactly as before (handleCloseAlert still
+                enforces it); the rest are visibility-only additions so
+                nothing that could close before still can't. */}
+            {(() => {
+              const hasCorrective = selectedAlert.correctiveMeasures.length > 0;
+              const hasAssigned = selectedAlert.assignedInvestigators.length > 0;
+              const hasNotes = selectedAlert.internalNotes.length > 0;
+              const hasConflictDeclaration = (selectedAlert.conflictDeclarations ?? []).length > 0;
+              const openTasks = (selectedAlert.tasks ?? []).filter((tk) => tk.status !== 'completed');
+              const noOpenTasks = openTasks.length === 0;
+              const ChecklistRow = ({ ok, label, mandatory, onFix }: { ok: boolean; label: string; mandatory?: boolean; onFix?: () => void }) => (
+                <div className="flex items-center justify-between gap-2 py-1">
+                  <span className="flex items-center gap-1.5 text-slate-700">
+                    {ok ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${mandatory ? 'text-rose-600' : 'text-amber-500'}`} />
+                    )}
+                    <span className={!ok && mandatory ? 'font-semibold text-rose-800' : ''}>{label}</span>
+                  </span>
+                  {!ok && onFix && (
+                    <button type="button" onClick={onFix} className="text-blue-700 hover:underline font-semibold text-[11px] shrink-0">
+                      {t.closure_check_goto}
+                    </button>
+                  )}
+                </div>
+              );
+              return (
+                <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50">
+                  <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] mb-1.5">
+                    {t.closure_checklist_title}
+                  </div>
+                  <ChecklistRow
+                    ok={hasCorrective}
+                    mandatory
+                    label={t.closure_check_corrective}
+                    onFix={() => { setShowCloseModal(false); setActiveCaseTab('corrective'); }}
+                  />
+                  <ChecklistRow ok={hasAssigned} label={t.closure_check_assigned} />
+                  <ChecklistRow ok={hasNotes} label={t.closure_check_notes} onFix={() => { setShowCloseModal(false); setActiveCaseTab('investigation'); }} />
+                  <ChecklistRow ok={hasConflictDeclaration} label={t.closure_check_conflict} onFix={() => { setShowCloseModal(false); setActiveCaseTab('conflict'); }} />
+                  <ChecklistRow ok={noOpenTasks} label={t.closure_check_tasks} onFix={() => { setShowCloseModal(false); setActiveCaseTab('tasks'); }} />
+                </div>
+              );
+            })()}
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
