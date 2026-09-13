@@ -56,6 +56,48 @@ unintended pollution, your choice:
 | Direct write attempt to `cases/**` (any subcollection) | Closed (`allow write: if false`) — every mutation must go through a Cloud Function, none deployed, so **no client-side path to mutate case data exists right now** |
 | Direct read of `reporter_credentials/*` or `reporter_identities/*` | Closed (`allow read, write: if false`) regardless of role |
 | Direct read/write of `counters/*` | Closed |
+| An `investigator`, assigned to and in-scope for a throwaway test case, reading it when its `confidentialityLevel` is `highly_confidential` (above her `confidential` clearance) | **Denied (`403`)** — proves the newly-added confidentiality-clearance check in `firestore.rules` (`isConfidentialityAllowed`) actually works, not just present in the rules text |
+| The same throwaway case, downgraded to `confidential` | Allowed — isolates that the previous denial was specifically the confidentiality check, not scope/assignment |
+| The real investigator (`c.ngo`) re-reading her real, previously-`highly_confidential`, now-corrected-to-`confidential` assigned case, *after* the new rule deployed | Allowed — confirms the confidentiality-clearance rule shipped **without** the access regression it would otherwise have caused (see "Fix" section below) |
+| Same real investigator (`a.kouassi`) re-reading her own real `confidential` assigned case, after the rule deployed | Allowed — regression check on an unrelated, unaffected case |
+
+All four confidentiality-clearance tests above used a real Firebase Auth ID
+token obtained by minting a custom token for the real staff account (Admin
+SDK `createCustomToken`) and exchanging it via
+`accounts:signInWithCustomToken` — not a stored password (none are kept,
+by design; see the temp-password handling elsewhere in this doc's history).
+The resulting ID token carries that account's real custom claims exactly as
+Firestore would see them from an ordinary password sign-in, so this is a
+genuine signed-in request against the real deployed rule, not a simulation.
+
+## Fix: confidentiality clearance mirrored into `firestore.rules` (this session)
+
+**Closes a gap this same document previously flagged as open**: role-based
+confidentiality clearance (`ROLE_MAX_CONFIDENTIALITY`/`CONFIDENTIALITY_RANK`
+in `src/domain/permissions.ts`) is now also enforced in the deployed
+`firestore.rules` (`confidentialityRank`/`maxConfidentialityRank`/
+`isConfidentialityAllowed`), not only in client-side TypeScript.
+
+Before deploying, the change was checked against every real case in the
+live project to catch a regression before it happened, not after: one demo
+case (`CASE-2026-000002`, migrated from `alt-001`) had been auto-classified
+`highly_confidential` by the Phase 2b migration's priority mapping, while
+already assigned to an `investigator` (cleared only to `confidential`).
+Deploying the new rule unchanged would have silently locked that
+investigator out of her own assigned case. Per an explicit user decision
+(asked rather than assumed, given this is real production data), the case's
+`confidentialityLevel` was corrected to `confidential` — matching its actual
+assignment — via a one-off, transactional Admin SDK write (guarded by
+reading and re-checking the expected prior value inside the transaction
+before writing, the same discipline `LockService` would give in a
+single-threaded environment) *before* the rule was deployed. The correction
+was written to `audit_logs` (`action: CASE_CONFIDENTIALITY_CORRECTED`,
+`previousValue`/`newValue` recorded) and to the case's own `timeline`
+subcollection, exactly like any other tracked case change.
+
+Net effect, all live-verified (table above): the new check genuinely
+enforces confidentiality clearance for cases it applies to, and it shipped
+with zero observed regression on the real, already-assigned demo cases.
 
 ## Structural guarantees (not independently re-tested here because they follow from Firebase's own design, not this app's code)
 

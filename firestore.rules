@@ -75,6 +75,28 @@ service cloud.firestore {
     function isNotImplicated(kase) {
       return !(request.auth.uid in kase.implicatedUserIds);
     }
+    // === AMÉLIORATION AJOUTÉE : confidentiality clearance now mirrored into rules ===
+    // Was previously enforced ONLY in src/domain/permissions.ts (can() ->
+    // isConfidentialityAllowed), and not in these rules — a real, documented
+    // gap (see docs/PERMISSIONS.md history / docs/SECURITY.md). Mirrors
+    // ROLE_MAX_CONFIDENTIALITY / CONFIDENTIALITY_RANK exactly, field-for-field,
+    // so client and rules can never diverge on this again. `restricted` <
+    // `confidential` < `highly_confidential`, matching CONFIDENTIALITY_RANK.
+    function confidentialityRank(level) {
+      return level == 'highly_confidential' ? 3 : (level == 'confidential' ? 2 : 1);
+    }
+    // Mirrors ROLE_MAX_CONFIDENTIALITY. reporter/system_admin have no case
+    // permission at all (see permissions.ts), so their rank value here is
+    // moot in practice — kept at the lowest rank (1) rather than 0 so this
+    // function has no undefined/null case to handle in rules syntax.
+    function maxConfidentialityRank() {
+      return claimRole() in ['senior_investigator', 'functional_admin', 'darc_compliance']
+        ? 3
+        : (claimRole() in ['investigator', 'consultation'] ? 2 : 1);
+    }
+    function isConfidentialityAllowed(kase) {
+      return confidentialityRank(kase.confidentialityLevel) <= maxConfidentialityRank();
+    }
 
     // === IMPORTANT (Phase 4 finding, verified live) ===
     // `allow read` below covers GET of one known caseId correctly (verified:
@@ -100,6 +122,7 @@ service cloud.firestore {
       allow read: if isSignedIn()
         && isNotImplicated(resource.data)
         && isInScope(resource.data)
+        && isConfidentialityAllowed(resource.data)
         && (hasGlobalCaseVisibility() || isAssignedTo(resource.data));
       allow write: if false; // see note above — Cloud Functions only
 
@@ -125,6 +148,7 @@ service cloud.firestore {
         allow read: if isSignedIn()
           && isNotImplicated(get(/databases/$(database)/documents/cases/$(caseId)).data)
           && isInScope(get(/databases/$(database)/documents/cases/$(caseId)).data)
+          && isConfidentialityAllowed(get(/databases/$(database)/documents/cases/$(caseId)).data)
           && (hasGlobalCaseVisibility() || isAssignedTo(get(/databases/$(database)/documents/cases/$(caseId)).data));
         allow write: if false;
       }

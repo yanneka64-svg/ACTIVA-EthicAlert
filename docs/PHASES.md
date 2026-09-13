@@ -207,3 +207,62 @@ don't exist yet (Phase 4/5/6/8, blocked on the Spark/Cloud-Functions
 decision), so writing them now would mean documenting unbuilt behavior,
 which this project has consistently refused to do throughout every prior
 phase.
+
+---
+
+## Fix: confidentiality-clearance gap closed in `firestore.rules` (real prod change)
+
+**AUDIT** → the previous entry's flagged gap #1 (confidentiality clearance
+enforced in `permissions.ts` but not in `firestore.rules`) is a real,
+fixable-without-Cloud-Functions security gap, not a Phase 4/5/6-blocked
+item — worth closing now rather than leaving open indefinitely. Checked the
+real project's data first, per this session's standing discipline: found
+one of the 3 real demo cases (`CASE-2026-000002`) auto-classified
+`highly_confidential` by the Phase 2b migration while already assigned to
+an `investigator` (cleared only to `confidential`) — deploying the new rule
+unchanged would have silently revoked her access to her own assigned case.
+
+**PLAN** → put the exact trade-off to the user rather than deciding
+unilaterally (a live access-affecting change to real production data
+warrants that): leave the gap open, deploy-and-break, deploy-and-reassign,
+or deploy-and-reclassify-the-case-to-match-its-assignment. User chose the
+last option.
+
+**IMPLEMENT**:
+- One-off Admin SDK script: inside a Firestore transaction (reads and
+  re-checks the expected prior `confidentialityLevel`/`assignee` before
+  writing — the same discipline `LockService` gives in a single-threaded
+  context), corrected `CASE-2026-000002`'s `confidentialityLevel` from
+  `highly_confidential` to `confidential`; wrote a matching `audit_logs`
+  entry (`action: CASE_CONFIDENTIALITY_CORRECTED`, `previousValue`/
+  `newValue` recorded) and a `timeline` subcollection event, exactly like
+  any other tracked case change.
+- `firestore.rules`: added `confidentialityRank()`, `maxConfidentialityRank()`,
+  `isConfidentialityAllowed()` (mirroring `CONFIDENTIALITY_RANK`/
+  `ROLE_MAX_CONFIDENTIALITY` in `permissions.ts` field-for-field), and wired
+  `isConfidentialityAllowed(...)` into both the `cases/{caseId}` read rule
+  and the subcollection read rule.
+- Deployed via the same direct `firebaserules.googleapis.com` call pattern
+  used since Phase 3 (create a ruleset, then `PATCH` the
+  `cloud.firestore/default` release — the release id itself contains a
+  slash and must be percent-encoded in the URL path, a new wrinkle
+  discovered and worked around this time).
+
+**TEST / VERIFY** (all real signed-in requests, ID tokens obtained by
+minting an Admin SDK custom token for the real staff account and exchanging
+it via `accounts:signInWithCustomToken` — no stored passwords used):
+- A throwaway `highly_confidential` test case, in-scope and assigned to
+  `a.kouassi` (`investigator`, cleared to `confidential`) → `403`, proving
+  the new check actually blocks something.
+- The same throwaway case downgraded to `confidential` → `200`, isolating
+  that the denial above was specifically the confidentiality check.
+- `c.ngo` re-reading her real, now-corrected `CASE-2026-000002` → `200` —
+  the regression this whole exercise existed to prevent, confirmed absent.
+- `a.kouassi` re-reading her own unrelated real assigned case
+  (`CASE-2026-000003`, unaffected `confidential`) → `200`, general
+  regression check.
+- Throwaway test case deleted after use; no other data left behind.
+
+**DOCUMENT** → `firestore.rules` comments, `docs/PERMISSIONS.md`,
+`docs/SECURITY.md` (new live tests + a dedicated "Fix" section), this
+entry.

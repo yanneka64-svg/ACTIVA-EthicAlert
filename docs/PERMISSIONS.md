@@ -133,16 +133,25 @@ same on paper.
 | Layer | Status |
 |---|---|
 | `src/domain/permissions.ts` (`can()`) | Real, unit-verified logic. Not yet called from any live screen on the new `Case` model (that UI is Phase 5+). |
-| `firestore.rules` (`cases/{caseId}` read rule) | **Live and deployed** against the real project (`activa-ethicalert-47246`). Mirrors `can()`'s read-path logic (auth, role/claims, scope, implicated-person, assigned-or-global-visibility) using Firebase custom claims (`role`, `countries`, `entities`) set by `scripts/setupAuthUsers.ts` — with two deliberate, documented narrowings from `permissions.ts`, not accidental drift: confidentiality clearance is not yet mirrored (see below), and the rules' `hasGlobalCaseVisibility()` deliberately excludes `executive` from global visibility (rules-file comment: aggregated dashboards only, never raw case content) even though `GLOBAL_VISIBILITY_ROLES` in `permissions.ts` lists it — so an `executive` who somehow held `cases.read` would still be refused by the deployed rule, `can()` alone is stricter on paper but the rules are stricter in practice for this role. All writes to `cases/**` are `allow write: if false` — no client can mutate case data at all right now; every mutation must go through a Cloud Function (written, not deployed — see `docs/FIREBASE-SETUP.md`). |
+| `firestore.rules` (`cases/{caseId}` read rule) | **Live and deployed** against the real project (`activa-ethicalert-47246`). Mirrors `can()`'s read-path logic (auth, role/claims, scope, confidentiality clearance, implicated-person, assigned-or-global-visibility) using Firebase custom claims (`role`, `countries`, `entities`) set by `scripts/setupAuthUsers.ts` — with one deliberate, documented narrowing from `permissions.ts`, not accidental drift: the rules' `hasGlobalCaseVisibility()` deliberately excludes `executive` from global visibility (rules-file comment: aggregated dashboards only, never raw case content) even though `GLOBAL_VISIBILITY_ROLES` in `permissions.ts` lists it — so an `executive` who somehow held `cases.read` would still be refused by the deployed rule; `can()` alone is stricter on paper but the rules are stricter in practice for this role. All writes to `cases/**` are `allow write: if false` — no client can mutate case data at all right now; every mutation must go through a Cloud Function (written, not deployed — see `docs/FIREBASE-SETUP.md`). |
 | `functions/src/index.ts` | Written, type-checked, **not deployed** (Spark plan decision — see `docs/FIREBASE-SETUP.md`). Reuses `permissions.ts`/`workflow.ts` directly rather than re-implementing checks, so once deployed, server-side enforcement is guaranteed to match this document exactly. |
 
-Confidentiality-level clearance (`ROLE_MAX_CONFIDENTIALITY`) is enforced
-today in the TypeScript `can()` function but is **not yet mirrored into
-`firestore.rules`** — flagged here explicitly rather than silently, since
-this doc's whole purpose is to say precisely what's live vs. what's still
-only client-side-ready logic. Adding it to the rules is a small, well-scoped
-follow-up (the custom claims would need a role→max-level lookup identical to
-the TypeScript table above) and does not require Cloud Functions to be
-deployed first; it has not been done in this session because it changes the
-live, already-verified security rules and should be a deliberate, tested
-step of its own rather than a drive-by edit while writing documentation.
+**=== AMÉLIORATION AJOUTÉE : confidentiality clearance now mirrored into `firestore.rules` ===**
+Confidentiality-level clearance (`ROLE_MAX_CONFIDENTIALITY`/`CONFIDENTIALITY_RANK`)
+was enforced only in the TypeScript `can()` function as of the previous
+version of this document; it is now also enforced in the deployed rules
+(`confidentialityRank()`/`maxConfidentialityRank()`/`isConfidentialityAllowed()`
+in `firestore.rules`, mirroring the TypeScript tables field-for-field).
+Deploying this surfaced one real pre-existing data inconsistency, corrected
+before the rule went live rather than after: the automatic Phase 2b
+migration (`confidentialityForPriority()` in `migrateLegacy.ts`) had mapped
+one demo case's `very_high` priority to `highly_confidential`, but that case
+was already assigned to an `investigator` (cleared only to `confidential`).
+Deploying the new rule as-is would have silently revoked that investigator's
+access to her own assigned case. Per an explicit user decision, the case's
+`confidentialityLevel` was corrected to `confidential` (matching its actual
+assignment) via a one-off Admin SDK write — audited (`audit_logs`,
+action `CASE_CONFIDENTIALITY_CORRECTED`) and recorded on the case's own
+`timeline` subcollection — *before* the rule was deployed, so no real access
+was lost. See `docs/SECURITY.md` for the live tests proving both that this
+regression didn't happen and that the new check genuinely works.
