@@ -17,9 +17,10 @@ import { AuditTrailView } from './components/AuditTrailView';
 import { AdminConfigView } from './components/AdminConfigView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
+import { CaseLookup } from './components/CaseLookup';
 import { ShieldCheck, Lock, Building2, ShieldOff } from 'lucide-react';
 
-// Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings'
+// Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 
 export default function App() {
   const [lang, setLang] = useState<Language>('fr');
@@ -163,6 +164,12 @@ export default function App() {
             {renderStaffContent()}
           </StaffPortalLayout>
         )}
+
+        {/* === AMÉLIORATION AJOUTÉE (Phase 4) ===
+            Independent of the local demo model above: real Firebase Auth +
+            Firestore against the actual project (activa-ethicalert-47246).
+            See src/components/CaseLookup.tsx and docs/FIREBASE-SETUP.md. */}
+        {currentTab === 'firebase_lookup' && <CaseLookup lang={lang} />}
       </main>
 
       {/* Corporate Ethical Governance Footer */}

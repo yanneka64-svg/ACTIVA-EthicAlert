@@ -7,10 +7,11 @@ import {
   BarChart3, 
   History, 
   Settings, 
-  QrCode, 
-  UserCheck, 
+  QrCode,
+  UserCheck,
   Lock,
-  ChevronDown
+  ChevronDown,
+  Database
 } from 'lucide-react';
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -312,6 +313,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
+            {/* === AMÉLIORATION AJOUTÉE (Phase 4) : outil de recherche connecté au vrai projet Firebase */}
+            <button
+              id="nav-btn-firebase-lookup"
+              onClick={() => setCurrentTab('firebase_lookup')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                currentTab === 'firebase_lookup'
+                  ? 'bg-purple-600 text-white shadow'
+                  : 'text-slate-200 hover:bg-white/10'
+              }`}
+              title={t.nav_firebase_lookup}
+            >
+              <Database className="w-4 h-4" />
+              <span className="hidden xl:inline">{t.nav_firebase_lookup}</span>
+            </button>
+
             {/* QR Code trigger */}
             <button
               id="nav-btn-qr"
@@ -350,6 +366,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             className={`px-2 py-1 rounded ${currentTab === 'reports' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
           >
             {t.nav_reports}
+          </button>
+          <button
+            onClick={() => setCurrentTab('firebase_lookup')}
+            className={`px-2 py-1 rounded flex items-center gap-1 ${currentTab === 'firebase_lookup' ? 'bg-purple-600 text-white font-bold' : 'text-slate-200'}`}
+          >
+            <Database className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onOpenQrModal}
