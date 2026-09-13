@@ -157,6 +157,7 @@ export default function App() {
         setActiveUser={handleUserChange}
         onOpenQrModal={() => setShowQrModal(true)}
         pendingAlertsCount={pendingAlertsCount}
+        onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
       />
 
       {/* Main Content Area */}

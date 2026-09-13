@@ -53,6 +53,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Whistleblower home
     hero_title: 'Signalez en toute sécurité et de manière anonyme',
     hero_desc: 'Le Groupe ACTIVA s’engage à respecter les plus hauts standards d’intégrité, de déontologie et de lutte contre la fraude et la corruption dans ses 10 pays d’implantation. Vous êtes protégé(e).',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 2 — section FAQ, absente jusqu'ici) ===
+    faq_title: 'Questions fréquentes',
+    faq_subtitle: 'Tout ce que vous devez savoir avant de déposer un signalement.',
+    faq_q1: 'Mon signalement est-il vraiment anonyme ?',
+    faq_a1: 'Oui. Si vous choisissez le mode anonyme, aucune information permettant de vous identifier (nom, adresse IP, données de connexion) n’est enregistrée. Vous recevez un numéro de dossier et un mot de passe pour suivre votre signalement sans jamais révéler votre identité.',
+    faq_q2: 'Que se passe-t-il après l’envoi de mon signalement ?',
+    faq_a2: 'Votre signalement est immédiatement classifié selon la matrice de risques NOCA, puis attribué à un ou plusieurs investigateurs DARC assermentés. Vous pouvez suivre l’avancement et dialoguer en toute sécurité depuis l’espace de suivi.',
+    faq_q3: 'Suis-je protégé(e) contre des représailles ?',
+    faq_a3: 'Oui. La politique du Groupe ACTIVA garantit une protection totale contre toute forme de représailles à l’encontre d’un lanceur d’alerte de bonne foi, conformément au Code éthique du Groupe.',
+    faq_q4: 'Puis-je compléter ou supprimer mon signalement ?',
+    faq_a4: 'Vous pouvez à tout moment ajouter des informations complémentaires à votre dossier depuis l’espace de suivi. La suppression n’est possible que tant que le dossier n’a pas encore été examiné (statut « Nouveau »).',
+    faq_q5: 'Quels types de faits puis-je signaler ?',
+    faq_a5: 'Tout comportement contraire au Code éthique du Groupe : fraude, corruption, conflits d’intérêts, harcèlement, atteintes à la santé/sécurité, manquements graves à l’intégrité des affaires, etc.',
+    faq_q6: 'Que faire si j’ai perdu mon mot de passe de suivi ?',
+    faq_a6: 'Le mot de passe n’est affiché qu’une seule fois, à la soumission du signalement, et n’est jamais stocké en clair ni récupérable — conservez-le précieusement. Si vous l’avez perdu, contactez la DARC via les canaux officiels du Groupe.',
     btn_new_alert: 'Déposer une alerte sécurisée',
     btn_track_existing: 'Suivre un dossier existant',
     btn_view_policy: 'Consulter la Charte Éthique',
@@ -125,6 +141,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Tracking
     track_title: 'Suivi confidentiel de votre signalement',
     track_subtitle: 'Consultez l’avancement des investigations et dialoguez avec les enquêteurs en toute sécurité.',
+    // === AMÉLIORATION AJOUTÉE (Phase 3 — onglets du portail de suivi) ===
+    track_tab_overview: 'Vue d’ensemble',
+    track_tab_messages: 'Messages',
+    track_tab_documents: 'Pièces jointes',
+    track_tab_updates: 'Historique',
+    track_updates_empty: 'Aucune mise à jour enregistrée pour le moment.',
     label_enter_number: 'Numéro de dossier (ex: ACT-2026-0418)',
     label_enter_pwd: 'Mot de passe associé',
     btn_login_tracking: 'Consulter mon dossier',
@@ -189,6 +211,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Role switcher
     active_profile: 'Profil utilisateur simulé',
     switch_role: 'Changer de rôle pour tester',
+    // === AMÉLIORATION AJOUTÉE (Phase 4 — centre de notifications) ===
+    notif_title: 'Notifications',
+    notif_mark_all_read: 'Tout marquer comme lu',
+    notif_empty: 'Aucune notification pour le moment.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Centre de Pilotage',
@@ -358,6 +384,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     hero_title: 'Report safely and anonymously',
     hero_desc: 'ACTIVA Group is committed to the highest standards of integrity, ethics, and fraud prevention across our 10 countries of operation. You are protected.',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section) ===
+    faq_title: 'Frequently Asked Questions',
+    faq_subtitle: 'Everything you need to know before filing a report.',
+    faq_q1: 'Is my report really anonymous?',
+    faq_a1: 'Yes. If you choose the anonymous mode, no identifying information (name, IP address, connection data) is ever recorded. You receive a case number and a password so you can track your report without ever revealing your identity.',
+    faq_q2: 'What happens after I submit my report?',
+    faq_a2: 'Your report is immediately classified using the NOCA risk matrix, then assigned to one or more sworn DARC investigators. You can follow progress and communicate securely from the tracking portal.',
+    faq_q3: 'Am I protected against retaliation?',
+    faq_a3: 'Yes. ACTIVA Group\'s policy guarantees full protection against any form of retaliation towards a whistleblower acting in good faith, in accordance with the Group\'s Code of Ethics.',
+    faq_q4: 'Can I add to or delete my report?',
+    faq_a4: 'You can add supplementary information to your case at any time from the tracking portal. Deletion is only possible while the case has not yet been reviewed (status "New").',
+    faq_q5: 'What kinds of facts can I report?',
+    faq_a5: 'Any behavior contrary to the Group\'s Code of Ethics: fraud, corruption, conflicts of interest, harassment, health/safety breaches, serious business-integrity violations, etc.',
+    faq_q6: 'What if I lost my tracking password?',
+    faq_a6: 'The password is only shown once, at submission, and is never stored in plain text or recoverable — keep it safe. If lost, contact DARC through the Group\'s official channels.',
     btn_new_alert: 'Submit a Secure Report',
     btn_track_existing: 'Track an Existing Report',
     btn_view_policy: 'View Ethics Charter',
@@ -422,6 +464,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     track_title: 'Confidential Report Tracking',
     track_subtitle: 'View investigation progress and exchange securely with auditors.',
+    // === AMÉLIORATION AJOUTÉE (Phase 3 — tracking portal tabs) ===
+    track_tab_overview: 'Overview',
+    track_tab_messages: 'Messages',
+    track_tab_documents: 'Documents',
+    track_tab_updates: 'Updates',
+    track_updates_empty: 'No updates recorded yet.',
     label_enter_number: 'Tracking number (e.g., ACT-2026-0418)',
     label_enter_pwd: 'Associated password',
     btn_login_tracking: 'Access Case',
@@ -479,6 +527,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     active_profile: 'Active Simulation Profile',
     switch_role: 'Switch role for testing',
+    // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
+    notif_title: 'Notifications',
+    notif_mark_all_read: 'Mark all as read',
+    notif_empty: 'No notifications yet.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Control Panel',
@@ -648,6 +700,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     hero_title: 'Denuncie com segurança e de forma anônima',
     hero_desc: 'O Grupo ACTIVA está comprometido com os mais altos padrões de integridade e ética em seus 10 países de atuação. Você está protegido(a).',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 2 — seção de perguntas frequentes) ===
+    faq_title: 'Perguntas frequentes',
+    faq_subtitle: 'Tudo o que você precisa saber antes de enviar uma denúncia.',
+    faq_q1: 'Minha denúncia é realmente anônima?',
+    faq_a1: 'Sim. Se você escolher o modo anônimo, nenhuma informação que permita identificá-lo (nome, endereço IP, dados de conexão) é registrada. Você recebe um número de caso e uma senha para acompanhar sua denúncia sem nunca revelar sua identidade.',
+    faq_q2: 'O que acontece depois que envio minha denúncia?',
+    faq_a2: 'Sua denúncia é imediatamente classificada de acordo com a matriz de risco NOCA e, em seguida, atribuída a um ou mais investigadores da DARC. Você pode acompanhar o andamento e conversar com segurança pelo portal de acompanhamento.',
+    faq_q3: 'Estou protegido(a) contra retaliação?',
+    faq_a3: 'Sim. A política do Grupo ACTIVA garante proteção total contra qualquer forma de retaliação a um denunciante de boa-fé, em conformidade com o Código de Ética do Grupo.',
+    faq_q4: 'Posso complementar ou excluir minha denúncia?',
+    faq_a4: 'Você pode adicionar informações complementares ao seu caso a qualquer momento pelo portal de acompanhamento. A exclusão só é possível enquanto o caso ainda não foi analisado (status "Novo").',
+    faq_q5: 'Que tipo de fatos posso denunciar?',
+    faq_a5: 'Qualquer comportamento contrário ao Código de Ética do Grupo: fraude, corrupção, conflitos de interesse, assédio, violações de saúde/segurança, violações graves à integridade dos negócios, etc.',
+    faq_q6: 'O que fazer se eu perder minha senha de acompanhamento?',
+    faq_a6: 'A senha é exibida apenas uma vez, no momento do envio, e nunca é armazenada em texto simples nem recuperável — guarde-a com cuidado. Se a perder, contate a DARC pelos canais oficiais do Grupo.',
     btn_new_alert: 'Enviar Denúncia Segura',
     btn_track_existing: 'Acompanhar Processo Existente',
     btn_view_policy: 'Consultar Carta de Ética',
@@ -712,6 +780,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     track_title: 'Acompanhamento Confidencial da sua Denúncia',
     track_subtitle: 'Consulte o andamento das investigações e converse com os investigadores.',
+    // === AMÉLIORATION AJOUTÉE (Phase 3 — abas do portal de acompanhamento) ===
+    track_tab_overview: 'Visão geral',
+    track_tab_messages: 'Mensagens',
+    track_tab_documents: 'Documentos',
+    track_tab_updates: 'Histórico',
+    track_updates_empty: 'Nenhuma atualização registrada ainda.',
     label_enter_number: 'Número de processo (ex: ACT-2026-0418)',
     label_enter_pwd: 'Senha associada',
     btn_login_tracking: 'Acessar Processo',
@@ -769,6 +843,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     active_profile: 'Perfil de Simulação Ativo',
     switch_role: 'Trocar de perfil para testar',
+    // === AMÉLIORATION AJOUTÉE (Phase 4 — central de notificações) ===
+    notif_title: 'Notificações',
+    notif_mark_all_read: 'Marcar tudo como lido',
+    notif_empty: 'Nenhuma notificação no momento.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Centro de Controle',

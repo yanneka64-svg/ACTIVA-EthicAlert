@@ -1,22 +1,31 @@
 import React from 'react';
-import { 
-  ShieldAlert, 
-  Globe, 
-  FileText, 
-  Search, 
-  BarChart3, 
-  History, 
-  Settings, 
+import {
+  ShieldAlert,
+  Globe,
+  FileText,
+  Search,
+  BarChart3,
+  History,
+  Settings,
   QrCode,
   UserCheck,
   Lock,
   ChevronDown,
   Database,
-  LayoutDashboard
+  LayoutDashboard,
+  Bell,
+  Clock3,
+  MessageSquare,
+  ListTodo,
+  RotateCcw,
+  Paperclip,
+  FileCheck2,
 } from 'lucide-react';
-import { Language, UserProfile, UserRole } from '../types';
+import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
+import { generateNotifications } from '../services/statusMapping';
 
 interface NavbarProps {
   currentTab: string;
@@ -27,7 +36,26 @@ interface NavbarProps {
   setActiveUser: (user: UserProfile) => void;
   onOpenQrModal: () => void;
   pendingAlertsCount: number;
+  // === AMÉLIORATION AJOUTÉE (Phase 4) === lets a clicked notification deep
+  // link straight into its case, reusing the same trackingNumber filter
+  // already wired from the Control Panel (App.tsx's navigateToCases).
+  onNavigateToCase: (trackingNumber: string) => void;
 }
+
+// A real, computed notification list (see services/statusMapping.ts) never
+// carries persistent read/unread state of its own — this component keeps a
+// per-session "dismissed" id set, exactly as documented at the source of
+// generateNotifications(). It resets on reload, which is an accepted
+// trade-off: there is no separate AppNotification collection in storage.ts.
+const NOTIFICATION_ICONS: Record<AppNotification['type'], React.ComponentType<{ className?: string }>> = {
+  new_message: MessageSquare,
+  sla_at_risk: Clock3,
+  sla_overdue: Clock3,
+  task_overdue: ListTodo,
+  case_reopened: RotateCcw,
+  evidence_added: Paperclip,
+  closure_requested: FileCheck2,
+};
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
@@ -38,11 +66,33 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveUser,
   onOpenQrModal,
   pendingAlertsCount,
+  onNavigateToCase,
 }) => {
   const t = TRANSLATIONS[lang];
   const allUsers = storage.getUsers();
   const [showUserDropdown, setShowUserDropdown] = React.useState(false);
   const [showLangDropdown, setShowLangDropdown] = React.useState(false);
+
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
+  const [showNotifDropdown, setShowNotifDropdown] = React.useState(false);
+  const [dismissedIds, setDismissedIds] = React.useState<Set<string>>(new Set());
+  const [notifRefresh, setNotifRefresh] = React.useState(0);
+  React.useEffect(() => {
+    const unsub = storage.subscribe(() => setNotifRefresh((n) => n + 1));
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const isGlobalViewer =
+    activeUser.role === 'functional_admin' || activeUser.role === 'system_admin' || activeUser.role === 'auditor';
+  const isStaffUser = isGlobalViewer || activeUser.role === 'investigator';
+  const notifications = React.useMemo(
+    () =>
+      isStaffUser
+        ? generateNotifications(storage.getAlerts(), storage.getAuditLogs(), activeUser.id, isGlobalViewer).filter((n) => !dismissedIds.has(n.id))
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isStaffUser, isGlobalViewer, activeUser.id, dismissedIds, notifRefresh]
+  );
 
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
@@ -82,6 +132,75 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Role & Lang switcher */}
           <div className="flex items-center gap-3">
+            {/* === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) === */}
+            {isStaffUser && (
+              <div className="relative">
+                <button
+                  id="btn-notification-bell"
+                  onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                  className="relative p-1.5 rounded bg-white/10 hover:bg-white/20 transition text-slate-200"
+                  title={t.notif_title}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                      {notifications.length > 9 ? '9+' : notifications.length}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifDropdown && (
+                  <div className="absolute right-0 mt-1 w-80 bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 z-50 text-xs max-h-96 flex flex-col">
+                    <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+                      <p className="font-bold text-slate-700">{t.notif_title}</p>
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={() => setDismissedIds(new Set([...dismissedIds, ...notifications.map((n) => n.id)]))}
+                          className="text-[10px] font-semibold text-blue-700 hover:underline"
+                        >
+                          {t.notif_mark_all_read}
+                        </button>
+                      )}
+                    </div>
+                    <div className="overflow-y-auto flex-1">
+                      {notifications.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 text-[11px]">{t.notif_empty}</div>
+                      ) : (
+                        notifications.map((n) => {
+                          const Icon = NOTIFICATION_ICONS[n.type] ?? Bell;
+                          return (
+                            <button
+                              key={n.id}
+                              onClick={() => {
+                                setDismissedIds(new Set([...dismissedIds, n.id]));
+                                setShowNotifDropdown(false);
+                                onNavigateToCase(n.trackingNumber);
+                              }}
+                              className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 flex items-start gap-2.5"
+                            >
+                              <span
+                                className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                                  n.type === 'sla_overdue' ? 'bg-rose-50 text-rose-600' : n.type === 'sla_at_risk' || n.type === 'task_overdue' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
+                                }`}
+                              >
+                                <Icon className="w-3.5 h-3.5" />
+                              </span>
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-slate-700 leading-snug">{n.message}</span>
+                                <span className="block text-[10px] text-slate-400 mt-0.5">
+                                  {new Date(n.createdAt).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Language Selector */}
             <div className="relative">
               <button

@@ -1,18 +1,20 @@
-import React from 'react';
-import { 
-  ShieldCheck, 
-  Lock, 
-  UserX, 
-  FileText, 
-  Search, 
-  QrCode, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Building2, 
-  Scale, 
-  HeartHandshake, 
+import React, { useState } from 'react';
+import {
+  ShieldCheck,
+  Lock,
+  UserX,
+  FileText,
+  Search,
+  QrCode,
+  CheckCircle2,
+  AlertTriangle,
+  Building2,
+  Scale,
+  HeartHandshake,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  ChevronDown,
+  HelpCircle,
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -34,6 +36,17 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   onOpenDesk,
 }) => {
   const t = TRANSLATIONS[lang];
+
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section, absente jusqu'ici) ===
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const faqItems: { q: string; a: string }[] = [
+    { q: t.faq_q1, a: t.faq_a1 },
+    { q: t.faq_q2, a: t.faq_a2 },
+    { q: t.faq_q3, a: t.faq_a3 },
+    { q: t.faq_q4, a: t.faq_a4 },
+    { q: t.faq_q5, a: t.faq_a5 },
+    { q: t.faq_q6, a: t.faq_a6 },
+  ];
 
   return (
     <div className="space-y-12 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -225,6 +238,39 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               Documentation obligatoire des plans d'action correctifs et information du déclarant.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 2 — section FAQ) === */}
+      <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
+        <div className="text-center max-w-2xl mx-auto space-y-2">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 mx-auto">
+            <HelpCircle className="w-5 h-5" />
+          </div>
+          <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{t.faq_title}</h3>
+          <p className="text-xs text-slate-600">{t.faq_subtitle}</p>
+        </div>
+
+        <div className="max-w-3xl mx-auto divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden">
+          {faqItems.map((item, idx) => {
+            const open = openFaqIndex === idx;
+            return (
+              <div key={idx} className="bg-white">
+                <button
+                  onClick={() => setOpenFaqIndex(open ? null : idx)}
+                  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50 transition"
+                >
+                  <span className="text-sm font-semibold text-slate-800">{item.q}</span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+                </button>
+                {open && (
+                  <div className="px-5 pb-4 text-xs text-slate-600 leading-relaxed">
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
