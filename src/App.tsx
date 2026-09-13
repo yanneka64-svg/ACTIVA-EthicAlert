@@ -20,9 +20,47 @@ import { AdminConfigView } from './components/AdminConfigView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
 import { CaseLookup } from './components/CaseLookup';
+// === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructurée façon maquette) ===
+// 4 écrans transverses réels (Tâches / Preuves / Communications / Actions
+// correctives), agrégeant des données déjà existantes sur `AlertRecord` —
+// voir chaque fichier pour le détail.
+import { TasksRegistry } from './components/TasksRegistry';
+import { EvidenceRegistry } from './components/EvidenceRegistry';
+import { CommunicationsRegistry } from './components/CommunicationsRegistry';
+import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
 import { ShieldCheck, Lock, Building2, ShieldOff } from 'lucide-react';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
+// === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
+// restructurée (StaffPortalLayout) : 'triage' | 'assignment' | 'my_cases' |
+// 'investigations' | 'tasks' | 'evidence' | 'communications' |
+// 'corrective_actions' | 'admin_users' | 'admin_config' — chacun un écran
+// réel et distinct, voir renderStaffContent() ci-dessous.
+
+// === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation
+// façon maquette) ===
+// Liste unique, partagée entre le garde de bascule de profil
+// (`handleUserChange`) et `isStaffTab` ci-dessous, pour que les deux listes
+// ne puissent jamais diverger désormais que la barre latérale compte ~15
+// entrées au lieu de 6.
+const STAFF_TAB_KEYS = [
+  'control_panel',
+  'portal',
+  'triage',
+  'assignment',
+  'my_cases',
+  'investigations',
+  'tasks',
+  'evidence',
+  'communications',
+  'corrective_actions',
+  'reports',
+  'executive',
+  'audit',
+  'settings',
+  'admin_users',
+  'admin_config',
+];
 
 export default function App() {
   const [lang, setLang] = useState<Language>('fr');
@@ -32,7 +70,7 @@ export default function App() {
   // === AMÉLIORATION AJOUTÉE (Phase 5) === filter the Control Panel's KPI
   // cards/quick actions hand off to InvestigationDesk when navigating there.
   const [pendingCaseFilter, setPendingCaseFilter] = useState<
-    { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string } | undefined
+    { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean } | undefined
   >(undefined);
 
   // Active user profile (role-switcher for demo/testing across CDC profiles; defaults to the
@@ -67,10 +105,7 @@ export default function App() {
     setActiveUser(user);
     storage.setActiveUser(user);
     // Leaving admin/investigator-only screens when switching to the public whistleblower profile.
-    if (
-      user.role === 'whistleblower' &&
-      ['control_panel', 'portal', 'reports', 'executive', 'audit', 'settings'].includes(currentTab)
-    ) {
+    if (user.role === 'whistleblower' && STAFF_TAB_KEYS.includes(currentTab)) {
       setCurrentTab('home');
     }
   };
@@ -84,7 +119,7 @@ export default function App() {
     setCurrentTab(tab);
   };
 
-  const navigateToCases = (filter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string }) => {
+  const navigateToCases = (filter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean }) => {
     setPendingCaseFilter(filter);
     setCurrentTab('portal');
   };
@@ -126,6 +161,25 @@ export default function App() {
       );
     }
     if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={pendingCaseFilter} />;
+    // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
+    // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
+    // écran de détail, mêmes actions) avec un `initialFilter` préréglé
+    // différent — pas une copie, un préréglage — exactement comme le
+    // Centre de Pilotage le fait déjà pour ses propres cartes KPI.
+    if (currentTab === 'triage') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'new' }} />;
+    if (currentTab === 'assignment') {
+      return isGlobalViewer ? (
+        <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ unassignedOnly: true }} />
+      ) : (
+        renderAccessDenied('Attribution')
+      );
+    }
+    if (currentTab === 'my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'investigations') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'investigation' }} />;
+    if (currentTab === 'tasks') return <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'corrective_actions') return <CorrectiveActionsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
     if (currentTab === 'executive') {
       return isGlobalViewer ? (
@@ -148,10 +202,28 @@ export default function App() {
         renderAccessDenied('Administration')
       );
     }
+    // === AMÉLIORATION AJOUTÉE (Phase 9 — Administration scindée en 2 écrans
+    // dédiés façon maquette) === Même composant, même CRUD, même garde de
+    // rôle que 'settings' ci-dessus — seul l'onglet de départ diffère, et le
+    // sélecteur d'onglets complet reste visible pour ne rien masquer.
+    if (currentTab === 'admin_users') {
+      return activeUser.role === 'system_admin' ? (
+        <AdminConfigView lang={lang} activeUser={activeUser} initialTab="users" />
+      ) : (
+        renderAccessDenied('Utilisateurs & Rôles')
+      );
+    }
+    if (currentTab === 'admin_config') {
+      return activeUser.role === 'system_admin' ? (
+        <AdminConfigView lang={lang} activeUser={activeUser} initialTab="matrix" />
+      ) : (
+        renderAccessDenied('Configuration')
+      );
+    }
     return null;
   };
 
-  const isStaffTab = ['control_panel', 'portal', 'reports', 'executive', 'audit', 'settings'].includes(currentTab);
+  const isStaffTab = STAFF_TAB_KEYS.includes(currentTab);
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">

@@ -37,15 +37,25 @@ import { RoleId } from '../domain/caseTypes';
 interface AdminConfigViewProps {
   lang: Language;
   activeUser: UserProfile;
+  // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans "Utilisateurs & Rôles" /
+  // "Configuration" dédiés dans le menu, façon maquette) ===
+  // Optionnel, avec le même défaut ('matrix') qu'avant cette phase : ne
+  // change rien pour l'entrée existante `settings`. Les deux nouvelles
+  // entrées de menu ('admin_users' / 'admin_config') pointent vers ce même
+  // composant, seulement avec un onglet de départ différent — aucun onglet
+  // n'est retiré, le sélecteur d'onglets complet reste toujours visible et
+  // navigable, exactement comme avant.
+  initialTab?: 'matrix' | 'entities' | 'categories' | 'users' | 'roles' | 'database';
 }
 
 export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   lang,
   activeUser,
+  initialTab,
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'categories' | 'users' | 'roles' | 'database'>('matrix');
+  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'categories' | 'users' | 'roles' | 'database'>(initialTab ?? 'matrix');
   const [saveBanner, setSaveBanner] = useState('');
 
   // Firebase connection state

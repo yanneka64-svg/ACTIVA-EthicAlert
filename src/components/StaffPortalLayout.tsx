@@ -1,5 +1,23 @@
 import React from 'react';
-import { ShieldAlert, BarChart3, History, Settings, ChevronRight, LayoutDashboard, Landmark } from 'lucide-react';
+import {
+  ShieldAlert,
+  BarChart3,
+  History,
+  ChevronRight,
+  LayoutDashboard,
+  Landmark,
+  // === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation façon maquette) ===
+  ListFilter,
+  UserPlus,
+  FolderOpen,
+  Search,
+  ListTodo,
+  Paperclip,
+  MessageSquare,
+  Wrench,
+  Users,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 
@@ -39,15 +57,49 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // === AMÉLIORATION AJOUTÉE (Phase 5) === same visibility rule as InvestigationDesk's isGlobalViewer.
   const canSeeControlPanel = canSeeAudit;
 
+  // === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation
+  // façon maquette) ===
+  // La maquette de référence comporte ~15 entrées réparties en 7 groupes
+  // (CONTROL PANEL / ALERT MANAGEMENT / INVESTIGATION / REMEDIATION /
+  // REPORTING / AUDIT / ADMINISTRATION). Chaque entrée ci-dessous est un
+  // écran RÉEL et distinct : soit InvestigationDesk avec un `initialFilter`
+  // préréglé (Alertes/Triage/Attribution/Mes Dossiers/Investigations — voir
+  // App.tsx `renderStaffContent`), soit un nouveau registre transverse
+  // (Tâches/Preuves/Communications/Actions Correctives), soit
+  // AdminConfigView avec un `initialTab` différent (Utilisateurs & Rôles /
+  // Configuration). AUCUNE entrée, clé, route ou composant existant n'est
+  // supprimé : 'portal' et 'settings' conservent exactement leur
+  // comportement d'origine (et restent accessibles via la barre Navbar) ;
+  // seule cette liste est étendue pour refléter la structure demandée.
   const navItems: Array<{ key: string; label: string; icon: React.ReactNode; visible: boolean; group: string }> = [
     { key: 'control_panel', label: t.nav_control_panel, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel, group: t.nav_group_control_panel },
-    { key: 'portal', label: t.nav_portal, icon: <ShieldAlert className="w-4 h-4" />, visible: true, group: t.nav_group_alerts },
+
+    { key: 'portal', label: t.nav_alerts, icon: <ShieldAlert className="w-4 h-4" />, visible: true, group: t.nav_group_alerts },
+    { key: 'triage', label: t.nav_triage, icon: <ListFilter className="w-4 h-4" />, visible: true, group: t.nav_group_alerts },
+    { key: 'assignment', label: t.nav_assignment, icon: <UserPlus className="w-4 h-4" />, visible: canSeeControlPanel, group: t.nav_group_alerts },
+
+    { key: 'my_cases', label: t.nav_my_cases, icon: <FolderOpen className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
+    { key: 'investigations', label: t.nav_investigations, icon: <Search className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
+    { key: 'tasks', label: t.nav_tasks, icon: <ListTodo className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
+    { key: 'evidence', label: t.nav_evidence, icon: <Paperclip className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
+    { key: 'communications', label: t.nav_communications, icon: <MessageSquare className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
+
+    { key: 'corrective_actions', label: t.nav_corrective_actions, icon: <Wrench className="w-4 h-4" />, visible: true, group: t.nav_group_remediation },
+
     { key: 'reports', label: t.nav_reports, icon: <BarChart3 className="w-4 h-4" />, visible: true, group: t.nav_group_reporting },
     // === AMÉLIORATION AJOUTÉE (Phase 7 — Vue Exécutive) ===
     { key: 'executive', label: t.nav_executive, icon: <Landmark className="w-4 h-4" />, visible: canSeeControlPanel, group: t.nav_group_reporting },
+
     { key: 'audit', label: t.nav_audit, icon: <History className="w-4 h-4" />, visible: canSeeAudit, group: t.nav_group_audit },
-    { key: 'settings', label: t.nav_settings, icon: <Settings className="w-4 h-4" />, visible: canSeeSettings, group: t.nav_group_admin },
+
+    { key: 'admin_users', label: t.nav_admin_users, icon: <Users className="w-4 h-4" />, visible: canSeeSettings, group: t.nav_group_admin },
+    { key: 'admin_config', label: t.nav_admin_config, icon: <SlidersHorizontal className="w-4 h-4" />, visible: canSeeSettings, group: t.nav_group_admin },
   ];
+  // `settings` (Configuration Système, unfiltered) stays a valid tab id —
+  // still reachable from the Navbar's own quick-access button — it is
+  // simply no longer listed a second time in this sidebar now that
+  // 'admin_users'/'admin_config' cover the same screen with a scoped
+  // landing tab; nothing about it was removed, see AdminConfigView.tsx.
 
   // === AMÉLIORATION AJOUTÉE (Phase 6 — sidebar grouping to match the
   // Control Panel mockup's grouped sidebar) === Purely a rendering
