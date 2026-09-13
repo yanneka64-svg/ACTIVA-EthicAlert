@@ -6,7 +6,6 @@ import {
   HeartHandshake,
   ChevronRight,
   ArrowRight,
-  ArrowUpRight,
   Send,
   Search,
   PlayCircle,
@@ -14,15 +13,9 @@ import {
   Lock,
   CheckCircle2,
   FileText,
-  Scale,
-  HandCoins,
-  Users,
-  ShieldAlert,
-  MoreHorizontal,
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { storage } from '../services/storage';
 
 interface WhistleblowerHomeProps {
   lang: Language;
@@ -34,24 +27,6 @@ interface WhistleblowerHomeProps {
   onGoToFaq: () => void;
 }
 
-// === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
-// Une icône par catégorie réelle (storage.getCategories(), éditable en
-// Administration) plutôt que la liste à 8 libellés fixes de la maquette
-// adoptée : la maquette montre en réalité les sous-catégories des 5
-// catégories réelles éclatées en tuiles individuelles, mais figer ces 8
-// libellés en dur créerait une deuxième taxonomie non synchronisée avec
-// celle que l'Administration gère déjà (AdminConfigView). On adopte donc
-// le STYLE (tuiles compactes icône + libellé, sans liste à puces) sans
-// dupliquer les données : une tuile par catégorie réelle, jamais figée.
-// `MoreHorizontal` sert de repli si une future catégorie a un id inconnu.
-const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  business_integrity: Scale,
-  fraud_corruption: HandCoins,
-  hr_diversity: Users,
-  ehs_security: ShieldAlert,
-  other_breaches: MoreHorizontal,
-};
-
 export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   lang,
   onStartNewAlert,
@@ -61,10 +36,6 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   onGoToFaq,
 }) => {
   const t = TRANSLATIONS[lang];
-  // === AMÉLIORATION AJOUTÉE (Phase 17) === section "Des sujets qui
-  // comptent" : relit la liste réelle et éditable des catégories, comme le
-  // faisait déjà l'ancienne section pleine page qu'elle remplace visuellement.
-  const alertCategories = storage.getCategories();
 
   return (
     <div className="space-y-12 pb-8">
@@ -235,82 +206,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         </div>
       </div>
 
-      {/* === AMÉLIORATION AJOUTÉE (Phase 17) === "Des sujets qui comptent" :
-          remplace l'ancienne grille à 3 colonnes/listes à puces par des
-          tuiles compactes icône + libellé, façon maquette adoptée — une
-          tuile par catégorie réelle (voir CATEGORY_ICONS ci-dessus). Le lien
-          "Voir la liste complète" ouvre le formulaire de signalement, où le
-          détail de chaque sous-catégorie est réellement consultable —
-          jamais un lien sans destination. */}
-      <div className="space-y-6">
-        <div className="space-y-1">
-          <span className="text-xs uppercase font-bold tracking-wider text-blue-600">
-            {t.categories_eyebrow}
-          </span>
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-            <h3 className="text-2xl sm:text-3xl font-bold text-slate-900">
-              {t.categories_heading}
-            </h3>
-            <button
-              onClick={onStartNewAlert}
-              className="flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:underline shrink-0"
-            >
-              {t.categories_view_all}
-              <ArrowUpRight className="w-4 h-4" />
-            </button>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-600">{t.categories_subtitle}</p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {alertCategories.map((cat) => {
-            const Icon = CATEGORY_ICONS[cat.id] ?? MoreHorizontal;
-            return (
-              <div
-                key={cat.id}
-                className="bg-white p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:border-blue-400 transition"
-              >
-                <span className="w-9 h-9 bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                  <Icon className="w-4 h-4" />
-                </span>
-                <span className="font-bold text-slate-900 text-sm leading-tight">{cat.name}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* === AMÉLIORATION AJOUTÉE (Phase 19) === section "Des sujets qui
+          comptent" et bandeau d'appel à l'action final (Phase 17) retirés
+          de la page d'accueil sur demande explicite — le contenu ne
+          change pas ailleurs, ils sont simplement retirés d'ici. */}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
           La FAQ vit désormais dans son propre onglet public (`/faq`, voir
           FaqView.tsx et App.tsx) plutôt qu'ici — le bouton "Voir la FAQ" de
           la section précédente y navigue directement (onGoToFaq). */}
-      </div>
-
-      {/* === AMÉLIORATION AJOUTÉE (Phase 17) === bandeau d'appel à l'action
-          final, façon maquette adoptée : même photo réelle du siège que le
-          hero (aucun nouvel asset), teintée en fond, coins nets. Le bouton
-          réutilise exactement `onStartNewAlert`, déjà câblé en haut de page. */}
-      <div className="relative overflow-hidden bg-blue-700">
-        <img
-          src="/brand/activa-hq.jpg"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover opacity-20"
-        />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-          <div>
-            <h3 className="text-2xl font-bold text-white">{t.cta_band_heading}</h3>
-            <p className="text-sm text-blue-100 mt-1">{t.cta_band_desc}</p>
-          </div>
-          <button
-            onClick={onStartNewAlert}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-white hover:bg-slate-50 text-blue-700 font-bold text-sm shadow-sm transition shrink-0"
-          >
-            <Send className="w-4 h-4" />
-            <span>{t.btn_new_alert}</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
       </div>
     </div>
   );
