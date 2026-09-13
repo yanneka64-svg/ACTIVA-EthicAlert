@@ -37,6 +37,9 @@ interface NavbarProps {
   // link straight into its case, reusing the same trackingNumber filter
   // already wired from the Control Panel (App.tsx's navigateToCases).
   onNavigateToCase: (trackingNumber: string) => void;
+  // === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
+  isStaffSessionActive: boolean;
+  onLogout: () => void;
 }
 
 // A real, computed notification list (see services/statusMapping.ts) never
@@ -64,6 +67,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenQrModal,
   pendingAlertsCount,
   onNavigateToCase,
+  isStaffSessionActive,
+  onLogout,
 }) => {
   const t = TRANSLATIONS[lang];
   const allUsers = storage.getUsers();
@@ -379,6 +384,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     👤 Mode Lanceur d’alerte (Public)
                   </button>
+
+                  {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne
+                      dédiée) === Déconnexion réelle de la session
+                      "collaborateur" démo : referme l'accès aux écrans
+                      internes (AuthenticatedRoute, App.tsx) jusqu'à une
+                      nouvelle connexion via /login. */}
+                  {isStaffUser && isStaffSessionActive && (
+                    <button
+                      onClick={onLogout}
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50 text-rose-700 font-medium border-t border-slate-100"
+                    >
+                      Se déconnecter
+                    </button>
+                  )}
                 </div>
               )}
             </div>
