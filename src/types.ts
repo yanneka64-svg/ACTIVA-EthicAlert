@@ -111,6 +111,10 @@ export interface WhistleblowerInfo {
   entity?: string;
   email?: string;
   phone?: string;
+  // === AMÉLIORATION AJOUTÉE (Phase 26 — champ additif, maquette de référence) ===
+  // Pays du déclarant (distinct du pays de l'entité concernée) — optionnel,
+  // n'affecte aucun enregistrement existant qui ne le renseigne pas.
+  declarantCountry?: string;
 }
 
 export interface AlertRecord {
@@ -135,7 +139,11 @@ export interface AlertRecord {
   incidentLocation: string;
   concernedEntity: string;
   country: string;
-  
+  // === AMÉLIORATION AJOUTÉE (Phase 26 — champ additif, maquette de référence) ===
+  // Indique si les faits signalés sont toujours en cours au moment du dépôt.
+  // Optionnel : les dossiers existants sans cette information restent valides.
+  isOngoing?: boolean;
+
   // Risk assessment
   riskEvaluation: RiskEvaluation;
   overridePriority?: PriorityLevel;
