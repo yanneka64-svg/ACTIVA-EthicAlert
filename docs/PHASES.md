@@ -140,3 +140,70 @@ implemented and verified.
 - `tsc --noEmit` and `vite build` clean; bundle size grew as expected now that real `firebase/auth` + `firebase/firestore` client code is actually shipped and used for the first time (previously inert).
 
 **DOCUMENT** → this entry + `docs/FIREBASE-SETUP.md`.
+
+---
+
+## Documentation completeness — `docs/WORKFLOW.md` and `docs/PERMISSIONS.md`
+
+**AUDIT** → section 50 of the brief ("Documentation obligatoire") lists eight
+required files: `ARCHITECTURE.md`, `DATABASE.md`, `SECURITY.md`,
+`WORKFLOW.md`, `PERMISSIONS.md`, `CONTROL-PANEL.md`, `INVESTIGATION.md`,
+`API.md`. Five existed at this point (the first three, plus this phase log);
+`WORKFLOW.md` and `PERMISSIONS.md` were genuinely writable right now — their
+underlying logic (`src/domain/workflow.ts`, `src/domain/permissions.ts`) has
+existed since Phase 2, is fully implemented, and was re-verified against the
+real, deployed `firestore.rules` during Phase 3's live testing. Unlike
+`CONTROL-PANEL.md`/`INVESTIGATION.md`/`API.md`, none of this required
+inventing anything or describing unbuilt UI — the opposite of "documentation
+that gives the impression the system works" the brief forbids elsewhere.
+
+**PLAN** → generate both docs strictly from the current code (not a
+parallel design), re-reading `workflow.ts`, `permissions.ts`,
+`caseTypes.ts`, and the deployed `firestore.rules` side by side so any gap
+between "what the TypeScript says" and "what's actually enforced live"
+gets called out explicitly rather than smoothed over.
+
+**IMPLEMENT**:
+- `docs/WORKFLOW.md` — the full `CaseStatus` state table, the literal
+  `ALLOWED_TRANSITIONS` adjacency list, the four closure-gating checks in
+  `checkTransition` (in the order they're actually evaluated), how
+  `deriveOverallFinding` computes `Case.overallFinding`, and an explicit
+  "where this plugs in today vs. not yet" section (nowhere live yet on the
+  new model — Phase 5+; the real enforcement boundary is the Cloud
+  Function once deployed, not any client-side call).
+- `docs/PERMISSIONS.md` — the `Permission` union, the full role→permission
+  table transcribed from `ROLE_PERMISSIONS`, the `ROLE_MAX_CONFIDENTIALITY`
+  table, scope (`isInScope`), assigned-vs-global visibility
+  (`GLOBAL_VISIBILITY_ROLES`), and rule #9 (the implicated-person override,
+  checked first, beats every other role including global-visibility ones —
+  cross-referenced to the live test in `docs/SECURITY.md` that actually
+  proved this).
+
+**TEST / VERIFY**: re-read `firestore.rules` line by line while writing the
+"where this is enforced today" table and caught two real, previously
+undocumented mismatches between `permissions.ts` and the deployed rules
+(neither is a bug — both are deliberate, but neither had been written down
+before):
+1. Confidentiality-level clearance (`ROLE_MAX_CONFIDENTIALITY`) is enforced
+   in `can()` but is **not yet mirrored into `firestore.rules`** — every
+   migrated demo item's confidentiality happens to be within what every
+   authorized reader is cleared for, so this has not yet caused an observed
+   leak, but it is a real, present gap between the TypeScript model and the
+   live rule, now flagged explicitly rather than silently assumed identical.
+2. `firestore.rules`' `hasGlobalCaseVisibility()` deliberately **excludes**
+   `executive` (rules-file comment: aggregated dashboards only), whereas
+   `permissions.ts`'s `GLOBAL_VISIBILITY_ROLES` **includes** `executive` —
+   so the deployed rule is actually stricter for that one role than the
+   TypeScript table alone would suggest. Not a security hole (stricter, not
+   looser), but worth recording precisely rather than describing the two
+   layers as if they were a verbatim match.
+No code was changed to produce this phase — both are genuinely pre-existing
+properties of the already-deployed `firestore.rules`, only now written down.
+
+**DOCUMENT** → `docs/WORKFLOW.md`, `docs/PERMISSIONS.md`, this entry.
+Remaining section-50 gaps, honestly still open: `CONTROL-PANEL.md`,
+`INVESTIGATION.md`, `API.md` — all three describe UI/API surfaces that
+don't exist yet (Phase 4/5/6/8, blocked on the Spark/Cloud-Functions
+decision), so writing them now would mean documenting unbuilt behavior,
+which this project has consistently refused to do throughout every prior
+phase.
