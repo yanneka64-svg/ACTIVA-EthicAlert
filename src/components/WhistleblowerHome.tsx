@@ -48,19 +48,20 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   ];
 
   return (
-    <div className="space-y-12 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {/* === AMÉLIORATION AJOUTÉE (Phase 13 — reproduction fidèle de la
-          nouvelle maquette d'accueil, photo) === Hero plein largeur : tags,
-          titre, sous-titre, paragraphe, 2 boutons + lien "Comment ça
-          marche ?", bulle de citation. Le fond est un dégradé décoratif en
-          remplacement de la photographie (bâtiment + palmiers) de la
-          maquette, dont l'asset réel n'est pas disponible dans ce dépôt. */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200 shadow-xl min-h-[480px] flex items-center">
+    <div className="space-y-12 pb-8">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 14 — bandeau photo plein largeur,
+          sans coins arrondis, comme demandé) === Hero en pleine largeur de
+          page (hors du conteneur max-w-7xl), coins droits. Le fond est un
+          dégradé décoratif en attendant la photo réelle du siège ACTIVA
+          (fichier fourni en pièce jointe de conversation, pas encore
+          disponible comme asset dans ce dépôt — voir la réponse au
+          dernier message pour comment me le transmettre). */}
+      <div className="relative overflow-hidden border-b border-slate-200 shadow-sm min-h-[480px] flex items-center">
         <div className="absolute inset-0 bg-gradient-to-br from-sky-100 via-sky-50 to-emerald-100" />
         <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
 
-        <div className="relative z-10 max-w-xl p-8 sm:p-12 space-y-4">
+        <div className="relative z-10 max-w-xl p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)] space-y-4">
           <span className="inline-block px-3 py-1.5 rounded-full bg-white/80 backdrop-blur border border-slate-200 text-[11px] font-bold tracking-wider text-slate-600">
             {t.hero_tags}
           </span>
@@ -125,6 +126,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         </div>
       </div>
 
+      <div className="space-y-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Feature strip — exact match with the reference mockup's 3 icons row below the hero */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 border border-slate-200 rounded-2xl bg-white overflow-hidden">
         <div className="p-5 flex items-center gap-3">
@@ -242,6 +244,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             );
           })}
         </div>
+      </div>
       </div>
     </div>
   );
