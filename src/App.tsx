@@ -28,6 +28,7 @@ import { TasksRegistry } from './components/TasksRegistry';
 import { EvidenceRegistry } from './components/EvidenceRegistry';
 import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
+import { STAFF_TAB_KEYS } from './constants/staffTabs';
 import { ShieldCheck, Lock, Building2, ShieldOff } from 'lucide-react';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
@@ -36,31 +37,6 @@ import { ShieldCheck, Lock, Building2, ShieldOff } from 'lucide-react';
 // 'investigations' | 'tasks' | 'evidence' | 'communications' |
 // 'corrective_actions' | 'admin_users' | 'admin_config' — chacun un écran
 // réel et distinct, voir renderStaffContent() ci-dessous.
-
-// === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation
-// façon maquette) ===
-// Liste unique, partagée entre le garde de bascule de profil
-// (`handleUserChange`) et `isStaffTab` ci-dessous, pour que les deux listes
-// ne puissent jamais diverger désormais que la barre latérale compte ~15
-// entrées au lieu de 6.
-const STAFF_TAB_KEYS = [
-  'control_panel',
-  'portal',
-  'triage',
-  'assignment',
-  'my_cases',
-  'investigations',
-  'tasks',
-  'evidence',
-  'communications',
-  'corrective_actions',
-  'reports',
-  'executive',
-  'audit',
-  'settings',
-  'admin_users',
-  'admin_config',
-];
 
 export default function App() {
   const [lang, setLang] = useState<Language>('fr');
