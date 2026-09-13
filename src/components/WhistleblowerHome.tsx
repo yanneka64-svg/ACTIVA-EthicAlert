@@ -39,17 +39,29 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  // === AMÉLIORATION AJOUTÉE (Phase 22, révisée Phase 25) ===
-  // La carte affichait une seule valeur à la fois, en boucle toutes les 5
-  // secondes. Sur nouvelle capture de référence montrant les 3 valeurs
-  // affichées ensemble en permanence, revient à un affichage statique des
-  // 3 lignes — la logique de rotation (état, minuteur) est retirée en
-  // conséquence, elle n'a plus d'usage.
-  const heroValues = [
+  // === AMÉLIORATION AJOUTÉE (Phase 22, révisée Phase 25, révisée à nouveau
+  // Phase 30) === La carte de valeurs et la bulle de citation étaient deux
+  // encarts statiques séparés (Phase 25). Sur nouvelle demande explicite
+  // (« je veux que les messages défilent »), ils sont fusionnés en un seul
+  // encart qui fait défiler les 3 valeurs puis la citation, un message à la
+  // fois, toutes les 4 secondes — la logique de rotation réapparaît donc
+  // volontairement ici (elle avait été retirée en Phase 25).
+  const heroMessages: { icon: React.ComponentType<{ className?: string }>; title: string; desc?: string }[] = [
     { icon: Shield, title: t.hero_value1_title, desc: t.hero_value1_desc },
     { icon: Users, title: t.hero_value2_title, desc: t.hero_value2_desc },
     { icon: Leaf, title: t.hero_value3_title, desc: t.hero_value3_desc },
+    { icon: Quote, title: t.hero_quote },
   ];
+  const [heroMsgIndex, setHeroMsgIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHeroMsgIndex((i) => (i + 1) % heroMessages.length);
+    }, 4000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const activeHeroMessage = heroMessages[heroMsgIndex];
+  const ActiveHeroIcon = activeHeroMessage.icon;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [heroBg, setHeroBg] = useState<string>(() => {
@@ -196,37 +208,38 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </p>
         </div>
 
-        {/* === AMÉLIORATION AJOUTÉE (Phase 25 — fidélité à la capture
-            fournie) === Carte de valeurs statique : les 3 lignes
-            (Intégrité/Transparence/Confiance) affichées ensemble en
-            permanence, séparées par un fin trait, au lieu d'une rotation. */}
-        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4 space-y-3">
-          {heroValues.map((v, i) => {
-            const Icon = v.icon;
-            return (
-              <div key={i} className={`flex items-center gap-3 ${i > 0 ? 'pt-3 border-t border-slate-100' : ''}`}>
-                <span className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                  <Icon className="w-4 h-4" />
-                </span>
-                <div>
-                  <div className="font-bold text-slate-900 text-sm">{v.title}</div>
-                  <div className="text-xs text-slate-500">{v.desc}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* === AMÉLIORATION AJOUTÉE (Phase 25) === bulle de citation avec
-            fond opaque bleu marine à nouveau (remplace le fond transparent
-            de la Phase 20, sur nouvelle capture de référence), avec le
-            petit trait décoratif sous le texte comme sur la capture. */}
-        <div className="hidden sm:flex flex-col absolute right-8 bottom-8 z-10 max-w-xs bg-[#0B2545]/95 text-white text-xs rounded-xl px-4 py-3 shadow-lg">
-          <div className="flex items-start gap-2">
-            <Quote className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-            <span className="leading-relaxed">{t.hero_quote}</span>
+        {/* === AMÉLIORATION AJOUTÉE (Phase 30 — messages défilants, fond
+            beaucoup plus transparent) === Remplace les deux encarts opaques
+            de la Phase 25 (carte de valeurs + bulle de citation) par un seul
+            encart qui fait défiler les 4 messages (3 valeurs + citation),
+            sur fond nettement plus transparent (bleu marine à 30% d'opacité
+            + flou, au lieu de blanc/marine à 95%) pour laisser mieux
+            transparaître la photo derrière. `key={heroMsgIndex}` redéclenche
+            le fondu à chaque changement de message (voir .activa-fade-in
+            dans index.css). */}
+        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-[#0B2545]/30 backdrop-blur-md rounded-2xl shadow-lg border border-white/25 p-4">
+          <div key={heroMsgIndex} className="flex items-start gap-3 activa-fade-in min-h-[2.75rem]">
+            <span className="w-9 h-9 rounded-full bg-white/20 text-amber-300 flex items-center justify-center shrink-0">
+              <ActiveHeroIcon className="w-4 h-4" />
+            </span>
+            <div>
+              <div className="font-bold text-white text-sm leading-snug drop-shadow-sm">{activeHeroMessage.title}</div>
+              {activeHeroMessage.desc && (
+                <div className="text-xs text-white/85">{activeHeroMessage.desc}</div>
+              )}
+            </div>
           </div>
-          <div className="w-8 h-px bg-white/30 mt-2 ml-6" />
+          {/* Puces de progression, un point par message */}
+          <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-white/20">
+            {heroMessages.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1 rounded-full transition-all duration-300 ${
+                  i === heroMsgIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/40'
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Bouton discret pour changer la photo de fond ou glisser-déposer */}

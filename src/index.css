@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+/* === AMÉLIORATION AJOUTÉE (Phase 30 — messages défilants du hero) ===
+   Petit fondu enchaîné pour le changement de message toutes les 4 secondes
+   dans WhistleblowerHome.tsx — respecte prefers-reduced-motion. */
+@keyframes activa-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.activa-fade-in {
+  animation: activa-fade-in 0.4s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activa-fade-in {
+    animation: none;
+  }
+}
