@@ -19,6 +19,10 @@ export const TAB_TO_PATH: Record<string, string> = {
   home: '/',
   new_alert: '/report',
   track: '/track',
+  // === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
+  // Redevient un vrai onglet public avec sa propre URL, au lieu d'une simple
+  // ancre de défilement sur la page d'accueil — voir FaqView.tsx.
+  faq: '/faq',
   firebase_lookup: '/lookup',
   login: '/login',
   control_panel: '/dashboard',
@@ -63,8 +67,8 @@ export function resolveRoute(pathname: string): ResolvedRoute {
     return { tab: 'portal', trackingNumber: decodeURIComponent(caseMatch[1]) };
   }
 
-  // Unknown path (including /how-it-works, /faq — same page as home, see
-  // WhistleblowerHome's #how-it-works/#faq anchors) falls back to the
+  // Unknown path (including /how-it-works — same page as home, see
+  // WhistleblowerHome's #how-it-works-section anchor) falls back to the
   // public homepage rather than a blank screen — never a dead link.
   return { tab: 'home' };
 }

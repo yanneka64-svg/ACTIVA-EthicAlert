@@ -53,11 +53,13 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const canSeeControlPanel =
-    activeUser.role === 'functional_admin' ||
-    activeUser.role === 'system_admin' ||
-    activeUser.role === 'consultation' ||
-    isGlobalCaseViewer(activeUser);
+  // === AMÉLIORATION AJOUTÉE : correction post-fusion === ces deux
+  // vérifications utilisaient encore l'ancien rôle `auditor` (5 rôles),
+  // absent du modèle RBAC actuel (10 rôles, voir domain/caseTypes.ts) —
+  // remplacées par les mêmes helpers déjà importés ci-dessus (jusqu'ici
+  // inutilisés), qui expriment la même intention via de vraies permissions
+  // plutôt qu'une liste de rôles codée en dur.
+  const canSeeControlPanel = isGlobalCaseViewer(activeUser);
   const canSeeAdmin = canManageConfiguration(activeUser);
 
   const navItems: Array<{ key: string; label: string; icon: React.ReactNode; visible: boolean; group: string }> = [

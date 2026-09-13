@@ -11,8 +11,9 @@ import {
   RotateCcw,
   Paperclip,
   FileCheck2,
-  Globe,
   Lock,
+  Send,
+  User,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -22,6 +23,10 @@ import { isGlobalCaseViewer } from '../services/authz';
 import { generateNotifications } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
 import { ActivaLogo } from './ui';
+// === AMÉLIORATION AJOUTÉE : correction post-fusion === cet import avait
+// été perdu lors de la fusion avec la refonte visuelle (Phase 13), alors
+// que le code plus bas l'utilise déjà — voir isGlobalViewer ci-dessous.
+import { isGlobalCaseViewer } from '../services/authz';
 
 interface NavbarProps {
   currentTab: string;
@@ -44,8 +49,11 @@ interface NavbarProps {
   // Purely presentational: every tab/handler below is unchanged and still
   // reachable, only the layout of this bar differs.
   isStaffContext: boolean;
-  isStaffSessionActive?: boolean;
-  onLogout?: () => void;
+  // === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
+  // Perdus lors de la fusion avec la refonte visuelle (Phase 13) alors que
+  // le bouton "Se déconnecter" plus bas s'appuie dessus — restaurés ici.
+  isStaffSessionActive: boolean;
+  onLogout: () => void;
 }
 
 // A real, computed notification list (see services/statusMapping.ts) never
@@ -116,6 +124,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   // leur rendu exact — `reporter` est le nouveau nom de l'ancien
   // `whistleblower`, `consultation` celui de l'ancien `auditor`), les 5
   // nouveaux suivent la même convention visuelle.
+  // === AMÉLIORATION AJOUTÉE : correction post-fusion === ce switch avait
+  // été réécrit sur les 5 anciens rôles (`auditor`/`whistleblower`) lors de
+  // la fusion avec la refonte visuelle (Phase 13), ce qui ne compile plus
+  // contre le modèle RBAC à 10 rôles — restauré ici avec les couleurs déjà
+  // choisies pour ce nouveau style d'en-tête (fonds `-50`/`-800`).
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'functional_admin':
@@ -123,21 +136,20 @@ export const Navbar: React.FC<NavbarProps> = ({
       case 'investigator':
         return { label: 'Investigateur DARC', color: 'bg-blue-50 text-blue-800 border-blue-200' };
       case 'senior_investigator':
-        return { label: 'Investigateur Senior', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+        return { label: 'Investigateur Senior DARC', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+      case 'darc_compliance':
+        return { label: 'Conformité DARC', color: 'bg-teal-50 text-teal-800 border-teal-200' };
       case 'system_admin':
         return { label: 'Admin Système', color: 'bg-purple-50 text-purple-800 border-purple-200' };
       case 'security_admin':
-        return { label: 'Admin Sécurité', color: 'bg-red-50 text-red-800 border-red-200' };
+        return { label: 'Admin Sécurité', color: 'bg-rose-50 text-rose-800 border-rose-200' };
       case 'consultation':
         return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-700 border-slate-200' };
-      case 'darc_compliance':
-        return { label: 'DARC Conformité', color: 'bg-teal-50 text-teal-800 border-teal-200' };
-      case 'executive':
-        return { label: 'Direction Exécutive', color: 'bg-rose-50 text-rose-800 border-rose-200' };
       case 'audit_committee':
-        return { label: 'Comité d’Audit', color: 'bg-amber-50 text-amber-900 border-amber-300' };
+        return { label: 'Comité d’Audit', color: 'bg-cyan-50 text-cyan-800 border-cyan-200' };
+      case 'executive':
+        return { label: 'Direction / Exécutif', color: 'bg-slate-800 text-white border-slate-700' };
       case 'reporter':
-      default:
         return { label: 'Lanceur d’alerte', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
     }
   };
@@ -165,6 +177,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-40">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 24) === bande utilitaire (Phase 23)
+          retirée sur demande explicite. */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3 sm:gap-5 py-3">
           {/* === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) === Le
@@ -231,24 +245,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {t.nav_public_home}
               </button>
 
-              <button
-                id="nav-btn-how-it-works"
-                onClick={() => {
-                  setCurrentTab('home');
-                  setTimeout(() => document.getElementById('how-it-works-section')?.scrollIntoView({ behavior: 'smooth' }), 50);
-                }}
-                className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-blue-700 transition"
-              >
-                {t.nav_public_how}
-              </button>
+              {/* === AMÉLIORATION AJOUTÉE (Phase 20) === lien "Comment ça
+                  marche ?" retiré de l'en-tête sur demande explicite ; la
+                  section elle-même reste sur la page d'accueil, simplement
+                  plus reliée par un raccourci direct. */}
 
+              {/* === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de
+                  l'accueil) === Vraie navigation vers l'onglet `/faq`
+                  (FaqView.tsx) au lieu d'un défilement vers une ancre
+                  aujourd'hui retirée de la page d'accueil. */}
               <button
                 id="nav-btn-faq"
-                onClick={() => {
-                  setCurrentTab('home');
-                  setTimeout(() => document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' }), 50);
-                }}
-                className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-blue-700 transition"
+                onClick={() => setCurrentTab('faq')}
+                className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
+                  currentTab === 'faq'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-600 hover:text-blue-700'
+                }`}
               >
                 {t.nav_public_faq}
               </button>
@@ -266,19 +279,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right cluster */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {!isStaffContext && (
-              /* === AMÉLIORATION AJOUTÉE (Phase 13) === "Espace sécurisé" —
-                  bouton plein, comme la maquette, en lieu et place du lien
-                  discret précédent. Reste l'entrée dans le portail interne
-                  (utile pour la démo de changement de rôle, CDC 3.2.3). */
+              /* === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de
+                  l'accueil) === La maquette adoptée ne montre plus ce bouton
+                  du tout dans l'en-tête public (place laissée aux deux
+                  actions "Suivre"/"Signaler" ci-dessous) — mais c'est
+                  l'unique point d'entrée public vers l'espace collaborateur
+                  (régression déjà corrigée une fois, Phase 10 : sans lui, un
+                  profil staff arrivant sur une page publique n'a plus aucun
+                  moyen d'y accéder, la barre latérale ne s'affichant qu'une
+                  fois DANS l'espace staff). Conservé, réduit à une icône
+                  discrète plutôt que supprimé. */
               <button
                 id="nav-btn-portal"
                 onClick={() => setCurrentTab('portal')}
-                className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0B2545] hover:bg-[#134074] text-white text-xs font-bold shadow-sm transition"
+                className="relative p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0B2545] transition"
+                title={t.nav_secure_space}
               >
-                <Lock className="w-3.5 h-3.5" />
-                <span>{t.nav_secure_space}</span>
+                <Lock className="w-4 h-4" />
                 {pendingAlertsCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
+                  <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 bg-amber-400 text-slate-950 text-[9px] font-bold flex items-center justify-center">
                     {pendingAlertsCount}
                   </span>
                 )}
@@ -372,7 +391,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="nav-btn-qr"
                 onClick={onOpenQrModal}
-                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-blue-700 transition"
+                className="p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-700 transition"
                 title="Générer / Afficher le QR Code de signalement"
               >
                 <QrCode className="w-4 h-4" />
@@ -387,15 +406,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className={`flex items-center gap-1 rounded-lg transition text-xs ${
                   isStaffContext
                     ? 'px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600'
-                    : 'p-2 text-slate-500 hover:bg-slate-100'
+                    : 'px-2 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50'
                 }`}
                 title="Changer de langue"
               >
-                {isStaffContext ? (
-                  <span className="font-bold uppercase">{lang}</span>
-                ) : (
-                  <Globe className="w-4 h-4" />
-                )}
+                <span className="font-bold uppercase">{lang}</span>
                 <ChevronDown className="w-3 h-3 opacity-70" />
               </button>
 
@@ -429,26 +444,75 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
+            {!isStaffContext && (
+              /* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
+                  fourni) === "Suivre mon signalement" reprend le style
+                  large façon barre de recherche de la maquette (icône +
+                  texte dans un encadré large, coins arrondis) plutôt qu'un
+                  simple bouton contour ; "Signaler une préoccupation" passe
+                  en coins arrondis, comme le reste du modèle. */
+              <>
+                <button
+                  id="nav-btn-track"
+                  onClick={() => setCurrentTab('track')}
+                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold transition whitespace-nowrap"
+                >
+                  <Search className="w-4 h-4 shrink-0" />
+                  <span>{t.btn_track_existing}</span>
+                </button>
+                <button
+                  id="nav-btn-new-alert"
+                  onClick={() => setCurrentTab('new_alert')}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{t.btn_new_alert}</span>
+                </button>
+                <div className="hidden sm:block w-px h-6 bg-slate-200" />
+              </>
+            )}
+
             {/* Account / role-switcher menu (role-switching stays crucial for demo & CDC 3.2.3 access testing) */}
             <div className="relative">
+              {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
+                  fourni) === Sur les pages publiques, le déclencheur reprend
+                  l'apparence "Connexion" (icône + libellé) de la maquette au
+                  lieu de l'avatar/nom — mais ouvre exactement le même menu
+                  de changement de profil en dessous : rien n'est perdu, la
+                  fonction de test des rôles (CDC 3.2.3) reste entière. Dans
+                  l'espace collaborateur, l'avatar + nom + rôle reste affiché
+                  (contexte où savoir "qui est connecté" a du sens). */}
               <button
                 id="btn-role-switcher"
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+                className={
+                  isStaffContext
+                    ? 'flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 border border-transparent hover:border-slate-200 transition'
+                    : 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100 transition'
+                }
               >
-                <span className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
-                  {initials}
-                </span>
-                <span className="hidden sm:block text-left leading-tight">
-                  <span className="block text-xs font-bold text-slate-800 max-w-[140px] truncate">{activeUser.name}</span>
-                  <span className="block text-[10px] text-slate-500 max-w-[140px] truncate">{badge?.label}</span>
-                </span>
+                {isStaffContext ? (
+                  <>
+                    <span className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
+                      {initials}
+                    </span>
+                    <span className="hidden sm:block text-left leading-tight">
+                      <span className="block text-xs font-bold text-slate-800 max-w-[140px] truncate">{activeUser.name}</span>
+                      <span className="block text-[10px] text-slate-500 max-w-[140px] truncate">{badge?.label}</span>
+                    </span>
+                  </>
+                ) : (
+                  <span className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                    <User className="w-4 h-4" />
+                  </span>
+                )}
+                {!isStaffContext && <span className="hidden sm:block text-xs font-bold">{t.nav_connexion}</span>}
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
               </button>
 
               {showUserDropdown && (
                 <div
-                  className="absolute right-0 mt-1 w-72 bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 py-1.5 z-50 text-xs"
+                  className="absolute right-0 mt-1 w-72 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 py-1.5 z-50 text-xs"
                   onClick={() => setShowUserDropdown(false)}
                 >
                   <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">

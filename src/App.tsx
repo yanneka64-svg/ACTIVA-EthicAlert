@@ -11,6 +11,8 @@ import { storage } from './services/storage';
 import { TRANSLATIONS } from './i18n/translations';
 import { Navbar } from './components/Navbar';
 import { WhistleblowerHome } from './components/WhistleblowerHome';
+// === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
+import { FaqView } from './components/FaqView';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
 import { AlertTrackingView } from './components/AlertTrackingView';
 import { InvestigationDesk } from './components/InvestigationDesk';
@@ -30,10 +32,19 @@ import { TasksRegistry } from './components/TasksRegistry';
 import { EvidenceRegistry } from './components/EvidenceRegistry';
 import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
-import { StaffLoginView } from './components/StaffLoginView';
+import { ShieldOff } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE : correction post-fusion ===
+// Ces imports (routage par URL, garde-fous, pont RBAC, écran de connexion
+// interne — Phase 12.2/12.3/12.4) avaient disparu lors de la fusion avec la
+// refonte visuelle (Phase 13/16), alors que le code plus bas continuait de
+// les utiliser (`navigate`, `pathForTab`, `PermissionGuard`,
+// `AuthenticatedRoute`, `canSeeAuditTrail`, `canManageConfiguration`,
+// `isGlobalCaseViewer`, `StaffLoginView`) — d'où l'échec de compilation.
+// Restaurés ici, sans rien changer au reste de la restructuration visuelle.
+import { resolveRoute, pathForTab } from './routing/routes';
+import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
 import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from './services/authz';
-import { pathForTab, resolveRoute } from './routing/routes';
-import { PermissionGuard, AuthenticatedRoute } from './routing/guards';
+import { StaffLoginView } from './components/StaffLoginView';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -69,12 +80,27 @@ const STAFF_TAB_KEYS = [
   'admin_roles',
 ];
 
-function AppContent() {
-  const navigate = useNavigate();
+// === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
+// `App()` redevient un mince point d'entrée qui monte le routeur ; toute la
+// logique vit dans `AppShell`, qui lit l'URL réelle via `useLocation` /
+// `useNavigate` — c'était déjà la structure voulue par le routage par URL,
+// perdue lors de la fusion avec la refonte visuelle (voir le commentaire
+// d'import ci-dessus).
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/*" element={<AppShell />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function AppShell() {
   const location = useLocation();
-  const resolved = resolveRoute(location.pathname);
-  const currentTab = resolved.tab;
-  const routeTrackingNumber = resolved.trackingNumber;
+  const navigate = useNavigate();
+  const { tab: currentTab, trackingNumber: routeTrackingNumber } = resolveRoute(location.pathname);
+  const setCurrentTab = (tab: string) => navigate(pathForTab(tab));
 
   const [lang, setLang] = useState<Language>('fr');
   const t = TRANSLATIONS[lang];
@@ -160,7 +186,7 @@ function AppContent() {
     // public page needs to land somewhere real; the staff portal's own
     // sidebar (StaffPortalLayout) then covers every other screen.
     else if (user.role !== 'reporter' && !STAFF_TAB_KEYS.includes(currentTab)) {
-      goToTab('portal');
+      setCurrentTab('portal');
     }
   };
 
@@ -219,14 +245,16 @@ function AppContent() {
   // sans qu'InvestigationDesk n'ait besoin de changer.
   const effectiveCaseFilter = routeTrackingNumber ? { trackingNumber: routeTrackingNumber } : pendingCaseFilter;
 
-  // === AMÉLIORATION AJOUTÉE (Phase 12.2) === /how-it-works et /faq
-  // réutilisent la page d'accueil existante (même contenu, jamais dupliqué)
-  // et se contentent de faire défiler jusqu'à la section correspondante —
-  // voir les ancres #how-it-works/#faq ajoutées dans WhistleblowerHome.tsx.
+  // === AMÉLIORATION AJOUTÉE (Phase 12.2) === /how-it-works réutilise la
+  // page d'accueil existante (même contenu, jamais dupliqué) et se contente
+  // de faire défiler jusqu'à la section correspondante — voir l'ancre
+  // #how-it-works-section dans WhistleblowerHome.tsx.
+  // === AMÉLIORATION AJOUTÉE (Phase 18) === /faq n'est plus concerné : la
+  // FAQ a désormais son propre onglet réel (voir routing/routes.ts et
+  // FaqView.tsx) plutôt qu'une ancre sur la page d'accueil.
   useEffect(() => {
-    if (location.pathname === '/how-it-works' || location.pathname === '/faq') {
-      const id = location.pathname === '/how-it-works' ? 'how-it-works' : 'faq';
-      const el = document.getElementById(id);
+    if (location.pathname === '/how-it-works') {
+      const el = document.getElementById('how-it-works-section');
       el?.scrollIntoView({ behavior: 'smooth' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -320,7 +348,7 @@ function AppContent() {
     // départ différent.
     if (currentTab === 'admin_roles') {
       return (
-        <PermissionGuard allowed={activeUser.role === 'system_admin'} label="Rôles & Permissions">
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Rôles & Permissions">
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="roles" />
         </PermissionGuard>
       );
@@ -355,9 +383,14 @@ function AppContent() {
             lang={lang}
             onStartNewAlert={() => goToTab('new_alert')}
             onGoToTrack={() => goToTab('track')}
-            onOpenQrModal={() => setShowQrModal(true)}
             onOpenDesk={() => goToTab('portal')}
+            onGoToFaq={() => goToTab('faq')}
           />
+        )}
+
+        {/* === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) === */}
+        {currentTab === 'faq' && (
+          <FaqView lang={lang} onStartNewAlert={() => goToTab('new_alert')} />
         )}
 
         {currentTab === 'new_alert' && (
@@ -413,6 +446,7 @@ function AppContent() {
           précédent). */}
       <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* === AMÉLIORATION AJOUTÉE (Phase 20) === logo retiré du pied de page sur demande explicite (ajouté Phase 17). */}
           <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
           <div className="flex items-center gap-4">
             <button className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
