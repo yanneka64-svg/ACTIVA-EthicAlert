@@ -11,7 +11,7 @@ implemented and verified.
 | 1 | Fix broken staff-portal wiring, sidebar layout, salted password hashing, rate limiting | ✅ Done | See commit `641fd45`. Client-only hardening — documented limitations still apply (see `ARCHITECTURE.md` §A). |
 | 2 | Target data model + architecture docs + additive domain/data-access layer + legacy migration function | ✅ Done | See below. |
 | 2b | Activate the Phase 2 data model in the real Firebase project (`activa-ethicalert-47246`) | ✅ Done | See `docs/FIREBASE-SETUP.md`. 3 demo cases + full child collections + audit trail really written to and re-read from Firestore via `scripts/seedFirestore.ts`. Rules update drafted but **not yet deployed** (one manual console step, documented). This is data only — no Auth, no Cloud Functions, UI still unaware of this data. |
-| 3 | Firebase Authentication + Cloud Functions + strict Security Rules | ⏳ Not started | The project itself is now available (`activa-ethicalert-47246`), which unblocks this phase — it was previously blocked on provisioning. Still needs: Blaze plan confirmation for Cloud Functions, Auth provider setup, and a proper (non-chat-pasted) service credential for ongoing backend use. |
+| 3 | Firebase Authentication + strict Security Rules | ✅ Done (Auth + Rules) / ⏳ Blocked (Functions) | See `docs/FIREBASE-SETUP.md`. 5 real staff Auth accounts with custom claims, created and verified via a real sign-in + decoded ID token. `firestore.rules` rewritten with real role/scope/implicated-person checks and **deployed for real** (direct Firebase Rules API call, since `firebase deploy` itself is blocked — see below) — then **verified live** with real signed-in REST calls, catching and fixing a genuine bug (legacy demo ids vs. real Auth UIDs on `Case.assignee`). Cloud Functions (`functions/src/index.ts`, 3 of ~15 operations) written and type-checked but **not deployed**: blocked on Cloud Billing/Cloud Functions API access this service account doesn't have — needs the project owner to enable Blaze billing and either widen the service account's IAM or deploy directly with their own `firebase login`. |
 | 4 | Control Panel (Overview, Alerts, Triage, Assignment, SLA & Escalations views) | 🔜 Not started | Depends on Phase 3 for real permission enforcement. |
 | 5 | Case Management UI on the new `Case` model | 🔜 Not started | Depends on Phase 3/4. |
 | 6 | Investigation Workspace (Tasks, Interviews, Findings UI) | 🔜 Not started | Depends on Phase 5. |
@@ -73,3 +73,30 @@ implemented and verified.
 - `tsc --noEmit` clean (default project config).
 
 **DOCUMENT** → `docs/FIREBASE-SETUP.md` (full status, what's live, what isn't, how to redeploy rules, how to revoke the shared key) + this entry.
+
+---
+
+## Phase 3 — Detail (Authentication, Security Rules, Cloud Functions)
+
+**AUDIT** → confirmed the Phase 2/2b groundwork (real domain model, real Firestore data) was in place and untouched; confirmed there were 0 existing Firebase Auth users and that the Email/Password sign-in provider was already enabled (checked via the Identity Toolkit Admin API before assuming anything needed console changes).
+
+**PLAN** → (1) provision real staff Auth accounts with custom claims mirroring `permissions.ts` exactly, (2) prove sign-in genuinely works end-to-end (not just "user created"), (3) rewrite `firestore.rules` to enforce that same role/scope/implicated logic for real reads, (4) deploy and then *try to defeat* the deployed rules with real signed-in requests before trusting them, (5) only then attempt Cloud Functions, and stop cleanly (document, don't hack around) if project-level infrastructure (billing/API enablement) turns out to be genuinely out of reach.
+
+**IMPLEMENT**:
+- `scripts/setupAuthUsers.ts` — creates/updates the 5 staff accounts from `INITIAL_USERS` with custom claims (idempotent, generates and prints temporary passwords only for newly created accounts, never stores them).
+- `src/domain/caseTypes.ts` — added `Case.implicatedUserIds` (denormalized from `Person.linkedUserId`), needed because Security Rules cannot run an arbitrary subcollection query; kept in sync by `addPerson()` in both `LocalCaseRepository` and `FirestoreAdminCaseRepository`.
+- `firestore.rules` — real `cases/{caseId}` read rule: signed-in, not implicated, in country/entity scope, and (global-visibility role OR assigned investigator); all writes stay closed (Cloud Functions only). Subcollections stay closed pending a follow-up pass (reporter-facing reads need a Cloud Function anyway, since reporters hold no Firebase Auth token in this design).
+- `scripts/relinkLegacyAssignees.ts` — fixes the legacy-id vs. real-UID mismatch the live rules test caught.
+- `functions/` — a real Cloud Functions package (`createCase`, `assignCase`, `changeCaseStatus`) reusing `domain/permissions.ts` and `domain/workflow.ts` directly.
+
+**TEST / VERIFY** (all against the real project, not simulated):
+- Listed Auth users before (0) and after (5) provisioning; re-read custom claims from Firebase Auth itself, not from local script state.
+- Signed in for real via the Identity Toolkit REST API with a newly created account's temporary password → succeeded with a valid ID token; retried with a wrong password → correctly rejected (`INVALID_LOGIN_CREDENTIALS`).
+- Deployed `firestore.rules` for real via a direct `firebaserules.googleapis.com` call (`firebase deploy` itself is blocked — see below) and confirmed the release pointed at the new ruleset.
+- Ran 5 live-rules scenarios with real signed-in Firestore REST calls: unauthenticated → denied; assigned investigator reading their own case → **initially wrongly denied**, root-caused to legacy-id vs. real-UID mismatch, fixed via `relinkLegacyAssignees.ts`, re-tested → allowed; same investigator reading an out-of-scope case → denied; `functional_admin` (global visibility) reading that same case → allowed; `system_admin` reading any case → denied (least privilege). A 6th scenario (throwaway case, `functional_admin` made the implicated subject) confirmed the implicated-person rule overrides even global visibility, then cleaned up the throwaway data.
+- `functions/`: `npm run build` (tsc) succeeded; root `tsc --noEmit` also picks up and cleanly type-checks `functions/src/index.ts` (confirmed via `--listFiles`).
+- Attempted `firebase deploy --only functions`: predeploy build succeeded, deployment itself failed on the same `serviceusage.googleapis.com` permission gap as the rules issue — but this time confirmed there is no safe single-call bypass (Cloud Functions deployment needs Cloud Build + Artifact Registry, not one REST call), and separately confirmed via the Cloud Billing API that billing/Blaze status isn't even readable with this service account. Stopped there rather than escalating workarounds further — documented exactly what the project owner needs to do instead.
+
+**DOCUMENT** → `docs/FIREBASE-SETUP.md` (rewritten for Phase 3 state) + this entry.
+
+**Explicitly out of scope for Phase 3** (deferred, not forgotten): the remaining ~12 `CaseRepository` operations as Cloud Functions, Storage rules for evidence upload, the reporter-facing `getCaseForReporter` callable (reporters still have no way to reach this data at all — intentional, since building that UI now would be exactly the "interface that gives the impression the system works" the brief forbids), and wiring any of this into the shipped React app (Phase 4+).

@@ -1,0 +1,21 @@
+{
+  "name": "activa-hotline-functions",
+  "private": true,
+  "description": "ACTIVA Hotline Cloud Functions — the real business-logic authority for case mutations (see docs/ARCHITECTURE.md). Not deployable yet: this project's Cloud Billing / Cloud Functions APIs are not accessible with the credentials available to this session — see docs/FIREBASE-SETUP.md.",
+  "type": "commonjs",
+  "main": "lib/functions/src/index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "deploy": "npm run build && firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.4.0",
+    "firebase-functions": "^6.0.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.2"
+  }
+}

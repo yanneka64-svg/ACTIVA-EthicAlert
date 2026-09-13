@@ -117,6 +117,7 @@ export async function migrateLegacyAlertsToCases(
         closedAt: alert.closedAt,
         closedBy: alert.closedBy,
         legalHold: false,
+        implicatedUserIds: [], // legacy Person records never carry a linkedUserId — see addPerson() below
       },
       MIGRATION_SYSTEM_USER.userId
     );

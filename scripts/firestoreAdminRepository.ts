@@ -223,6 +223,12 @@ export class FirestoreAdminCaseRepository implements CaseRepository {
     const personId = newId('per');
     const person: Person = { ...input, personId, caseId, createdAt: nowIso(), createdBy: actor.userId, updatedAt: nowIso(), updatedBy: actor.userId };
     await this.sub(caseId, 'persons').doc(personId).set(person);
+
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === keep Case.implicatedUserIds in sync — see src/domain/caseTypes.ts.
+    if (person.kind === 'subject' && person.linkedUserId) {
+      const { FieldValue } = await import('firebase-admin/firestore');
+      await this.caseDoc(caseId).update({ implicatedUserIds: FieldValue.arrayUnion(person.linkedUserId) });
+    }
     return person;
   }
 

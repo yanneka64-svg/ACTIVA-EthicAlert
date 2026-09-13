@@ -387,6 +387,16 @@ export class LocalCaseRepository implements CaseRepository {
     const person: Person = { ...input, personId: newId('per'), caseId, createdAt: nowIso(), createdBy: actor.userId, updatedAt: nowIso(), updatedBy: actor.userId };
     persons.push(person);
     saveArray(KEYS.persons, persons);
+
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === keep Case.implicatedUserIds in sync — see caseTypes.ts.
+    if (person.kind === 'subject' && person.linkedUserId) {
+      const cases = loadArray<Case>(KEYS.cases);
+      const idx = cases.findIndex((c) => c.caseId === caseId);
+      if (idx !== -1 && !cases[idx].implicatedUserIds.includes(person.linkedUserId)) {
+        cases[idx] = { ...cases[idx], implicatedUserIds: [...cases[idx].implicatedUserIds, person.linkedUserId] };
+        saveArray(KEYS.cases, cases);
+      }
+    }
     return person;
   }
 

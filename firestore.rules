@@ -30,30 +30,84 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.token.role == 'system_admin';
     }
 
-    // === AMÉLIORATION AJOUTÉE (Phase 2) ===
-    // Target normalized model (docs/DATABASE.md): cases/{caseId}/... and the
-    // isolated reporter identity/credentials collections. There is no client
-    // authentication or custom-claims scheme yet (that is Phase 3), so these
-    // paths are explicitly closed to the client SDK entirely — all writes so
-    // far come exclusively from the Admin SDK (scripts/seedFirestore.ts),
-    // which bypasses these rules by design. This is intentionally stricter
-    // than the legacy `/alerts` rules above (kept as-is, untouched, so the
-    // live app in production is not affected) and will be replaced by real
-    // role/scope-based rules once Firebase Authentication is wired up.
-    match /cases/{caseId} {
-      allow read, write: if false;
+    // === AMÉLIORATION AJOUTÉE (Phase 3) ===
+    // Target normalized model (docs/DATABASE.md). Real Firebase Authentication
+    // now exists (scripts/setupAuthUsers.ts) with custom claims — role,
+    // countries[], entities[] — set to MIRROR src/domain/permissions.ts
+    // exactly, so client and rules never disagree about who can read what.
+    //
+    // Mutations remain closed to the client SDK entirely (`allow write: if
+    // false` throughout this block): per docs/ARCHITECTURE.md, "the client
+    // never decides a sensitive mutation alone" — every write must go
+    // through a Cloud Function that re-validates the workflow/permission
+    // rules server-side (checkTransition, can()) before writing, the same
+    // way scripts/firestoreAdminRepository.ts already does for this seed
+    // script. Reads below are the exception: a direct, rules-enforced read
+    // is safe because it can't corrupt state, only leak it if mis-scoped —
+    // hence the extra care in the helper functions.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function claimRole() {
+      return request.auth.token.role;
+    }
+    function claimCountries() {
+      return request.auth.token.countries;
+    }
+    function claimEntities() {
+      return request.auth.token.entities;
+    }
+    // Mirrors permissions.ts GLOBAL_VISIBILITY_ROLES minus 'executive' (aggregated
+    // dashboards only, never raw case content) and minus 'system_admin' (section 30
+    // of the brief: "System Administrator ≠ Case Access" — least privilege).
+    function hasGlobalCaseVisibility() {
+      return claimRole() in ['functional_admin', 'darc_compliance', 'consultation'];
+    }
+    function isInScope(kase) {
+      return (claimCountries().size() == 0 || kase.country in claimCountries())
+        && (claimEntities().size() == 0 || kase.entity in claimEntities());
+    }
+    function isAssignedTo(kase) {
+      return request.auth.uid == kase.assignee || request.auth.uid in kase.additionalInvestigators;
+    }
+    // Rule #9 of the brief: a person implicated in a report must NEVER access
+    // that case, regardless of role, assignment, or scope.
+    function isNotImplicated(kase) {
+      return !(request.auth.uid in kase.implicatedUserIds);
+    }
 
+    match /cases/{caseId} {
+      allow read: if isSignedIn()
+        && isNotImplicated(resource.data)
+        && isInScope(resource.data)
+        && (hasGlobalCaseVisibility() || isAssignedTo(resource.data));
+      allow write: if false; // see note above — Cloud Functions only
+
+      // Child collections (allegations, persons, evidence, tasks, interviews,
+      // investigation_notes, communications, corrective_actions,
+      // risk_assessments, timeline) stay closed to the client SDK for now:
+      // - investigation_notes must never be reporter-readable, and reporters
+      //   have no Firebase Auth account in this design at all (case number +
+      //   access code instead — see docs/DATABASE.md), so they can never
+      //   satisfy `isSignedIn()` here regardless.
+      // - evidence needs a per-item confidentiality check this phase hasn't
+      //   modeled in rules yet (see Evidence.confidentiality in caseTypes.ts).
+      // - communications is exactly the kind of reporter-facing read that
+      //   belongs behind a Cloud Function (which can verify the reporter's
+      //   access code server-side) rather than a Firestore rule, since there
+      //   is no reporter auth token to key a rule on.
+      // Reads for staff on these go through a Cloud Function too, for now.
       match /{subcollection}/{docId} {
         allow read, write: if false;
       }
     }
 
     match /reporter_credentials/{caseId} {
-      allow read, write: if false;
+      allow read, write: if false; // Cloud Function only — never exposed to any client, staff included.
     }
 
     match /reporter_identities/{caseId} {
-      allow read, write: if false;
+      allow read, write: if false; // Cloud Function only — explicit, audited access (section 44 of the brief).
     }
 
     match /counters/{counterId} {

@@ -81,6 +81,17 @@ export interface Case extends Auditable {
   additionalInvestigators: string[]; // userIds
   reviewer?: string; // functional reviewer userId
 
+  /**
+   * === AMÉLIORATION AJOUTÉE (Phase 3) ===
+   * Denormalized copy of `Person.linkedUserId` for every `kind: 'subject'`
+   * person on this case. Kept in sync by `addPerson()` in both repository
+   * implementations. This exists ONLY so Firestore Security Rules (which
+   * cannot run an arbitrary subcollection query) can cheaply enforce "a
+   * person implicated in a report never accesses their own case" directly
+   * against `resource.data`, mirroring `permissions.ts`'s `can()` check.
+   */
+  implicatedUserIds: string[];
+
   slaStartAt?: ISODateString;
   slaDueAt?: ISODateString;
   slaStatus: SlaStatus;
