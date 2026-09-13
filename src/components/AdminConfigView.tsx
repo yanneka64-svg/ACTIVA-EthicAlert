@@ -1,23 +1,25 @@
 import React, { useState } from 'react';
-import { 
-  Settings, 
-  ShieldCheck, 
-  Building2, 
-  Users, 
-  Layers, 
-  Clock, 
-  Globe, 
-  Plus, 
-  Trash2, 
+import {
+  Settings,
+  ShieldCheck,
+  Building2,
+  Users,
+  Layers,
+  Clock,
+  Globe,
+  Plus,
+  Trash2,
   RotateCcw,
   CheckCircle2,
   Database,
   Cloud,
-  Server
+  Server,
+  Pencil,
+  X
 } from 'lucide-react';
-import { Language, UserProfile } from '../types';
+import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { ACTIVA_COUNTRIES, ACTIVA_ENTITIES, ALERT_CATEGORIES } from '../data/activaConfig';
+import { ACTIVA_COUNTRIES, EntityDef, CategoryDef } from '../data/activaConfig';
 import { storage } from '../services/storage';
 import { 
   isFirebaseConfigured, 
@@ -53,6 +55,181 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const [rulesCopied, setRulesCopied] = useState(false);
 
   const users = storage.getUsers();
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) === real,
+  // persisted, editable config — no longer the static activaConfig
+  // imports. Re-fetched fresh on every render (this component already
+  // re-renders after every CRUD action via its own local state, e.g. the
+  // save banner or closing a modal — the same lightweight pattern the rest
+  // of this file already uses, no dedicated storage.subscribe needed).
+  const entities = storage.getEntities();
+  const categoriesConfig = storage.getCategories();
+
+  // --- Entities CRUD state ---
+  const [showEntityModal, setShowEntityModal] = useState(false);
+  const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
+  const [entityName, setEntityName] = useState('');
+  const [entityCountry, setEntityCountry] = useState('');
+  const [entityFlag, setEntityFlag] = useState('');
+  const [deleteEntityConfirmId, setDeleteEntityConfirmId] = useState<string | null>(null);
+
+  // --- Categories CRUD state ---
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState('');
+  const [deleteCategoryConfirmId, setDeleteCategoryConfirmId] = useState<string | null>(null);
+  const [newSubCategoryInputs, setNewSubCategoryInputs] = useState<Record<string, string>>({});
+
+  // --- Users CRUD state ---
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [userRole, setUserRole] = useState<UserRole>('investigator');
+  const [userRoleTitle, setUserRoleTitle] = useState('');
+  const [userEntity, setUserEntity] = useState('');
+  const [userCountry, setUserCountry] = useState('');
+  const [deleteUserConfirmId, setDeleteUserConfirmId] = useState<string | null>(null);
+
+  const slugify = (name: string) =>
+    name.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
+
+  const flashBanner = (msg: string) => {
+    setSaveBanner(msg);
+    setTimeout(() => setSaveBanner(''), 3000);
+  };
+
+  // --- Entities handlers ---
+  const resetEntityForm = () => {
+    setEditingEntityId(null);
+    setEntityName('');
+    setEntityCountry('');
+    setEntityFlag('');
+  };
+  const openAddEntity = () => { resetEntityForm(); setShowEntityModal(true); };
+  const openEditEntity = (ent: EntityDef) => {
+    setEditingEntityId(ent.id);
+    setEntityName(ent.name);
+    setEntityCountry(ent.country);
+    setEntityFlag(ent.flag);
+    setShowEntityModal(true);
+  };
+  const handleSaveEntity = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!entityName.trim() || !entityCountry.trim()) return;
+    if (editingEntityId) {
+      storage.updateEntity(editingEntityId, { name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️' }, activeUser);
+      flashBanner(`Entité "${entityName.trim()}" mise à jour.`);
+    } else {
+      const id = `ent-${slugify(entityName)}-${Date.now().toString(36)}`;
+      storage.addEntity({ id, name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️' }, activeUser);
+      flashBanner(`Entité "${entityName.trim()}" ajoutée.`);
+    }
+    setShowEntityModal(false);
+  };
+  const handleDeleteEntity = (ent: EntityDef) => {
+    storage.deleteEntity(ent.id, activeUser);
+    setDeleteEntityConfirmId(null);
+    flashBanner(`Entité "${ent.name}" supprimée.`);
+  };
+
+  // --- Categories handlers ---
+  const resetCategoryForm = () => {
+    setEditingCategoryId(null);
+    setCategoryName('');
+  };
+  const openAddCategory = () => { resetCategoryForm(); setShowCategoryModal(true); };
+  const openEditCategory = (cat: CategoryDef) => {
+    setEditingCategoryId(cat.id);
+    setCategoryName(cat.name);
+    setShowCategoryModal(true);
+  };
+  const handleSaveCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryName.trim()) return;
+    if (editingCategoryId) {
+      storage.updateCategory(editingCategoryId, { name: categoryName.trim() }, activeUser);
+      flashBanner(`Catégorie "${categoryName.trim()}" mise à jour.`);
+    } else {
+      const id = `cat-${slugify(categoryName)}-${Date.now().toString(36)}`;
+      storage.addCategory({ id, name: categoryName.trim(), subCategories: [] }, activeUser);
+      flashBanner(`Catégorie "${categoryName.trim()}" ajoutée.`);
+    }
+    setShowCategoryModal(false);
+  };
+  const handleDeleteCategory = (cat: CategoryDef) => {
+    storage.deleteCategory(cat.id, activeUser);
+    setDeleteCategoryConfirmId(null);
+    flashBanner(`Catégorie "${cat.name}" supprimée.`);
+  };
+  const handleAddSubCategory = (categoryId: string) => {
+    const val = (newSubCategoryInputs[categoryId] || '').trim();
+    if (!val) return;
+    storage.addSubCategory(categoryId, val, activeUser);
+    setNewSubCategoryInputs((prev) => ({ ...prev, [categoryId]: '' }));
+  };
+  const handleRemoveSubCategory = (categoryId: string, sub: string) => {
+    storage.removeSubCategory(categoryId, sub, activeUser);
+  };
+
+  // --- Users handlers ---
+  const resetUserForm = () => {
+    setEditingUserId(null);
+    setUserName('');
+    setUserEmail('');
+    setUserRole('investigator');
+    setUserRoleTitle('');
+    setUserEntity('');
+    setUserCountry('');
+  };
+  const openAddUser = () => { resetUserForm(); setShowUserModal(true); };
+  const openEditUser = (u: UserProfile) => {
+    setEditingUserId(u.id);
+    setUserName(u.name);
+    setUserEmail(u.email);
+    setUserRole(u.role);
+    setUserRoleTitle(u.roleTitle);
+    setUserEntity(u.entity);
+    setUserCountry(u.country);
+    setShowUserModal(true);
+  };
+  const handleSaveUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userName.trim() || !userEmail.trim()) return;
+    if (editingUserId) {
+      storage.updateUser(
+        editingUserId,
+        { name: userName.trim(), email: userEmail.trim(), role: userRole, roleTitle: userRoleTitle.trim(), entity: userEntity.trim(), country: userCountry.trim() },
+        activeUser
+      );
+      flashBanner(`Compte "${userName.trim()}" mis à jour.`);
+    } else {
+      const id = 'usr-' + Date.now().toString(36);
+      storage.addUser(
+        {
+          id,
+          name: userName.trim(),
+          email: userEmail.trim(),
+          role: userRole,
+          roleTitle: userRoleTitle.trim() || userRole,
+          entity: userEntity.trim() || 'Toutes entités',
+          country: userCountry.trim() || 'Groupe ACTIVA',
+        },
+        activeUser
+      );
+      flashBanner(`Compte "${userName.trim()}" créé.`);
+    }
+    setShowUserModal(false);
+  };
+  const handleDeleteUser = (u: UserProfile) => {
+    if (u.id === activeUser.id) {
+      alert('Vous ne pouvez pas supprimer votre propre compte actif.');
+      setDeleteUserConfirmId(null);
+      return;
+    }
+    storage.deleteUser(u.id, activeUser);
+    setDeleteUserConfirmId(null);
+    flashBanner(`Compte "${u.name}" supprimé.`);
+  };
 
   const handleSaveFirebaseConfig = (e: React.FormEvent) => {
     e.preventDefault();
@@ -324,89 +501,187 @@ service cloud.firestore {
         </div>
       )}
 
-      {/* 2. ENTITIES TAB */}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+          2. ENTITIES TAB — now a real add/edit/delete CRUD screen against
+          storage.getEntities()/addEntity/updateEntity/deleteEntity, not a
+          read-only display of the static activaConfig list. */}
       {configTab === 'entities' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-bold text-slate-900">
-              Entités et filiales du Groupe ACTIVA (16 entités dans 10 pays)
-            </h3>
-            <p className="text-slate-500 text-[11px] mt-0.5">
-              Conforme au périmètre institutionnel établi dans le Cahier des Charges.
-            </p>
+          <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Entités et filiales du Groupe ACTIVA ({entities.length} entités)
+              </h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                Conforme au périmètre institutionnel établi dans le Cahier des Charges.
+              </p>
+            </div>
+            <button
+              onClick={openAddEntity}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" /> Ajouter une entité
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {ACTIVA_ENTITIES.map((ent) => (
-              <div key={ent.id} className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <span>{ent.flag}</span>
-                    <span>{ent.name}</span>
+          {entities.length === 0 ? (
+            <p className="text-slate-400 text-center py-8">Aucune entité configurée.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {entities.map((ent) => (
+                <div key={ent.id} className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 flex items-center gap-1.5 truncate">
+                      <span>{ent.flag}</span>
+                      <span className="truncate">{ent.name}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500">{ent.country}</div>
                   </div>
-                  <div className="text-[11px] text-slate-500">{ent.country}</div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => openEditEntity(ent)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Modifier">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    {deleteEntityConfirmId === ent.id ? (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleDeleteEntity(ent)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">Confirmer</button>
+                        <button onClick={() => setDeleteEntityConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">Annuler</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setDeleteEntityConfirmId(ent.id)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title="Supprimer">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold text-[10px]">
-                  Actif
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* 3. CATEGORIES TAB */}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+          3. CATEGORIES TAB — real CRUD (categories + their subcategories)
+          against storage.ts, replacing the static ALERT_CATEGORIES display. */}
       {configTab === 'categories' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
-          <div className="border-b border-slate-100 pb-3">
+          <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
             <h3 className="text-sm font-bold text-slate-900">
               Nomenclature des catégories et sous-catégories de manquements (CDC 2.0)
             </h3>
+            <button
+              onClick={openAddCategory}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" /> Ajouter une catégorie
+            </button>
           </div>
 
-          <div className="space-y-4">
-            {ALERT_CATEGORIES.map((cat) => (
-              <div key={cat.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
-                <div className="font-bold text-[#0B2545] text-sm">
-                  {cat.name}
+          {categoriesConfig.length === 0 ? (
+            <p className="text-slate-400 text-center py-8">Aucune catégorie configurée.</p>
+          ) : (
+            <div className="space-y-4">
+              {categoriesConfig.map((cat) => (
+                <div key={cat.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-bold text-[#0B2545] text-sm">{cat.name}</div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => openEditCategory(cat)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Renommer">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      {deleteCategoryConfirmId === cat.id ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleDeleteCategory(cat)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">Confirmer</button>
+                          <button onClick={() => setDeleteCategoryConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">Annuler</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setDeleteCategoryConfirmId(cat.id)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title="Supprimer">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {cat.subCategories.map((sub, i) => (
+                      <span key={i} className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 font-medium">
+                        {sub}
+                        <button onClick={() => handleRemoveSubCategory(cat.id, sub)} className="text-slate-400 hover:text-rose-600" title="Retirer">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={newSubCategoryInputs[cat.id] || ''}
+                      onChange={(e) => setNewSubCategoryInputs((prev) => ({ ...prev, [cat.id]: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubCategory(cat.id); } }}
+                      placeholder="Nouvelle sous-catégorie..."
+                      className="flex-1 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
+                    />
+                    <button
+                      onClick={() => handleAddSubCategory(cat.id)}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-semibold whitespace-nowrap"
+                    >
+                      + Ajouter
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {cat.subCategories.map((sub, i) => (
-                    <span key={i} className="px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 font-medium">
-                      {sub}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* 4. USERS & ROLES TAB */}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+          4. USERS & ROLES TAB — real CRUD against storage.ts (addUser
+          already existed; updateUser/deleteUser are new). */}
       {configTab === 'users' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-bold text-slate-900">
-              Profils et Habilitations (CDC 3.2.3)
-            </h3>
-            <p className="text-slate-500 text-[11px] mt-0.5">
-              Gestionnaires, Administrateurs fonctionnels, Administrateurs système, Consultation et Lanceurs d'alerte.
-            </p>
+          <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Profils et Habilitations (CDC 3.2.3)
+              </h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                Gestionnaires, Administrateurs fonctionnels, Administrateurs système, Consultation et Lanceurs d'alerte.
+              </p>
+            </div>
+            <button
+              onClick={openAddUser}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" /> Ajouter un compte
+            </button>
           </div>
 
           <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
             {users.map((u) => (
-              <div key={u.id} className="p-3.5 flex items-center justify-between hover:bg-slate-50">
-                <div>
-                  <div className="font-bold text-slate-900">{u.name}</div>
-                  <div className="text-[11px] text-slate-500">{u.email} • {u.entity} ({u.country})</div>
+              <div key={u.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50">
+                <div className="min-w-0">
+                  <div className="font-bold text-slate-900 truncate">{u.name}</div>
+                  <div className="text-[11px] text-slate-500 truncate">{u.email} • {u.entity} ({u.country})</div>
                 </div>
-                <div className="text-right">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-900">
-                    {u.role.toUpperCase()}
-                  </span>
-                  <div className="text-[10px] text-slate-400 mt-0.5">{u.roleTitle}</div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-right">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-900">
+                      {u.role.toUpperCase()}
+                    </span>
+                    <div className="text-[10px] text-slate-400 mt-0.5">{u.roleTitle}</div>
+                  </div>
+                  <button onClick={() => openEditUser(u)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Modifier">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  {deleteUserConfirmId === u.id ? (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleDeleteUser(u)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">Confirmer</button>
+                      <button onClick={() => setDeleteUserConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">Annuler</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setDeleteUserConfirmId(u.id)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title="Supprimer">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -635,6 +910,136 @@ service cloud.firestore {
                 </li>
               </ul>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) === Modals */}
+
+      {/* MODAL: ADD/EDIT ENTITY */}
+      {showEntityModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">
+                {editingEntityId ? 'Modifier l’entité' : 'Ajouter une entité'}
+              </h3>
+            </div>
+            <form onSubmit={handleSaveEntity} className="space-y-3">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nom de l'entité *</label>
+                <input type="text" value={entityName} onChange={(e) => setEntityName(e.target.value)} placeholder="Ex : ACTIVA Assurances Bénin" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Pays *</label>
+                <select value={entityCountry} onChange={(e) => setEntityCountry(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white" required>
+                  <option value="">Sélectionner un pays</option>
+                  {ACTIVA_COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Emoji drapeau (optionnel)</label>
+                <input type="text" value={entityFlag} onChange={(e) => setEntityFlag(e.target.value)} placeholder="🇧🇯" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" maxLength={8} />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => setShowEntityModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold">
+                  {editingEntityId ? 'Enregistrer' : 'Ajouter'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD/EDIT CATEGORY */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">
+                {editingCategoryId ? 'Renommer la catégorie' : 'Ajouter une catégorie'}
+              </h3>
+              {!editingCategoryId && (
+                <p className="text-slate-500 text-[11px] mt-0.5">Les sous-catégories s'ajoutent ensuite depuis la liste.</p>
+              )}
+            </div>
+            <form onSubmit={handleSaveCategory} className="space-y-3">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nom de la catégorie *</label>
+                <input type="text" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="Ex : Protection des données personnelles" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => setShowCategoryModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold">
+                  {editingCategoryId ? 'Enregistrer' : 'Ajouter'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD/EDIT USER */}
+      {showUserModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">
+                {editingUserId ? 'Modifier le compte' : 'Ajouter un compte'}
+              </h3>
+            </div>
+            <form onSubmit={handleSaveUser} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Nom complet *</label>
+                  <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Email *</label>
+                  <input type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Rôle *</label>
+                  <select value={userRole} onChange={(e) => setUserRole(e.target.value as UserRole)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
+                    <option value="investigator">Investigateur</option>
+                    <option value="functional_admin">Administrateur fonctionnel</option>
+                    <option value="system_admin">Administrateur système</option>
+                    <option value="auditor">Consultation / Audit</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Intitulé de poste</label>
+                  <input type="text" value={userRoleTitle} onChange={(e) => setUserRoleTitle(e.target.value)} placeholder="Ex : Investigatrice DARC" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Entité</label>
+                  <select value={userEntity} onChange={(e) => setUserEntity(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
+                    <option value="">Toutes entités</option>
+                    {entities.map((e) => (
+                      <option key={e.id} value={e.name}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Pays</label>
+                  <select value={userCountry} onChange={(e) => setUserCountry(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
+                    <option value="">Groupe ACTIVA</option>
+                    {ACTIVA_COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => setShowUserModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold">
+                  {editingUserId ? 'Enregistrer' : 'Ajouter'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

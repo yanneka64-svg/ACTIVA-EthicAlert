@@ -29,11 +29,9 @@ import {
   WhistleblowerInfo 
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { 
-  ACTIVA_ENTITIES, 
-  ALERT_CATEGORIES, 
-  IMPACT_TYPES, 
-  computeRiskEvaluation 
+import {
+  IMPACT_TYPES,
+  computeRiskEvaluation
 } from '../data/activaConfig';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE : hachage salé côté client du mot de passe de suivi (jamais stocké en clair) ===
@@ -54,6 +52,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
   // Auto-save draft loading
   const savedDraft = storage.getDraft();
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) === real,
+  // editable entity/category lists instead of the static activaConfig
+  // imports, so a category or entity an admin adds/renames/removes shows
+  // up (or disappears) here too — the actual reporting form, not just the
+  // admin screen's own display.
+  const entities = storage.getEntities();
+  const categories = storage.getCategories();
 
   // Step control (1 to 5)
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -70,17 +75,17 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     savedDraft?.declarantType || 'Employé'
   );
   const [declarantEntity, setDeclarantEntity] = useState(
-    savedDraft?.declarantEntity || ACTIVA_ENTITIES[0].name
+    savedDraft?.declarantEntity || entities[0].name
   );
   const [declarantEmail, setDeclarantEmail] = useState(savedDraft?.declarantEmail || '');
   const [declarantPhone, setDeclarantPhone] = useState(savedDraft?.declarantPhone || '');
 
   // 2. Incident & Category
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    savedDraft?.selectedCategory || ALERT_CATEGORIES[1].name // default to Fraude
+    savedDraft?.selectedCategory || categories[1].name // default to Fraude
   );
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>(
-    savedDraft?.selectedSubCategory || ALERT_CATEGORIES[1].subCategories[0]
+    savedDraft?.selectedSubCategory || categories[1].subCategories[0]
   );
   const [customViolation, setCustomViolation] = useState(savedDraft?.customViolation || '');
   const [detailedDescription, setDetailedDescription] = useState(
@@ -89,7 +94,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   const [incidentDates, setIncidentDates] = useState(savedDraft?.incidentDates || '');
   const [incidentLocation, setIncidentLocation] = useState(savedDraft?.incidentLocation || '');
   const [concernedEntity, setConcernedEntity] = useState(
-    savedDraft?.concernedEntity || ACTIVA_ENTITIES[0].name
+    savedDraft?.concernedEntity || entities[0].name
   );
   const [customEntityInput, setCustomEntityInput] = useState('');
 
@@ -128,7 +133,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   const [copiedTracking, setCopiedTracking] = useState(false);
 
   // Update subcategories when category changes
-  const currentCategoryDef = ALERT_CATEGORIES.find(c => c.name === selectedCategory);
+  const currentCategoryDef = categories.find(c => c.name === selectedCategory);
   useEffect(() => {
     if (currentCategoryDef && !currentCategoryDef.subCategories.includes(selectedSubCategory)) {
       setSelectedSubCategory(currentCategoryDef.subCategories[0] || '');
@@ -298,7 +303,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     const accessCodeHash = await hashPassword(password, accessCodeSalt);
 
     // Concerned entity & country
-    const matchedEntity = ACTIVA_ENTITIES.find(e => e.name === concernedEntity);
+    const matchedEntity = entities.find(e => e.name === concernedEntity);
     const country = matchedEntity ? matchedEntity.country : 'Groupe ACTIVA';
 
     // Target completion date based on SLA
@@ -764,7 +769,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white font-medium"
                 >
-                  {ALERT_CATEGORIES.map((cat) => (
+                  {categories.map((cat) => (
                     <option key={cat.id} value={cat.name}>
                       {cat.name}
                     </option>
@@ -819,7 +824,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                   onChange={(e) => setConcernedEntity(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white font-medium"
                 >
-                  {ACTIVA_ENTITIES.map((ent) => (
+                  {entities.map((ent) => (
                     <option key={ent.id} value={ent.name}>
                       {ent.flag} {ent.name} ({ent.country})
                     </option>

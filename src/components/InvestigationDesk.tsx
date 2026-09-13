@@ -39,7 +39,6 @@ import {
   TaskPriority
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { ACTIVA_ENTITIES } from '../data/activaConfig';
 import { storage } from '../services/storage';
 import { PriorityBadge } from './ui';
 import { computeSlaStatus } from '../services/statusMapping';
@@ -144,6 +143,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   }, []);
 
   const allUsers = storage.getUsers();
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+  const entities = storage.getEntities();
   const investigatorUsers = allUsers.filter(u => u.role === 'investigator' || u.role === 'functional_admin');
 
   // Role visibility logic (CDC 3.1.4):
@@ -575,7 +576,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700"
         >
           <option value="all">Toutes les entités ACTIVA</option>
-          {ACTIVA_ENTITIES.map(e => (
+          {entities.map(e => (
             <option key={e.id} value={e.name}>{e.flag} {e.name}</option>
           ))}
         </select>

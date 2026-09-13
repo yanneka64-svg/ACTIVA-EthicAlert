@@ -1,5 +1,5 @@
 import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile } from '../types';
-import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS } from '../data/activaConfig';
+import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, EntityDef, CategoryDef } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 
 const STORAGE_KEYS = {
@@ -8,6 +8,9 @@ const STORAGE_KEYS = {
   USERS: 'activa_ethicalert_users_v1',
   ACTIVE_USER: 'activa_ethicalert_active_user_v1',
   DRAFT: 'activa_ethicalert_draft_v1',
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+  ENTITIES: 'activa_ethicalert_entities_v1',
+  CATEGORIES: 'activa_ethicalert_categories_v1',
 };
 
 // Event dispatched when data changes
@@ -18,6 +21,14 @@ class StorageService {
   private auditLogs: AuditLogEntry[] = [];
   private users: UserProfile[] = [];
   private activeUser: UserProfile = INITIAL_USERS[0]; // Default to B.Y. Ekani (Point de Contact)
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+  // Mutable, persisted copies of the entity/category config, seeded from
+  // the static ACTIVA_ENTITIES/ALERT_CATEGORIES constants exactly like
+  // `users` is already seeded from INITIAL_USERS above — same pattern,
+  // just extended to the two other config domains the Administration
+  // screen edits.
+  private entities: EntityDef[] = [];
+  private categories: CategoryDef[] = [];
 
   constructor() {
     this.init();
@@ -55,12 +66,31 @@ class StorageService {
       } else {
         this.activeUser = INITIAL_USERS[0];
       }
+
+      // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+      const storedEntities = localStorage.getItem(STORAGE_KEYS.ENTITIES);
+      if (storedEntities) {
+        this.entities = JSON.parse(storedEntities);
+      } else {
+        this.entities = [...ACTIVA_ENTITIES];
+        this.persistEntities();
+      }
+
+      const storedCategories = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+      if (storedCategories) {
+        this.categories = JSON.parse(storedCategories);
+      } else {
+        this.categories = [...ALERT_CATEGORIES];
+        this.persistCategories();
+      }
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
       this.alerts = [...INITIAL_ALERTS];
       this.auditLogs = [...INITIAL_AUDIT_LOGS];
       this.users = [...INITIAL_USERS];
       this.activeUser = INITIAL_USERS[0];
+      this.entities = [...ACTIVA_ENTITIES];
+      this.categories = [...ALERT_CATEGORIES];
     }
   }
 
@@ -91,6 +121,23 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(this.users));
     } catch (e) {
       console.error('Failed to persist users', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+  private persistEntities() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.ENTITIES, JSON.stringify(this.entities));
+    } catch (e) {
+      console.error('Failed to persist entities', e);
+    }
+  }
+
+  private persistCategories() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(this.categories));
+    } catch (e) {
+      console.error('Failed to persist categories', e);
     }
   }
 
@@ -235,10 +282,121 @@ class StorageService {
     return [...this.users];
   }
 
-  public addUser(user: UserProfile): void {
+  // === AMÉLIORATION AJOUTÉE (Phase 7) === optional `actor` param, additive
+  // (no existing call site passed a second argument — grep-verified before
+  // this change) so a real audit entry is logged like every other mutation
+  // here, without breaking any caller that predates this.
+  public addUser(user: UserProfile, actor?: UserProfile): void {
     this.users.push(user);
     this.persistUsers();
     this.notify();
+    this.logAudit('CONFIG_UPDATED', `Compte utilisateur "${user.name}" (${user.role}) créé par ${(actor ?? this.activeUser).name}.`, undefined, actor);
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+  // Completes the Users CRUD (addUser already existed) — same
+  // mutate-in-place + persist + notify + logAudit pattern used everywhere
+  // else in this file.
+  public updateUser(userId: string, updates: Partial<UserProfile>, actor: UserProfile): void {
+    const idx = this.users.findIndex((u) => u.id === userId);
+    if (idx === -1) return;
+    this.users[idx] = { ...this.users[idx], ...updates };
+    this.persistUsers();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Profil utilisateur "${this.users[idx].name}" mis à jour par ${actor.name}.`, undefined, actor);
+  }
+
+  public deleteUser(userId: string, actor: UserProfile): boolean {
+    const target = this.users.find((u) => u.id === userId);
+    if (!target) return false;
+    this.users = this.users.filter((u) => u.id !== userId);
+    this.persistUsers();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Compte utilisateur "${target.name}" (${target.email}) supprimé par ${actor.name}.`, undefined, actor);
+    return true;
+  }
+
+  // --- Entities API (Phase 7 — Administration CRUD) ---
+  // Same seed-then-mutate pattern as Users: ACTIVA_ENTITIES is the factory
+  // default, this.entities is the real, persisted, editable copy every
+  // screen (submission form, filters, reports) now reads from.
+  public getEntities(): EntityDef[] {
+    return [...this.entities];
+  }
+
+  public addEntity(entity: EntityDef, actor: UserProfile): void {
+    this.entities.push(entity);
+    this.persistEntities();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Entité "${entity.name}" (${entity.country}) ajoutée par ${actor.name}.`, undefined, actor);
+  }
+
+  public updateEntity(entityId: string, updates: Partial<EntityDef>, actor: UserProfile): void {
+    const idx = this.entities.findIndex((e) => e.id === entityId);
+    if (idx === -1) return;
+    this.entities[idx] = { ...this.entities[idx], ...updates };
+    this.persistEntities();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Entité "${this.entities[idx].name}" mise à jour par ${actor.name}.`, undefined, actor);
+  }
+
+  public deleteEntity(entityId: string, actor: UserProfile): boolean {
+    const target = this.entities.find((e) => e.id === entityId);
+    if (!target) return false;
+    this.entities = this.entities.filter((e) => e.id !== entityId);
+    this.persistEntities();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Entité "${target.name}" supprimée par ${actor.name}.`, undefined, actor);
+    return true;
+  }
+
+  // --- Categories API (Phase 7 — Administration CRUD) ---
+  public getCategories(): CategoryDef[] {
+    return [...this.categories];
+  }
+
+  public addCategory(category: CategoryDef, actor: UserProfile): void {
+    this.categories.push(category);
+    this.persistCategories();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Catégorie d'alerte "${category.name}" ajoutée par ${actor.name}.`, undefined, actor);
+  }
+
+  public updateCategory(categoryId: string, updates: Partial<Pick<CategoryDef, 'name'>>, actor: UserProfile): void {
+    const idx = this.categories.findIndex((c) => c.id === categoryId);
+    if (idx === -1) return;
+    this.categories[idx] = { ...this.categories[idx], ...updates };
+    this.persistCategories();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Catégorie "${this.categories[idx].name}" mise à jour par ${actor.name}.`, undefined, actor);
+  }
+
+  public deleteCategory(categoryId: string, actor: UserProfile): boolean {
+    const target = this.categories.find((c) => c.id === categoryId);
+    if (!target) return false;
+    this.categories = this.categories.filter((c) => c.id !== categoryId);
+    this.persistCategories();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Catégorie "${target.name}" supprimée par ${actor.name}.`, undefined, actor);
+    return true;
+  }
+
+  public addSubCategory(categoryId: string, subCategory: string, actor: UserProfile): void {
+    const cat = this.categories.find((c) => c.id === categoryId);
+    if (!cat || cat.subCategories.includes(subCategory)) return;
+    cat.subCategories = [...cat.subCategories, subCategory];
+    this.persistCategories();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Sous-catégorie "${subCategory}" ajoutée à "${cat.name}" par ${actor.name}.`, undefined, actor);
+  }
+
+  public removeSubCategory(categoryId: string, subCategory: string, actor: UserProfile): void {
+    const cat = this.categories.find((c) => c.id === categoryId);
+    if (!cat) return;
+    cat.subCategories = cat.subCategories.filter((s) => s !== subCategory);
+    this.persistCategories();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Sous-catégorie "${subCategory}" retirée de "${cat.name}" par ${actor.name}.`, undefined, actor);
   }
 
   // --- Draft auto-save for whistleblowers ---
@@ -282,9 +440,14 @@ class StorageService {
     this.auditLogs = [...INITIAL_AUDIT_LOGS];
     this.users = [...INITIAL_USERS];
     this.activeUser = INITIAL_USERS[0];
+    // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
+    this.entities = [...ACTIVA_ENTITIES];
+    this.categories = [...ALERT_CATEGORIES];
     this.persistAlerts();
     this.persistAuditLogs();
     this.persistUsers();
+    this.persistEntities();
+    this.persistCategories();
     this.clearDraft();
     this.notify();
   }

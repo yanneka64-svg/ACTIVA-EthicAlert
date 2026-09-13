@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Language, AlertRecord, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { ACTIVA_COUNTRIES, ACTIVA_ENTITIES, ALERT_CATEGORIES } from '../data/activaConfig';
+import { ACTIVA_COUNTRIES } from '../data/activaConfig';
 import { storage } from '../services/storage';
 
 interface ReportingDashboardProps {
@@ -31,6 +31,11 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
   const allAlerts: AlertRecord[] = storage.getAlerts();
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) === real,
+  // editable entity/category lists instead of the static activaConfig
+  // imports, so admin changes are reflected in these filter dropdowns too.
+  const entities = storage.getEntities();
+  const categoriesConfig = storage.getCategories();
 
   // Mode: 'realtime' | 'monthly_darc' | 'quarterly_board'
   const [reportView, setReportView] = useState<'realtime' | 'monthly_darc' | 'quarterly_board'>('realtime');
@@ -280,13 +285,13 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         </select>
         <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
           <option value="all">{t.report_filter_entity_all}</option>
-          {ACTIVA_ENTITIES.map((e) => (
+          {entities.map((e) => (
             <option key={e.id} value={e.name}>{e.name}</option>
           ))}
         </select>
         <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
           <option value="all">{t.report_filter_category_all}</option>
-          {ALERT_CATEGORIES.map((c) => (
+          {categoriesConfig.map((c) => (
             <option key={c.id} value={c.name}>{c.name}</option>
           ))}
         </select>
