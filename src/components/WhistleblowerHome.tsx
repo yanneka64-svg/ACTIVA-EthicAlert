@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   UserX,
@@ -11,6 +11,9 @@ import {
   Lock,
   CheckCircle2,
   FileText,
+  Shield,
+  Users,
+  Leaf,
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -32,6 +35,24 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   onGoToFaq,
 }) => {
   const t = TRANSLATIONS[lang];
+
+  // === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui tourne) ===
+  // Carte flottante sur la photo du hero, sur demande explicite : au lieu
+  // d'afficher les 3 valeurs en permanence, une seule est visible à la
+  // fois et la carte passe à la suivante toutes les 5 secondes, en boucle.
+  const heroValues = [
+    { icon: Shield, title: t.hero_value1_title, desc: t.hero_value1_desc },
+    { icon: Users, title: t.hero_value2_title, desc: t.hero_value2_desc },
+    { icon: Leaf, title: t.hero_value3_title, desc: t.hero_value3_desc },
+  ];
+  const [valueIndex, setValueIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setValueIndex((i) => (i + 1) % heroValues.length), 5000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const currentValue = heroValues[valueIndex];
+  const CurrentValueIcon = currentValue.icon;
 
   return (
     <div className="space-y-12 pb-8">
@@ -88,6 +109,31 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             <Lock className="w-4 h-4 text-blue-600 shrink-0" />
             {t.hero_anonymous_note}
           </p>
+        </div>
+
+        {/* === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui
+            tourne) === Positionnée en haut à droite du hero, au-dessus de
+            la photo. Contrairement à la bulle de citation, celle-ci garde
+            un fond opaque (le contenu change toutes les 5 secondes, il a
+            besoin de rester net dans tous les cas). */}
+        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-white/95 backdrop-blur shadow-lg border border-slate-100 p-4">
+          <div key={valueIndex} className="flex items-center gap-3 activa-fade-in">
+            <span className="w-10 h-10 bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <CurrentValueIcon className="w-5 h-5" />
+            </span>
+            <div>
+              <div className="font-bold text-slate-900 text-sm">{currentValue.title}</div>
+              <div className="text-xs text-slate-500">{currentValue.desc}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 mt-3">
+            {heroValues.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 transition-all ${i === valueIndex ? 'w-4 bg-blue-600' : 'w-1.5 bg-slate-200'}`}
+              />
+            ))}
+          </div>
         </div>
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 20) === bulle de citation sans

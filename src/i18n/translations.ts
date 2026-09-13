@@ -59,6 +59,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
     hero_eyebrow: 'Canal éthique du Groupe ACTIVA',
     hero_anonymous_note: 'Vous pouvez effectuer un signalement de manière anonyme.',
+    // === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui tourne) ===
+    hero_value1_title: 'Intégrité',
+    hero_value1_desc: 'Des pratiques responsables',
+    hero_value2_title: 'Transparence',
+    hero_value2_desc: 'Une culture d’ouverture',
+    hero_value3_title: 'Confiance',
+    hero_value3_desc: 'Un Groupe plus durable',
     process_subtitle: 'Quatre étapes pour faire entendre votre voix en toute confiance.',
     categories_eyebrow: 'Des sujets qui comptent',
     categories_heading: 'Quels types de préoccupations pouvez-vous signaler ?',
@@ -594,6 +601,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17 — homepage reorganization) ===
     hero_eyebrow: 'ACTIVA Group ethics channel',
     hero_anonymous_note: 'You can file a report anonymously.',
+    // === AMÉLIORATION AJOUTÉE (Phase 22 — rotating values card) ===
+    hero_value1_title: 'Integrity',
+    hero_value1_desc: 'Responsible practices',
+    hero_value2_title: 'Transparency',
+    hero_value2_desc: 'A culture of openness',
+    hero_value3_title: 'Trust',
+    hero_value3_desc: 'A more sustainable Group',
     process_subtitle: 'Four steps to make your voice heard with complete confidence.',
     categories_eyebrow: 'Topics that matter',
     categories_heading: 'What kinds of concerns can you report?',
@@ -1108,6 +1122,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17 — reorganização da página inicial) ===
     hero_eyebrow: 'Canal de ética do Grupo ACTIVA',
     hero_anonymous_note: 'Pode efetuar uma denúncia de forma anónima.',
+    // === AMÉLIORATION AJOUTÉE (Phase 22 — cartão de valores rotativo) ===
+    hero_value1_title: 'Integridade',
+    hero_value1_desc: 'Práticas responsáveis',
+    hero_value2_title: 'Transparência',
+    hero_value2_desc: 'Uma cultura de abertura',
+    hero_value3_title: 'Confiança',
+    hero_value3_desc: 'Um Grupo mais sustentável',
     process_subtitle: 'Quatro etapas para fazer ouvir a sua voz com toda a confiança.',
     categories_eyebrow: 'Temas que importam',
     categories_heading: 'Que tipos de preocupações pode denunciar?',
