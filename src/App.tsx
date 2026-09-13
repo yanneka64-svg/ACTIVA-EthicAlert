@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Language, UserProfile } from './types';
 import { storage } from './services/storage';
+import { TRANSLATIONS } from './i18n/translations';
 import { Navbar } from './components/Navbar';
 import { WhistleblowerHome } from './components/WhistleblowerHome';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
@@ -29,15 +30,7 @@ import { TasksRegistry } from './components/TasksRegistry';
 import { EvidenceRegistry } from './components/EvidenceRegistry';
 import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
-// === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
-import { StaffLoginView } from './components/StaffLoginView';
-import { STAFF_TAB_KEYS } from './constants/staffTabs';
-// === AMÉLIORATION AJOUTÉE (Phase 12.2 — routage par URL réel) ===
-import { resolveRoute, pathForTab } from './routing/routes';
-import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
-// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, canManageConfiguration, canSeeAuditTrail } from './services/authz';
-import { ShieldCheck, Lock, Building2 } from 'lucide-react';
+import { ShieldOff } from 'lucide-react';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -45,38 +38,38 @@ import { ShieldCheck, Lock, Building2 } from 'lucide-react';
 // 'investigations' | 'tasks' | 'evidence' | 'communications' |
 // 'corrective_actions' | 'admin_users' | 'admin_config' — chacun un écran
 // réel et distinct, voir renderStaffContent() ci-dessous.
-// === AMÉLIORATION AJOUTÉE (Phase 12.2) === Chaque tab ci-dessus correspond
-// désormais à une vraie URL (src/routing/routes.ts) — App() ne fait plus
-// que déléguer à AppShell, monté sous <BrowserRouter>, qui dérive
-// `currentTab` de l'URL réelle au lieu d'un simple useState local.
+
+// === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation
+// façon maquette) ===
+// Liste unique, partagée entre le garde de bascule de profil
+// (`handleUserChange`) et `isStaffTab` ci-dessous, pour que les deux listes
+// ne puissent jamais diverger désormais que la barre latérale compte ~15
+// entrées au lieu de 6.
+const STAFF_TAB_KEYS = [
+  'control_panel',
+  'portal',
+  'triage',
+  'assignment',
+  'my_cases',
+  'investigations',
+  'tasks',
+  'evidence',
+  'communications',
+  'corrective_actions',
+  'reports',
+  'executive',
+  'audit',
+  'settings',
+  'admin_users',
+  'admin_config',
+  // === AMÉLIORATION AJOUTÉE (Phase 11) ===
+  'admin_roles',
+];
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/*" element={<AppShell />} />
-      </Routes>
-    </BrowserRouter>
-  );
-}
-
-function AppShell() {
-  // === AMÉLIORATION AJOUTÉE (Phase 11 — alignement de marque « ACTIVA
-  // Hotline », anglais par défaut, conforme à la maquette) === La langue
-  // reste entièrement au choix de l'utilisateur (sélecteur FR/EN/PT dans
-  // l'en-tête, inchangé) — seule la langue de PREMIER CHARGEMENT change.
-  const [lang, setLang] = useState<Language>('en');
-  // === AMÉLIORATION AJOUTÉE (Phase 12.2 — routage par URL réel) === l'URL
-  // est désormais la SEULE source de vérité pour l'écran affiché — plus de
-  // useState local pour `currentTab`. `navigate()`/`useLocation()` ci-dessous
-  // remplacent l'ancien `setCurrentTab` interne sans changer la signature
-  // que les composants enfants (Navbar, StaffPortalLayout, chaque écran)
-  // reçoivent : ils continuent de voir une simple chaîne + un callback.
-  const navigate = useNavigate();
-  const location = useLocation();
-  const resolved = resolveRoute(location.pathname);
-  const currentTab = resolved.tab;
-  const routeTrackingNumber = resolved.trackingNumber;
+  const [lang, setLang] = useState<Language>('fr');
+  const t = TRANSLATIONS[lang];
+  const [currentTab, setCurrentTab] = useState<string>('home');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
   // === AMÉLIORATION AJOUTÉE (Phase 5) === filter the Control Panel's KPI
@@ -151,6 +144,15 @@ function AppShell() {
     // Leaving admin/investigator-only screens when switching to the public whistleblower profile.
     if (user.role === 'reporter' && STAFF_TAB_KEYS.includes(currentTab)) {
       navigate('/');
+    }
+    // === AMÉLIORATION AJOUTÉE (Phase 11) === Symmetric case: the public top
+    // nav no longer carries a visible "Espace Gestion DARC" button (removed
+    // to match the reference mockup's public header exactly — Accueil /
+    // Comment ça marche / FAQ only), so picking a staff profile from a
+    // public page needs to land somewhere real; the staff portal's own
+    // sidebar (StaffPortalLayout) then covers every other screen.
+    else if (user.role !== 'whistleblower' && !STAFF_TAB_KEYS.includes(currentTab)) {
+      setCurrentTab('portal');
     }
   };
 
@@ -305,6 +307,16 @@ function AppShell() {
         </PermissionGuard>
       );
     }
+    // === AMÉLIORATION AJOUTÉE (Phase 11 — "Rôles & Permissions" de la
+    // maquette) === même composant/CRUD/garde que 'admin_users', onglet de
+    // départ différent.
+    if (currentTab === 'admin_roles') {
+      return activeUser.role === 'system_admin' ? (
+        <AdminConfigView lang={lang} activeUser={activeUser} initialTab="roles" />
+      ) : (
+        renderAccessDenied('Rôles & Permissions')
+      );
+    }
     return null;
   };
 
@@ -323,8 +335,7 @@ function AppShell() {
         onOpenQrModal={() => setShowQrModal(true)}
         pendingAlertsCount={pendingAlertsCount}
         onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
-        isStaffSessionActive={isStaffSessionActive}
-        onLogout={handleLogout}
+        isStaffContext={isStaffTab || currentTab === 'firebase_lookup'}
       />
 
       {/* Main Content Area */}
@@ -383,47 +394,20 @@ function AppShell() {
         {currentTab === 'firebase_lookup' && <CaseLookup lang={lang} />}
       </main>
 
-      {/* Corporate Ethical Governance Footer */}
-      <footer className="bg-[#0B2545] text-slate-300 border-t border-slate-800 text-xs py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-white/10 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center font-extrabold text-[#0B2545] text-sm">
-                A
-              </div>
-              <div>
-                <span className="font-extrabold text-white text-sm tracking-wide">
-                  ACTIVA Hotline
-                </span>
-                <span className="text-[11px] text-amber-300 block">
-                  Direction d'Audit, des Risques et de la Conformité (DARC)
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] text-slate-300">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                Conforme CDC Groupe ACTIVA
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Lock className="w-4 h-4 text-amber-400" />
-                Chiffrement TLS & Intégrité Piste d'Audit
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-blue-300" />
-                16 filiales • 10 pays africains
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
-            <p>
-              © {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés. Plateforme de signalement éthique professionnelle.
-            </p>
-            <p className="text-center sm:text-right">
-              Garantie stricte de non-représailles et de confidentialité des données à caractère personnel (RGPD & législations CIMA).
-            </p>
+      {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Pied de page réduit à
+          l'exact contenu de la maquette de référence : un simple lien de
+          liens à gauche, la garantie "Plateforme sécurisée" à droite — plus
+          de bloc de branding épais. */}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 13) === Pied de page bleu marine,
+          conforme à la nouvelle maquette d'accueil (au lieu du pied clair
+          précédent). */}
+      <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
+          <div className="flex items-center gap-4">
+            <button className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
+            <button className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>
+            <button className="hover:text-white hover:underline">{t.footer_contact}</button>
           </div>
         </div>
       </footer>

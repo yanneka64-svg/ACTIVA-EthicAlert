@@ -1,21 +1,19 @@
 import React from 'react';
 import {
-  ShieldAlert,
-  BarChart3,
-  History,
   LayoutDashboard,
-  Landmark,
-  // === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation façon maquette) ===
-  ListFilter,
-  UserPlus,
   FolderOpen,
   Search,
   ListTodo,
   Paperclip,
   MessageSquare,
   Wrench,
+  LayoutGrid,
+  Package,
   Users,
-  SlidersHorizontal,
+  ShieldCheck,
+  Settings,
+  ChevronRight,
+  HelpCircle,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -23,13 +21,19 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from '../services/authz';
 
 /**
- * === AMÉLIORATION AJOUTÉE : mise en page "portail sécurisé" avec navigation latérale ===
+ * === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la maquette) ===
  *
- * Wraps the staff-facing views (Investigation Desk, Reports, Audit Trail, Administration)
- * in a persistent left sidebar navigation, closer to the reference enterprise
- * case-management layout (dark navy rail + content canvas) while reusing the
- * existing top Navbar (branding, language, role switcher) unchanged.
- * Purely presentational — no business logic, no behavior change to the wrapped views.
+ * Barre latérale entièrement reconstruite pour correspondre exactement à la
+ * maquette de référence (image 1) : 1 item autonome ("Tableau de bord"),
+ * puis 4 groupes ("GESTION DES DOSSIERS" / "CONFORMITÉ" / "RAPPORTS" /
+ * "ADMINISTRATION") avec exactement les items qui y figurent, plus le
+ * bloc d'aide "Besoin d'aide ?" en bas. Chaque item pointe vers un écran
+ * réel déjà existant (voir App.tsx `renderStaffContent`) — rien n'est
+ * supprimé côté code, seule la liste de raccourcis affichée ici est
+ * désormais celle de la maquette (les anciens raccourcis Triage/
+ * Attribution/Mes Dossiers/Vue Exécutive/Piste d'Audit restent de vrais
+ * écrans fonctionnels, simplement non listés ici car absents de la
+ * maquette de référence).
  */
 
 interface StaffPortalLayoutProps {
@@ -49,142 +53,109 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de
-  // rôles) === `canSeeAudit` (piste d'audit) et `canSeeControlPanel`
-  // (dossiers) partageaient auparavant la même comparaison à 3 rôles ; ce
-  // sont maintenant deux permissions distinctes — `system_admin` garde
-  // `audit.read` mais n'a plus `cases.read` (brief section 30), donc les
-  // deux valeurs divergent désormais volontairement pour ce rôle.
-  const canSeeAudit = canSeeAuditTrail(activeUser);
-  const canSeeSettings = canManageConfiguration(activeUser);
-  const canSeeControlPanel = isGlobalCaseViewer(activeUser);
+  const canSeeControlPanel =
+    activeUser.role === 'functional_admin' ||
+    activeUser.role === 'system_admin' ||
+    activeUser.role === 'auditor';
+  const canSeeAdmin = activeUser.role === 'system_admin';
 
-  // === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation
-  // façon maquette) ===
-  // La maquette de référence comporte ~15 entrées réparties en 7 groupes
-  // (CONTROL PANEL / ALERT MANAGEMENT / INVESTIGATION / REMEDIATION /
-  // REPORTING / AUDIT / ADMINISTRATION). Chaque entrée ci-dessous est un
-  // écran RÉEL et distinct : soit InvestigationDesk avec un `initialFilter`
-  // préréglé (Alertes/Triage/Attribution/Mes Dossiers/Investigations — voir
-  // App.tsx `renderStaffContent`), soit un nouveau registre transverse
-  // (Tâches/Preuves/Communications/Actions Correctives), soit
-  // AdminConfigView avec un `initialTab` différent (Utilisateurs & Rôles /
-  // Configuration). AUCUNE entrée, clé, route ou composant existant n'est
-  // supprimé : 'portal' et 'settings' conservent exactement leur
-  // comportement d'origine (et restent accessibles via la barre Navbar) ;
-  // seule cette liste est étendue pour refléter la structure demandée.
   const navItems: Array<{ key: string; label: string; icon: React.ReactNode; visible: boolean; group: string }> = [
-    { key: 'control_panel', label: t.nav_control_panel, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel, group: t.nav_group_control_panel },
+    { key: 'control_panel', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel, group: '' },
 
-    { key: 'portal', label: t.nav_alerts, icon: <ShieldAlert className="w-4 h-4" />, visible: true, group: t.nav_group_alerts },
-    { key: 'triage', label: t.nav_triage, icon: <ListFilter className="w-4 h-4" />, visible: true, group: t.nav_group_alerts },
-    { key: 'assignment', label: t.nav_assignment, icon: <UserPlus className="w-4 h-4" />, visible: canSeeControlPanel, group: t.nav_group_alerts },
+    { key: 'portal', label: t.sidebar_dossiers, icon: <FolderOpen className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
+    { key: 'investigations', label: t.nav_investigations, icon: <Search className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
+    { key: 'tasks', label: t.nav_tasks, icon: <ListTodo className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
+    { key: 'evidence', label: t.sidebar_evidence, icon: <Paperclip className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
+    { key: 'communications', label: t.nav_communications, icon: <MessageSquare className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
 
-    { key: 'my_cases', label: t.nav_my_cases, icon: <FolderOpen className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
-    { key: 'investigations', label: t.nav_investigations, icon: <Search className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
-    { key: 'tasks', label: t.nav_tasks, icon: <ListTodo className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
-    { key: 'evidence', label: t.nav_evidence, icon: <Paperclip className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
-    { key: 'communications', label: t.nav_communications, icon: <MessageSquare className="w-4 h-4" />, visible: true, group: t.nav_group_investigation },
+    { key: 'corrective_actions', label: t.sidebar_corrective_measures, icon: <Wrench className="w-4 h-4" />, visible: true, group: t.sidebar_group_compliance },
 
-    { key: 'corrective_actions', label: t.nav_corrective_actions, icon: <Wrench className="w-4 h-4" />, visible: true, group: t.nav_group_remediation },
+    { key: 'reports', label: t.sidebar_reports_dashboards, icon: <LayoutGrid className="w-4 h-4" />, visible: true, group: t.sidebar_group_reports },
+    { key: 'reports', label: t.sidebar_reports_exports, icon: <Package className="w-4 h-4" />, visible: true, group: t.sidebar_group_reports },
 
-    { key: 'reports', label: t.nav_reports, icon: <BarChart3 className="w-4 h-4" />, visible: true, group: t.nav_group_reporting },
-    // === AMÉLIORATION AJOUTÉE (Phase 7 — Vue Exécutive) ===
-    { key: 'executive', label: t.nav_executive, icon: <Landmark className="w-4 h-4" />, visible: canSeeControlPanel, group: t.nav_group_reporting },
-
-    { key: 'audit', label: t.nav_audit, icon: <History className="w-4 h-4" />, visible: canSeeAudit, group: t.nav_group_audit },
-
-    { key: 'admin_users', label: t.nav_admin_users, icon: <Users className="w-4 h-4" />, visible: canSeeSettings, group: t.nav_group_admin },
-    { key: 'admin_config', label: t.nav_admin_config, icon: <SlidersHorizontal className="w-4 h-4" />, visible: canSeeSettings, group: t.nav_group_admin },
+    { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
+    { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
+    { key: 'settings', label: t.sidebar_admin_settings, icon: <Settings className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
   ];
-  // `settings` (Configuration Système, unfiltered) stays a valid, fully
-  // working tab id — it is simply no longer listed a second time in this
-  // sidebar now that 'admin_users'/'admin_config' cover the exact same
-  // screen with a scoped landing tab; nothing about it was removed, see
-  // AdminConfigView.tsx.
+  // Écrans existants non repris dans cette liste (car absents de la
+  // maquette de référence) mais toujours fonctionnels dans le code :
+  // 'triage' / 'assignment' / 'my_cases' (des préréglages de filtre sur ce
+  // même écran "Dossiers", déjà accessibles via sa barre de filtres),
+  // 'executive' (Vue Exécutive) et 'audit' (Piste d'Audit).
 
-  // === AMÉLIORATION AJOUTÉE (Phase 6 — sidebar grouping to match the
-  // Control Panel mockup's grouped sidebar) === Purely a rendering
-  // grouping over the exact same `navItems` above — no item added, removed,
-  // renamed, or re-targeted; a group header renders once before the first
-  // visible item that belongs to it.
   const visibleNavItems = navItems.filter((i) => i.visible);
   let lastGroup: string | null = null;
 
-  // === AMÉLIORATION AJOUTÉE (Phase 10 — rail plein hauteur façon maquette) ===
-  // La maquette de référence montre un rail latéral qui touche le bord
-  // gauche de l'écran, sans coins arrondis ni marge, sur toute la hauteur —
-  // pas une carte centrée dans une page à largeur maximale comme
-  // auparavant. Seule la zone de contenu (à droite) garde sa propre largeur
-  // maximale centrée, pour que les tableaux/cartes restent lisibles. Aucun
-  // lien, comportement ou donnée n'est modifié — uniquement la mise en page.
-  return (
-    <div className="flex flex-col lg:flex-row lg:items-stretch">
-      {/* Sidebar (desktop) — rail plein hauteur, bord gauche */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-14 lg:self-start lg:h-[calc(100vh-3.5rem)] bg-[#0B2545] overflow-y-auto">
-        <div className="px-4 py-4 border-b border-white/10 shrink-0">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-            Portail Sécurisé DARC
-          </span>
-          <p className="text-[11px] text-slate-300 mt-1 truncate" title={activeUser.name}>
-            {activeUser.name}
-          </p>
-        </div>
+  const renderNavButton = (item: (typeof navItems)[number], mobile = false) => {
+    const active = currentTab === item.key;
+    if (mobile) {
+      return (
+        <button
+          key={`${item.key}-${item.label}`}
+          onClick={() => setCurrentTab(item.key)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border transition ${
+            active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200'
+          }`}
+        >
+          {item.icon}
+          <span>{item.label}</span>
+        </button>
+      );
+    }
+    return (
+      <button
+        id={`sidebar-nav-${item.key}-${item.label.replace(/\s+/g, '-').toLowerCase()}`}
+        key={`${item.key}-${item.label}`}
+        onClick={() => setCurrentTab(item.key)}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+          active ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+        }`}
+      >
+        <span className="flex items-center gap-2.5">
+          <span className={active ? 'text-blue-600' : 'text-slate-400'}>{item.icon}</span>
+          <span>{item.label}</span>
+        </span>
+        {active && <ChevronRight className="w-3.5 h-3.5 text-blue-500" />}
+      </button>
+    );
+  };
 
-        <nav className="flex-1 py-2">
+  return (
+    <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
+      {/* Sidebar (desktop) */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
+        <nav className="flex-1 py-3 px-2.5">
           {visibleNavItems.map((item) => {
-            const active = currentTab === item.key;
-            const showGroupHeader = item.group !== lastGroup;
+            const showGroupHeader = !!item.group && item.group !== lastGroup;
             lastGroup = item.group;
             return (
-              <React.Fragment key={item.key}>
+              <React.Fragment key={`${item.key}-${item.label}`}>
                 {showGroupHeader && (
-                  <div className="px-4 pt-3 pb-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="px-3 pt-3.5 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
                     {item.group}
                   </div>
                 )}
-                <button
-                  id={`sidebar-nav-${item.key}`}
-                  onClick={() => setCurrentTab(item.key)}
-                  className={`w-full flex items-center gap-2.5 px-4 py-2 mx-2 my-0.5 rounded-lg text-[13px] font-medium transition ${
-                    active
-                      ? 'bg-white/10 text-white font-semibold'
-                      : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                  }`}
-                  style={active ? { width: 'calc(100% - 1rem)' } : undefined}
-                >
-                  {item.icon}
-                  <span className="truncate">{item.label}</span>
-                </button>
+                {renderNavButton(item)}
               </React.Fragment>
             );
           })}
         </nav>
 
-        <div className="px-4 py-3 border-t border-white/10 text-[10px] text-slate-400 shrink-0">
-          {t.group_name}
+        {/* "Besoin d'aide ?" — exact match with the reference mockup's sidebar footer */}
+        <div className="m-2.5 p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
+          <span className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+            <HelpCircle className="w-4 h-4" />
+          </span>
+          <div className="text-[11px] leading-snug">
+            <p className="font-bold text-slate-700">{t.sidebar_help_title}</p>
+            <p className="text-slate-500 mt-0.5">{t.sidebar_help_body}</p>
+          </div>
         </div>
       </aside>
 
       {/* Mobile horizontal nav */}
       <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto px-4 pt-4 pb-1 -mb-2">
-        {navItems.filter((i) => i.visible).map((item) => {
-          const active = currentTab === item.key;
-          return (
-            <button
-              key={item.key}
-              onClick={() => setCurrentTab(item.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border transition ${
-                active
-                  ? 'bg-[#0B2545] text-white border-[#0B2545]'
-                  : 'bg-white text-slate-600 border-slate-200'
-              }`}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+        {visibleNavItems.map((item) => renderNavButton(item, true))}
       </div>
 
       {/* Content canvas — sa propre largeur maximale centrée */}
