@@ -56,6 +56,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_tags: '100% CONFIDENTIEL · SÉCURISÉ · CONFORME',
     hero_how_it_works_link: 'Comment ça marche ?',
     hero_quote: 'Ensemble, construisons une entreprise responsable, transparente et durable.',
+    // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
+    hero_eyebrow: 'Canal éthique du Groupe ACTIVA',
+    hero_anonymous_note: 'Vous pouvez effectuer un signalement de manière anonyme.',
+    process_subtitle: 'Quatre étapes pour faire entendre votre voix en toute confiance.',
+    categories_eyebrow: 'Des sujets qui comptent',
+    categories_heading: 'Quels types de préoccupations pouvez-vous signaler ?',
+    categories_subtitle: 'Vous pouvez signaler tout fait contraire à nos valeurs, nos politiques ou la réglementation.',
+    categories_view_all: 'Voir la liste complète',
+    cta_band_heading: 'Une préoccupation à signaler ?',
+    cta_band_desc: 'Votre voix compte. Signalez en toute confiance.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — section FAQ, absente jusqu'ici) ===
     faq_title: 'Questions fréquentes',
@@ -523,8 +533,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     process_step2_desc: 'Un identifiant et un code d’accès vous sont fournis pour suivre votre signalement.',
     process_step3_title: 'Suivez',
     process_step3_desc: 'Connectez-vous à votre espace sécurisé pour consulter l’avancement et échanger en toute confidentialité.',
-    process_step4_title: 'Agissons ensemble',
-    process_step4_desc: 'Chaque signalement est analysé de manière sérieuse et confidentielle par les équipes compétentes.',
+    // === AMÉLIORATION AJOUTÉE (Phase 17) === libellé aligné sur la maquette adoptée ("Nous traitons").
+    process_step4_title: 'Nous traitons',
+    process_step4_desc: 'Votre signalement est analysé de manière sérieuse et traité par les équipes compétentes.',
     footer_legal_notice: 'Mentions légales',
     footer_privacy_policy: 'Politique de confidentialité',
   },
@@ -580,6 +591,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_tags: '100% CONFIDENTIAL · SECURE · COMPLIANT',
     hero_how_it_works_link: 'How does it work?',
     hero_quote: 'Together, let’s build a responsible, transparent and sustainable company.',
+    // === AMÉLIORATION AJOUTÉE (Phase 17 — homepage reorganization) ===
+    hero_eyebrow: 'ACTIVA Group ethics channel',
+    hero_anonymous_note: 'You can file a report anonymously.',
+    process_subtitle: 'Four steps to make your voice heard with complete confidence.',
+    categories_eyebrow: 'Topics that matter',
+    categories_heading: 'What kinds of concerns can you report?',
+    categories_subtitle: 'You can report anything contrary to our values, our policies, or applicable regulations.',
+    categories_view_all: 'See the full list',
+    cta_band_heading: 'A concern to report?',
+    cta_band_desc: 'Your voice matters. Report with complete confidence.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section) ===
     faq_title: 'Frequently Asked Questions',
@@ -1026,8 +1047,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     process_step2_desc: 'You receive an ID and access code to track your report.',
     process_step3_title: 'Follow up',
     process_step3_desc: 'Log in to your secure area to check progress and exchange messages confidentially.',
-    process_step4_title: 'We act together',
-    process_step4_desc: 'Every report is reviewed seriously and confidentially by the competent teams.',
+    // === AMÉLIORATION AJOUTÉE (Phase 17) === label aligned with the adopted mockup ("We handle it").
+    process_step4_title: 'We handle it',
+    process_step4_desc: 'Your report is reviewed seriously and handled by the competent teams.',
     footer_legal_notice: 'Legal notice',
     footer_privacy_policy: 'Privacy policy',
   },
@@ -1083,6 +1105,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_tags: '100% CONFIDENCIAL · SEGURO · CONFORME',
     hero_how_it_works_link: 'Como funciona?',
     hero_quote: 'Juntos, vamos construir uma empresa responsável, transparente e sustentável.',
+    // === AMÉLIORATION AJOUTÉE (Phase 17 — reorganização da página inicial) ===
+    hero_eyebrow: 'Canal de ética do Grupo ACTIVA',
+    hero_anonymous_note: 'Pode efetuar uma denúncia de forma anónima.',
+    process_subtitle: 'Quatro etapas para fazer ouvir a sua voz com toda a confiança.',
+    categories_eyebrow: 'Temas que importam',
+    categories_heading: 'Que tipos de preocupações pode denunciar?',
+    categories_subtitle: 'Pode denunciar qualquer facto contrário aos nossos valores, às nossas políticas ou à regulamentação.',
+    categories_view_all: 'Ver a lista completa',
+    cta_band_heading: 'Uma preocupação a denunciar?',
+    cta_band_desc: 'A sua voz conta. Denuncie com toda a confiança.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — seção de perguntas frequentes) ===
     faq_title: 'Perguntas frequentes',
@@ -1529,8 +1561,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     process_step2_desc: 'Um identificador e um código de acesso são-lhe fornecidos para acompanhar a sua denúncia.',
     process_step3_title: 'Acompanhe',
     process_step3_desc: 'Aceda à sua área segura para consultar o progresso e trocar mensagens com confidencialidade.',
-    process_step4_title: 'Agimos em conjunto',
-    process_step4_desc: 'Cada denúncia é analisada de forma séria e confidencial pelas equipas competentes.',
+    // === AMÉLIORATION AJOUTÉE (Phase 17) === rótulo alinhado com a maquete adotada ("Tratamos").
+    process_step4_title: 'Tratamos',
+    process_step4_desc: 'A sua denúncia é analisada de forma séria e tratada pelas equipas competentes.',
     footer_legal_notice: 'Aviso legal',
     footer_privacy_policy: 'Política de privacidade',
   }

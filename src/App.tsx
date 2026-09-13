@@ -22,6 +22,8 @@ import { AdminConfigView } from './components/AdminConfigView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
 import { CaseLookup } from './components/CaseLookup';
+// === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) === logo réel dans le pied de page, comme sur la maquette adoptée.
+import { ActivaLogo } from './components/ui';
 // === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructurée façon maquette) ===
 // 4 écrans transverses réels (Tâches / Preuves / Communications / Actions
 // correctives), agrégeant des données déjà existantes sur `AlertRecord` —
@@ -249,7 +251,13 @@ function AppShell() {
   // voir les ancres #how-it-works/#faq ajoutées dans WhistleblowerHome.tsx.
   useEffect(() => {
     if (location.pathname === '/how-it-works' || location.pathname === '/faq') {
-      const id = location.pathname === '/how-it-works' ? 'how-it-works' : 'faq';
+      // === AMÉLIORATION AJOUTÉE : correction post-fusion ===
+      // Les ancres réelles posées dans WhistleblowerHome.tsx sont
+      // `how-it-works-section`/`faq-section` (renommées Phase 13) — cette
+      // recherche ciblait encore les anciens id `how-it-works`/`faq`
+      // (jamais mis à jour), donc une entrée directe sur /how-it-works ou
+      // /faq ne faisait plus défiler la page jusqu'à la section.
+      const id = location.pathname === '/how-it-works' ? 'how-it-works-section' : 'faq-section';
       const el = document.getElementById(id);
       el?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -435,9 +443,13 @@ function AppShell() {
       {/* === AMÉLIORATION AJOUTÉE (Phase 13) === Pied de page bleu marine,
           conforme à la nouvelle maquette d'accueil (au lieu du pied clair
           précédent). */}
-      <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
+      <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* === AMÉLIORATION AJOUTÉE (Phase 17) === logo réel repris dans le pied de page, comme sur la maquette adoptée. */}
+          <div className="flex items-center gap-3">
+            <ActivaLogo variant="white" className="h-8" />
+            <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
+          </div>
           <div className="flex items-center gap-4">
             <button className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
             <button className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>
