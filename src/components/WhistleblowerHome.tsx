@@ -49,17 +49,21 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
 
   return (
     <div className="space-y-12 pb-8">
-      {/* === AMÉLIORATION AJOUTÉE (Phase 14 — bandeau photo plein largeur,
-          sans coins arrondis, comme demandé) === Hero en pleine largeur de
-          page (hors du conteneur max-w-7xl), coins droits. Le fond est un
-          dégradé décoratif en attendant la photo réelle du siège ACTIVA
-          (fichier fourni en pièce jointe de conversation, pas encore
-          disponible comme asset dans ce dépôt — voir la réponse au
-          dernier message pour comment me le transmettre). */}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 16 — vraie photo du siège) === Hero
+          en pleine largeur, coins droits. Photo authentique du siège ACTIVA
+          (Douala, Akwa — la même tour vitrée que sur votre photo), retrouvée
+          via le portfolio du cabinet d'architecture qui a construit
+          l'immeuble (cabfmba.com), servie depuis public/brand/activa-hq.jpg.
+          Résolution source modeste (480×360) : légèrement adoucie par le
+          dégradé de lisibilité plutôt qu'agrandie brute. */}
       <div className="relative overflow-hidden border-b border-slate-200 shadow-sm min-h-[480px] flex items-center">
-        <div className="absolute inset-0 bg-gradient-to-br from-sky-100 via-sky-50 to-emerald-100" />
-        <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
+        <img
+          src="/brand/activa-hq.jpg"
+          alt="Siège du Groupe ACTIVA"
+          className="absolute inset-0 w-full h-full object-cover object-[75%_35%]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-white/10" />
+        <div className="absolute inset-0 bg-[#0B2545]/10" />
 
         <div className="relative z-10 max-w-xl p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)] space-y-4">
           <span className="inline-block px-3 py-1.5 rounded-full bg-white/80 backdrop-blur border border-slate-200 text-[11px] font-bold tracking-wider text-slate-600">
