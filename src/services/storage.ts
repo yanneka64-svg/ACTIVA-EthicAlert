@@ -1,5 +1,5 @@
 import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile } from '../types';
-import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, EntityDef, CategoryDef } from '../data/activaConfig';
+import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, EntityDef, CategoryDef, SlaConfig, DEFAULT_SLA_CONFIG } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 
 const STORAGE_KEYS = {
@@ -11,6 +11,8 @@ const STORAGE_KEYS = {
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
   ENTITIES: 'activa_ethicalert_entities_v1',
   CATEGORIES: 'activa_ethicalert_categories_v1',
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
+  SLA_CONFIG: 'activa_ethicalert_sla_config_v1',
 };
 
 // Event dispatched when data changes
@@ -29,6 +31,8 @@ class StorageService {
   // screen edits.
   private entities: EntityDef[] = [];
   private categories: CategoryDef[] = [];
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
+  private slaConfig: SlaConfig = DEFAULT_SLA_CONFIG;
 
   constructor() {
     this.init();
@@ -83,6 +87,15 @@ class StorageService {
         this.categories = [...ALERT_CATEGORIES];
         this.persistCategories();
       }
+
+      // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
+      const storedSlaConfig = localStorage.getItem(STORAGE_KEYS.SLA_CONFIG);
+      if (storedSlaConfig) {
+        this.slaConfig = { ...DEFAULT_SLA_CONFIG, ...JSON.parse(storedSlaConfig) };
+      } else {
+        this.slaConfig = { ...DEFAULT_SLA_CONFIG };
+        this.persistSlaConfig();
+      }
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
       this.alerts = [...INITIAL_ALERTS];
@@ -91,6 +104,7 @@ class StorageService {
       this.activeUser = INITIAL_USERS[0];
       this.entities = [...ACTIVA_ENTITIES];
       this.categories = [...ALERT_CATEGORIES];
+      this.slaConfig = { ...DEFAULT_SLA_CONFIG };
     }
   }
 
@@ -138,6 +152,15 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(this.categories));
     } catch (e) {
       console.error('Failed to persist categories', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
+  private persistSlaConfig() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SLA_CONFIG, JSON.stringify(this.slaConfig));
+    } catch (e) {
+      console.error('Failed to persist SLA config', e);
     }
   }
 
@@ -399,6 +422,27 @@ class StorageService {
     this.logAudit('CONFIG_UPDATED', `Sous-catégorie "${subCategory}" retirée de "${cat.name}" par ${actor.name}.`, undefined, actor);
   }
 
+  // --- SLA config API (Phase 7 — configuration SLA éditable) ---
+  // The single source of truth AlertSubmissionFlow reads when setting a new
+  // case's targetCompletionDate, and that computeRiskEvaluation's
+  // expectedTreatment text is derived from — same seed-then-mutate pattern
+  // as Entities/Categories/Users above.
+  public getSlaConfig(): SlaConfig {
+    return { ...this.slaConfig };
+  }
+
+  public updateSlaConfig(updates: Partial<SlaConfig>, actor: UserProfile): void {
+    this.slaConfig = { ...this.slaConfig, ...updates };
+    this.persistSlaConfig();
+    this.notify();
+    this.logAudit(
+      'CONFIG_UPDATED',
+      `Délais SLA mis à jour par ${actor.name} : NOCA1=${this.slaConfig.noca1Days}j, NOCA2=${this.slaConfig.noca2Days}j, NOCA3=${this.slaConfig.noca3Days}j, NOCA4=${this.slaConfig.noca4Days}j.`,
+      undefined,
+      actor
+    );
+  }
+
   // --- Draft auto-save for whistleblowers ---
   public getDraft(): any {
     try {
@@ -443,11 +487,14 @@ class StorageService {
     // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
     this.entities = [...ACTIVA_ENTITIES];
     this.categories = [...ALERT_CATEGORIES];
+    // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
+    this.slaConfig = { ...DEFAULT_SLA_CONFIG };
     this.persistAlerts();
     this.persistAuditLogs();
     this.persistUsers();
     this.persistEntities();
     this.persistCategories();
+    this.persistSlaConfig();
     this.clearDraft();
     this.notify();
   }
