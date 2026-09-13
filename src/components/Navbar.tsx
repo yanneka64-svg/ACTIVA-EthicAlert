@@ -87,9 +87,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     return unsub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const isGlobalViewer =
-    activeUser.role === 'functional_admin' || activeUser.role === 'system_admin' || activeUser.role === 'auditor';
-  const isStaffUser = isGlobalViewer || activeUser.role === 'investigator';
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+  // Remplace l'ancienne comparaison à 3 rôles codée en dur par la vraie
+  // permission `cases.read` + visibilité globale (src/services/authz.ts).
+  // `isStaffUser` (tout profil hors lanceur d'alerte) n'a plus besoin de
+  // dépendre d'`isGlobalViewer` : le nouveau modèle compte désormais 8
+  // rôles "collaborateur" distincts (contre 3 avant), donc `role !== 'reporter'`
+  // exprime directement l'intention.
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
+  const isStaffUser = activeUser.role !== 'reporter';
   const notifications = React.useMemo(
     () =>
       isStaffUser
@@ -99,6 +105,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     [isStaffUser, isGlobalViewer, activeUser.id, dismissedIds, notifRefresh]
   );
 
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === étendu de 5 à 10 rôles ; les
+  // 5 libellés/couleurs déjà en production restent strictement identiques
+  // (`functional_admin`/`investigator`/`system_admin`/`reporter` gardent
+  // leur rendu exact — `reporter` est le nouveau nom de l'ancien
+  // `whistleblower`, `consultation` celui de l'ancien `auditor`), les 5
+  // nouveaux suivent la même convention visuelle.
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'functional_admin':
@@ -454,7 +466,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         id: 'usr-whistleblower',
                         name: 'Lanceur d’alerte (Visiteur)',
                         email: 'anonyme@declare.activa',
-                        role: 'whistleblower',
+                        role: 'reporter',
                         roleTitle: 'Déclarant externe ou employé',
                         entity: 'Toutes entités',
                         country: 'Groupe ACTIVA',
@@ -466,6 +478,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     👤 Mode Lanceur d’alerte (Public)
                   </button>
+
+                  {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne
+                      dédiée) === Déconnexion réelle de la session
+                      "collaborateur" démo : referme l'accès aux écrans
+                      internes (AuthenticatedRoute, App.tsx) jusqu'à une
+                      nouvelle connexion via /login. */}
+                  {isStaffUser && isStaffSessionActive && (
+                    <button
+                      onClick={onLogout}
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50 text-rose-700 font-medium border-t border-slate-100"
+                    >
+                      Se déconnecter
+                    </button>
+                  )}
                 </div>
               )}
             </div>

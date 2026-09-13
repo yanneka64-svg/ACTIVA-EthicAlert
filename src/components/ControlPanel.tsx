@@ -51,6 +51,8 @@ import { AlertRecord, Language, PriorityLevel, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { computeSlaStatus } from '../services/statusMapping';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer, userCan } from '../services/authz';
 import { KpiCard, DataTable, EmptyState, StatusBadge, MiniLineChart, MiniDonutChart, MiniBarChart } from './ui';
 import type { DataTableColumn, TrendPoint, DonutSlice, BarDatum } from './ui';
 
@@ -180,7 +182,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     setLastRefreshed(new Date());
   };
 
-  const isGlobalViewer = activeUser.role === 'functional_admin' || activeUser.role === 'system_admin' || activeUser.role === 'auditor';
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
   const visible = alerts.filter((a) => isGlobalViewer || a.assignedInvestigators.includes(activeUser.id));
 
   // --- KPIs ---
@@ -216,7 +219,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const investigationApproachingSla = visible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'at_risk').length;
 
   // --- Investigator workload ---
-  const investigatorUsers = storage.getUsers().filter((u) => u.role === 'investigator' || u.role === 'functional_admin');
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === permission `cases.edit`
+  // plutôt que 2 rôles codés en dur — voir InvestigationDesk.tsx pour le
+  // même remplacement.
+  const investigatorUsers = storage.getUsers().filter((u) => userCan(u, 'cases.edit'));
   const workload: WorkloadRow[] = investigatorUsers
     .map((inv) => {
       const assigned = alerts.filter((a) => a.assignedInvestigators.includes(inv.id) && ACTIVE_STATUSES.includes(a.status));

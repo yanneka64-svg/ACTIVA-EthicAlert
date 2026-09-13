@@ -24,25 +24,18 @@ import { randomBytes } from 'crypto';
 import { readFileSync } from 'fs';
 
 import { INITIAL_USERS } from '../src/data/activaConfig';
-import { UserRole } from '../src/types';
 import { RoleId } from '../src/domain/caseTypes';
 
-// Legacy demo role -> target RBAC role (src/domain/permissions.ts).
-// NOTE: 'auditor' is mapped to 'consultation' (case-level read access,
-// matching what the legacy demo currently grants) rather than 'executive'
-// (aggregated/anonymized dashboards only, no raw case content) even though
-// the legacy user's title ("Comité d'Audit & Conseil d'Administration")
-// arguably fits 'executive' better per the brief's least-privilege intent.
-// This is a deliberate, conservative choice to avoid silently reducing
-// access during provisioning — flagged here for a human decision before
-// Phase 4 wires real screens to these accounts.
-const ROLE_MAP: Partial<Record<UserRole, RoleId>> = {
-  functional_admin: 'functional_admin',
-  investigator: 'investigator',
-  system_admin: 'system_admin',
-  auditor: 'consultation', // see note above
-  // 'whistleblower' intentionally has no mapping — reporters get no Auth account.
-};
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+// `UserRole` (src/types.ts) est désormais un simple alias de `RoleId` — plus
+// besoin de table de correspondance "rôle démo local -> rôle RBAC cible",
+// les deux sont maintenant littéralement les mêmes valeurs. Seule
+// exclusion : `reporter` n'a jamais de compte Firebase Auth (les lanceurs
+// d'alerte s'authentifient par numéro de dossier + code d'accès, pas
+// email/mot de passe — voir docs/DATABASE.md).
+function roleIdForAuth(role: RoleId): RoleId | null {
+  return role === 'reporter' ? null : role;
+}
 
 // Roles with group-wide scope (see permissions.ts GLOBAL_VISIBILITY_ROLES /
 // ROLE_PERMISSIONS): empty countries/entities arrays mean "no restriction".
@@ -67,7 +60,7 @@ async function main() {
   const createdCredentials: Array<{ email: string; password: string; role: RoleId }> = [];
 
   for (const user of INITIAL_USERS) {
-    const roleId = ROLE_MAP[user.role];
+    const roleId = roleIdForAuth(user.role);
     if (!roleId) {
       console.log(`Skipping ${user.email} (role "${user.role}" has no staff Auth mapping — reporters never get an account).`);
       continue;
@@ -100,7 +93,7 @@ async function main() {
 
   console.log(`\n--- Verification: re-reading claims from Firebase Auth (not from local memory) ---`);
   for (const user of INITIAL_USERS) {
-    if (!ROLE_MAP[user.role]) continue;
+    if (!roleIdForAuth(user.role)) continue;
     const fresh = await auth.getUserByEmail(user.email);
     console.log(` - ${fresh.email}: customClaims = ${JSON.stringify(fresh.customClaims)}`);
   }

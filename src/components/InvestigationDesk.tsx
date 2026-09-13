@@ -57,6 +57,8 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor } from './ui';
 import { computeSlaStatus } from '../services/statusMapping';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer, userCan, canSeeAlertConfidentiality } from '../services/authz';
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -199,12 +201,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const allUsers = storage.getUsers();
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
   const entities = storage.getEntities();
-  const investigatorUsers = allUsers.filter(u => u.role === 'investigator' || u.role === 'functional_admin');
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+  // Candidats à l'attribution d'un dossier : tout profil qui fait
+  // réellement de l'investigation (permission `cases.edit`) — remplace la
+  // comparaison à 2 rôles, inclut désormais aussi `senior_investigator`.
+  const investigatorUsers = allUsers.filter(u => userCan(u, 'cases.edit'));
 
   // Role visibility logic (CDC 3.1.4):
   // "Chaque gestionnaire n'aura de la visibilité que sur les alertes qui lui sont attribuées.
   // Seul l'administrateur aura une vue sur toutes les alertes enregistrées dans le système."
-  const isGlobalViewer = activeUser.role === 'functional_admin' || activeUser.role === 'system_admin' || activeUser.role === 'auditor';
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === `system_admin` n'a plus
+  // accès aux dossiers (brief section 30) — voir src/services/authz.ts.
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
 
   const visibleAlerts = alerts.filter(alert => {
     // Role filter
@@ -212,6 +220,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       const isAssigned = alert.assignedInvestigators.includes(activeUser.id);
       if (!isAssigned) return false;
     }
+
+    // === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
+    // Second filtre indépendant, appliqué même à un dossier assigné ou à un
+    // profil à vision globale — reflète exactement `can()` dans
+    // domain/permissions.ts (le rôle seul ne suffit pas si le dossier
+    // dépasse le plafond de confidentialité de ce rôle).
+    if (!canSeeAlertConfidentiality(activeUser, alert)) return false;
 
     // Status filter
     if (statusFilter !== 'all' && alert.status !== statusFilter) return false;
@@ -628,6 +643,29 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     return <PriorityBadge priority={p} label={labels[p]} />;
   };
 
+  // === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
+  // N'affiche rien pour `restricted` (le niveau par défaut, non sensible) —
+  // seuls `confidential`/`highly_confidential` méritent une indication
+  // visuelle, pour ne pas surcharger chaque carte d'un badge sans valeur
+  // ajoutée. Le fait qu'on l'affiche du tout signifie que cet utilisateur y
+  // est déjà habilité — visibleAlerts (ci-dessus) a déjà écarté tout
+  // dossier hors de son plafond.
+  const getConfidentialityBadge = (alert: AlertRecord) => {
+    const level = alert.confidentialityLevel ?? 'restricted';
+    if (level === 'restricted') return null;
+    const style =
+      level === 'highly_confidential'
+        ? 'bg-rose-50 text-rose-700 border-rose-200'
+        : 'bg-amber-50 text-amber-700 border-amber-200';
+    const label = level === 'highly_confidential' ? 'Très confidentiel' : 'Confidentiel';
+    return (
+      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border ${style}`} title="Niveau de confidentialité du dossier">
+        <Lock className="w-2.5 h-2.5" />
+        {label}
+      </span>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
       {/* Top Banner with Desk metrics */}
@@ -809,8 +847,9 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-mono font-bold text-xs text-[#0B2545]">
+                      <span className="font-mono font-bold text-xs text-[#0B2545] flex items-center gap-1.5">
                         {alert.trackingNumber}
+                        {getConfidentialityBadge(alert)}
                       </span>
                       {getPriorityBadge(alert)}
                     </div>

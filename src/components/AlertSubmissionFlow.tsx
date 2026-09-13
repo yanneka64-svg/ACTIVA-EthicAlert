@@ -320,6 +320,18 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + daysToAdd);
 
+    // === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
+    // Dérivé du niveau de risque NOCA déjà calculé (jamais une valeur
+    // inventée séparément) : plus le risque est élevé, plus le dossier est
+    // classé sensible — cohérent avec domain/permissions.ts
+    // ROLE_MAX_CONFIDENTIALITY (seuls les rôles habilités le verront).
+    const confidentialityLevel: AlertRecord['confidentialityLevel'] =
+      liveRisk.nocaThreshold === 'NOCA 4' || liveRisk.nocaThreshold === 'NOCA 3'
+        ? 'highly_confidential'
+        : liveRisk.nocaThreshold === 'NOCA 2'
+        ? 'confidential'
+        : 'restricted';
+
     const newRecord: AlertRecord = {
       id: 'alt-' + Date.now(),
       trackingNumber,
@@ -329,6 +341,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       targetCompletionDate: targetDate.toISOString(),
+      confidentialityLevel,
       whistleblower: {
         isAnonymous,
         fullName: isAnonymous ? undefined : declarantName,
@@ -379,7 +392,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
         id: 'whistleblower-anonymous',
         name: isAnonymous ? 'Lanceur d’alerte (Anonyme)' : (declarantName || 'Lanceur d’alerte'),
         email: isAnonymous ? 'anonyme@declare.activa' : declarantEmail,
-        role: 'whistleblower',
+        role: 'reporter',
         roleTitle: isAnonymous ? 'Déclarant Anonyme' : 'Déclarant Identifié',
         entity: newRecord.concernedEntity,
         country: newRecord.country,

@@ -218,8 +218,34 @@ export const INITIAL_USERS: UserProfile[] = [
     id: 'usr-auditor',
     name: 'Comité d’Audit (Consultation)',
     email: 'audit-board@group-activa.com',
-    role: 'auditor',
+    // === AMÉLIORATION AJOUTÉE (Phase 12.3) === l'ancien rôle `auditor`
+    // (5 valeurs) devient `consultation` dans le nouveau modèle RBAC à 10
+    // rôles — même comportement (lecture seule, vision globale des
+    // dossiers), voir src/services/authz.ts.
+    role: 'consultation',
     roleTitle: 'Membre du Comité d’Audit & Conseil d’Administration',
+    entity: 'ACTIVA Finance',
+    country: 'Maurice',
+  },
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === 2 nouveaux comptes de
+  // démonstration pour les 2 rôles réellement nouveaux (security_admin,
+  // audit_committee), accessibles via le même sélecteur de profil que les
+  // 5 comptes ci-dessus — purement additif.
+  {
+    id: 'usr-security-admin',
+    name: 'Farid Haidara (Admin Sécurité)',
+    email: 'f.haidara@group-activa.com',
+    role: 'security_admin',
+    roleTitle: 'Responsable Sécurité des Systèmes d’Information',
+    entity: 'Africa Technology Services (ATS)',
+    country: 'Maurice',
+  },
+  {
+    id: 'usr-audit-committee',
+    name: 'Comité d’Audit Groupe',
+    email: 'comite-audit@group-activa.com',
+    role: 'audit_committee',
+    roleTitle: 'Membre indépendant, Comité d’Audit du Conseil d’Administration',
     entity: 'ACTIVA Finance',
     country: 'Maurice',
   },
@@ -236,6 +262,11 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     createdAt: '2026-09-08T10:14:00Z',
     updatedAt: '2026-09-11T14:30:00Z',
     targetCompletionDate: '2026-09-15T18:00:00Z',
+    // === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
+    // Fraude/corruption impliquant un tiers externe : niveau le plus
+    // sensible — seuls senior_investigator/functional_admin/darc_compliance
+    // y ont accès (voir domain/permissions.ts ROLE_MAX_CONFIDENTIALITY).
+    confidentialityLevel: 'highly_confidential',
     whistleblower: {
       isAnonymous: true,
       declarantType: 'Employé',
@@ -338,6 +369,10 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     createdAt: '2026-08-28T14:00:00Z',
     updatedAt: '2026-09-05T09:00:00Z',
     targetCompletionDate: '2026-09-28T18:00:00Z',
+    // === AMÉLIORATION AJOUTÉE (Phase 12.5) === RH/harcèlement, lanceur
+    // d'alerte identifié : sensible mais accessible aux investigateurs de
+    // base (plafond `confidential`, pas `highly_confidential`).
+    confidentialityLevel: 'confidential',
     whistleblower: {
       isAnonymous: false,
       fullName: 'Jean-Marc D.',
@@ -413,6 +448,10 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     channel: 'web',
     createdAt: '2026-07-15T08:30:00Z',
     updatedAt: '2026-08-01T11:00:00Z',
+    // === AMÉLIORATION AJOUTÉE (Phase 12.5) === volontairement sans valeur
+    // ici (dossier clôturé, faible priorité) — démontre le comportement de
+    // repli : traité comme `restricted`, visible par tout le monde,
+    // exactement comme avant cette phase pour les dossiers déjà existants.
     whistleblower: {
       isAnonymous: true,
       declarantType: 'Prestataire',

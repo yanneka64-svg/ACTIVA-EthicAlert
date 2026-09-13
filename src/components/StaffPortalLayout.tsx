@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from '../services/authz';
 
 /**
  * === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la maquette) ===
@@ -156,8 +158,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
         {visibleNavItems.map((item) => renderNavButton(item, true))}
       </div>
 
-      {/* Content canvas */}
-      <div className="flex-1 min-w-0">{children}</div>
+      {/* Content canvas — sa propre largeur maximale centrée */}
+      <div className="flex-1 min-w-0 w-full max-w-[1600px] mx-auto lg:px-6 xl:px-8 lg:py-6">{children}</div>
     </div>
   );
 };
