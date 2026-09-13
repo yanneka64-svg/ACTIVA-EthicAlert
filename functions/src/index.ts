@@ -27,8 +27,8 @@ import { initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { CallableRequest, HttpsError, onCall } from 'firebase-functions/v2/https';
 
-import { Allegation, AppUser, Case, CaseStatus, Communication, CorrectiveAction, Person, RoleId } from '../../src/domain/caseTypes';
-import { can, implicatedUserIdsFromPersons } from '../../src/domain/permissions';
+import { Allegation, AppUser, Case, CaseStatus, Communication, CorrectiveAction, FindingOutcome, Person, RoleId } from '../../src/domain/caseTypes';
+import { can, implicatedUserIdsFromPersons, Permission } from '../../src/domain/permissions';
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
 // === AMÉLIORATION AJOUTÉE : réutilise le HASH/SALT existant, jamais réimplémenté ===
 // Same salted, iterated-SHA256 verification already used by the legacy
@@ -78,9 +78,37 @@ async function nextCaseSequence(): Promise<number> {
   });
 }
 
-async function appendAudit(entry: { actorId: string; action: string; caseId?: string; previousValue?: unknown; newValue?: unknown; reason?: string }) {
+// === AMÉLIORATION AJOUTÉE : signature élargie (objectType/objectId), sans changer le comportement existant ===
+// Widened to accept the same optional fields AuditEventV2 (src/data-access/caseRepository.ts)
+// already defines — needed by setAllegationFinding below, which (like
+// scripts/firestoreAdminRepository.ts's identical call) records which
+// allegation a finding was documented on. Every field stays optional and is
+// simply forwarded via the spread below, so createCase/assignCase/
+// changeCaseStatus's existing calls are entirely unaffected.
+async function appendAudit(entry: { actorId: string; action: string; caseId?: string; objectType?: string; objectId?: string; previousValue?: unknown; newValue?: unknown; reason?: string }) {
   const id = newId('audv2');
   await db.collection('audit_logs').doc(id).set({ ...entry, id, timestamp: new Date().toISOString() });
+}
+
+// === AMÉLIORATION AJOUTÉE ===
+// Shared by every callable below that mutates something INSIDE an existing
+// case (as opposed to createCase, which has no case yet, or assignCase/
+// changeCaseStatus, written earlier with the check inlined). Factored out
+// here specifically to avoid re-deriving "fetch the case, compute
+// implicatedUserIds fresh, call can()" slightly differently in each new
+// callable — every one of them must agree on this, always.
+async function requireCaseAccess(caseId: string, user: AppUser, permission: Permission): Promise<{ ref: FirebaseFirestore.DocumentReference; kase: Case }> {
+  const ref = db.collection('cases').doc(caseId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError('not-found', `Case ${caseId} not found.`);
+  const kase = snap.data() as Case;
+
+  const personsSnap = await ref.collection('persons').get();
+  const implicated = implicatedUserIdsFromPersons(personsSnap.docs.map((d) => d.data() as Person));
+  if (!can(user, permission, { case: kase, implicatedUserIds: implicated })) {
+    throw new HttpsError('permission-denied', `Not authorized (${permission}) on this case.`);
+  }
+  return { ref, kase };
 }
 
 async function appendTimeline(caseId: string, label: string, actor: string, details?: string) {
@@ -228,6 +256,132 @@ export const changeCaseStatus = onCall(async (request) => {
 });
 
 // ---------------------------------------------------------------------------
+// addAllegation
+// ---------------------------------------------------------------------------
+
+export const addAllegation = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId, category, subcategory, description } = request.data as {
+    caseId: string;
+    category: string;
+    subcategory?: string;
+    description: string;
+  };
+  if (!caseId || !category || !description) {
+    throw new HttpsError('invalid-argument', 'caseId, category and description are required.');
+  }
+
+  await requireCaseAccess(caseId, user, 'cases.edit');
+
+  const allegationId = newId('alg');
+  const nowIso = new Date().toISOString();
+  const allegation: Allegation = {
+    allegationId,
+    caseId,
+    category,
+    subcategory: subcategory ?? '',
+    description,
+    status: 'open',
+    createdAt: nowIso,
+    createdBy: user.userId,
+    updatedAt: nowIso,
+    updatedBy: user.userId,
+  };
+  await db.collection('cases').doc(caseId).collection('allegations').doc(allegationId).set(allegation);
+  await appendTimeline(caseId, 'ALLEGATION_ADDED', user.userId, category);
+
+  return { allegationId };
+});
+
+// ---------------------------------------------------------------------------
+// setAllegationFinding
+// ---------------------------------------------------------------------------
+
+const VALID_FINDINGS: FindingOutcome[] = [
+  'SUBSTANTIATED',
+  'PARTIALLY_SUBSTANTIATED',
+  'UNSUBSTANTIATED',
+  'INCONCLUSIVE',
+  'OUT_OF_SCOPE',
+  'DUPLICATE',
+];
+
+export const setAllegationFinding = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { allegationId, finding, rationale } = request.data as { allegationId: string; finding: FindingOutcome; rationale: string };
+  if (!allegationId || !finding || !rationale) {
+    throw new HttpsError('invalid-argument', 'allegationId, finding and rationale are required.');
+  }
+  if (!VALID_FINDINGS.includes(finding)) {
+    throw new HttpsError('invalid-argument', `finding must be one of: ${VALID_FINDINGS.join(', ')}.`);
+  }
+
+  // Only the allegationId is known here (not its caseId), same constraint
+  // scripts/firestoreAdminRepository.ts already documents — a collectionGroup
+  // query is the only way to locate it.
+  const results = await db.collectionGroup('allegations').where('allegationId', '==', allegationId).limit(1).get();
+  if (results.empty) throw new HttpsError('not-found', `Allegation ${allegationId} not found.`);
+  const doc = results.docs[0];
+  const existing = doc.data() as Allegation;
+
+  await requireCaseAccess(existing.caseId, user, 'cases.edit');
+
+  const nowIso = new Date().toISOString();
+  const updated: Allegation = {
+    ...existing,
+    status: 'assessed',
+    finding,
+    findingRationale: rationale,
+    findingDocumentedBy: user.userId,
+    findingDocumentedAt: nowIso,
+    updatedAt: nowIso,
+    updatedBy: user.userId,
+  };
+  await doc.ref.set(updated);
+  await appendTimeline(existing.caseId, 'FINDING_DOCUMENTED', user.userId, finding);
+  await appendAudit({ actorId: user.userId, action: 'FINDING_DOCUMENTED', caseId: existing.caseId, objectType: 'allegation', objectId: allegationId, newValue: finding });
+
+  return { ok: true };
+});
+
+// ---------------------------------------------------------------------------
+// addPerson
+// ---------------------------------------------------------------------------
+
+export const addPerson = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId, ...input } = request.data as { caseId: string } & Omit<
+    Person,
+    'personId' | 'caseId' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'
+  >;
+  if (!caseId || !input?.kind || !input?.name) {
+    throw new HttpsError('invalid-argument', 'caseId, kind and name are required.');
+  }
+  if (input.kind !== 'subject' && input.kind !== 'witness') {
+    throw new HttpsError('invalid-argument', "kind must be 'subject' or 'witness'.");
+  }
+
+  await requireCaseAccess(caseId, user, 'cases.edit');
+
+  const personId = newId('per');
+  const nowIso = new Date().toISOString();
+  const person: Person = { ...input, personId, caseId, createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId };
+  await db.collection('cases').doc(caseId).collection('persons').doc(personId).set(person);
+
+  // === AMÉLIORATION AJOUTÉE === keep Case.implicatedUserIds in sync — see
+  // src/domain/caseTypes.ts and docs/PERMISSIONS.md (rule #9). This is the
+  // one write in this whole file that a security rule (firestore.rules'
+  // isNotImplicated) actually depends on directly, so it must never be
+  // skipped or reordered relative to the person document write above.
+  if (person.kind === 'subject' && person.linkedUserId) {
+    await db.collection('cases').doc(caseId).update({ implicatedUserIds: FieldValue.arrayUnion(person.linkedUserId) });
+  }
+  await appendTimeline(caseId, 'PERSON_ADDED', user.userId, `${input.kind}: ${input.name}`);
+
+  return { personId };
+});
+
+// ---------------------------------------------------------------------------
 // getCaseForReporter
 // === AMÉLIORATION AJOUTÉE ===
 // The one operation reporters actually need — they hold no Firebase Auth
@@ -335,9 +489,8 @@ export const getCaseForReporter = onCall(async (request) => {
 
 // ---------------------------------------------------------------------------
 // Remaining Phase 3 backlog (same pattern as above — not yet implemented):
-//   addAllegation, setAllegationFinding, addPerson, addEvidence (+ Storage
-//   upload URL issuance), addTask, addInterview, addInvestigationNote,
-//   addCommunication, addCorrectiveAction, recordRiskAssessment,
-//   declareConflictOfInterest, getReporterIdentity (with mandatory audit
-//   logging).
+//   addEvidence (+ Storage upload URL issuance), addTask, addInterview,
+//   addInvestigationNote, addCommunication, addCorrectiveAction,
+//   recordRiskAssessment, declareConflictOfInterest, getReporterIdentity
+//   (with mandatory audit logging).
 // ---------------------------------------------------------------------------

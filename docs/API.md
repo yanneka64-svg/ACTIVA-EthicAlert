@@ -11,7 +11,7 @@ of truth.
 | | Status |
 |---|---|
 | `CaseRepository` interface (~24 operations) | Fully specified in TypeScript. Fully implemented twice: `LocalCaseRepository` (localStorage, used by nothing in the shipped UI yet) and `FirestoreAdminCaseRepository` (Admin SDK, used by the one-off seed/migration scripts). Both pass the same behavior (see `docs/PHASES.md` Phase 2/2b). |
-| Cloud Functions (the real network-callable API) | **4 of ~15 mutation/read operations implemented and type-checked**: `createCase`, `assignCase`, `changeCaseStatus`, `getCaseForReporter`. **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). Nothing below is reachable over the network right now. |
+| Cloud Functions (the real network-callable API) | **7 of ~15 mutation/read operations implemented and type-checked**: `createCase`, `assignCase`, `changeCaseStatus`, `addAllegation`, `setAllegationFinding`, `addPerson`, `getCaseForReporter`. **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). Nothing below is reachable over the network right now. |
 | Reads | Not a Cloud Function today — direct Firestore reads via `firestore.rules`, single-document `getDoc` only (see `docs/PERMISSIONS.md`/`docs/FIREBASE-SETUP.md` — list queries are blocked outright by Firestore itself, a Cloud Function is the architecturally-required fix, same billing blocker as above). |
 
 This document describes the API **as designed and as far as it is built**,
@@ -103,6 +103,26 @@ thrown, so a pattern of repeated rejected attempts is visible in
 and a `STATUS_CHANGED` audit entry (with `previousValue`/`newValue` as the
 old/new status) are always written on success.
 
+### `addAllegation`, `setAllegationFinding`, `addPerson`
+
+All three share a new common gate, `requireCaseAccess(caseId, user,
+permission)` — fetches the case, computes `implicatedUserIds` fresh from
+the real `persons` subcollection (never trusts a possibly-stale copy), and
+calls `can()`, exactly like `assignCase`/`changeCaseStatus` already did
+inline; factored out here so every new callable calls it identically
+rather than re-deriving the same three lines slightly differently each
+time. All three require `cases.edit` — the closest existing permission in
+`ROLE_PERMISSIONS` (there is no separate `allegations.*`/`persons.*`
+permission in the `Permission` union, and adding one would mean touching
+`permissions.ts` itself, which this session avoids doing for a
+convenience).
+
+| | |
+|---|---|
+| `addAllegation` | Request `{ caseId, category, subcategory?, description }` → `{ allegationId }`. Errors: `unauthenticated`, `invalid-argument`, `not-found`, `permission-denied`. New allegation always starts `status: 'open'`, no `finding` — matches `LocalCaseRepository`/`FirestoreAdminCaseRepository`'s identical behavior. Writes an `ALLEGATION_ADDED` timeline event. |
+| `setAllegationFinding` | Request `{ allegationId, finding, rationale }` → `{ ok: true }`. Only `allegationId` is known here (not its case), so — like `scripts/firestoreAdminRepository.ts`'s identical method — this runs a `collectionGroup('allegations')` query to locate it first. `finding` is validated against the real `FindingOutcome` union (`SUBSTANTIATED`/`PARTIALLY_SUBSTANTIATED`/`UNSUBSTANTIATED`/`INCONCLUSIVE`/`OUT_OF_SCOPE`/`DUPLICATE`) before anything is written. Sets `status: 'assessed'` and the `findingDocumentedBy`/`findingDocumentedAt` fields — this is what ultimately feeds `deriveOverallFinding()` (`docs/WORKFLOW.md`) once every allegation on a case has one. Writes both a `FINDING_DOCUMENTED` timeline event and audit entry. |
+| `addPerson` | Request `{ caseId, kind, name, ... }` (the rest of `Person`, minus server-set fields) → `{ personId }`. `kind` is validated to be exactly `'subject'` or `'witness'`. **=== AMÉLIORATION AJOUTÉE : la vérification de sécurité la plus importante de ce fichier ===** when `kind === 'subject'` and `linkedUserId` is set, this appends to `Case.implicatedUserIds` (`FieldValue.arrayUnion`) in the same call — the one write in the entire file that `firestore.rules`' `isNotImplicated` check directly depends on (rule #9, `docs/PERMISSIONS.md`). Skipping or reordering this relative to the person-document write would silently reopen the exact gap rule #9 exists to close, so it is called out explicitly in the code, not just here. |
+
 ### `getCaseForReporter`
 
 | | |
@@ -136,8 +156,7 @@ vague "more to come":
 
 | Operation | Purpose |
 |---|---|
-| `addAllegation`, `setAllegationFinding`, `listAllegations` | Allegation lifecycle — `setAllegationFinding` is what ultimately feeds `deriveOverallFinding`. |
-| `addPerson`, `listPersons` | Subjects & witnesses — `addPerson` is also where `Case.implicatedUserIds` gets appended (see `docs/PERMISSIONS.md`/`caseTypes.ts`), so this one carries real security weight, not just data entry. |
+| `listAllegations`, `listPersons` | Read-side of the two mutations above — not yet a callable (see the `getCase`/`listCases` row below on reads generally). |
 | `addEvidence`, `listEvidence` | Evidence metadata + (once built) a signed, short-lived Storage upload/download URL — deliberately never a public URL (see `Evidence.storagePath`'s comment in `caseTypes.ts`). |
 | `addTask`, `listTasks` | Investigation task tracking. |
 | `addInterview`, `listInterviews` | Interview scheduling/summaries. |

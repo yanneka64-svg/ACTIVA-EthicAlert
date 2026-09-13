@@ -373,3 +373,65 @@ a faithful port of an existing one onto the new `Case` model's server side.
 
 **DOCUMENT** → `docs/API.md` (moved from "planned" to "implemented",
 with the rate-limiting design noted), this entry.
+
+---
+
+## Three more Cloud Functions: `addAllegation`, `setAllegationFinding`, `addPerson`
+
+**AUDIT** → of the remaining `CaseRepository` backlog, these three are the
+highest-value next unit: `addPerson` is where `Case.implicatedUserIds` gets
+maintained (the field rule #9's enforcement in `firestore.rules` directly
+depends on), and `addAllegation`/`setAllegationFinding` feed the very
+closure-gating logic `changeCaseStatus` already calls
+(`checkTransition`/`deriveOverallFinding`, `docs/WORKFLOW.md`) — without
+them, that callable can never actually be exercised end to end even once
+deployed, since a case can't be closed with zero allegations.
+
+**PLAN** → port `LocalCaseRepository`/`FirestoreAdminCaseRepository`'s
+existing, already-verified logic for these three operations (read them
+side by side, don't re-derive from memory), but add a permission check
+neither repository implementation has itself — because Cloud Functions,
+unlike those repository classes, ARE the real trust boundary once
+deployed (`docs/ARCHITECTURE.md`: "the client never decides a sensitive
+mutation alone", the same principle `createCase`/`assignCase`/
+`changeCaseStatus` already enforce). Factor the repeated "fetch case,
+compute implicatedUserIds fresh, call can()" sequence into one shared
+helper rather than copy it a third time slightly differently.
+
+**IMPLEMENT**:
+- `requireCaseAccess(caseId, user, permission)` — new shared helper,
+  factored out of the pattern `assignCase`/`changeCaseStatus` already used
+  inline, so every new callable calls it identically.
+- `addAllegation` — `cases.edit` required; new allegation always starts
+  `status: 'open'` with no `finding`, matching both existing repository
+  implementations exactly; writes an `ALLEGATION_ADDED` timeline event.
+- `setAllegationFinding` — `cases.edit` required; locates the allegation by
+  a `collectionGroup('allegations')` query (only the `allegationId` is
+  known here, same constraint the Firestore repository already documents);
+  validates `finding` against the real `FindingOutcome` union before
+  writing anything; writes both a timeline event and an audit entry.
+- `addPerson` — `cases.edit` required; validates `kind` is exactly
+  `'subject'` or `'witness'`; when `kind === 'subject'` and `linkedUserId`
+  is set, appends to `Case.implicatedUserIds` via `FieldValue.arrayUnion`
+  in the same call — flagged in the code itself as the one write in this
+  file `firestore.rules`' rule #9 enforcement directly depends on.
+- Widened `appendAudit`'s parameter type to accept `objectType`/`objectId`
+  (both optional, simply forwarded) — needed by `setAllegationFinding`'s
+  audit entry, which mirrors `scripts/firestoreAdminRepository.ts`'s
+  identical call exactly. `createCase`/`assignCase`/`changeCaseStatus`'s
+  existing calls are unaffected (both fields stay optional).
+
+**TEST / VERIFY**: `npm run build` inside `functions/` — clean. Root
+`tsc --noEmit` — clean. No live network test possible for the same reason
+as `getCaseForReporter` (undeployed, Spark decision) — stated plainly
+rather than implied. Correctness rests on: matching both existing,
+already-tested repository implementations field-for-field, and the new
+`cases.edit` gate being the same permission/scope/implicated-person check
+already live-verified in `firestore.rules` and in `assignCase`/
+`changeCaseStatus`.
+
+**DOCUMENT** → `docs/API.md` (all three moved from "planned" to
+"implemented"), this entry. Cloud Functions backlog now: `addEvidence` (+
+Storage), `addTask`, `addInterview`, `addInvestigationNote`,
+`addCommunication`, `addCorrectiveAction`, `recordRiskAssessment`,
+`declareConflictOfInterest`, `getReporterIdentity`.
