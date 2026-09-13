@@ -141,7 +141,11 @@ const CONFIDENTIALITY_RANK: Record<ConfidentialityLevel, number> = {
   highly_confidential: 3,
 };
 
-function isConfidentialityAllowed(roleId: RoleId, level: ConfidentialityLevel): boolean {
+// === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité des
+// dossiers) === exportée (était privée) pour que `src/services/authz.ts`
+// puisse l'appliquer au modèle local `AlertRecord`, maintenant qu'il porte
+// lui aussi un `confidentialityLevel` réel.
+export function isConfidentialityAllowed(roleId: RoleId, level: ConfidentialityLevel): boolean {
   const max = ROLE_MAX_CONFIDENTIALITY[roleId];
   if (!max) return false;
   return CONFIDENTIALITY_RANK[level] <= CONFIDENTIALITY_RANK[max];

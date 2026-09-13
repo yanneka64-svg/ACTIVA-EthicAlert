@@ -9,7 +9,7 @@
 // `src/services/authz.ts`, qui s'appuie sur `src/domain/permissions.ts`
 // (roleHasPermission / can) au lieu de comparaisons de rôle codées en dur
 // éparpillées dans chaque écran.
-import { RoleId } from './domain/caseTypes';
+import { RoleId, ConfidentialityLevel } from './domain/caseTypes';
 
 export type Language = 'fr' | 'en' | 'pt';
 
@@ -172,6 +172,15 @@ export interface AlertRecord {
   tasks?: CaseTask[];
   interviews?: CaseInterview[];
   conflictDeclarations?: ConflictDeclaration[];
+  // === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
+  // Réutilise `ConfidentialityLevel` du modèle domain/ (même valeurs que
+  // celles déjà appliquées par `can()`/`ROLE_MAX_CONFIDENTIALITY`) plutôt
+  // que d'en recréer un. Optionnel et rétrocompatible : un dossier sans
+  // cette valeur (tout enregistrement créé avant cette phase) est traité
+  // comme `restricted` — le niveau le moins sensible, donc son accès ne se
+  // restreint jamais silencieusement pour personne — voir
+  // src/services/authz.ts `canSeeAlertConfidentiality`.
+  confidentialityLevel?: ConfidentialityLevel;
 }
 
 // === AMÉLIORATION AJOUTÉE (Phase 1 — frontend completion, data model extension) ===

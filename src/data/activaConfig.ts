@@ -262,6 +262,11 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     createdAt: '2026-09-08T10:14:00Z',
     updatedAt: '2026-09-11T14:30:00Z',
     targetCompletionDate: '2026-09-15T18:00:00Z',
+    // === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
+    // Fraude/corruption impliquant un tiers externe : niveau le plus
+    // sensible — seuls senior_investigator/functional_admin/darc_compliance
+    // y ont accès (voir domain/permissions.ts ROLE_MAX_CONFIDENTIALITY).
+    confidentialityLevel: 'highly_confidential',
     whistleblower: {
       isAnonymous: true,
       declarantType: 'Employé',
@@ -364,6 +369,10 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     createdAt: '2026-08-28T14:00:00Z',
     updatedAt: '2026-09-05T09:00:00Z',
     targetCompletionDate: '2026-09-28T18:00:00Z',
+    // === AMÉLIORATION AJOUTÉE (Phase 12.5) === RH/harcèlement, lanceur
+    // d'alerte identifié : sensible mais accessible aux investigateurs de
+    // base (plafond `confidential`, pas `highly_confidential`).
+    confidentialityLevel: 'confidential',
     whistleblower: {
       isAnonymous: false,
       fullName: 'Jean-Marc D.',
@@ -439,6 +448,10 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     channel: 'web',
     createdAt: '2026-07-15T08:30:00Z',
     updatedAt: '2026-08-01T11:00:00Z',
+    // === AMÉLIORATION AJOUTÉE (Phase 12.5) === volontairement sans valeur
+    // ici (dossier clôturé, faible priorité) — démontre le comportement de
+    // repli : traité comme `restricted`, visible par tout le monde,
+    // exactement comme avant cette phase pour les dossiers déjà existants.
     whistleblower: {
       isAnonymous: true,
       declarantType: 'Prestataire',

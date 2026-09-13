@@ -18,8 +18,8 @@
  * vérification `assignedInvestigators.includes(activeUser.id)` déjà
  * existante dans chaque écran, inchangée.
  */
-import { UserProfile } from '../types';
-import { Permission, roleHasPermission, hasGlobalCaseVisibility } from '../domain/permissions';
+import { UserProfile, AlertRecord } from '../types';
+import { Permission, roleHasPermission, hasGlobalCaseVisibility, isConfidentialityAllowed } from '../domain/permissions';
 
 export function userCan(user: UserProfile, permission: Permission): boolean {
   return roleHasPermission(user.role, permission);
@@ -51,4 +51,17 @@ export function canManageConfiguration(user: UserProfile): boolean {
 /** Un utilisateur "collaborateur" (pas le lanceur d'alerte public) — remplace `role !== 'whistleblower'`. */
 export function isStaffUser(user: UserProfile): boolean {
   return user.role !== 'reporter';
+}
+
+/**
+ * === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
+ * Vraie application (pas seulement un badge décoratif) du plafond de
+ * confidentialité déjà défini par rôle dans domain/permissions.ts,
+ * maintenant qu'`AlertRecord` porte un `confidentialityLevel` réel. Un
+ * dossier sans valeur (créé avant cette phase) est traité comme
+ * `restricted` — le niveau le moins sensible, donc jamais restrictif pour
+ * personne rétroactivement.
+ */
+export function canSeeAlertConfidentiality(user: UserProfile, alert: Pick<AlertRecord, 'confidentialityLevel'>): boolean {
+  return isConfidentialityAllowed(user.role, alert.confidentialityLevel ?? 'restricted');
 }
