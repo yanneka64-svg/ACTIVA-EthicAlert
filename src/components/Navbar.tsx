@@ -252,13 +252,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {t.nav_public_how}
               </button>
 
+              {/* === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de
+                  l'accueil) === Vraie navigation vers l'onglet `/faq`
+                  (FaqView.tsx) au lieu d'un défilement vers une ancre
+                  aujourd'hui retirée de la page d'accueil. */}
               <button
                 id="nav-btn-faq"
-                onClick={() => {
-                  setCurrentTab('home');
-                  setTimeout(() => document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' }), 50);
-                }}
-                className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-blue-700 transition"
+                onClick={() => setCurrentTab('faq')}
+                className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
+                  currentTab === 'faq'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-600 hover:text-blue-700'
+                }`}
               >
                 {t.nav_public_faq}
               </button>

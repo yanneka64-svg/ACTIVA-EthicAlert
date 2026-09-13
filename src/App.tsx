@@ -11,6 +11,8 @@ import { storage } from './services/storage';
 import { TRANSLATIONS } from './i18n/translations';
 import { Navbar } from './components/Navbar';
 import { WhistleblowerHome } from './components/WhistleblowerHome';
+// === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
+import { FaqView } from './components/FaqView';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
 import { AlertTrackingView } from './components/AlertTrackingView';
 import { InvestigationDesk } from './components/InvestigationDesk';
@@ -245,20 +247,16 @@ function AppShell() {
   // sans qu'InvestigationDesk n'ait besoin de changer.
   const effectiveCaseFilter = routeTrackingNumber ? { trackingNumber: routeTrackingNumber } : pendingCaseFilter;
 
-  // === AMÉLIORATION AJOUTÉE (Phase 12.2) === /how-it-works et /faq
-  // réutilisent la page d'accueil existante (même contenu, jamais dupliqué)
-  // et se contentent de faire défiler jusqu'à la section correspondante —
-  // voir les ancres #how-it-works/#faq ajoutées dans WhistleblowerHome.tsx.
+  // === AMÉLIORATION AJOUTÉE (Phase 12.2) === /how-it-works réutilise la
+  // page d'accueil existante (même contenu, jamais dupliqué) et se contente
+  // de faire défiler jusqu'à la section correspondante — voir l'ancre
+  // #how-it-works-section dans WhistleblowerHome.tsx.
+  // === AMÉLIORATION AJOUTÉE (Phase 18) === /faq n'est plus concerné : la
+  // FAQ a désormais son propre onglet réel (voir routing/routes.ts et
+  // FaqView.tsx) plutôt qu'une ancre sur la page d'accueil.
   useEffect(() => {
-    if (location.pathname === '/how-it-works' || location.pathname === '/faq') {
-      // === AMÉLIORATION AJOUTÉE : correction post-fusion ===
-      // Les ancres réelles posées dans WhistleblowerHome.tsx sont
-      // `how-it-works-section`/`faq-section` (renommées Phase 13) — cette
-      // recherche ciblait encore les anciens id `how-it-works`/`faq`
-      // (jamais mis à jour), donc une entrée directe sur /how-it-works ou
-      // /faq ne faisait plus défiler la page jusqu'à la section.
-      const id = location.pathname === '/how-it-works' ? 'how-it-works-section' : 'faq-section';
-      const el = document.getElementById(id);
+    if (location.pathname === '/how-it-works') {
+      const el = document.getElementById('how-it-works-section');
       el?.scrollIntoView({ behavior: 'smooth' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -389,7 +387,13 @@ function AppShell() {
             onGoToTrack={() => goToTab('track')}
             onOpenQrModal={() => setShowQrModal(true)}
             onOpenDesk={() => goToTab('portal')}
+            onGoToFaq={() => goToTab('faq')}
           />
+        )}
+
+        {/* === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) === */}
+        {currentTab === 'faq' && (
+          <FaqView lang={lang} onStartNewAlert={() => goToTab('new_alert')} />
         )}
 
         {currentTab === 'new_alert' && (

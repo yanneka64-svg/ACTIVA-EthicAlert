@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ShieldCheck,
   UserX,
   QrCode,
   HeartHandshake,
-  ChevronDown,
   ChevronRight,
   ArrowRight,
   ArrowUpRight,
-  HelpCircle,
   Send,
   Search,
   PlayCircle,
@@ -32,6 +30,8 @@ interface WhistleblowerHomeProps {
   onGoToTrack: () => void;
   onOpenQrModal: () => void;
   onOpenDesk: () => void;
+  // === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
+  onGoToFaq: () => void;
 }
 
 // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
@@ -58,23 +58,13 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   onGoToTrack,
   onOpenQrModal,
   onOpenDesk,
+  onGoToFaq,
 }) => {
   const t = TRANSLATIONS[lang];
   // === AMÉLIORATION AJOUTÉE (Phase 17) === section "Des sujets qui
   // comptent" : relit la liste réelle et éditable des catégories, comme le
   // faisait déjà l'ancienne section pleine page qu'elle remplace visuellement.
   const alertCategories = storage.getCategories();
-
-  // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section, absente jusqu'ici) ===
-  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-  const faqItems: { q: string; a: string }[] = [
-    { q: t.faq_q1, a: t.faq_a1 },
-    { q: t.faq_q2, a: t.faq_a2 },
-    { q: t.faq_q3, a: t.faq_a3 },
-    { q: t.faq_q4, a: t.faq_a4 },
-    { q: t.faq_q5, a: t.faq_a5 },
-    { q: t.faq_q6, a: t.faq_a6 },
-  ];
 
   return (
     <div className="space-y-12 pb-8">
@@ -203,7 +193,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               {t.process_heading}
             </h3>
             <button
-              onClick={() => document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={onGoToFaq}
               className="flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:underline shrink-0"
             >
               {t.process_view_faq}
@@ -290,42 +280,10 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         </div>
       </div>
 
-      {/* FAQ — grille sur 2 colonnes façon maquette adoptée, coins nets,
-          même contenu et même comportement d'accordéon qu'avant. */}
-      <div id="faq-section" className="bg-white p-8 border border-slate-200 shadow-sm space-y-6">
-        <div className="max-w-2xl space-y-2">
-          <div className="w-10 h-10 bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
-            <HelpCircle className="w-5 h-5" />
-          </div>
-          <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{t.faq_title}</h3>
-          <p className="text-xs text-slate-600">{t.faq_subtitle}</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0 border border-slate-200 divide-y sm:divide-y-0 divide-slate-100">
-          {faqItems.map((item, idx) => {
-            const open = openFaqIndex === idx;
-            return (
-              <div
-                key={idx}
-                className={`bg-white sm:border-slate-100 ${idx % 2 === 0 ? 'sm:border-r' : ''} ${idx < faqItems.length - 2 ? 'border-b sm:border-b-0' : ''}`}
-              >
-                <button
-                  onClick={() => setOpenFaqIndex(open ? null : idx)}
-                  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50 transition"
-                >
-                  <span className="text-sm font-semibold text-slate-800">{item.q}</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-                </button>
-                {open && (
-                  <div className="px-5 pb-4 text-xs text-slate-600 leading-relaxed">
-                    {item.a}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
+          La FAQ vit désormais dans son propre onglet public (`/faq`, voir
+          FaqView.tsx et App.tsx) plutôt qu'ici — le bouton "Voir la FAQ" de
+          la section précédente y navigue directement (onGoToFaq). */}
       </div>
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 17) === bandeau d'appel à l'action
