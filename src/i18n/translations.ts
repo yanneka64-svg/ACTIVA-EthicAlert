@@ -596,6 +596,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 13 — refonte de l'accueil, maquette photo) ===
     nav_secure_space: 'Espace sécurisé',
     nav_public_contact: 'Contact',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel, WhatsApp +
+    // e-mail dédiés, maquette de référence) ===
+    contact_title: 'Nous contacter',
+    contact_subtitle: 'Vous pouvez nous contacter via les canaux ci-dessous pour signaler une préoccupation ou poser une question.',
+    contact_whatsapp_title: 'WhatsApp Business',
+    contact_whatsapp_available: 'Disponible 24/7',
+    contact_whatsapp_tip1: 'Message automatique d’accueil',
+    contact_whatsapp_tip2: 'Échange écrit et confidentiel',
+    contact_whatsapp_tip3: 'Pièces jointes possibles (photos, documents, etc.)',
+    contact_whatsapp_tip4: 'Disponible 24/7',
+    contact_whatsapp_btn: 'Ouvrir WhatsApp',
+    contact_email_title: 'Adresse e-mail dédiée',
+    contact_email_recommended: 'Canal recommandé pour l’écrit',
+    contact_email_btn: 'Envoyer un e-mail',
+    contact_email_info1: 'Ce canal est recommandé pour les déclarations écrites et permet de joindre des documents (photos, fichiers, etc.).',
+    contact_email_info2: 'Vous recevez un accusé de réception automatique.',
+    contact_email_info3: 'Les échanges sont traités de manière confidentielle.',
+    contact_confidentiality_desc: 'Quel que soit le canal choisi, vos informations sont traitées de manière sécurisée et confidentielle.',
+    btn_copy: 'Copier',
+
     process_label: 'Un processus simple et sécurisé',
     process_heading: 'Comment ça marche ?',
     process_view_faq: 'Voir la FAQ',
@@ -1178,6 +1199,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 13 — home page redesign, photo mockup) ===
     nav_secure_space: 'Secure area',
     nav_public_contact: 'Contact us',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 27 — real Contact tab, dedicated
+    // WhatsApp + email, reference mockup) ===
+    contact_title: 'Contact us',
+    contact_subtitle: 'You can reach us through the channels below to report a concern or ask a question.',
+    contact_whatsapp_title: 'WhatsApp Business',
+    contact_whatsapp_available: 'Available 24/7',
+    contact_whatsapp_tip1: 'Automatic welcome message',
+    contact_whatsapp_tip2: 'Written, confidential exchange',
+    contact_whatsapp_tip3: 'Attachments possible (photos, documents, etc.)',
+    contact_whatsapp_tip4: 'Available 24/7',
+    contact_whatsapp_btn: 'Open WhatsApp',
+    contact_email_title: 'Dedicated email address',
+    contact_email_recommended: 'Recommended channel for written reports',
+    contact_email_btn: 'Send an email',
+    contact_email_info1: 'This channel is recommended for written statements and lets you attach documents (photos, files, etc.).',
+    contact_email_info2: 'You receive an automatic acknowledgment of receipt.',
+    contact_email_info3: 'Exchanges are handled confidentially.',
+    contact_confidentiality_desc: 'Whichever channel you choose, your information is handled securely and confidentially.',
+    btn_copy: 'Copy',
+
     process_label: 'A simple, secure process',
     process_heading: 'How does it work?',
     process_view_faq: 'See the FAQ',
@@ -1760,6 +1802,26 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 13 — redesenho da página inicial) ===
     nav_secure_space: 'Área segura',
     nav_public_contact: 'Contacte-nos',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 27 — aba de Contacto real, WhatsApp +
+    // e-mail dedicados, maquete de referência) ===
+    contact_title: 'Contacte-nos',
+    contact_subtitle: 'Pode contactar-nos através dos canais abaixo para reportar uma preocupação ou fazer uma pergunta.',
+    contact_whatsapp_title: 'WhatsApp Business',
+    contact_whatsapp_available: 'Disponível 24/7',
+    contact_whatsapp_tip1: 'Mensagem automática de boas-vindas',
+    contact_whatsapp_tip2: 'Troca escrita e confidencial',
+    contact_whatsapp_tip3: 'Anexos possíveis (fotos, documentos, etc.)',
+    contact_whatsapp_tip4: 'Disponível 24/7',
+    contact_whatsapp_btn: 'Abrir WhatsApp',
+    contact_email_title: 'Endereço de e-mail dedicado',
+    contact_email_recommended: 'Canal recomendado para o escrito',
+    contact_email_btn: 'Enviar um e-mail',
+    contact_email_info1: 'Este canal é recomendado para declarações escritas e permite anexar documentos (fotos, ficheiros, etc.).',
+    contact_email_info2: 'Recebe uma confirmação de receção automática.',
+    contact_email_info3: 'As trocas são tratadas de forma confidencial.',
+    contact_confidentiality_desc: 'Seja qual for o canal escolhido, as suas informações são tratadas de forma segura e confidencial.',
+    btn_copy: 'Copiar',
     process_label: 'Um processo simples e seguro',
     process_heading: 'Como funciona?',
     process_view_faq: 'Ver a FAQ',

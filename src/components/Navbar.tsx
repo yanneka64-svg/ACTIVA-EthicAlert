@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Search,
-  QrCode,
   ChevronDown,
   Database,
   Bell,
@@ -11,10 +10,11 @@ import {
   RotateCcw,
   Paperclip,
   FileCheck2,
-  Lock,
   Send,
   User,
 } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (Phase 27) === `QrCode` et `Lock` retirés : ils ne
+// servaient plus qu'aux icônes de l'en-tête public retirées cette phase.
 import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
@@ -265,10 +265,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {t.nav_public_faq}
               </button>
 
+              {/* === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) ===
+                  Navigue désormais réellement vers `/contact` (ContactView.tsx,
+                  WhatsApp Business + e-mail dédié) au lieu de simplement
+                  faire défiler jusqu'au pied de page. */}
               <button
                 id="nav-btn-contact"
-                onClick={() => document.querySelector('footer')?.scrollIntoView({ behavior: 'smooth' })}
-                className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-blue-700 transition"
+                onClick={() => setCurrentTab('contact')}
+                className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
+                  currentTab === 'contact'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-600 hover:text-blue-700'
+                }`}
               >
                 {t.nav_public_contact}
               </button>
@@ -277,31 +285,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right cluster */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {!isStaffContext && (
-              /* === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de
-                  l'accueil) === La maquette adoptée ne montre plus ce bouton
-                  du tout dans l'en-tête public (place laissée aux deux
-                  actions "Suivre"/"Signaler" ci-dessous) — mais c'est
-                  l'unique point d'entrée public vers l'espace collaborateur
-                  (régression déjà corrigée une fois, Phase 10 : sans lui, un
-                  profil staff arrivant sur une page publique n'a plus aucun
-                  moyen d'y accéder, la barre latérale ne s'affichant qu'une
-                  fois DANS l'espace staff). Conservé, réduit à une icône
-                  discrète plutôt que supprimé. */
-              <button
-                id="nav-btn-portal"
-                onClick={() => setCurrentTab('portal')}
-                className="relative p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0B2545] transition"
-                title={t.nav_secure_space}
-              >
-                <Lock className="w-4 h-4" />
-                {pendingAlertsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 bg-amber-400 text-slate-950 text-[9px] font-bold flex items-center justify-center">
-                    {pendingAlertsCount}
-                  </span>
-                )}
-              </button>
-            )}
+            {/* === AMÉLIORATION AJOUTÉE (Phase 27) === Icône « cloche » (accès
+                espace collaborateur, ex-`#nav-btn-portal`) retirée de l'en-tête
+                public sur demande explicite. L'espace collaborateur reste
+                accessible directement via /login (Phase 12.4, StaffLoginView)
+                — aucune fonctionnalité n'est supprimée côté application,
+                seul ce raccourci discret dans l'en-tête disparaît. */}
             {isStaffContext && (
               <>
                 {/* Notification bell */}
@@ -386,16 +375,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </>
             )}
 
-            {!isStaffContext && (
-              <button
-                id="nav-btn-qr"
-                onClick={onOpenQrModal}
-                className="p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-700 transition"
-                title="Générer / Afficher le QR Code de signalement"
-              >
-                <QrCode className="w-4 h-4" />
-              </button>
-            )}
+            {/* === AMÉLIORATION AJOUTÉE (Phase 27) === Icône QR Code retirée
+                de l'en-tête public sur demande explicite. */}
 
             {/* Language Selector */}
             <div className="relative">
@@ -604,13 +585,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Database className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={onOpenQrModal}
-            className="px-2.5 py-1 rounded-full whitespace-nowrap bg-slate-100 text-blue-700 flex items-center gap-1"
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span>QR</span>
-          </button>
+          {/* === AMÉLIORATION AJOUTÉE (Phase 27) === bouton QR retiré de la
+              barre mobile aussi, par cohérence avec l'en-tête desktop. */}
         </div>
       </div>
     </header>

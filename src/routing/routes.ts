@@ -23,6 +23,10 @@ export const TAB_TO_PATH: Record<string, string> = {
   // Redevient un vrai onglet public avec sa propre URL, au lieu d'une simple
   // ancre de défilement sur la page d'accueil — voir FaqView.tsx.
   faq: '/faq',
+  // === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) ===
+  // Même logique que /faq juste au-dessus : vrai onglet avec sa propre URL,
+  // voir ContactView.tsx.
+  contact: '/contact',
   firebase_lookup: '/lookup',
   login: '/login',
   control_panel: '/dashboard',
