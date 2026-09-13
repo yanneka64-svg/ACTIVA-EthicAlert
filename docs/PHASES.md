@@ -504,3 +504,69 @@ now only: `addEvidence` (+ Storage Security Rules, a genuinely larger
 unit), `getReporterIdentity` (mandatory audit logging), a reporter-side
 `addCommunication`. Every other write path in `CaseRepository` is now a
 real, type-checked Cloud Function — undeployed, but no longer unwritten.
+
+---
+
+## Last two backlog Cloud Functions: `addCommunicationAsReporter`, `getReporterIdentity`
+
+**AUDIT** → of the 3 remaining backlog items, 2 don't actually need
+Storage (only `addEvidence` does): a reporter-side `addCommunication` (the
+staff-side one was already done; without a reporter equivalent, a reporter
+can read their case's messages via `getCaseForReporter` but never reply —
+a real, asymmetric gap), and `getReporterIdentity`. The latter needed a
+genuine design decision, not just a port: neither existing repository
+implementation actually enforces a distinct permission for it (section 44
+of the brief: "no investigator gets reporter identity merely because it
+was assigned to the case" — stated in both repositories' own comments, but
+not actually gated beyond an audit-log write).
+
+**PLAN** → `addCommunicationAsReporter`: reuse `getCaseForReporter`'s
+credential-verification sequence rather than duplicate it, since both
+need the identical rate-limited lookup-and-verify. `getReporterIdentity`:
+since Cloud Functions are the real trust boundary (unlike the repository
+classes), decide on a permission to gate this on that reflects section
+44's stated intent without inventing a new entry in the `Permission`
+union — `audit.read` is the closest existing permission that
+`investigator`/`senior_investigator` do not hold while
+`functional_admin`/`darc_compliance` do, matching the brief's intent
+exactly (`system_admin` also has `audit.read` but is excluded anyway by
+`can()`'s assigned-or-global-visibility check, since it has no case access
+by design).
+
+**IMPLEMENT**:
+- Factored `getCaseForReporter`'s lookup-verify-rate-limit body into a
+  shared `verifyReporterAccess(caseNumber, accessCode)` helper (returning
+  the case doc reference and data) rather than duplicate it a second time;
+  `getCaseForReporter` itself now calls this helper, unchanged in
+  behavior.
+- `addCommunicationAsReporter` (`{ caseNumber, accessCode, content }` →
+  `{ messageId }`) — `sender: 'reporter'`, `senderDisplayName` deliberately
+  generic (`'Lanceur d'alerte'`) rather than looked up from
+  `reporter_identities`, a conservative simplification versus the legacy
+  `AlertTrackingView`'s real-name display for non-anonymous reports,
+  documented as deliberate rather than left unstated.
+- `getReporterIdentity` (`{ caseId }` → the identity doc or `null`), gated
+  via `requireCaseAccess(caseId, user, 'audit.read')`; writes the
+  `REPORTER_IDENTITY_ACCESSED` audit entry unconditionally, even before
+  the read — the entry itself is the record the request was made, matching
+  both existing repository implementations exactly.
+- Updated the file's header comment and trailing backlog note: only
+  `addEvidence` remains, now stated as the sole exception rather than one
+  of several.
+
+**TEST / VERIFY**: `npm run build` inside `functions/` — clean. Root
+`tsc --noEmit` — clean. No live network test possible (undeployed, Spark
+decision, unchanged) — stated plainly rather than implied. Correctness
+rests on: `getCaseForReporter`'s behavior being provably unchanged after
+the refactor (same helper, same call sites, same return shape — verified
+by reading the diff, not just trusting the build), and the `audit.read`
+gate producing exactly the intended role set by tracing `can()`'s own
+logic (`ROLE_PERMISSIONS['investigator']` excludes `audit.read`;
+`GLOBAL_VISIBILITY_ROLES` excludes `system_admin`) rather than assumed.
+
+**DOCUMENT** → `docs/API.md` (both moved from "planned" to "implemented";
+denominator corrected again — 16 of 17 mutation-shaped operations now
+real), this entry. Cloud Functions backlog is now exactly one item:
+`addEvidence`, which needs Storage Security Rules and a signed-URL flow —
+a genuinely different, larger unit of work than everything ported so far,
+not a small remaining port.

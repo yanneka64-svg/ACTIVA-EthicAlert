@@ -11,7 +11,7 @@ of truth.
 | | Status |
 |---|---|
 | `CaseRepository` interface (~24 operations) | Fully specified in TypeScript. Fully implemented twice: `LocalCaseRepository` (localStorage, used by nothing in the shipped UI yet) and `FirestoreAdminCaseRepository` (Admin SDK, used by the one-off seed/migration scripts). Both pass the same behavior (see `docs/PHASES.md` Phase 2/2b). |
-| Cloud Functions (the real network-callable API) | **14 mutation/read operations implemented and type-checked**: `createCase`, `assignCase`, `changeCaseStatus`, `addAllegation`, `setAllegationFinding`, `addPerson`, `addTask`, `addInterview`, `addInvestigationNote`, `addCommunication`, `addCorrectiveAction`, `recordRiskAssessment`, `declareConflictOfInterest`, `getCaseForReporter`. Only 3 mutation-shaped operations remain (`addEvidence`, `getReporterIdentity`, a reporter-side `addCommunication` — see the backlog table below), plus the read-side callables (`getCase`/`listCases`) still blocked on the same wall as ever. **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). Nothing below is reachable over the network right now. |
+| Cloud Functions (the real network-callable API) | **16 operations implemented and type-checked** — every mutation-shaped `CaseRepository` operation except `addEvidence`: `createCase`, `assignCase`, `changeCaseStatus`, `addAllegation`, `setAllegationFinding`, `addPerson`, `addTask`, `addInterview`, `addInvestigationNote`, `addCommunication`, `addCorrectiveAction`, `recordRiskAssessment`, `declareConflictOfInterest`, `getCaseForReporter`, `addCommunicationAsReporter`, `getReporterIdentity`. Only `addEvidence` remains (needs Storage Security Rules + a signed-URL flow — see the backlog table below), plus the read-side callables (`getCase`/`listCases`) still blocked on the same wall as ever. **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). Nothing below is reachable over the network right now. |
 | Reads | Not a Cloud Function today — direct Firestore reads via `firestore.rules`, single-document `getDoc` only (see `docs/PERMISSIONS.md`/`docs/FIREBASE-SETUP.md` — list queries are blocked outright by Firestore itself, a Cloud Function is the architecturally-required fix, same billing blocker as above). |
 
 This document describes the API **as designed and as far as it is built**,
@@ -166,6 +166,60 @@ UX is unchanged — only where it's actually enforced. A client cannot reset
 this counter by clearing `localStorage` or switching browsers, unlike the
 purely client-side version.
 
+The lookup-verify-rate-limit sequence itself is factored into a shared
+`verifyReporterAccess(caseNumber, accessCode)` helper, reused by
+`addCommunicationAsReporter` below rather than duplicated.
+
+### `addCommunicationAsReporter`
+
+| | |
+|---|---|
+| Auth required | None, same credential model as `getCaseForReporter` (reuses `verifyReporterAccess`, including the same shared rate limiter). |
+| Request | `{ caseNumber, accessCode, content }` |
+| Response | `{ messageId }` |
+| Errors | Same as `getCaseForReporter` (`invalid-argument`, `resource-exhausted`, `permission-denied`) |
+
+The reporter-side equivalent of the staff-only `addCommunication` above —
+without it, a reporter could read their case's messages but never reply.
+`senderDisplayName` is deliberately generic (`'Lanceur d'alerte'`)
+regardless of `Case.reportingMode`, rather than looking up the reporter's
+real name from `reporter_identities` — that collection's whole purpose is
+explicit, individually-audited access (see `getReporterIdentity` below),
+and this callable has no legitimate reason to read it just to fill in a
+label. This is a deliberate, conservative simplification versus the legacy
+`AlertTrackingView` (which does show a real name for non-anonymous
+alerts), not an oversight — stated here rather than left implicit.
+
+### `getReporterIdentity`
+
+| | |
+|---|---|
+| Permission required | `audit.read` — **not** `cases.edit` (see below) |
+| Request | `{ caseId }` |
+| Response | The `ReporterIdentity` document, or `null` if none exists (anonymous reports have none). |
+| Errors | `unauthenticated`, `invalid-argument`, `not-found`, `permission-denied` |
+
+**=== AMÉLIORATION AJOUTÉE : gate choice, explained ===** Section 44 of
+the brief (quoted in both existing repository implementations) says
+plainly: "no investigator gets reporter identity merely because it was
+assigned to the case" — explicit, individually-authorized, audited access
+only. Neither `LocalCaseRepository` nor `FirestoreAdminCaseRepository`
+actually enforces a distinct permission for this beyond auditing the
+access (reasonable for those lower-level storage primitives, the same
+reasoning `requireCaseAccess`'s own header comment gives); a public
+callable is the real trust boundary, so this one gates on `audit.read`
+rather than `cases.edit` — the closest existing `Permission` an
+`investigator`/`senior_investigator` plainly does **not** hold, while
+`functional_admin`/`darc_compliance` do, matching the brief's intent
+without inventing a new permission in the `Permission` union just for this
+one case. (`system_admin` also holds `audit.read` but has no case access
+at all by design — `can()`'s assigned-or-global-visibility check still
+correctly excludes it.) The audit entry
+(`REPORTER_IDENTITY_ACCESSED`) is written unconditionally, even before the
+identity document is read — the entry itself is the record that the
+request was made, matching both existing repository implementations
+exactly.
+
 ## Planned, not yet implemented (the remaining `CaseRepository` surface)
 
 Same pattern as the three above (verify identity from the token, call
@@ -176,9 +230,7 @@ vague "more to come":
 | Operation | Purpose |
 |---|---|
 | `listAllegations`, `listPersons`, `listTasks`, `listInterviews`, `listInvestigationNotes`, `listCommunications`, `listCorrectiveActions`, `getActiveRiskAssessment`, `listAuditEvents` | Read-side of the mutations above — none are callables yet (see the `getCase`/`listCases` row below on reads generally). |
-| `addEvidence`, `listEvidence` | Evidence metadata + (once built) a signed, short-lived Storage upload/download URL — deliberately never a public URL (see `Evidence.storagePath`'s comment in `caseTypes.ts`). The one remaining mutation that's a genuinely larger unit than the others (needs Storage Security Rules too), not just an oversight. |
-| `getReporterIdentity` | Must log a `REPORTER_IDENTITY_ACCESSED` audit entry on every call — see `docs/DATABASE.md`. |
-| A reporter-side `addCommunication` | The staff-side `addCommunication` above is implemented; reporters (no Firebase Auth token) still need an equivalent reached through `getCaseForReporter`'s `caseNumber`+`accessCode` credential model, not `requireAppUser()`. |
+| `addEvidence`, `listEvidence` | Evidence metadata + (once built) a signed, short-lived Storage upload/download URL — deliberately never a public URL (see `Evidence.storagePath`'s comment in `caseTypes.ts`). The one remaining mutation-shaped operation, a genuinely larger unit than the others (needs Storage Security Rules too), not an oversight. |
 | `getCase`, `listCases` | Reads. `getCase` already has a real, deployed, direct-Firestore equivalent (`getDoc`, see `docs/PERMISSIONS.md`) — a callable version would mainly matter for reporters or for hiding fields server-side. `listCases` is the one genuinely blocked by Firestore's list-query wall (`docs/FIREBASE-SETUP.md` Phase 4 finding) — this is the callable every future Control Panel screen needs before it can be built for real. |
 
 ## Where this fits in `docs/ARCHITECTURE.md`'s principle

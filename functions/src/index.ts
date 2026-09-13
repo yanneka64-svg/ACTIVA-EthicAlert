@@ -15,14 +15,15 @@
  * Functions/Cloud Build APIs, which are not reachable with the credentials
  * available to this session (Cloud Billing API returned SERVICE_DISABLED,
  * `firebase functions:list` failed) — see docs/FIREBASE-SETUP.md for exactly
- * what is needed to finish this. This now covers all but 3 of the ~15
- * operations listed in `src/data-access/caseRepository.ts`'s
- * `CaseRepository` interface — only `addEvidence` (needs Storage rules +
- * a signed-URL flow), `getReporterIdentity`, and a reporter-side
- * `addCommunication` remain, listed at the bottom of this file as the
- * remaining backlog. Every callable follows the same pattern: verify
- * identity from the token, call `can()`/`checkTransition()` from the
- * domain layer, write a timeline event and/or audit entry.
+ * what is needed to finish this. This now covers every mutation-shaped
+ * operation in `src/data-access/caseRepository.ts`'s `CaseRepository`
+ * interface except `addEvidence` (needs Storage Security Rules + a
+ * signed-URL flow — a genuinely larger unit, listed at the bottom of this
+ * file). Every callable follows the same pattern: verify identity from the
+ * token (or, for the two reporter-facing callables, verify a caseNumber +
+ * accessCode pair instead — reporters hold no Firebase Auth token), call
+ * `can()`/`checkTransition()` from the domain layer, write a timeline
+ * event and/or audit entry.
  */
 
 import { initializeApp } from 'firebase-admin/app';
@@ -686,11 +687,16 @@ async function recordReporterAttempt(key: string, success: boolean): Promise<voi
   });
 }
 
-export const getCaseForReporter = onCall(async (request) => {
-  const { caseNumber, accessCode } = request.data as { caseNumber?: string; accessCode?: string };
-  if (!caseNumber || !accessCode) {
-    throw new HttpsError('invalid-argument', 'caseNumber and accessCode are required.');
-  }
+// === AMÉLIORATION AJOUTÉE ===
+// Factored out of what was originally getCaseForReporter's own body, now
+// that a second reporter-facing callable (addCommunicationAsReporter,
+// below) needs the exact same rate-limited lookup-and-verify sequence —
+// factored out rather than copy-pasted a second time, same discipline as
+// requireCaseAccess above. Every failure path converges on the identical
+// `invalid()` error (never distinguishing "no such case" from "wrong
+// code"), and a caller's rate-limit attempt is recorded/cleared here in
+// exactly one place, not once per callable.
+async function verifyReporterAccess(caseNumber: string, accessCode: string): Promise<{ ref: FirebaseFirestore.DocumentReference; kase: Case }> {
   const key = caseNumber.trim().toUpperCase();
   const invalid = () => new HttpsError('permission-denied', 'Invalid case number or access code.');
 
@@ -717,11 +723,20 @@ export const getCaseForReporter = onCall(async (request) => {
   }
 
   await recordReporterAttempt(key, true);
+  return { ref: caseDoc.ref, kase };
+}
 
-  const commsSnap = await caseDoc.ref.collection('communications').orderBy('createdAt', 'asc').get();
+export const getCaseForReporter = onCall(async (request) => {
+  const { caseNumber, accessCode } = request.data as { caseNumber?: string; accessCode?: string };
+  if (!caseNumber || !accessCode) {
+    throw new HttpsError('invalid-argument', 'caseNumber and accessCode are required.');
+  }
+  const { ref: caseRef, kase } = await verifyReporterAccess(caseNumber, accessCode);
+
+  const commsSnap = await caseRef.collection('communications').orderBy('createdAt', 'asc').get();
   const communications = commsSnap.docs.map((d) => d.data() as Communication);
 
-  await appendAudit({ actorId: 'reporter', action: 'CASE_ACCESSED_BY_REPORTER', caseId: caseDoc.id });
+  await appendAudit({ actorId: 'reporter', action: 'CASE_ACCESSED_BY_REPORTER', caseId: caseRef.id });
 
   // Deliberately narrow, reporter-safe view — mirrors exactly what the
   // legacy AlertTrackingView already shows a reporter (status, description,
@@ -738,12 +753,86 @@ export const getCaseForReporter = onCall(async (request) => {
 });
 
 // ---------------------------------------------------------------------------
-// Remaining Phase 3 backlog (same pattern as above — not yet implemented):
-//   addEvidence (+ Storage upload URL issuance — needs Storage Security
-//   Rules and a signed-URL flow, a larger unit than the others here),
-//   getReporterIdentity (with mandatory REPORTER_IDENTITY_ACCESSED audit
-//   logging on every call — see docs/DATABASE.md), and a reporter-side
-//   addCommunication equivalent (through getCaseForReporter's credential
-//   model, not a Firebase Auth token — addCommunication above only covers
-//   the staff side).
+// addCommunicationAsReporter
+// === AMÉLIORATION AJOUTÉE ===
+// The reporter-side equivalent of addCommunication above — same
+// credential model as getCaseForReporter (caseNumber + accessCode, not a
+// Firebase Auth token, and the same shared rate limiter), so a reporter
+// can actually reply, not just read. `senderDisplayName` is deliberately
+// generic ('Lanceur d'alerte') regardless of Case.reportingMode, rather
+// than looking up the reporter's real name from `reporter_identities` —
+// that collection's whole purpose is explicit, individually-audited access
+// (section 44 of the brief, see getReporterIdentity below), and this
+// callable has no legitimate reason to read it just to fill in a label.
+// This is a deliberately conservative simplification versus the legacy
+// AlertTrackingView (which does show a real name for non-anonymous
+// alerts), not an oversight.
+// ---------------------------------------------------------------------------
+
+export const addCommunicationAsReporter = onCall(async (request) => {
+  const { caseNumber, accessCode, content } = request.data as { caseNumber?: string; accessCode?: string; content?: string };
+  if (!caseNumber || !accessCode || !content) {
+    throw new HttpsError('invalid-argument', 'caseNumber, accessCode and content are required.');
+  }
+  const { ref: caseRef } = await verifyReporterAccess(caseNumber, accessCode);
+
+  const messageId = newId('msg');
+  const nowIso = new Date().toISOString();
+  const message: Communication = {
+    messageId,
+    caseId: caseRef.id,
+    sender: 'reporter',
+    senderDisplayName: 'Lanceur d’alerte',
+    content,
+    createdAt: nowIso,
+    createdBy: 'reporter',
+    updatedAt: nowIso,
+    updatedBy: 'reporter',
+  };
+  await caseRef.collection('communications').doc(messageId).set(message);
+  await appendTimeline(caseRef.id, 'MESSAGE_SENT', 'reporter');
+
+  return { messageId };
+});
+
+// ---------------------------------------------------------------------------
+// getReporterIdentity
+// === AMÉLIORATION AJOUTÉE ===
+// Section 44 of the brief, quoted already in both existing repository
+// implementations: "no investigator gets reporter identity merely because
+// it was assigned to the case" — explicit, individually-authorized,
+// audited access only. Neither `LocalCaseRepository` nor
+// `FirestoreAdminCaseRepository` actually enforces a distinct permission
+// for this beyond auditing the access (both are lower-level storage
+// primitives, same reasoning as requireCaseAccess's own header comment);
+// a public callable is the real trust boundary, so this one does gate it,
+// on `audit.read` rather than `cases.edit` — the closest existing
+// `Permission` an investigator plainly does NOT hold (only
+// `functional_admin`/`darc_compliance` do, matching the brief's intent
+// without inventing a new permission in the `Permission` union just for
+// this one case; `system_admin` also has `audit.read` but has no case
+// access at all by design, so `can()`'s assigned-or-global-visibility
+// check still correctly excludes it here).
+// ---------------------------------------------------------------------------
+
+export const getReporterIdentity = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId } = request.data as { caseId: string };
+  if (!caseId) throw new HttpsError('invalid-argument', 'caseId is required.');
+
+  await requireCaseAccess(caseId, user, 'audit.read');
+
+  // Audited unconditionally, even though nothing has been read yet — the
+  // audit entry itself is the record that this identity-access request was
+  // made, matching both existing repository implementations exactly.
+  await appendAudit({ actorId: user.userId, action: 'REPORTER_IDENTITY_ACCESSED', caseId, reason: 'Explicit identity access request' });
+
+  const snap = await db.collection('reporter_identities').doc(caseId).get();
+  return snap.exists ? snap.data() : null;
+});
+
+// ---------------------------------------------------------------------------
+// Remaining backlog: addEvidence (+ Storage upload URL issuance — needs
+// Storage Security Rules and a signed-URL flow, a genuinely larger unit
+// than everything else in this file).
 // ---------------------------------------------------------------------------
