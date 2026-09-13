@@ -102,7 +102,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_new_alert: 'Signaler une préoccupation',
     btn_track_existing: 'Suivre mon signalement',
     btn_view_policy: 'Consulter la Charte Éthique',
-    
+
+    // === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === un
+    // second jeu de clés « Contact page » avait été réintroduit ici par une
+    // fusion avec `main` (doublon quasi intégral des clés `contact_*` déjà
+    // ajoutées Phase 27 plus bas dans ce bloc, jamais utilisées par
+    // ContactView.tsx) — provoquait une erreur de compilation (TS1117,
+    // propriétés en double dans le littéral d'objet). Retiré ; voir les
+    // clés `contact_*` existantes, conservées, juste avant `process_label`.
+
     // Alert form steps
     step_1_identity: '1. Confidentialité & Identité',
     step_2_facts: '2. Faits & Catégorie',
@@ -727,6 +735,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_track_existing: 'Track a report',
     btn_view_policy: 'View Ethics Charter',
 
+    // === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === doublon
+    // des clés `contact_*` retiré (voir le même commentaire dans le bloc fr).
+
     step_1_identity: '1. Confidentiality & Identity',
     step_2_facts: '2. Facts & Category',
     step_3_persons: '3. Involved Parties & Witnesses',
@@ -1329,6 +1340,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_new_alert: 'Reportar uma preocupação',
     btn_track_existing: 'Acompanhar uma denúncia',
     btn_view_policy: 'Consultar Carta de Ética',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === doublon
+    // des clés `contact_*` retiré (voir le même commentaire dans le bloc fr).
 
     step_1_identity: '1. Confidencialidade & Identidade',
     step_2_facts: '2. Fatos & Categoria',
