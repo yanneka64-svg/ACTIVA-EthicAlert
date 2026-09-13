@@ -63,7 +63,14 @@ interface InvestigationDeskProps {
   // Alerts" tables) land directly on that one case's detail pane, not just
   // a filtered list — reuses the existing search filter (which already
   // matches on trackingNumber) so no new lookup logic is needed.
-  initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string };
+  // === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructurée façon maquette) ===
+  // `myCasesOnly` powers the new dedicated "Mes Dossiers" sidebar entry: for
+  // a non-admin the existing role-visibility rule below already restricts
+  // the list to their own assigned cases, so this flag matters mainly for a
+  // global viewer (functional/system admin, auditor) who would otherwise see
+  // every case — it narrows the list to cases assigned to the *active* user
+  // specifically, without touching the underlying visibility rule itself.
+  initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean };
 }
 
 export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
@@ -97,6 +104,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // === AMÉLIORATION AJOUTÉE (Phase 5) ===
   const [unassignedOnlyFilter, setUnassignedOnlyFilter] = useState<boolean>(!!initialFilter?.unassignedOnly);
   const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);
+  // === AMÉLIORATION AJOUTÉE (Phase 9 — écran dédié "Mes Dossiers") ===
+  const [myCasesOnlyFilter] = useState<boolean>(!!initialFilter?.myCasesOnly);
 
   // Selected case active tab
   const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'investigation' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'conflict'>('overview');
@@ -179,6 +188,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     // === AMÉLIORATION AJOUTÉE (Phase 5) === Control-Panel-driven filters
     if (unassignedOnlyFilter && alert.assignedInvestigators.length > 0) return false;
     if (overdueOnlyFilter && computeSlaStatus(alert) !== 'overdue') return false;
+    // === AMÉLIORATION AJOUTÉE (Phase 9) === "Mes Dossiers" deep link
+    if (myCasesOnlyFilter && !alert.assignedInvestigators.includes(activeUser.id)) return false;
 
     // Search query
     if (searchQuery.trim()) {
