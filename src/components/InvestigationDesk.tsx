@@ -54,7 +54,13 @@ interface InvestigationDeskProps {
   // on every tab switch (App.tsx unmounts/remounts it, it is never kept
   // alive across tabs), so a fresh `initialFilter` is picked up correctly
   // every time the user navigates in from the Control Panel.
-  initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean };
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel deep-link) ===
+  // `trackingNumber` lets a caller (a specific case row in the Control
+  // Panel's "Requires Immediate Attention" / "Most Urgent Cases" / "Recent
+  // Alerts" tables) land directly on that one case's detail pane, not just
+  // a filtered list — reuses the existing search filter (which already
+  // matches on trackingNumber) so no new lookup logic is needed.
+  initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string };
 }
 
 export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
@@ -72,7 +78,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>(initialFilter?.status ?? 'all');
   const [entityFilter, setEntityFilter] = useState<string>('all');
   const [nocaFilter, setNocaFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(initialFilter?.trackingNumber ?? '');
   // === AMÉLIORATION AJOUTÉE (Phase 5) ===
   const [unassignedOnlyFilter, setUnassignedOnlyFilter] = useState<boolean>(!!initialFilter?.unassignedOnly);
   const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);

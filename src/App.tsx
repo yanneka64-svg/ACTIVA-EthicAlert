@@ -31,7 +31,7 @@ export default function App() {
   // === AMÉLIORATION AJOUTÉE (Phase 5) === filter the Control Panel's KPI
   // cards/quick actions hand off to InvestigationDesk when navigating there.
   const [pendingCaseFilter, setPendingCaseFilter] = useState<
-    { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean } | undefined
+    { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string } | undefined
   >(undefined);
 
   // Active user profile (role-switcher for demo/testing across CDC profiles; defaults to the
@@ -83,7 +83,7 @@ export default function App() {
     setCurrentTab(tab);
   };
 
-  const navigateToCases = (filter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean }) => {
+  const navigateToCases = (filter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string }) => {
     setPendingCaseFilter(filter);
     setCurrentTab('portal');
   };
@@ -118,6 +118,7 @@ export default function App() {
           activeUser={activeUser}
           onNavigateToCases={navigateToCases}
           onNavigateToReports={() => goToTab('reports')}
+          onNavigateToNewCase={() => goToTab('new_alert')}
         />
       ) : (
         renderAccessDenied('Centre de Pilotage')

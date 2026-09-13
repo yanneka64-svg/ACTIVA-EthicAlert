@@ -11,3 +11,7 @@ export { DataTable } from './DataTable';
 export type { DataTableColumn } from './DataTable';
 export { Breadcrumb } from './Breadcrumb';
 export type { BreadcrumbItem } from './Breadcrumb';
+
+// === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
+export { MiniLineChart, MiniDonutChart, MiniBarChart } from './Charts';
+export type { TrendPoint, DonutSlice, BarDatum } from './Charts';

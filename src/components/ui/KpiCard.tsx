@@ -28,17 +28,42 @@ interface KpiCardProps {
   label: string;
   tone?: KpiTone;
   onClick?: () => void;
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
+  // Both optional and additive: existing callers that pass neither keep the
+  // original centered compact card unchanged (still used by the SLA /
+  // investigation / corrective-action mini stat grids). When either is
+  // provided, the card switches to the mockup's left-aligned "header
+  // icon + big number + delta line" layout — used only by the top-row
+  // Control Panel KPI cards.
+  icon?: React.ReactNode;
+  sub?: React.ReactNode;
 }
 
-export const KpiCard: React.FC<KpiCardProps> = ({ value, label, tone = 'neutral', onClick }) => {
+export const KpiCard: React.FC<KpiCardProps> = ({ value, label, tone = 'neutral', onClick, icon, sub }) => {
   const style = TONE_STYLES[tone];
   const Tag = onClick ? 'button' : 'div';
+  const interactive = onClick ? 'cursor-pointer hover:shadow-md hover:brightness-95 transition' : '';
+
+  if (icon || sub) {
+    return (
+      <Tag
+        onClick={onClick}
+        className={`p-4 rounded-2xl border text-left w-full bg-white border-slate-200 shadow-sm ${interactive}`}
+      >
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          {icon}
+          <span>{label}</span>
+        </div>
+        <div className={`text-2xl sm:text-[28px] font-extrabold mt-2 ${style.text}`}>{value}</div>
+        {sub && <div className="text-[11px] font-semibold mt-1 flex items-center gap-1 text-slate-500">{sub}</div>}
+      </Tag>
+    );
+  }
+
   return (
     <Tag
       onClick={onClick}
-      className={`p-3 sm:p-4 rounded-xl border text-center w-full ${style.bg} ${style.border} ${
-        onClick ? 'cursor-pointer hover:shadow-md hover:brightness-95 transition' : ''
-      }`}
+      className={`p-3 sm:p-4 rounded-xl border text-center w-full ${style.bg} ${style.border} ${interactive}`}
     >
       <div className={`text-xl sm:text-2xl font-extrabold ${style.text}`}>{value}</div>
       <div className="text-[11px] text-slate-500 mt-0.5">{label}</div>
