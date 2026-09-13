@@ -3,7 +3,6 @@ import {
   ShieldAlert,
   BarChart3,
   History,
-  ChevronRight,
   LayoutDashboard,
   Landmark,
   // === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation façon maquette) ===
@@ -20,6 +19,8 @@ import {
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from '../services/authz';
 
 /**
  * === AMÉLIORATION AJOUTÉE : mise en page "portail sécurisé" avec navigation latérale ===
@@ -48,14 +49,15 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const canSeeAudit =
-    activeUser.role === 'functional_admin' ||
-    activeUser.role === 'system_admin' ||
-    activeUser.role === 'auditor';
-  const canSeeSettings = activeUser.role === 'system_admin';
-
-  // === AMÉLIORATION AJOUTÉE (Phase 5) === same visibility rule as InvestigationDesk's isGlobalViewer.
-  const canSeeControlPanel = canSeeAudit;
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de
+  // rôles) === `canSeeAudit` (piste d'audit) et `canSeeControlPanel`
+  // (dossiers) partageaient auparavant la même comparaison à 3 rôles ; ce
+  // sont maintenant deux permissions distinctes — `system_admin` garde
+  // `audit.read` mais n'a plus `cases.read` (brief section 30), donc les
+  // deux valeurs divergent désormais volontairement pour ce rôle.
+  const canSeeAudit = canSeeAuditTrail(activeUser);
+  const canSeeSettings = canManageConfiguration(activeUser);
+  const canSeeControlPanel = isGlobalCaseViewer(activeUser);
 
   // === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation
   // façon maquette) ===
@@ -95,11 +97,11 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'admin_users', label: t.nav_admin_users, icon: <Users className="w-4 h-4" />, visible: canSeeSettings, group: t.nav_group_admin },
     { key: 'admin_config', label: t.nav_admin_config, icon: <SlidersHorizontal className="w-4 h-4" />, visible: canSeeSettings, group: t.nav_group_admin },
   ];
-  // `settings` (Configuration Système, unfiltered) stays a valid tab id —
-  // still reachable from the Navbar's own quick-access button — it is
-  // simply no longer listed a second time in this sidebar now that
-  // 'admin_users'/'admin_config' cover the same screen with a scoped
-  // landing tab; nothing about it was removed, see AdminConfigView.tsx.
+  // `settings` (Configuration Système, unfiltered) stays a valid, fully
+  // working tab id — it is simply no longer listed a second time in this
+  // sidebar now that 'admin_users'/'admin_config' cover the exact same
+  // screen with a scoped landing tab; nothing about it was removed, see
+  // AdminConfigView.tsx.
 
   // === AMÉLIORATION AJOUTÉE (Phase 6 — sidebar grouping to match the
   // Control Panel mockup's grouped sidebar) === Purely a rendering
@@ -109,11 +111,18 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   const visibleNavItems = navItems.filter((i) => i.visible);
   let lastGroup: string | null = null;
 
+  // === AMÉLIORATION AJOUTÉE (Phase 10 — rail plein hauteur façon maquette) ===
+  // La maquette de référence montre un rail latéral qui touche le bord
+  // gauche de l'écran, sans coins arrondis ni marge, sur toute la hauteur —
+  // pas une carte centrée dans une page à largeur maximale comme
+  // auparavant. Seule la zone de contenu (à droite) garde sa propre largeur
+  // maximale centrée, pour que les tableaux/cartes restent lisibles. Aucun
+  // lien, comportement ou donnée n'est modifié — uniquement la mise en page.
   return (
-    <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
-      {/* Sidebar (desktop) */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-56 lg:shrink-0 lg:sticky lg:top-[6.5rem] lg:self-start bg-[#0B2545] rounded-2xl shadow-sm overflow-hidden mt-6">
-        <div className="px-4 py-4 border-b border-white/10">
+    <div className="flex flex-col lg:flex-row lg:items-stretch">
+      {/* Sidebar (desktop) — rail plein hauteur, bord gauche */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-14 lg:self-start lg:h-[calc(100vh-3.5rem)] bg-[#0B2545] overflow-y-auto">
+        <div className="px-4 py-4 border-b border-white/10 shrink-0">
           <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
             Portail Sécurisé DARC
           </span>
@@ -137,24 +146,22 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
                 <button
                   id={`sidebar-nav-${item.key}`}
                   onClick={() => setCurrentTab(item.key)}
-                  className={`w-full flex items-center justify-between gap-2 px-4 py-2.5 text-xs font-semibold transition ${
+                  className={`w-full flex items-center gap-2.5 px-4 py-2 mx-2 my-0.5 rounded-lg text-[13px] font-medium transition ${
                     active
-                      ? 'bg-amber-500 text-slate-950'
-                      : 'text-slate-200 hover:bg-white/10'
+                      ? 'bg-white/10 text-white font-semibold'
+                      : 'text-slate-300 hover:bg-white/5 hover:text-white'
                   }`}
+                  style={active ? { width: 'calc(100% - 1rem)' } : undefined}
                 >
-                  <span className="flex items-center gap-2.5">
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </span>
-                  {active && <ChevronRight className="w-3.5 h-3.5" />}
+                  {item.icon}
+                  <span className="truncate">{item.label}</span>
                 </button>
               </React.Fragment>
             );
           })}
         </nav>
 
-        <div className="px-4 py-3 border-t border-white/10 text-[10px] text-slate-400">
+        <div className="px-4 py-3 border-t border-white/10 text-[10px] text-slate-400 shrink-0">
           {t.group_name}
         </div>
       </aside>
@@ -180,8 +187,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
         })}
       </div>
 
-      {/* Content canvas */}
-      <div className="flex-1 min-w-0">{children}</div>
+      {/* Content canvas — sa propre largeur maximale centrée */}
+      <div className="flex-1 min-w-0 w-full max-w-[1600px] mx-auto lg:px-6 xl:px-8 lg:py-6">{children}</div>
     </div>
   );
 };

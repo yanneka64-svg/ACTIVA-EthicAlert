@@ -194,7 +194,8 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
       </div>
 
       {/* How it works (Process) */}
-      <div className="bg-slate-900 text-white rounded-3xl p-8 sm:p-10 space-y-8">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 12 — ancre pour /how-it-works) === */}
+      <div id="how-it-works" className="bg-slate-900 text-white rounded-3xl p-8 sm:p-10 space-y-8 scroll-mt-24">
         <div className="max-w-xl">
           <span className="text-xs uppercase font-bold tracking-wider text-amber-400">
             Processus de traitement sécurisé
@@ -247,8 +248,8 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         </div>
       </div>
 
-      {/* === AMÉLIORATION AJOUTÉE (Phase 2 — section FAQ) === */}
-      <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 2 — section FAQ ; Phase 12 — ancre pour /faq) === */}
+      <div id="faq" className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6 scroll-mt-24">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 mx-auto">
             <HelpCircle className="w-5 h-5" />

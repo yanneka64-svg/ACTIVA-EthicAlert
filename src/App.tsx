@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Language, UserProfile } from './types';
 import { storage } from './services/storage';
 import { Navbar } from './components/Navbar';
@@ -28,7 +29,15 @@ import { TasksRegistry } from './components/TasksRegistry';
 import { EvidenceRegistry } from './components/EvidenceRegistry';
 import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
-import { ShieldCheck, Lock, Building2, ShieldOff } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
+import { StaffLoginView } from './components/StaffLoginView';
+import { STAFF_TAB_KEYS } from './constants/staffTabs';
+// === AMÉLIORATION AJOUTÉE (Phase 12.2 — routage par URL réel) ===
+import { resolveRoute, pathForTab } from './routing/routes';
+import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer, canManageConfiguration, canSeeAuditTrail } from './services/authz';
+import { ShieldCheck, Lock, Building2 } from 'lucide-react';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -36,35 +45,38 @@ import { ShieldCheck, Lock, Building2, ShieldOff } from 'lucide-react';
 // 'investigations' | 'tasks' | 'evidence' | 'communications' |
 // 'corrective_actions' | 'admin_users' | 'admin_config' — chacun un écran
 // réel et distinct, voir renderStaffContent() ci-dessous.
-
-// === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation
-// façon maquette) ===
-// Liste unique, partagée entre le garde de bascule de profil
-// (`handleUserChange`) et `isStaffTab` ci-dessous, pour que les deux listes
-// ne puissent jamais diverger désormais que la barre latérale compte ~15
-// entrées au lieu de 6.
-const STAFF_TAB_KEYS = [
-  'control_panel',
-  'portal',
-  'triage',
-  'assignment',
-  'my_cases',
-  'investigations',
-  'tasks',
-  'evidence',
-  'communications',
-  'corrective_actions',
-  'reports',
-  'executive',
-  'audit',
-  'settings',
-  'admin_users',
-  'admin_config',
-];
+// === AMÉLIORATION AJOUTÉE (Phase 12.2) === Chaque tab ci-dessus correspond
+// désormais à une vraie URL (src/routing/routes.ts) — App() ne fait plus
+// que déléguer à AppShell, monté sous <BrowserRouter>, qui dérive
+// `currentTab` de l'URL réelle au lieu d'un simple useState local.
 
 export default function App() {
-  const [lang, setLang] = useState<Language>('fr');
-  const [currentTab, setCurrentTab] = useState<string>('home');
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/*" element={<AppShell />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function AppShell() {
+  // === AMÉLIORATION AJOUTÉE (Phase 11 — alignement de marque « ACTIVA
+  // Hotline », anglais par défaut, conforme à la maquette) === La langue
+  // reste entièrement au choix de l'utilisateur (sélecteur FR/EN/PT dans
+  // l'en-tête, inchangé) — seule la langue de PREMIER CHARGEMENT change.
+  const [lang, setLang] = useState<Language>('en');
+  // === AMÉLIORATION AJOUTÉE (Phase 12.2 — routage par URL réel) === l'URL
+  // est désormais la SEULE source de vérité pour l'écran affiché — plus de
+  // useState local pour `currentTab`. `navigate()`/`useLocation()` ci-dessous
+  // remplacent l'ancien `setCurrentTab` interne sans changer la signature
+  // que les composants enfants (Navbar, StaffPortalLayout, chaque écran)
+  // reçoivent : ils continuent de voir une simple chaîne + un callback.
+  const navigate = useNavigate();
+  const location = useLocation();
+  const resolved = resolveRoute(location.pathname);
+  const currentTab = resolved.tab;
+  const routeTrackingNumber = resolved.trackingNumber;
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
   // === AMÉLIORATION AJOUTÉE (Phase 5) === filter the Control Panel's KPI
@@ -77,6 +89,36 @@ export default function App() {
   // functional admin / point de contact so the staff portal is visible on first load).
   const [activeUser, setActiveUser] = useState<UserProfile>(storage.getActiveUser());
 
+  // === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
+  // Session "collaborateur connecté", au sens démo du terme (voir
+  // StaffLoginView / routing/guards.tsx — pas de backend d'authentification
+  // réel ici). Persistée dans localStorage (comme `activeUser` l'est déjà
+  // via storage.ts) : sans ça, taper une URL dans la barre d'adresse — le
+  // scénario même que le brief section 32 veut voir bloqué — déclenche un
+  // rechargement complet de la page, qui aurait sinon remis ce simple
+  // useState à sa valeur par défaut et vidé la déconnexion de tout effet
+  // réel. Vaut `true` par défaut au tout premier lancement (aucune clé en
+  // storage) pour ne rien changer au confort existant, documenté depuis les
+  // premières phases de ce projet : l'app s'ouvrait déjà directement sur le
+  // profil `functional_admin`.
+  const STAFF_SESSION_KEY = 'activa_staff_session_active';
+  const [isStaffSessionActive, setIsStaffSessionActiveState] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(STAFF_SESSION_KEY);
+      return stored === null ? true : stored === 'true';
+    } catch {
+      return true; // localStorage unavailable (private browsing, etc.) — fail open to the pre-existing default.
+    }
+  });
+  const setIsStaffSessionActive = (active: boolean) => {
+    setIsStaffSessionActiveState(active);
+    try {
+      localStorage.setItem(STAFF_SESSION_KEY, String(active));
+    } catch {
+      // Best-effort only — the in-memory state above still works for this tab session.
+    }
+  };
+
   // Live alert count for the Navbar badge & role-based access guards below.
   const [alertCount, setAlertCount] = useState(() => storage.getAlerts().length);
   useEffect(() => {
@@ -84,10 +126,12 @@ export default function App() {
     return unsub;
   }, []);
 
-  const isGlobalViewer =
-    activeUser.role === 'functional_admin' ||
-    activeUser.role === 'system_admin' ||
-    activeUser.role === 'auditor';
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === remplace l'ancienne
+  // comparaison à 3 rôles codée en dur. Diffère volontairement de l'ancien
+  // comportement pour `system_admin`, qui n'a plus accès aux dossiers
+  // (brief section 30, « System Administrator ≠ Case Access » — voir
+  // src/services/authz.ts).
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
 
   // Count of "new" alerts visible to the active user (mirrors the visibility rule enforced in
   // InvestigationDesk: a non-admin only sees cases explicitly assigned to them).
@@ -105,9 +149,29 @@ export default function App() {
     setActiveUser(user);
     storage.setActiveUser(user);
     // Leaving admin/investigator-only screens when switching to the public whistleblower profile.
-    if (user.role === 'whistleblower' && STAFF_TAB_KEYS.includes(currentTab)) {
-      setCurrentTab('home');
+    if (user.role === 'reporter' && STAFF_TAB_KEYS.includes(currentTab)) {
+      navigate('/');
     }
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 12.4) === le sélecteur de profil de la
+  // Navbar (pratique de démonstration/QA existante, inchangée) marque aussi
+  // la session comme "connectée" — cohérent avec le nouvel écran /login qui
+  // fait la même chose explicitement.
+  const handleUserChangeAndAuthenticate = (user: UserProfile) => {
+    handleUserChange(user);
+    setIsStaffSessionActive(true);
+  };
+
+  const handleLogin = (user: UserProfile) => {
+    handleUserChange(user);
+    setIsStaffSessionActive(true);
+    navigate(pathForTab('control_panel'));
+  };
+
+  const handleLogout = () => {
+    setIsStaffSessionActive(false);
+    navigate(pathForTab('login'));
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 5) ===
@@ -116,51 +180,68 @@ export default function App() {
   // only navigateToCases() below sets a filter, deliberately.
   const goToTab = (tab: string) => {
     setPendingCaseFilter(undefined);
-    setCurrentTab(tab);
+    navigate(pathForTab(tab));
   };
 
   const navigateToCases = (filter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean }) => {
+    // === AMÉLIORATION AJOUTÉE (Phase 12.2) === un lien vers un dossier
+    // précis devient une vraie URL partageable (/cases/:trackingNumber) —
+    // tout autre filtre (statut, non-attribué, mes dossiers…) continue de
+    // transiter par l'état React existant, exactement comme avant.
+    if (filter?.trackingNumber) {
+      setPendingCaseFilter(undefined);
+      navigate(`/cases/${encodeURIComponent(filter.trackingNumber)}`);
+      return;
+    }
     setPendingCaseFilter(filter);
-    setCurrentTab('portal');
+    navigate(pathForTab('portal'));
   };
 
   const handleAlertSubmitted = (trackingNumber: string) => {
     setPrefilledTrackingNumber(trackingNumber);
-    setCurrentTab('track');
+    navigate(pathForTab('track'));
   };
 
-  // Access-denied guard for role-restricted staff screens (defense in depth: the Navbar and
-  // sidebar already hide these entries, but the active view is re-validated here too since
-  // authorization must never rely on UI visibility alone).
-  const renderAccessDenied = (label: string) => (
-    <div className="max-w-xl mx-auto py-16 px-4 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto mb-4 text-rose-600">
-        <ShieldOff className="w-7 h-7" />
-      </div>
-      <h2 className="text-lg font-bold text-slate-900">Accès restreint</h2>
-      <p className="text-xs text-slate-600 mt-2">
-        Votre profil ({activeUser.roleTitle}) ne dispose pas des habilitations nécessaires pour
-        consulter « {label} ». Cette restriction est appliquée conformément au principe du
-        moindre privilège (CDC 3.2.3).
-      </p>
-    </div>
-  );
+  // === AMÉLIORATION AJOUTÉE (Phase 12.2) === le lien profond vers un
+  // dossier précis vient maintenant de l'URL elle-même (voir routing/routes.ts)
+  // quand elle est présente, sinon du filtre React existant (Centre de
+  // Pilotage, cloche de notifications…) — les deux mécanismes cohabitent
+  // sans qu'InvestigationDesk n'ait besoin de changer.
+  const effectiveCaseFilter = routeTrackingNumber ? { trackingNumber: routeTrackingNumber } : pendingCaseFilter;
 
+  // === AMÉLIORATION AJOUTÉE (Phase 12.2) === /how-it-works et /faq
+  // réutilisent la page d'accueil existante (même contenu, jamais dupliqué)
+  // et se contentent de faire défiler jusqu'à la section correspondante —
+  // voir les ancres #how-it-works/#faq ajoutées dans WhistleblowerHome.tsx.
+  useEffect(() => {
+    if (location.pathname === '/how-it-works' || location.pathname === '/faq') {
+      const id = location.pathname === '/how-it-works' ? 'how-it-works' : 'faq';
+      const el = document.getElementById(id);
+      el?.scrollIntoView({ behavior: 'smooth' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // === AMÉLIORATION AJOUTÉE (Phase 12.2) === `renderAccessDenied(label)`
+  // devient `<PermissionGuard allowed label>` (routing/guards.tsx) — même
+  // garde de défense en profondeur qu'avant (la Navbar/barre latérale
+  // masquent déjà ces entrées, mais l'écran actif est revalidé ici aussi),
+  // simplement extraite en composant nommé et réutilisable.
   const renderStaffContent = () => {
     if (currentTab === 'control_panel') {
-      return isGlobalViewer ? (
-        <ControlPanel
-          lang={lang}
-          activeUser={activeUser}
-          onNavigateToCases={navigateToCases}
-          onNavigateToReports={() => goToTab('reports')}
-          onNavigateToNewCase={() => goToTab('new_alert')}
-        />
-      ) : (
-        renderAccessDenied('Centre de Pilotage')
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Centre de Pilotage">
+          <ControlPanel
+            lang={lang}
+            activeUser={activeUser}
+            onNavigateToCases={navigateToCases}
+            onNavigateToReports={() => goToTab('reports')}
+            onNavigateToNewCase={() => goToTab('new_alert')}
+          />
+        </PermissionGuard>
       );
     }
-    if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={pendingCaseFilter} />;
+    if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={effectiveCaseFilter} />;
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
     // écran de détail, mêmes actions) avec un `initialFilter` préréglé
@@ -168,10 +249,10 @@ export default function App() {
     // Centre de Pilotage le fait déjà pour ses propres cartes KPI.
     if (currentTab === 'triage') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'new' }} />;
     if (currentTab === 'assignment') {
-      return isGlobalViewer ? (
-        <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ unassignedOnly: true }} />
-      ) : (
-        renderAccessDenied('Attribution')
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Attribution">
+          <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ unassignedOnly: true }} />
+        </PermissionGuard>
       );
     }
     if (currentTab === 'my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true }} />;
@@ -182,24 +263,28 @@ export default function App() {
     if (currentTab === 'corrective_actions') return <CorrectiveActionsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
     if (currentTab === 'executive') {
-      return isGlobalViewer ? (
-        <ExecutiveDashboard lang={lang} activeUser={activeUser} />
-      ) : (
-        renderAccessDenied('Vue Exécutive')
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Vue Exécutive">
+          <ExecutiveDashboard lang={lang} activeUser={activeUser} />
+        </PermissionGuard>
       );
     }
     if (currentTab === 'audit') {
-      return isGlobalViewer ? (
-        <AuditTrailView lang={lang} activeUser={activeUser} />
-      ) : (
-        renderAccessDenied('Piste d’Audit')
+      // === AMÉLIORATION AJOUTÉE (Phase 12.3) === garde désormais sur la
+      // vraie permission `audit.read`, pas `isGlobalViewer` — `system_admin`
+      // n'a plus accès aux dossiers mais garde bien accès à la piste
+      // d'audit (il a `audit.read`), exactement comme dans l'ancien modèle.
+      return (
+        <PermissionGuard allowed={canSeeAuditTrail(activeUser)} label="Piste d’Audit">
+          <AuditTrailView lang={lang} activeUser={activeUser} />
+        </PermissionGuard>
       );
     }
     if (currentTab === 'settings') {
-      return activeUser.role === 'system_admin' ? (
-        <AdminConfigView lang={lang} activeUser={activeUser} />
-      ) : (
-        renderAccessDenied('Administration')
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Administration">
+          <AdminConfigView lang={lang} activeUser={activeUser} />
+        </PermissionGuard>
       );
     }
     // === AMÉLIORATION AJOUTÉE (Phase 9 — Administration scindée en 2 écrans
@@ -207,17 +292,17 @@ export default function App() {
     // rôle que 'settings' ci-dessus — seul l'onglet de départ diffère, et le
     // sélecteur d'onglets complet reste visible pour ne rien masquer.
     if (currentTab === 'admin_users') {
-      return activeUser.role === 'system_admin' ? (
-        <AdminConfigView lang={lang} activeUser={activeUser} initialTab="users" />
-      ) : (
-        renderAccessDenied('Utilisateurs & Rôles')
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Utilisateurs & Rôles">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="users" />
+        </PermissionGuard>
       );
     }
     if (currentTab === 'admin_config') {
-      return activeUser.role === 'system_admin' ? (
-        <AdminConfigView lang={lang} activeUser={activeUser} initialTab="matrix" />
-      ) : (
-        renderAccessDenied('Configuration')
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Configuration">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="matrix" />
+        </PermissionGuard>
       );
     }
     return null;
@@ -234,10 +319,12 @@ export default function App() {
         lang={lang}
         setLang={setLang}
         activeUser={activeUser}
-        setActiveUser={handleUserChange}
+        setActiveUser={handleUserChangeAndAuthenticate}
         onOpenQrModal={() => setShowQrModal(true)}
         pendingAlertsCount={pendingAlertsCount}
         onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
+        isStaffSessionActive={isStaffSessionActive}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -245,8 +332,8 @@ export default function App() {
         {currentTab === 'home' && (
           <WhistleblowerHome
             lang={lang}
-            onStartNewAlert={() => setCurrentTab('new_alert')}
-            onGoToTrack={() => setCurrentTab('track')}
+            onStartNewAlert={() => goToTab('new_alert')}
+            onGoToTrack={() => goToTab('track')}
             onOpenQrModal={() => setShowQrModal(true)}
             onOpenDesk={() => goToTab('portal')}
           />
@@ -256,7 +343,7 @@ export default function App() {
           <AlertSubmissionFlow
             lang={lang}
             onSuccessNavigateToTrack={handleAlertSubmitted}
-            onCancel={() => setCurrentTab('home')}
+            onCancel={() => goToTab('home')}
           />
         )}
 
@@ -264,19 +351,29 @@ export default function App() {
           <AlertTrackingView
             lang={lang}
             initialTrackingNumber={prefilledTrackingNumber}
-            onGoToNewAlert={() => setCurrentTab('new_alert')}
+            onGoToNewAlert={() => goToTab('new_alert')}
           />
         )}
 
+        {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) === */}
+        {currentTab === 'login' && <StaffLoginView onLogin={handleLogin} />}
+
         {isStaffTab && (
-          <StaffPortalLayout
-            lang={lang}
-            activeUser={activeUser}
-            currentTab={currentTab}
-            setCurrentTab={goToTab}
-          >
-            {renderStaffContent()}
-          </StaffPortalLayout>
+          // === AMÉLIORATION AJOUTÉE (Phase 12.2/12.4) === tout l'espace
+          // staff passe désormais par AuthenticatedRoute — une session non
+          // connectée (après déconnexion) est renvoyée vers /login au lieu
+          // d'afficher le contenu, plutôt que de compter uniquement sur le
+          // fait que le menu soit masqué.
+          <AuthenticatedRoute isAuthenticated={isStaffSessionActive} onGoToLogin={() => goToTab('login')}>
+            <StaffPortalLayout
+              lang={lang}
+              activeUser={activeUser}
+              currentTab={currentTab}
+              setCurrentTab={goToTab}
+            >
+              {renderStaffContent()}
+            </StaffPortalLayout>
+          </AuthenticatedRoute>
         )}
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 4) ===
@@ -296,7 +393,7 @@ export default function App() {
               </div>
               <div>
                 <span className="font-extrabold text-white text-sm tracking-wide">
-                  ACTIVA EthicAlert
+                  ACTIVA Hotline
                 </span>
                 <span className="text-[11px] text-amber-300 block">
                   Direction d'Audit, des Risques et de la Conformité (DARC)

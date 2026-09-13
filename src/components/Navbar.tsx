@@ -1,18 +1,11 @@
 import React from 'react';
 import {
   ShieldAlert,
-  Globe,
   FileText,
   Search,
-  BarChart3,
-  History,
-  Settings,
   QrCode,
-  UserCheck,
-  Lock,
   ChevronDown,
   Database,
-  LayoutDashboard,
   Bell,
   Clock3,
   MessageSquare,
@@ -20,13 +13,18 @@ import {
   RotateCcw,
   Paperclip,
   FileCheck2,
-  Landmark,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
 import { generateNotifications } from '../services/statusMapping';
+// === AMÉLIORATION AJOUTÉE (Phase 10 — en-tête sur une seule ligne, façon
+// maquette) === partagée avec App.tsx pour ne jamais diverger sur ce qui
+// compte comme un onglet "staff" (couvert par la barre latérale).
+import { STAFF_TAB_KEYS } from '../constants/staffTabs';
+// === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+import { isGlobalCaseViewer } from '../services/authz';
 
 interface NavbarProps {
   currentTab: string;
@@ -41,6 +39,9 @@ interface NavbarProps {
   // link straight into its case, reusing the same trackingNumber filter
   // already wired from the Control Panel (App.tsx's navigateToCases).
   onNavigateToCase: (trackingNumber: string) => void;
+  // === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
+  isStaffSessionActive: boolean;
+  onLogout: () => void;
 }
 
 // A real, computed notification list (see services/statusMapping.ts) never
@@ -68,6 +69,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenQrModal,
   pendingAlertsCount,
   onNavigateToCase,
+  isStaffSessionActive,
+  onLogout,
 }) => {
   const t = TRANSLATIONS[lang];
   const allUsers = storage.getUsers();
@@ -83,9 +86,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     return unsub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const isGlobalViewer =
-    activeUser.role === 'functional_admin' || activeUser.role === 'system_admin' || activeUser.role === 'auditor';
-  const isStaffUser = isGlobalViewer || activeUser.role === 'investigator';
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+  // Remplace l'ancienne comparaison à 3 rôles codée en dur par la vraie
+  // permission `cases.read` + visibilité globale (src/services/authz.ts).
+  // `isStaffUser` (tout profil hors lanceur d'alerte) n'a plus besoin de
+  // dépendre d'`isGlobalViewer` : le nouveau modèle compte désormais 8
+  // rôles "collaborateur" distincts (contre 3 avant), donc `role !== 'reporter'`
+  // exprime directement l'intention.
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
+  const isStaffUser = activeUser.role !== 'reporter';
   const notifications = React.useMemo(
     () =>
       isStaffUser
@@ -95,54 +104,147 @@ export const Navbar: React.FC<NavbarProps> = ({
     [isStaffUser, isGlobalViewer, activeUser.id, dismissedIds, notifRefresh]
   );
 
+  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === étendu de 5 à 10 rôles ; les
+  // 5 libellés/couleurs déjà en production restent strictement identiques
+  // (`functional_admin`/`investigator`/`system_admin`/`reporter` gardent
+  // leur rendu exact — `reporter` est le nouveau nom de l'ancien
+  // `whistleblower`, `consultation` celui de l'ancien `auditor`), les 5
+  // nouveaux suivent la même convention visuelle.
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'functional_admin':
         return { label: 'Admin Fonctionnel / DARC', color: 'bg-amber-100 text-amber-900 border-amber-300' };
       case 'investigator':
         return { label: 'Investigateur DARC', color: 'bg-blue-100 text-blue-900 border-blue-300' };
+      case 'senior_investigator':
+        return { label: 'Investigateur Senior DARC', color: 'bg-indigo-100 text-indigo-900 border-indigo-300' };
+      case 'darc_compliance':
+        return { label: 'Conformité DARC', color: 'bg-teal-100 text-teal-900 border-teal-300' };
       case 'system_admin':
         return { label: 'Admin Système', color: 'bg-purple-100 text-purple-900 border-purple-300' };
-      case 'auditor':
+      case 'security_admin':
+        return { label: 'Admin Sécurité', color: 'bg-rose-100 text-rose-900 border-rose-300' };
+      case 'consultation':
         return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-800 border-slate-300' };
-      case 'whistleblower':
+      case 'audit_committee':
+        return { label: 'Comité d’Audit', color: 'bg-cyan-100 text-cyan-900 border-cyan-300' };
+      case 'executive':
+        return { label: 'Direction / Exécutif', color: 'bg-slate-800 text-white border-slate-700' };
+      case 'reporter':
         return { label: 'Lanceur d’alerte', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
     }
   };
 
   const badge = getRoleBadge(activeUser.role);
 
+  // === AMÉLIORATION AJOUTÉE (Phase 10 — en-tête sur une seule ligne, façon
+  // maquette) ===
+  // La maquette de référence n'a qu'UNE seule ligne d'en-tête compacte : le
+  // reste de la navigation (Alertes, Triage, Rapports, Administration…) vit
+  // exclusivement dans la barre latérale (StaffPortalLayout), désormais
+  // capable de couvrir tous les onglets "staff". L'ancienne barre horizontale
+  // dupliquait donc entièrement la barre latérale — supprimée ici, mais rien
+  // n'est perdu : chaque onglet qu'elle ouvrait reste accessible depuis la
+  // barre latérale (ou, pour Accueil/Suivre mon alerte, depuis les boutons
+  // publics conservés ci-dessous, visibles uniquement hors de l'espace
+  // staff — exactement comme la page d'accueil de la maquette, qui ne montre
+  // pas ces liens dans son en-tête non plus).
+  const isStaffTab = STAFF_TAB_KEYS.includes(currentTab);
+
   return (
     <header className="bg-[#0B2545] text-white border-b border-[#134074] shadow-md sticky top-0 z-40">
-      {/* Top utility bar: Group info & Role switcher */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-2 text-xs border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <span className="font-bold tracking-wider text-amber-400 uppercase">
-              {t.group_name}
-            </span>
-            <span className="hidden sm:inline-block text-slate-300">|</span>
-            <span className="hidden sm:inline-block text-slate-300">
-              {t.darc_label}
-            </span>
-            <span className="hidden md:inline-flex items-center gap-1 text-emerald-400 font-medium">
-              <Lock className="w-3.5 h-3.5" />
-              {t.confidentiality_guarantee}
-            </span>
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-3 py-2.5">
+          {/* === AMÉLIORATION AJOUTÉE (Phase 11 — alignement de marque
+              « ACTIVA Hotline » sur la maquette) === Nom de produit +
+              slogan sur une ligne compacte, comme la maquette ; le badge de
+              version ("v2.0 DARC") — un simple ornement, absent de la
+              maquette — est retiré ici pour ne pas alourdir l'en-tête. */}
+          <div
+            id="brand-logo"
+            onClick={() => setCurrentTab('home')}
+            className="flex items-center gap-2.5 cursor-pointer select-none group min-w-0"
+          >
+            <div className="w-9 h-9 shrink-0 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow ring-1 ring-white/20">
+              <ShieldAlert className="w-5 h-5 text-[#0B2545]" />
+            </div>
+            {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Sur mobile, le nom
+                reste visible (brief §4 : "conserver le logo ; conserver
+                Hotline") ; seul le slogan secondaire est masqué pour
+                laisser la place aux icônes de droite. */}
+            <div className="min-w-0">
+              <h1 className="text-[15px] font-bold tracking-tight text-white group-hover:text-amber-300 transition truncate">
+                {t.app_title}
+              </h1>
+              <p className="hidden sm:block text-[10.5px] text-slate-400 truncate max-w-[280px]">
+                {t.app_subtitle}
+              </p>
+            </div>
           </div>
 
-          {/* Role & Lang switcher */}
-          <div className="flex items-center gap-3">
+          {/* Liens publics — uniquement hors de l'espace staff (dans
+              l'espace staff, la barre latérale couvre toute la navigation) */}
+          {!isStaffTab && (
+            <nav className="hidden md:flex items-center gap-1">
+              <button
+                id="nav-btn-home"
+                onClick={() => setCurrentTab('home')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  currentTab === 'home' || currentTab === 'new_alert'
+                    ? 'bg-amber-500 text-slate-950 shadow'
+                    : 'text-slate-200 hover:bg-white/10'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                {t.nav_home}
+              </button>
+              <button
+                id="nav-btn-track"
+                onClick={() => setCurrentTab('track')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  currentTab === 'track'
+                    ? 'bg-amber-500 text-slate-950 shadow'
+                    : 'text-slate-200 hover:bg-white/10'
+                }`}
+              >
+                <Search className="w-3.5 h-3.5" />
+                {t.nav_track}
+              </button>
+
+              {/* === AMÉLIORATION AJOUTÉE (Phase 10) ===
+                  Point d'entrée indispensable vers l'espace staff : depuis
+                  que la grande barre horizontale a été retirée (remplacée
+                  par la barre latérale), un profil staff arrivant sur une
+                  page publique n'avait plus aucun moyen d'y accéder — la
+                  barre latérale elle-même ne s'affiche qu'une fois DANS
+                  l'espace staff. Ce lien compact comble ce vide, exactement
+                  comme le lien "Employee/Staff Login" d'un site vitrine
+                  d'entreprise. */}
+              {isStaffUser && (
+                <button
+                  id="nav-btn-portal"
+                  onClick={() => setCurrentTab('portal')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  {t.nav_portal}
+                </button>
+              )}
+            </nav>
+          )}
+
+          {/* Cluster de droite : notifications, langue, accès annexes, profil */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) === */}
             {isStaffUser && (
               <div className="relative">
                 <button
                   id="btn-notification-bell"
                   onClick={() => setShowNotifDropdown(!showNotifDropdown)}
-                  className="relative p-1.5 rounded bg-white/10 hover:bg-white/20 transition text-slate-200"
+                  className="relative p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition text-slate-200"
                   title={t.notif_title}
                 >
-                  <Bell className="w-3.5 h-3.5" />
+                  <Bell className="w-4 h-4" />
                   {notifications.length > 0 && (
                     <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
                       {notifications.length > 9 ? '9+' : notifications.length}
@@ -202,66 +304,64 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {/* Language Selector */}
-            <div className="relative">
-              <button
-                id="btn-language-selector"
-                onClick={() => setShowLangDropdown(!showLangDropdown)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition text-slate-200"
-                title="Changer de langue"
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span className="font-semibold uppercase">{lang}</span>
-                <ChevronDown className="w-3 h-3 opacity-70" />
-              </button>
-
-              {showLangDropdown && (
-                <div 
-                  className="absolute right-0 mt-1 w-32 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-xs"
-                  onClick={() => setShowLangDropdown(false)}
+            {/* === AMÉLIORATION AJOUTÉE (Phase 10) === Sélecteur de langue
+                compact (FR / EN / PT en ligne), remplace l'ancien menu
+                déroulant — même fonction (setLang), rendu plus proche de la
+                maquette. */}
+            <div className="hidden sm:flex items-center rounded-lg bg-white/10 overflow-hidden text-[11px] font-bold">
+              {(['fr', 'en', 'pt'] as Language[]).map((l) => (
+                <button
+                  key={l}
+                  id={l === 'fr' ? 'btn-language-selector' : undefined}
+                  onClick={() => setLang(l)}
+                  className={`px-2 py-1.5 uppercase transition ${
+                    lang === l ? 'bg-white text-[#0B2545]' : 'text-slate-300 hover:bg-white/10'
+                  }`}
                 >
-                  <button 
-                    onClick={() => setLang('fr')}
-                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'fr' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
-                  >
-                    <span>🇫🇷 Français</span>
-                    {lang === 'fr' && <span>✓</span>}
-                  </button>
-                  <button 
-                    onClick={() => setLang('en')}
-                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'en' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
-                  >
-                    <span>🇬🇧 English</span>
-                    {lang === 'en' && <span>✓</span>}
-                  </button>
-                  <button 
-                    onClick={() => setLang('pt')}
-                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'pt' ? 'font-bold text-blue-700 bg-blue-50' : ''}`}
-                  >
-                    <span>🇵🇹 Português</span>
-                    {lang === 'pt' && <span>✓</span>}
-                  </button>
-                </div>
-              )}
+                  {l}
+                </button>
+              ))}
             </div>
 
-            {/* Simulated Profile / Role Switcher (Crucial for test & review) */}
+            {/* Accès annexes, conservés mais discrets (recherche Firebase, QR) */}
+            <button
+              id="nav-btn-firebase-lookup"
+              onClick={() => setCurrentTab('firebase_lookup')}
+              className={`hidden lg:flex p-1.5 rounded-lg transition ${
+                currentTab === 'firebase_lookup' ? 'bg-purple-600 text-white' : 'text-slate-300 hover:bg-white/10'
+              }`}
+              title={t.nav_firebase_lookup}
+            >
+              <Database className="w-4 h-4" />
+            </button>
+            <button
+              id="nav-btn-qr"
+              onClick={onOpenQrModal}
+              className="hidden sm:flex p-1.5 rounded-lg text-slate-300 hover:bg-white/10 hover:text-amber-300 transition"
+              title="Générer / Afficher le QR Code de signalement"
+            >
+              <QrCode className="w-4 h-4" />
+            </button>
+
+            {/* Profil actif / sélecteur de rôle (démo) */}
             <div className="relative">
               <button
                 id="btn-role-switcher"
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/30 transition"
+                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-white/10 transition"
               >
-                <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-                <span className="max-w-[140px] truncate font-medium">{activeUser.name}</span>
-                <span className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-amber-400/30 text-[10px] uppercase font-bold text-amber-300">
-                  {activeUser.role}
+                <span className="w-7 h-7 rounded-full bg-blue-500/30 border border-blue-300/40 flex items-center justify-center text-[11px] font-bold text-blue-100 shrink-0">
+                  {activeUser.name.trim().charAt(0).toUpperCase()}
                 </span>
-                <ChevronDown className="w-3 h-3 text-amber-400" />
+                <span className="hidden md:block text-left leading-tight">
+                  <span className="block max-w-[140px] truncate font-semibold text-[12px] text-white">{activeUser.name}</span>
+                  <span className="block text-[10px] text-slate-400 truncate max-w-[140px]">{badge?.label}</span>
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block" />
               </button>
 
               {showUserDropdown && (
-                <div 
+                <div
                   className="absolute right-0 mt-1 w-72 bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 py-1.5 z-50 text-xs"
                   onClick={() => setShowUserDropdown(false)}
                 >
@@ -296,7 +396,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         id: 'usr-whistleblower',
                         name: 'Lanceur d’alerte (Visiteur)',
                         email: 'anonyme@declare.activa',
-                        role: 'whistleblower',
+                        role: 'reporter',
                         roleTitle: 'Déclarant externe ou employé',
                         entity: 'Toutes entités',
                         country: 'Groupe ACTIVA',
@@ -308,234 +408,62 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     👤 Mode Lanceur d’alerte (Public)
                   </button>
+
+                  {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne
+                      dédiée) === Déconnexion réelle de la session
+                      "collaborateur" démo : referme l'accès aux écrans
+                      internes (AuthenticatedRoute, App.tsx) jusqu'à une
+                      nouvelle connexion via /login. */}
+                  {isStaffUser && isStaffSessionActive && (
+                    <button
+                      onClick={onLogout}
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50 text-rose-700 font-medium border-t border-slate-100"
+                    >
+                      Se déconnecter
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Main Nav header */}
-        <div className="flex items-center justify-between py-3">
-          {/* Logo & title */}
-          <div 
-            id="brand-logo"
-            onClick={() => setCurrentTab('home')}
-            className="flex items-center gap-3 cursor-pointer select-none group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-2 ring-white/20">
-              <ShieldAlert className="w-6 h-6 text-[#0B2545]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-white group-hover:text-amber-300 transition">
-                  {t.app_title}
-                </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                  v2.0 DARC
-                </span>
-              </div>
-              <p className="text-xs text-slate-300">
-                {t.app_subtitle}
-              </p>
-            </div>
-          </div>
-
-          {/* Nav buttons */}
-          <nav className="hidden lg:flex items-center gap-1">
+        {/* Mobile: liens publics uniquement hors de l'espace staff — dans
+            l'espace staff, StaffPortalLayout affiche déjà sa propre barre
+            horizontale mobile couvrant tous les onglets. */}
+        {!isStaffTab && (
+          <div className="md:hidden flex items-center justify-around py-2 border-t border-white/10 text-[11px] font-medium">
             <button
-              id="nav-btn-home"
               onClick={() => setCurrentTab('home')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'home' || currentTab === 'new_alert'
-                  ? 'bg-amber-500 text-slate-950 shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
+              className={`px-2 py-1 rounded ${currentTab === 'home' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
             >
-              <FileText className="w-4 h-4" />
               {t.nav_home}
             </button>
-
             <button
-              id="nav-btn-track"
               onClick={() => setCurrentTab('track')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'track'
-                  ? 'bg-amber-500 text-slate-950 shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
+              className={`px-2 py-1 rounded ${currentTab === 'track' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
             >
-              <Search className="w-4 h-4" />
               {t.nav_track}
             </button>
-
-            {/* === AMÉLIORATION AJOUTÉE (Phase 5) === Control Panel, same visibility as Audit Trail */}
-            {(activeUser.role === 'functional_admin' ||
-              activeUser.role === 'system_admin' ||
-              activeUser.role === 'auditor') && (
+            {/* === AMÉLIORATION AJOUTÉE (Phase 10) === même point d'entrée
+                staff que sur desktop, voir le commentaire équivalent ci-dessus. */}
+            {isStaffUser && (
               <button
-                id="nav-btn-control-panel"
-                onClick={() => setCurrentTab('control_panel')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'control_panel'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'text-slate-200 hover:bg-white/10'
-                }`}
+                onClick={() => setCurrentTab('portal')}
+                className="px-2 py-1 rounded text-slate-200"
               >
-                <LayoutDashboard className="w-4 h-4" />
-                {t.nav_control_panel}
+                {t.nav_portal}
               </button>
             )}
-
-            {/* Portal for investigators and admins */}
             <button
-              id="nav-btn-portal"
-              onClick={() => setCurrentTab('portal')}
-              className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'portal'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <ShieldAlert className="w-4 h-4" />
-              <span>{t.nav_portal}</span>
-              {pendingAlertsCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
-                  {pendingAlertsCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              id="nav-btn-reports"
-              onClick={() => setCurrentTab('reports')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'reports'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              {t.nav_reports}
-            </button>
-
-            {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Vue Exécutive) === */}
-            {isGlobalViewer && (
-              <button
-                id="nav-btn-executive"
-                onClick={() => setCurrentTab('executive')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'executive'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'text-slate-200 hover:bg-white/10'
-                }`}
-              >
-                <Landmark className="w-4 h-4" />
-                {t.nav_executive}
-              </button>
-            )}
-
-            {/* Audit Trail (Accessible to Admins and Auditors) */}
-            {(activeUser.role === 'functional_admin' || 
-              activeUser.role === 'system_admin' || 
-              activeUser.role === 'auditor') && (
-              <button
-                id="nav-btn-audit"
-                onClick={() => setCurrentTab('audit')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'audit'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'text-slate-200 hover:bg-white/10'
-                }`}
-              >
-                <History className="w-4 h-4" />
-                {t.nav_audit}
-              </button>
-            )}
-
-            {/* Settings (Admin system) */}
-            {activeUser.role === 'system_admin' && (
-              <button
-                id="nav-btn-settings"
-                onClick={() => setCurrentTab('settings')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'settings'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'text-slate-200 hover:bg-white/10'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                {t.nav_settings}
-              </button>
-            )}
-
-            {/* === AMÉLIORATION AJOUTÉE (Phase 4) : outil de recherche connecté au vrai projet Firebase */}
-            <button
-              id="nav-btn-firebase-lookup"
-              onClick={() => setCurrentTab('firebase_lookup')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                currentTab === 'firebase_lookup'
-                  ? 'bg-purple-600 text-white shadow'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-              title={t.nav_firebase_lookup}
-            >
-              <Database className="w-4 h-4" />
-              <span className="hidden xl:inline">{t.nav_firebase_lookup}</span>
-            </button>
-
-            {/* QR Code trigger */}
-            <button
-              id="nav-btn-qr"
               onClick={onOpenQrModal}
-              className="p-2 rounded-lg text-slate-200 hover:bg-white/10 hover:text-amber-300 transition"
-              title="Générer / Afficher le QR Code de signalement"
+              className="px-2 py-1 rounded text-amber-300 flex items-center gap-0.5"
             >
-              <QrCode className="w-4 h-4" />
+              <QrCode className="w-3.5 h-3.5" />
+              <span>QR</span>
             </button>
-          </nav>
-        </div>
-
-        {/* Mobile secondary tab bar */}
-        <div className="lg:hidden flex items-center justify-around py-2 border-t border-white/10 overflow-x-auto text-[11px] font-medium">
-          <button
-            onClick={() => setCurrentTab('home')}
-            className={`px-2 py-1 rounded ${currentTab === 'home' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
-          >
-            {t.nav_home}
-          </button>
-          <button
-            onClick={() => setCurrentTab('track')}
-            className={`px-2 py-1 rounded ${currentTab === 'track' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-200'}`}
-          >
-            {t.nav_track}
-          </button>
-          <button
-            onClick={() => setCurrentTab('portal')}
-            className={`px-2 py-1 rounded flex items-center gap-1 ${currentTab === 'portal' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
-          >
-            <span>{t.nav_portal}</span>
-            {pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
-          </button>
-          <button
-            onClick={() => setCurrentTab('reports')}
-            className={`px-2 py-1 rounded ${currentTab === 'reports' ? 'bg-blue-600 text-white font-bold' : 'text-slate-200'}`}
-          >
-            {t.nav_reports}
-          </button>
-          <button
-            onClick={() => setCurrentTab('firebase_lookup')}
-            className={`px-2 py-1 rounded flex items-center gap-1 ${currentTab === 'firebase_lookup' ? 'bg-purple-600 text-white font-bold' : 'text-slate-200'}`}
-          >
-            <Database className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={onOpenQrModal}
-            className="px-2 py-1 rounded text-amber-300 flex items-center gap-0.5"
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span>QR</span>
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </header>
   );
