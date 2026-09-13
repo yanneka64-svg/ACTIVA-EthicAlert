@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
-import { 
-  BarChart3, 
-  Download, 
-  Printer, 
-  PieChart, 
-  TrendingUp, 
-  ShieldCheck, 
-  Building2, 
-  EyeOff, 
-  CheckCircle2, 
-  Clock, 
+import {
+  BarChart3,
+  Download,
+  Printer,
+  PieChart,
+  TrendingUp,
+  ShieldCheck,
+  Building2,
+  EyeOff,
+  CheckCircle2,
+  Clock,
   FileSpreadsheet,
-  Calendar
+  Calendar,
+  Filter,
+  X,
 } from 'lucide-react';
 import { Language, AlertRecord, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { ACTIVA_COUNTRIES, ACTIVA_ENTITIES } from '../data/activaConfig';
+import { ACTIVA_COUNTRIES, ACTIVA_ENTITIES, ALERT_CATEGORIES } from '../data/activaConfig';
 import { storage } from '../services/storage';
 
 interface ReportingDashboardProps {
@@ -28,11 +30,42 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   activeUser,
 }) => {
   const t = TRANSLATIONS[lang];
-  const alerts: AlertRecord[] = storage.getAlerts();
+  const allAlerts: AlertRecord[] = storage.getAlerts();
 
   // Mode: 'realtime' | 'monthly_darc' | 'quarterly_board'
   const [reportView, setReportView] = useState<'realtime' | 'monthly_darc' | 'quarterly_board'>('realtime');
   const [anonymizeExport, setAnonymizeExport] = useState<boolean>(true);
+
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — filtres réels période/pays/entité/catégorie/statut) ===
+  // Real filters applied to the same live storage.getAlerts() data — every
+  // stat below is recomputed from the filtered subset, nothing here is a
+  // separate/fabricated dataset.
+  const [periodFilter, setPeriodFilter] = useState<'all' | '30d' | '90d' | '365d'>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [entityFilter, setEntityFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const alerts: AlertRecord[] = allAlerts.filter((a) => {
+    if (periodFilter !== 'all') {
+      const days = periodFilter === '30d' ? 30 : periodFilter === '90d' ? 90 : 365;
+      if (new Date(a.createdAt).getTime() < Date.now() - days * 24 * 3600 * 1000) return false;
+    }
+    if (countryFilter !== 'all' && a.country !== countryFilter) return false;
+    if (entityFilter !== 'all' && a.concernedEntity !== entityFilter) return false;
+    if (categoryFilter !== 'all' && a.category !== categoryFilter) return false;
+    if (statusFilter !== 'all' && a.status !== statusFilter) return false;
+    return true;
+  });
+  const filtersActive =
+    periodFilter !== 'all' || countryFilter !== 'all' || entityFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all';
+  const resetFilters = () => {
+    setPeriodFilter('all');
+    setCountryFilter('all');
+    setEntityFilter('all');
+    setCategoryFilter('all');
+    setStatusFilter('all');
+  };
 
   // Core Statistics Calculations (CDC 3.1.4)
   const totalAlerts = alerts.length;
@@ -66,8 +99,19 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   const webChannelCount = alerts.filter(a => a.channel === 'web').length;
   const qrChannelCount = alerts.filter(a => a.channel === 'qr_code').length;
 
-  // Estimated average turnaround in days
-  const avgResolutionDays = 14;
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — correction : délai moyen réellement calculé) ===
+  // Was previously a hardcoded `14` — now a genuine average of (closedAt -
+  // createdAt) across cases that actually have both timestamps, over the
+  // current filtered set. Falls back to 0 rather than a fabricated number
+  // when no case has been closed yet.
+  const closedWithDates = alerts.filter((a) => a.status === 'closed' && a.closedAt);
+  const avgResolutionDays =
+    closedWithDates.length > 0
+      ? Math.round(
+          closedWithDates.reduce((sum, a) => sum + (new Date(a.closedAt as string).getTime() - new Date(a.createdAt).getTime()) / (24 * 3600 * 1000), 0) /
+            closedWithDates.length
+        )
+      : 0;
 
   // Export CSV
   const handleExportCSV = () => {
@@ -215,6 +259,55 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
             {t.report_quarterly_board}
           </button>
         </div>
+      </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 7 — barre de filtres réels) === */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wide mr-1">
+          <Filter className="w-3.5 h-3.5" /> {t.report_filters_label}
+        </span>
+        <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value as typeof periodFilter)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
+          <option value="all">{t.report_filter_period_all}</option>
+          <option value="30d">{t.report_filter_period_30d}</option>
+          <option value="90d">{t.report_filter_period_90d}</option>
+          <option value="365d">{t.report_filter_period_365d}</option>
+        </select>
+        <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
+          <option value="all">{t.report_filter_country_all}</option>
+          {ACTIVA_COUNTRIES.map((c) => (
+            <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
+          ))}
+        </select>
+        <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
+          <option value="all">{t.report_filter_entity_all}</option>
+          {ACTIVA_ENTITIES.map((e) => (
+            <option key={e.id} value={e.name}>{e.name}</option>
+          ))}
+        </select>
+        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
+          <option value="all">{t.report_filter_category_all}</option>
+          {ALERT_CATEGORIES.map((c) => (
+            <option key={c.id} value={c.name}>{c.name}</option>
+          ))}
+        </select>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
+          <option value="all">{t.report_filter_status_all}</option>
+          <option value="new">{t.status_new}</option>
+          <option value="under_review">{t.status_under_review}</option>
+          <option value="investigation">{t.status_investigation}</option>
+          <option value="corrective_action">{t.status_corrective_action}</option>
+          <option value="closed">{t.status_closed}</option>
+          <option value="reopened">{t.status_reopened}</option>
+          <option value="archived">{t.status_archived}</option>
+        </select>
+        {filtersActive && (
+          <button onClick={resetFilters} className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:underline ml-1">
+            <X className="w-3 h-3" /> {t.report_filters_reset}
+          </button>
+        )}
+        <span className="ml-auto text-[11px] text-slate-400 font-medium">
+          {alerts.length} / {allAlerts.length} {t.report_filters_results_suffix}
+        </span>
       </div>
 
       {/* KPI Highlight Cards (CDC 3.1.4 Required Metrics) */}

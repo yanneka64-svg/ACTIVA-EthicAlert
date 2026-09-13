@@ -14,6 +14,7 @@ import { AlertTrackingView } from './components/AlertTrackingView';
 import { InvestigationDesk } from './components/InvestigationDesk';
 import { ControlPanel } from './components/ControlPanel';
 import { ReportingDashboard } from './components/ReportingDashboard';
+import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { AuditTrailView } from './components/AuditTrailView';
 import { AdminConfigView } from './components/AdminConfigView';
 import { QrCodeModal } from './components/QrCodeModal';
@@ -68,7 +69,7 @@ export default function App() {
     // Leaving admin/investigator-only screens when switching to the public whistleblower profile.
     if (
       user.role === 'whistleblower' &&
-      ['control_panel', 'portal', 'reports', 'audit', 'settings'].includes(currentTab)
+      ['control_panel', 'portal', 'reports', 'executive', 'audit', 'settings'].includes(currentTab)
     ) {
       setCurrentTab('home');
     }
@@ -126,6 +127,13 @@ export default function App() {
     }
     if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={pendingCaseFilter} />;
     if (currentTab === 'reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
+    if (currentTab === 'executive') {
+      return isGlobalViewer ? (
+        <ExecutiveDashboard lang={lang} activeUser={activeUser} />
+      ) : (
+        renderAccessDenied('Vue Exécutive')
+      );
+    }
     if (currentTab === 'audit') {
       return isGlobalViewer ? (
         <AuditTrailView lang={lang} activeUser={activeUser} />
@@ -143,7 +151,7 @@ export default function App() {
     return null;
   };
 
-  const isStaffTab = ['control_panel', 'portal', 'reports', 'audit', 'settings'].includes(currentTab);
+  const isStaffTab = ['control_panel', 'portal', 'reports', 'executive', 'audit', 'settings'].includes(currentTab);
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
