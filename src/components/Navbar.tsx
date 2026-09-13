@@ -176,27 +176,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-40">
-      {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
-          Remplace le bandeau défilant (Phase 21, construit sur une
-          incompréhension — la vraie demande de défilement visait la carte
-          de valeurs du hero, voir Phase 22) par la bande utilitaire statique
-          de la maquette de référence : "À propos", "Mentions légales",
-          "Politique de confidentialité", alignés à droite. Les deux derniers
-          réutilisent exactement les mêmes clés que le pied de page (même
-          contenu, cohérent), volontairement non cliquables comme leurs
-          équivalents du pied de page (pas de page dédiée dans cette démo —
-          jamais un lien qui prétend mener quelque part). */}
-      {!isStaffContext && (
-        <div className="bg-sky-50 border-b border-sky-100">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex justify-end items-center gap-4 text-[11px] font-medium text-blue-900">
-            <span>{t.topbar_about}</span>
-            <span className="text-blue-200">|</span>
-            <span>{t.footer_legal_notice}</span>
-            <span className="text-blue-200">|</span>
-            <span>{t.footer_privacy_policy}</span>
-          </div>
-        </div>
-      )}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 24) === bande utilitaire (Phase 23)
+          retirée sur demande explicite. */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3 sm:gap-5 py-3">
           {/* === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) === Le

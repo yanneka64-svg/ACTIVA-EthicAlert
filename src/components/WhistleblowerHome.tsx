@@ -157,8 +157,8 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           la maquette de référence. */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
         <div className="p-5 flex flex-col items-center text-center gap-2">
-          <span className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-6 h-6" />
+          <span className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-7 h-7" />
           </span>
           <div>
             <div className="font-bold text-slate-900 text-sm">{t.hero_feature_confidentiality_title}</div>
@@ -166,8 +166,8 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </div>
         </div>
         <div className="p-5 flex flex-col items-center text-center gap-2">
-          <span className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <UserX className="w-6 h-6" />
+          <span className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <UserX className="w-7 h-7" />
           </span>
           <div>
             <div className="font-bold text-slate-900 text-sm">{t.hero_feature_anonymity_title}</div>
@@ -175,8 +175,8 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </div>
         </div>
         <div className="p-5 flex flex-col items-center text-center gap-2">
-          <span className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <HeartHandshake className="w-6 h-6" />
+          <span className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <HeartHandshake className="w-7 h-7" />
           </span>
           <div>
             <div className="font-bold text-slate-900 text-sm">{t.hero_feature_no_retaliation_title}</div>
