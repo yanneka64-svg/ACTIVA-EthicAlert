@@ -59,6 +59,9 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   // admin screen's own display.
   const entities = storage.getEntities();
   const categories = storage.getCategories();
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) === real,
+  // admin-editable NOCA→delay thresholds instead of hardcoded 30/15/7/2 days.
+  const slaConfig = storage.getSlaConfig();
 
   // Step control (1 to 5)
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -141,7 +144,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   }, [selectedCategory]);
 
   // Real-time risk evaluation calculation
-  const liveRisk = computeRiskEvaluation(finFactor, hierFactor, recidFactor, reputFactor);
+  const liveRisk = computeRiskEvaluation(finFactor, hierFactor, recidFactor, reputFactor, slaConfig);
 
   // Auto-save form changes
   useEffect(() => {
@@ -306,11 +309,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     const matchedEntity = entities.find(e => e.name === concernedEntity);
     const country = matchedEntity ? matchedEntity.country : 'Groupe ACTIVA';
 
-    // Target completion date based on SLA
-    let daysToAdd = 30;
-    if (liveRisk.nocaThreshold === 'NOCA 4') daysToAdd = 2; // 48h
-    else if (liveRisk.nocaThreshold === 'NOCA 3') daysToAdd = 7;
-    else if (liveRisk.nocaThreshold === 'NOCA 2') daysToAdd = 15;
+    // Target completion date based on SLA — === AMÉLIORATION AJOUTÉE (Phase 7)
+    // === now reads the real, admin-editable thresholds instead of hardcoded
+    // 30/15/7/2 days (defaults to the exact same values when unedited).
+    let daysToAdd = slaConfig.noca1Days;
+    if (liveRisk.nocaThreshold === 'NOCA 4') daysToAdd = slaConfig.noca4Days;
+    else if (liveRisk.nocaThreshold === 'NOCA 3') daysToAdd = slaConfig.noca3Days;
+    else if (liveRisk.nocaThreshold === 'NOCA 2') daysToAdd = slaConfig.noca2Days;
 
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + daysToAdd);

@@ -14,6 +14,27 @@ export interface EntityDef {
   flag: string;
 }
 
+// === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
+// Single source of truth for the NOCA→target-treatment-delay mapping,
+// previously hardcoded in three separate places (computeRiskEvaluation's
+// expectedTreatment text below, AlertSubmissionFlow's targetCompletionDate
+// calculation, and AdminConfigView's static display). storage.ts seeds its
+// mutable, persisted copy from this constant — same seed-then-mutate
+// pattern already used for Entities/Categories/Users.
+export interface SlaConfig {
+  noca1Days: number; // Faible
+  noca2Days: number; // Élevée
+  noca3Days: number; // Très élevée
+  noca4Days: number; // Critique
+}
+
+export const DEFAULT_SLA_CONFIG: SlaConfig = {
+  noca1Days: 30,
+  noca2Days: 15,
+  noca3Days: 7,
+  noca4Days: 2,
+};
+
 export const ACTIVA_COUNTRIES = [
   { code: 'CM', name: 'Cameroun', flag: '🇨🇲' },
   { code: 'CD', name: 'RD Congo', flag: '🇨🇩' },
@@ -113,7 +134,13 @@ export function computeRiskEvaluation(
   financialImpact: 1 | 2 | 3 | 4,
   hierarchyLevel: 1 | 2 | 3 | 4,
   recidivism: 1 | 2 | 3 | 4,
-  reputationRisk: 1 | 2 | 3 | 4
+  reputationRisk: 1 | 2 | 3 | 4,
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
+  // Optional, defaults to DEFAULT_SLA_CONFIG so every existing call site
+  // (this function's signature was previously 4 required args) keeps
+  // behaving exactly as before. Callers that care about admin-edited
+  // thresholds (AlertSubmissionFlow) pass storage.getSlaConfig().
+  slaConfig: SlaConfig = DEFAULT_SLA_CONFIG
 ): RiskEvaluation {
   const totalScore = financialImpact + hierarchyLevel + recidivism + reputationRisk;
   let nocaThreshold: NocaThreshold = 'NOCA 1';
@@ -123,19 +150,19 @@ export function computeRiskEvaluation(
   if (totalScore >= 14) {
     nocaThreshold = 'NOCA 4';
     priority = 'critique';
-    expectedTreatment = 'Action immédiate (48h)';
+    expectedTreatment = slaConfig.noca4Days <= 2 ? 'Action immédiate (48h)' : `Action immédiate (${slaConfig.noca4Days} jours)`;
   } else if (totalScore >= 11) {
     nocaThreshold = 'NOCA 3';
     priority = 'tres_elevee';
-    expectedTreatment = 'Enquête urgente (7 jours)';
+    expectedTreatment = `Enquête urgente (${slaConfig.noca3Days} jours)`;
   } else if (totalScore >= 7) {
     nocaThreshold = 'NOCA 2';
     priority = 'elevee';
-    expectedTreatment = 'Suivi renforcé (15 jours)';
+    expectedTreatment = `Suivi renforcé (${slaConfig.noca2Days} jours)`;
   } else {
     nocaThreshold = 'NOCA 1';
     priority = 'faible';
-    expectedTreatment = 'Traitement standard (30 jours)';
+    expectedTreatment = `Traitement standard (${slaConfig.noca1Days} jours)`;
   }
 
   return {
