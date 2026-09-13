@@ -1,0 +1,100 @@
+rules_version = '2';
+
+// ACTIVA Hotline — Cloud Storage Security Rules (Evidence uploads)
+//
+// === AMÉLIORATION AJOUTÉE ===
+// STATUS: written, NOT provisioned. Verified directly against the real
+// project (activa-ethicalert-47246): its default Storage bucket does not
+// exist yet (`storage.googleapis.com` returns 404 "bucket does not exist")
+// and the Cloud Storage for Firebase API itself is SERVICE_DISABLED —
+// confirmed by a direct API call, not assumed. This is a harder wall than
+// the undeployed Cloud Functions: those are merely undeployed, this
+// project has no Storage bucket at all. Since October 2024 a NEW default
+// Storage bucket requires the Blaze plan — the exact same wall documented
+// in docs/FIREBASE-SETUP.md for Cloud Functions, and the same "stay on
+// Spark" decision applies here without needing to be re-litigated.
+//
+// Mirrors src/domain/permissions.ts's `can()` read-path logic for
+// evidence.read / cases.edit, the same way firestore.rules does — but
+// duplicated by necessity: Storage Security Rules and Firestore Security
+// Rules are two separate rule languages/services that cannot share
+// function definitions. If firestore.rules' equivalent logic ever
+// changes, this file must be updated to match by hand; nothing enforces
+// that automatically. Flagged here rather than left as a silent
+// assumption of staying in sync.
+//
+// Design: evidence bytes live at evidence/{caseId}/{evidenceId}/{fileName}.
+// Direct reads are always denied — Evidence.storagePath's own comment in
+// caseTypes.ts commits to "resolved through a signed, short-lived, audited
+// Cloud Function call" (see getEvidenceDownloadUrl in functions/src/index.ts),
+// never a raw Storage URL, so `allow read` here is deliberately `if false`
+// even for an otherwise-authorized user — the whole point is that nobody
+// reads Storage directly, ever.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /evidence/{caseId}/{evidenceId}/{fileName} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function claimRole() {
+        return request.auth.token.role;
+      }
+      function claimCountries() {
+        return request.auth.token.countries;
+      }
+      function claimEntities() {
+        return request.auth.token.entities;
+      }
+      // Cross-service read of the parent Case document — mirrors
+      // firestore.rules' own subcollection pattern (a get() against the
+      // parent case), using this project's actual named database ("default",
+      // not the special "(default)" — see docs/FIREBASE-SETUP.md).
+      function caseData() {
+        return firestore.get(/databases/default/documents/cases/$(caseId)).data;
+      }
+      function hasGlobalCaseVisibility() {
+        return claimRole() in ['functional_admin', 'darc_compliance', 'consultation'];
+      }
+      function isInScope(kase) {
+        return (claimCountries().size() == 0 || kase.country in claimCountries())
+          && (claimEntities().size() == 0 || kase.entity in claimEntities());
+      }
+      function isAssignedTo(kase) {
+        return request.auth.uid == kase.assignee || request.auth.uid in kase.additionalInvestigators;
+      }
+      function isNotImplicated(kase) {
+        return !(request.auth.uid in kase.implicatedUserIds);
+      }
+      function confidentialityRank(level) {
+        return level == 'highly_confidential' ? 3 : (level == 'confidential' ? 2 : 1);
+      }
+      function maxConfidentialityRank() {
+        return claimRole() in ['senior_investigator', 'functional_admin', 'darc_compliance']
+          ? 3
+          : (claimRole() in ['investigator', 'consultation'] ? 2 : 1);
+      }
+      function canEditCase() {
+        let kase = caseData();
+        return isSignedIn()
+          && isNotImplicated(kase)
+          && isInScope(kase)
+          && confidentialityRank(kase.confidentialityLevel) <= maxConfidentialityRank()
+          && (hasGlobalCaseVisibility() || isAssignedTo(kase));
+      }
+
+      // Never a direct read — see header comment. All evidence access goes
+      // through getEvidenceDownloadUrl (audited, short-lived signed URL).
+      allow read: if false;
+
+      // Upload only: same authorization firestore.rules would apply to
+      // editing this case, plus a hard 25MB cap (arbitrary but explicit —
+      // matches no existing config value, since none existed before this).
+      allow write: if canEditCase() && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    // Everything else: closed. No public bucket browsing, no forgotten path.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

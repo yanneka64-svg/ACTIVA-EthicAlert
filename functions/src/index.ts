@@ -17,17 +17,20 @@
  * `firebase functions:list` failed) — see docs/FIREBASE-SETUP.md for exactly
  * what is needed to finish this. This now covers every mutation-shaped
  * operation in `src/data-access/caseRepository.ts`'s `CaseRepository`
- * interface except `addEvidence` (needs Storage Security Rules + a
- * signed-URL flow — a genuinely larger unit, listed at the bottom of this
- * file). Every callable follows the same pattern: verify identity from the
- * token (or, for the two reporter-facing callables, verify a caseNumber +
- * accessCode pair instead — reporters hold no Firebase Auth token), call
- * `can()`/`checkTransition()` from the domain layer, write a timeline
- * event and/or audit entry.
+ * interface. `addEvidence`/`getEvidenceDownloadUrl` additionally depend on
+ * Cloud Storage for Firebase, which is a HARDER wall than the undeployed
+ * Functions themselves: verified directly against the real project, its
+ * default Storage bucket does not exist at all (SERVICE_DISABLED) — see
+ * storage.rules' header comment. Every callable follows the same pattern:
+ * verify identity from the token (or, for the two reporter-facing
+ * callables, verify a caseNumber + accessCode pair instead — reporters
+ * hold no Firebase Auth token), call `can()`/`checkTransition()` from the
+ * domain layer, write a timeline event and/or audit entry.
  */
 
 import { initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { CallableRequest, HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import {
@@ -38,6 +41,7 @@ import {
   ConflictOfInterestDeclaration,
   Communication,
   CorrectiveAction,
+  Evidence,
   FindingOutcome,
   Interview,
   Person,
@@ -58,6 +62,16 @@ import { verifyPassword } from '../../src/services/crypto';
 
 initializeApp();
 const db = getFirestore();
+
+// === AMÉLIORATION AJOUTÉE ===
+// Verified directly against the real project: this bucket does not exist
+// yet (Cloud Storage for Firebase is SERVICE_DISABLED on this Spark-plan
+// project — see storage.rules' header comment and docs/FIREBASE-SETUP.md).
+// Named explicitly (matching the real web app config already committed
+// non-secretly in .firebaserc/src/i18n/translations.ts) rather than left
+// to getStorage().bucket()'s default-bucket resolution, which requires the
+// Admin SDK to already know about a configured bucket.
+const STORAGE_BUCKET = 'activa-ethicalert-47246.firebasestorage.app';
 
 /** Builds the AppUser the domain layer expects from a verified callable request's auth context. */
 function requireAppUser(request: CallableRequest): AppUser {
@@ -832,7 +846,95 @@ export const getReporterIdentity = onCall(async (request) => {
 });
 
 // ---------------------------------------------------------------------------
-// Remaining backlog: addEvidence (+ Storage upload URL issuance — needs
-// Storage Security Rules and a signed-URL flow, a genuinely larger unit
-// than everything else in this file).
+// addEvidence
+// === AMÉLIORATION AJOUTÉE ===
+// The file's bytes are uploaded directly to Cloud Storage by the client
+// (Firebase Storage SDK, gated by storage.rules — never through this
+// callable, which only records metadata), at a path the client generates
+// under evidence/{caseId}/{anyId}/{fileName}. This callable is called
+// AFTER that upload succeeds, to record the Evidence document — mirrors
+// both existing repository implementations' addEvidence exactly, plus a
+// defense-in-depth check that storagePath actually falls under this
+// case's own prefix (a caller cannot register metadata pointing at some
+// unrelated file elsewhere in the bucket).
 // ---------------------------------------------------------------------------
+
+export const addEvidence = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId, fileName, fileType, fileSize, description, storagePath, sha256Hash, confidentiality } = request.data as {
+    caseId: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    description?: string;
+    storagePath: string;
+    sha256Hash?: string;
+    confidentiality: Evidence['confidentiality'];
+  };
+  if (!caseId || !fileName || !fileType || fileSize == null || !storagePath || !confidentiality) {
+    throw new HttpsError('invalid-argument', 'caseId, fileName, fileType, fileSize, storagePath and confidentiality are required.');
+  }
+  if (confidentiality !== 'standard' && confidentiality !== 'restricted') {
+    throw new HttpsError('invalid-argument', "confidentiality must be 'standard' or 'restricted'.");
+  }
+  if (!storagePath.startsWith(`evidence/${caseId}/`)) {
+    throw new HttpsError('invalid-argument', 'storagePath must be under this case\'s own evidence/ prefix.');
+  }
+
+  // evidence.upload — the one place in this batch where a dedicated,
+  // more specific Permission than cases.edit actually exists.
+  await requireCaseAccess(caseId, user, 'evidence.upload');
+
+  const evidenceId = newId('evd');
+  const nowIso = new Date().toISOString();
+  const evidence: Evidence = {
+    evidenceId, caseId, fileName, fileType, fileSize, description, storagePath, sha256Hash,
+    version: 1, confidentiality, status: 'active',
+    createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId,
+  };
+  await db.collection('cases').doc(caseId).collection('evidence').doc(evidenceId).set(evidence);
+  await appendTimeline(caseId, 'EVIDENCE_ADDED', user.userId, fileName);
+  await appendAudit({ actorId: user.userId, action: 'EVIDENCE_UPLOADED', caseId, objectType: 'evidence', objectId: evidenceId });
+
+  return { evidenceId };
+});
+
+// ---------------------------------------------------------------------------
+// getEvidenceDownloadUrl
+// === AMÉLIORATION AJOUTÉE ===
+// Fulfills the promise already made by Evidence.storagePath's own comment
+// in caseTypes.ts: "Never a public URL — resolved through a signed,
+// short-lived, audited Cloud Function call." storage.rules denies direct
+// reads unconditionally (`allow read: if false`) specifically so this is
+// the only path — every access is authorized the same way cases.read/
+// evidence.read already are, and every access is audited, not just
+// successful downloads gated silently.
+// ---------------------------------------------------------------------------
+
+const EVIDENCE_URL_TTL_MS = 15 * 60 * 1000; // "short-lived" — 15 minutes
+
+export const getEvidenceDownloadUrl = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId, evidenceId } = request.data as { caseId: string; evidenceId: string };
+  if (!caseId || !evidenceId) throw new HttpsError('invalid-argument', 'caseId and evidenceId are required.');
+
+  await requireCaseAccess(caseId, user, 'evidence.read');
+
+  const snap = await db.collection('cases').doc(caseId).collection('evidence').doc(evidenceId).get();
+  if (!snap.exists) throw new HttpsError('not-found', `Evidence ${evidenceId} not found.`);
+  const evidence = snap.data() as Evidence;
+  // Deleted evidence is excluded from listEvidence() in both existing
+  // repositories — mirrored here rather than treated as still downloadable.
+  if (evidence.status === 'deleted' || !evidence.storagePath) {
+    throw new HttpsError('not-found', `Evidence ${evidenceId} not found.`);
+  }
+
+  const [url] = await getStorage()
+    .bucket(STORAGE_BUCKET)
+    .file(evidence.storagePath)
+    .getSignedUrl({ action: 'read', expires: Date.now() + EVIDENCE_URL_TTL_MS });
+
+  await appendAudit({ actorId: user.userId, action: 'EVIDENCE_ACCESSED', caseId, objectType: 'evidence', objectId: evidenceId });
+
+  return { url, expiresAt: new Date(Date.now() + EVIDENCE_URL_TTL_MS).toISOString() };
+});

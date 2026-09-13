@@ -71,6 +71,35 @@ Test #2 initially failed on the first run (denied when it should have been allow
 
 If this decision is revisited later, the path is already proven end-to-end: enable Blaze in the console (fully, past the upgrade confirmation — verify at https://console.firebase.google.com/project/activa-ethicalert-47246/usage/details that it no longer prompts to upgrade), then re-run `firebase deploy --only functions --project activa-ethicalert-47246` (the `serviceusage.serviceUsageAdmin` role granted above is still in place and already proven sufficient for the rest of the flow).
 
+## Cloud Functions — later sessions completed the write surface (still NOT deployed)
+
+**=== AMÉLIORATION AJOUTÉE ===** Since the "3 of ~15" note above was
+written, `functions/src/index.ts` was extended across several follow-up
+passes to implement **every mutation-shaped `CaseRepository` operation**:
+`createCase`, `assignCase`, `changeCaseStatus`, `addAllegation`,
+`setAllegationFinding`, `addPerson`, `addTask`, `addInterview`,
+`addInvestigationNote`, `addCommunication`, `addCorrectiveAction`,
+`recordRiskAssessment`, `declareConflictOfInterest`, `getCaseForReporter`,
+`addCommunicationAsReporter`, `getReporterIdentity`, `addEvidence`,
+`getEvidenceDownloadUrl` — see `docs/API.md` for the full reference and
+`docs/PHASES.md` for each addition's own AUDIT/PLAN/IMPLEMENT/TEST/
+VERIFY/DOCUMENT entry. All of it compiles cleanly; **none of it is
+deployed** — the Blaze/Cloud Build wall above is unchanged, and this
+extra code doesn't move that decision, it just means nothing is left
+unwritten once the day comes to revisit it.
+
+**New, harder wall found while adding `addEvidence`/`getEvidenceDownloadUrl`**:
+Cloud Storage for Firebase doesn't exist on this project at all yet —
+checked directly rather than assumed: `storage.googleapis.com` on the
+expected default bucket (`activa-ethicalert-47246.firebasestorage.app`)
+returns 404 "bucket does not exist", and `firebasestorage.googleapis.com`
+itself returns `SERVICE_DISABLED`. Since October 2024, Google requires the
+Blaze plan to provision a *new* default Storage bucket — the same
+category of wall as Cloud Functions above, and the same "stay on Spark"
+decision covers it; a new `storage.rules` file is written and referenced
+from `firebase.json`, ready for the day Storage is provisioned, but has
+never been deployed or exercised against a real bucket.
+
 ## Phase 4 — Control Panel (blocked on the same issue as Cloud Functions)
 
 Attempted a real, read-only Control Panel (`src/services/firebaseClient.ts`, a real Firebase Web App registered for this project — appId `1:308693813201:web:8f3bbcfcb68ee81964c2f0`, config in a gitignored `.env`). It surfaced a genuine architectural constraint rather than a bug:

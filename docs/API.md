@@ -11,7 +11,7 @@ of truth.
 | | Status |
 |---|---|
 | `CaseRepository` interface (~24 operations) | Fully specified in TypeScript. Fully implemented twice: `LocalCaseRepository` (localStorage, used by nothing in the shipped UI yet) and `FirestoreAdminCaseRepository` (Admin SDK, used by the one-off seed/migration scripts). Both pass the same behavior (see `docs/PHASES.md` Phase 2/2b). |
-| Cloud Functions (the real network-callable API) | **16 operations implemented and type-checked** — every mutation-shaped `CaseRepository` operation except `addEvidence`: `createCase`, `assignCase`, `changeCaseStatus`, `addAllegation`, `setAllegationFinding`, `addPerson`, `addTask`, `addInterview`, `addInvestigationNote`, `addCommunication`, `addCorrectiveAction`, `recordRiskAssessment`, `declareConflictOfInterest`, `getCaseForReporter`, `addCommunicationAsReporter`, `getReporterIdentity`. Only `addEvidence` remains (needs Storage Security Rules + a signed-URL flow — see the backlog table below), plus the read-side callables (`getCase`/`listCases`) still blocked on the same wall as ever. **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). Nothing below is reachable over the network right now. |
+| Cloud Functions (the real network-callable API) | **All 18 mutation-shaped `CaseRepository` operations implemented and type-checked**, including `addEvidence`/`getEvidenceDownloadUrl`. Only the read-side callables (`getCase`/`listCases`) remain unbuilt — blocked on Firestore's list-query wall, a different problem entirely (see below). **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). `addEvidence`/`getEvidenceDownloadUrl` additionally depend on Cloud Storage for Firebase, which is a **harder** wall than the rest: verified directly against the real project, its default Storage bucket does not exist at all yet (SERVICE_DISABLED — see `storage.rules`' header comment). Nothing below is reachable over the network right now. |
 | Reads | Not a Cloud Function today — direct Firestore reads via `firestore.rules`, single-document `getDoc` only (see `docs/PERMISSIONS.md`/`docs/FIREBASE-SETUP.md` — list queries are blocked outright by Firestore itself, a Cloud Function is the architecturally-required fix, same billing blocker as above). |
 
 This document describes the API **as designed and as far as it is built**,
@@ -220,18 +220,53 @@ identity document is read — the entry itself is the record that the
 request was made, matching both existing repository implementations
 exactly.
 
-## Planned, not yet implemented (the remaining `CaseRepository` surface)
+### `addEvidence`, `getEvidenceDownloadUrl`
 
-Same pattern as the three above (verify identity from the token, call
-`can()`/`checkTransition()` from the same domain layer, write a timeline
-event and an audit entry) — listed here as the concrete backlog, not a
-vague "more to come":
+| | |
+|---|---|
+| Permission required | `evidence.upload` for `addEvidence`, `evidence.read` for `getEvidenceDownloadUrl` — the one pair in this whole file where a dedicated, more specific `Permission` than `cases.edit` actually exists in the `Permission` union. |
+| `addEvidence` request/response | `{ caseId, fileName, fileType, fileSize, description?, storagePath, sha256Hash?, confidentiality }` → `{ evidenceId }`. `confidentiality` validated to be exactly `'standard'` or `'restricted'`. `storagePath` validated to fall under `evidence/{caseId}/` — a caller cannot register metadata pointing at an unrelated file elsewhere in the bucket. New evidence always starts `version: 1`, `status: 'active'`, matching both existing repository implementations. |
+| `getEvidenceDownloadUrl` request/response | `{ caseId, evidenceId }` → `{ url, expiresAt }` — a signed, time-limited Cloud Storage URL, **15 minutes**. |
+| Errors | `unauthenticated`, `invalid-argument`, `not-found` (missing evidence, or `status: 'deleted'` — mirrors `listEvidence()`'s exclusion in both repositories rather than treating deleted evidence as still downloadable), `permission-denied` |
+
+The file's bytes are never uploaded through a callable — the client
+uploads directly to Cloud Storage (Firebase Storage SDK), gated by
+`storage.rules`, at a path it generates under
+`evidence/{caseId}/{anyId}/{fileName}`; `addEvidence` is called
+*afterward* to record the Firestore metadata pointing at that path.
+`getEvidenceDownloadUrl` is what actually fulfills the promise
+`Evidence.storagePath`'s own comment in `caseTypes.ts` already made:
+"Never a public URL — resolved through a signed, short-lived, audited
+Cloud Function call." `storage.rules` denies direct reads unconditionally
+(`allow read: if false`) specifically so this callable is the only path;
+every access is authorized the same way `evidence.read` already is
+everywhere else, and every access — not just a successful download — is
+written to `audit_logs` as `EVIDENCE_ACCESSED`.
+
+**=== AMÉLIORATION AJOUTÉE : un mur plus dur que les Functions elles-mêmes ===**
+Verified directly against the real project (`activa-ethicalert-47246`):
+its default Cloud Storage bucket does not exist — a direct
+`storage.googleapis.com` check returns 404 "bucket does not exist", and
+`firebasestorage.googleapis.com` itself returns `SERVICE_DISABLED`. Since
+October 2024 a *new* default Storage bucket requires the Blaze plan — the
+exact same wall already documented for Cloud Functions in
+`docs/FIREBASE-SETUP.md`, and the same "stay on Spark" decision applies
+here without needing to be re-litigated. `storage.rules` (new, mirrors
+`firestore.rules`' authorization logic by necessity — Storage Security
+Rules and Firestore Security Rules are separate rule languages that cannot
+share function definitions, flagged in that file's own header comment
+rather than assumed to auto-stay in sync) is written and added to
+`firebase.json`, ready for the day Storage is provisioned, but nothing in
+this section has ever been deployed or exercised against a real bucket.
+
+## Reads not yet implemented as callables
+
+Listed separately from the (now complete) mutation surface above:
 
 | Operation | Purpose |
 |---|---|
-| `listAllegations`, `listPersons`, `listTasks`, `listInterviews`, `listInvestigationNotes`, `listCommunications`, `listCorrectiveActions`, `getActiveRiskAssessment`, `listAuditEvents` | Read-side of the mutations above — none are callables yet (see the `getCase`/`listCases` row below on reads generally). |
-| `addEvidence`, `listEvidence` | Evidence metadata + (once built) a signed, short-lived Storage upload/download URL — deliberately never a public URL (see `Evidence.storagePath`'s comment in `caseTypes.ts`). The one remaining mutation-shaped operation, a genuinely larger unit than the others (needs Storage Security Rules too), not an oversight. |
-| `getCase`, `listCases` | Reads. `getCase` already has a real, deployed, direct-Firestore equivalent (`getDoc`, see `docs/PERMISSIONS.md`) — a callable version would mainly matter for reporters or for hiding fields server-side. `listCases` is the one genuinely blocked by Firestore's list-query wall (`docs/FIREBASE-SETUP.md` Phase 4 finding) — this is the callable every future Control Panel screen needs before it can be built for real. |
+| `listAllegations`, `listPersons`, `listTasks`, `listInterviews`, `listInvestigationNotes`, `listCommunications`, `listCorrectiveActions`, `listEvidence`, `getActiveRiskAssessment`, `listAuditEvents` | Read-side of the mutations above — none are callables yet. |
+| `getCase`, `listCases` | `getCase` already has a real, deployed, direct-Firestore equivalent (`getDoc`, see `docs/PERMISSIONS.md`) — a callable version would mainly matter for reporters or for hiding fields server-side. `listCases` is the one genuinely blocked by Firestore's list-query wall (`docs/FIREBASE-SETUP.md` Phase 4 finding) — this is the callable every future Control Panel screen needs before it can be built for real. |
 
 ## Where this fits in `docs/ARCHITECTURE.md`'s principle
 

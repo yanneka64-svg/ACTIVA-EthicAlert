@@ -570,3 +570,69 @@ real), this entry. Cloud Functions backlog is now exactly one item:
 `addEvidence`, which needs Storage Security Rules and a signed-URL flow —
 a genuinely different, larger unit of work than everything ported so far,
 not a small remaining port.
+
+---
+
+## Last Cloud Functions item: `addEvidence`, `getEvidenceDownloadUrl` — and a harder wall found
+
+**AUDIT** → before writing any Storage-dependent code, checked whether
+Storage even exists on this project rather than assuming it (same
+discipline as every prior wall found this session). It doesn't: a direct
+`storage.googleapis.com` check on the expected default bucket name
+(`activa-ethicalert-47246.firebasestorage.app`) returned 404 "bucket does
+not exist", and `firebasestorage.googleapis.com` itself returned
+`SERVICE_DISABLED`. Since October 2024, Google requires the Blaze plan to
+provision a *new* default Storage bucket — the same category of wall
+already documented for Cloud Functions (`docs/FIREBASE-SETUP.md`), and the
+project's existing "stay on Spark" decision applies here too without
+needing to be re-asked.
+
+**PLAN** → write the code anyway, exactly as ready-to-plug-in as
+everything else this session has produced for the undeployed Cloud
+Functions, but be explicit that this one sits behind a *harder* wall
+(no bucket at all, not just an undeployed function) rather than blur the
+two together. Design: the client uploads file bytes directly to Cloud
+Storage (never through a callable) at a path it generates under
+`evidence/{caseId}/{anyId}/{fileName}`, gated by new `storage.rules`;
+`addEvidence` is called afterward to record Firestore metadata;
+`getEvidenceDownloadUrl` is the one path allowed to read the file at all,
+fulfilling the promise `Evidence.storagePath`'s own comment in
+`caseTypes.ts` already made ("resolved through a signed, short-lived,
+audited Cloud Function call").
+
+**IMPLEMENT**:
+- `storage.rules` (new file) — mirrors `firestore.rules`' authorization
+  logic (`isNotImplicated`/`isInScope`/confidentiality/assigned-or-global)
+  for the upload path, using Storage Rules' `firestore.get()` cross-service
+  read to fetch the parent case; `allow read: if false` unconditionally, a
+  25MB size cap on writes. Flagged in its own header comment that this
+  necessarily duplicates `firestore.rules`' logic (two separate rule
+  languages, no shared functions) and must be updated by hand if the
+  source ever changes — not an automatic guarantee.
+- `firebase.json`: added a `storage` block pointing at `storage.rules`.
+- `addEvidence` (`evidence.upload`) — validates `confidentiality` and that
+  `storagePath` falls under this case's own `evidence/{caseId}/` prefix
+  (defense in depth: a caller cannot record metadata pointing at an
+  unrelated file); new evidence always `version: 1`, `status: 'active'`.
+- `getEvidenceDownloadUrl` (`evidence.read`) — excludes `status: 'deleted'`
+  evidence the same way `listEvidence()` already does in both existing
+  repositories; mints a 15-minute signed URL via the Admin SDK
+  (`getStorage().bucket(...).file(...).getSignedUrl(...)`); writes an
+  `EVIDENCE_ACCESSED` audit entry on every call, not just successful ones.
+
+**TEST / VERIFY**: `npm run build` inside `functions/` — clean on the first
+attempt. Root `tsc --noEmit` — clean. No live test of any kind is possible
+here — not "undeployed" but "the bucket this would write to doesn't
+exist" — confirmed via the same direct API checks used throughout this
+session (never assumed). Correctness rests entirely on matching both
+existing repository implementations field-for-field and a careful reading
+of the Storage Rules Language documentation for `firestore.get()` syntax,
+which could not itself be exercised against a real bucket to confirm.
+
+**DOCUMENT** → `docs/API.md` (moved to "implemented" with the harder-wall
+distinction made explicit), `storage.rules`' own header comment, this
+entry. **Every mutation-shaped `CaseRepository` operation is now a real,
+type-checked Cloud Function** — the only remaining backlog is read-side
+(`getCase`/`listCases`, `list*` for every subcollection), which is a
+different problem (Firestore's list-query wall, Phase 4) than "not yet
+written."
