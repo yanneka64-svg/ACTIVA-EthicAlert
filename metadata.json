@@ -1,5 +1,5 @@
 {
-  "name": "ACTIVA EthicAlert",
+  "name": "ACTIVA Hotline",
   "description": "Plateforme sécurisée et multilingue de gestion et de signalement confidentiel ou anonyme des alertes éthiques pour le Groupe ACTIVA.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

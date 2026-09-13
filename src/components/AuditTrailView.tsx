@@ -8,8 +8,7 @@ import {
   User, 
   Calendar, 
   FileText,
-  Clock,
-  Layers
+  Clock
 } from 'lucide-react';
 import { Language, AuditLogEntry, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
