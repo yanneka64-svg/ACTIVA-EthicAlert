@@ -51,11 +51,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     
     // Whistleblower home
     hero_title: 'EthicsAlert.Com',
-    hero_desc: 'Un canal sécurisé pour signaler les préoccupations éthiques et de conformité.',
-    hero_paragraph: 'Chez ACTIVA, nous agissons avec intégrité. Ce dispositif vous permet de signaler, en toute confidentialité, toute situation contraire à nos valeurs, à notre code d’éthique ou aux lois et réglementations applicables.',
-    hero_tags: 'CONFIDENTIEL | SÛR | ÉTHIQUE',
+    hero_desc: 'Le canal officiel du Groupe Activa pour signaler, en toute confiance, tout manquement à l’éthique ou à la conformité.',
+    hero_paragraph: 'L’intégrité est au cœur de notre culture d’entreprise. EthicsAlert vous permet de signaler, en toute confidentialité et sans crainte, tout comportement contraire à nos valeurs, à notre code d’éthique ou à la réglementation en vigueur. Chaque signalement est pris au sérieux et traité avec rigueur.',
+    hero_tags: '100% CONFIDENTIEL · SÉCURISÉ · CONFORME',
     hero_how_it_works_link: 'Comment ça marche ?',
-    hero_quote: 'Une entreprise responsable pour un avenir durable.',
+    hero_quote: 'Ensemble, construisons une entreprise responsable, transparente et durable.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — section FAQ, absente jusqu'ici) ===
     faq_title: 'Questions fréquentes',
@@ -505,11 +505,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     tab_audit_journal: 'Journal d’audit',
     tab_overview_exact: 'Vue d’ensemble',
     hero_feature_confidentiality_title: 'Confidentialité',
-    hero_feature_confidentiality_desc: 'Votre identité est protégée',
+    hero_feature_confidentiality_desc: 'Votre identité reste strictement confidentielle',
     hero_feature_anonymity_title: 'Anonymat',
-    hero_feature_anonymity_desc: 'C’est votre choix',
+    hero_feature_anonymity_desc: 'Signalez de manière anonyme si vous le souhaitez',
     hero_feature_no_retaliation_title: 'Pas de représailles',
-    hero_feature_no_retaliation_desc: 'Nous vous protégeons',
+    hero_feature_no_retaliation_desc: 'Toute forme de représailles est interdite et sanctionnée',
 
     // === AMÉLIORATION AJOUTÉE (Phase 13 — refonte de l'accueil, maquette photo) ===
     nav_secure_space: 'Espace sécurisé',
@@ -575,11 +575,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_subcollections_note: 'Allegations, persons, evidence, notes and communications are not shown here: reading them requires a Cloud Function (not deployed, project on Spark plan). See docs/FIREBASE-SETUP.md.',
 
     hero_title: 'EthicsAlert.Com',
-    hero_desc: 'A secure channel to report ethical and compliance concerns.',
-    hero_paragraph: 'At ACTIVA, we act with integrity. This channel lets you report, in full confidentiality, any situation contrary to our values, our code of ethics, or applicable laws and regulations.',
-    hero_tags: 'CONFIDENTIAL | SAFE | ETHICAL',
+    hero_desc: 'The official Groupe Activa channel to report, in full confidence, any breach of ethics or compliance.',
+    hero_paragraph: 'Integrity is at the heart of our corporate culture. EthicsAlert lets you report, in full confidentiality and without fear, any behavior contrary to our values, our code of ethics, or applicable regulations. Every report is taken seriously and handled rigorously.',
+    hero_tags: '100% CONFIDENTIAL · SECURE · COMPLIANT',
     hero_how_it_works_link: 'How does it work?',
-    hero_quote: 'A responsible company for a sustainable future.',
+    hero_quote: 'Together, let’s build a responsible, transparent and sustainable company.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section) ===
     faq_title: 'Frequently Asked Questions',
@@ -1008,11 +1008,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     tab_audit_journal: 'Audit Journal',
     tab_overview_exact: 'Overview',
     hero_feature_confidentiality_title: 'Confidentiality',
-    hero_feature_confidentiality_desc: 'Your identity is protected',
+    hero_feature_confidentiality_desc: 'Your identity remains strictly confidential',
     hero_feature_anonymity_title: 'Anonymity',
-    hero_feature_anonymity_desc: 'It’s your choice',
+    hero_feature_anonymity_desc: 'Report anonymously if you wish',
     hero_feature_no_retaliation_title: 'No retaliation',
-    hero_feature_no_retaliation_desc: 'We protect you',
+    hero_feature_no_retaliation_desc: 'Any form of retaliation is prohibited and sanctioned',
 
     // === AMÉLIORATION AJOUTÉE (Phase 13 — home page redesign, photo mockup) ===
     nav_secure_space: 'Secure area',
@@ -1078,11 +1078,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_subcollections_note: 'Alegações, pessoas, provas, notas e comunicações não são exibidas aqui: sua leitura requer uma Cloud Function (não implantada, projeto no plano Spark). Ver docs/FIREBASE-SETUP.md.',
 
     hero_title: 'EthicsAlert.Com',
-    hero_desc: 'Um canal seguro para reportar preocupações éticas e de conformidade.',
-    hero_paragraph: 'Na ACTIVA, agimos com integridade. Este canal permite-lhe reportar, em total confidencialidade, qualquer situação contrária aos nossos valores, ao nosso código de ética ou às leis e regulamentos aplicáveis.',
-    hero_tags: 'CONFIDENCIAL | SEGURO | ÉTICO',
+    hero_desc: 'O canal oficial do Grupo Activa para reportar, com toda a confiança, qualquer falta de ética ou de conformidade.',
+    hero_paragraph: 'A integridade está no centro da nossa cultura empresarial. O EthicsAlert permite-lhe reportar, em total confidencialidade e sem receio, qualquer comportamento contrário aos nossos valores, ao nosso código de ética ou à regulamentação em vigor. Cada denúncia é levada a sério e tratada com rigor.',
+    hero_tags: '100% CONFIDENCIAL · SEGURO · CONFORME',
     hero_how_it_works_link: 'Como funciona?',
-    hero_quote: 'Uma empresa responsável por um futuro sustentável.',
+    hero_quote: 'Juntos, vamos construir uma empresa responsável, transparente e sustentável.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — seção de perguntas frequentes) ===
     faq_title: 'Perguntas frequentes',
@@ -1511,11 +1511,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     tab_audit_journal: 'Diário de Auditoria',
     tab_overview_exact: 'Visão geral',
     hero_feature_confidentiality_title: 'Confidencialidade',
-    hero_feature_confidentiality_desc: 'Sua identidade está protegida',
+    hero_feature_confidentiality_desc: 'A sua identidade permanece estritamente confidencial',
     hero_feature_anonymity_title: 'Anonimato',
-    hero_feature_anonymity_desc: 'A escolha é sua',
+    hero_feature_anonymity_desc: 'Denuncie de forma anónima se preferir',
     hero_feature_no_retaliation_title: 'Sem represálias',
-    hero_feature_no_retaliation_desc: 'Nós o protegemos',
+    hero_feature_no_retaliation_desc: 'Qualquer forma de represália é proibida e sancionada',
 
     // === AMÉLIORATION AJOUTÉE (Phase 13 — redesenho da página inicial) ===
     nav_secure_space: 'Área segura',
