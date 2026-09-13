@@ -3,8 +3,15 @@ import { Language } from '../types';
 export const TRANSLATIONS: Record<Language, Record<string, string>> = {
   fr: {
     // Header & Brand
-    app_title: 'ACTIVA EthicAlert',
-    app_subtitle: 'Plateforme Sécurisée d’Alerte Éthique & Anti-Fraude',
+    // === AMÉLIORATION AJOUTÉE (Phase 11 — alignement de marque sur la
+    // maquette « ACTIVA Hotline ») === `app_title` est un nom de produit,
+    // volontairement identique dans les 3 langues (comme "Google Drive"
+    // reste "Google Drive" en français). `app_subtitle` porte désormais le
+    // slogan d'en-tête de la maquette, traduit ; `darc_label` (juste
+    // au-dessous) reste inchangé et continue de qualifier le service
+    // interne (DARC) partout où c'est pertinent (pied de page, etc.).
+    app_title: 'ACTIVA Hotline',
+    app_subtitle: 'Un canal sécurisé et confidentiel pour signaler vos préoccupations.',
     group_name: 'Groupe ACTIVA',
     darc_label: 'Direction d’Audit, des Risques et de la Conformité (DARC)',
     confidentiality_guarantee: 'Confidentialité absolue & Protection contre les représailles',
@@ -438,8 +445,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     priority_critique: 'Critique',
   },
   en: {
-    app_title: 'ACTIVA EthicAlert',
-    app_subtitle: 'Secure Whistleblowing & Anti-Fraud Platform',
+    app_title: 'ACTIVA Hotline',
+    app_subtitle: 'A secure and confidential channel to report concerns.',
     group_name: 'ACTIVA Group',
     darc_label: 'Audit, Risk & Compliance Directorate (DARC)',
     confidentiality_guarantee: 'Absolute Confidentiality & Whistleblower Protection',
@@ -851,8 +858,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     priority_critique: 'Critical',
   },
   pt: {
-    app_title: 'ACTIVA EthicAlert',
-    app_subtitle: 'Plataforma Segura de Denúncia Ética & Antifraude',
+    app_title: 'ACTIVA Hotline',
+    app_subtitle: 'Um canal seguro e confidencial para reportar suas preocupações.',
     group_name: 'Grupo ACTIVA',
     darc_label: 'Diretoria de Auditoria, Riscos e Conformidade (DARC)',
     confidentiality_guarantee: 'Confidencialidade Absoluta & Proteção ao Denunciante',

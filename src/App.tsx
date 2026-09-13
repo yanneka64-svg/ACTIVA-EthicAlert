@@ -39,7 +39,11 @@ import { ShieldCheck, Lock, Building2, ShieldOff } from 'lucide-react';
 // réel et distinct, voir renderStaffContent() ci-dessous.
 
 export default function App() {
-  const [lang, setLang] = useState<Language>('fr');
+  // === AMÉLIORATION AJOUTÉE (Phase 11 — alignement de marque « ACTIVA
+  // Hotline », anglais par défaut, conforme à la maquette) === La langue
+  // reste entièrement au choix de l'utilisateur (sélecteur FR/EN/PT dans
+  // l'en-tête, inchangé) — seule la langue de PREMIER CHARGEMENT change.
+  const [lang, setLang] = useState<Language>('en');
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
@@ -272,7 +276,7 @@ export default function App() {
               </div>
               <div>
                 <span className="font-extrabold text-white text-sm tracking-wide">
-                  ACTIVA EthicAlert
+                  ACTIVA Hotline
                 </span>
                 <span className="text-[11px] text-amber-300 block">
                   Direction d'Audit, des Risques et de la Conformité (DARC)

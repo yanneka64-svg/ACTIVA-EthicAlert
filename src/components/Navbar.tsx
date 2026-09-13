@@ -126,7 +126,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="bg-[#0B2545] text-white border-b border-[#134074] shadow-md sticky top-0 z-40">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3 py-2.5">
-          {/* Logo & title — une seule ligne, marque FR/DARC conservée */}
+          {/* === AMÉLIORATION AJOUTÉE (Phase 11 — alignement de marque
+              « ACTIVA Hotline » sur la maquette) === Nom de produit +
+              slogan sur une ligne compacte, comme la maquette ; le badge de
+              version ("v2.0 DARC") — un simple ornement, absent de la
+              maquette — est retiré ici pour ne pas alourdir l'en-tête. */}
           <div
             id="brand-logo"
             onClick={() => setCurrentTab('home')}
@@ -135,17 +139,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="w-9 h-9 shrink-0 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow ring-1 ring-white/20">
               <ShieldAlert className="w-5 h-5 text-[#0B2545]" />
             </div>
-            <div className="min-w-0 hidden sm:block">
-              <div className="flex items-baseline gap-2">
-                <h1 className="text-[15px] font-bold tracking-tight text-white group-hover:text-amber-300 transition truncate">
-                  {t.app_title}
-                </h1>
-                <span className="hidden md:inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 shrink-0">
-                  v2.0 DARC
-                </span>
-              </div>
-              <p className="text-[10.5px] text-slate-400 truncate max-w-[280px]">
-                {t.darc_label}
+            {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Sur mobile, le nom
+                reste visible (brief §4 : "conserver le logo ; conserver
+                Hotline") ; seul le slogan secondaire est masqué pour
+                laisser la place aux icônes de droite. */}
+            <div className="min-w-0">
+              <h1 className="text-[15px] font-bold tracking-tight text-white group-hover:text-amber-300 transition truncate">
+                {t.app_title}
+              </h1>
+              <p className="hidden sm:block text-[10.5px] text-slate-400 truncate max-w-[280px]">
+                {t.app_subtitle}
               </p>
             </div>
           </div>
