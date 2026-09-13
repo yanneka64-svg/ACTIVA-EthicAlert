@@ -30,7 +30,10 @@ import { TasksRegistry } from './components/TasksRegistry';
 import { EvidenceRegistry } from './components/EvidenceRegistry';
 import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
-import { ShieldOff } from 'lucide-react';
+import { StaffLoginView } from './components/StaffLoginView';
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from './services/authz';
+import { pathForTab, resolveRoute } from './routing/routes';
+import { PermissionGuard, AuthenticatedRoute } from './routing/guards';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -66,10 +69,15 @@ const STAFF_TAB_KEYS = [
   'admin_roles',
 ];
 
-export default function App() {
+function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const resolved = resolveRoute(location.pathname);
+  const currentTab = resolved.tab;
+  const routeTrackingNumber = resolved.trackingNumber;
+
   const [lang, setLang] = useState<Language>('fr');
   const t = TRANSLATIONS[lang];
-  const [currentTab, setCurrentTab] = useState<string>('home');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
   // === AMÉLIORATION AJOUTÉE (Phase 5) === filter the Control Panel's KPI
@@ -151,8 +159,8 @@ export default function App() {
     // Comment ça marche / FAQ only), so picking a staff profile from a
     // public page needs to land somewhere real; the staff portal's own
     // sidebar (StaffPortalLayout) then covers every other screen.
-    else if (user.role !== 'whistleblower' && !STAFF_TAB_KEYS.includes(currentTab)) {
-      setCurrentTab('portal');
+    else if (user.role !== 'reporter' && !STAFF_TAB_KEYS.includes(currentTab)) {
+      goToTab('portal');
     }
   };
 
@@ -311,10 +319,10 @@ export default function App() {
     // maquette) === même composant/CRUD/garde que 'admin_users', onglet de
     // départ différent.
     if (currentTab === 'admin_roles') {
-      return activeUser.role === 'system_admin' ? (
-        <AdminConfigView lang={lang} activeUser={activeUser} initialTab="roles" />
-      ) : (
-        renderAccessDenied('Rôles & Permissions')
+      return (
+        <PermissionGuard allowed={activeUser.role === 'system_admin'} label="Rôles & Permissions">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="roles" />
+        </PermissionGuard>
       );
     }
     return null;
@@ -336,6 +344,8 @@ export default function App() {
         pendingAlertsCount={pendingAlertsCount}
         onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
         isStaffContext={isStaffTab || currentTab === 'firebase_lookup'}
+        isStaffSessionActive={isStaffSessionActive}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -419,5 +429,13 @@ export default function App() {
         lang={lang}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }

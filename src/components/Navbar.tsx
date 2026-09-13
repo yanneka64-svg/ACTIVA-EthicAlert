@@ -17,6 +17,7 @@ import {
 import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+import { isGlobalCaseViewer } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
 import { generateNotifications } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
@@ -43,6 +44,8 @@ interface NavbarProps {
   // Purely presentational: every tab/handler below is unchanged and still
   // reachable, only the layout of this bar differs.
   isStaffContext: boolean;
+  isStaffSessionActive?: boolean;
+  onLogout?: () => void;
 }
 
 // A real, computed notification list (see services/statusMapping.ts) never
@@ -71,6 +74,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   pendingAlertsCount,
   onNavigateToCase,
   isStaffContext,
+  isStaffSessionActive,
+  onLogout,
 }) => {
   const t = TRANSLATIONS[lang];
   const allUsers = storage.getUsers();
@@ -117,11 +122,22 @@ export const Navbar: React.FC<NavbarProps> = ({
         return { label: 'Admin Fonctionnel / DARC', color: 'bg-amber-50 text-amber-800 border-amber-200' };
       case 'investigator':
         return { label: 'Investigateur DARC', color: 'bg-blue-50 text-blue-800 border-blue-200' };
+      case 'senior_investigator':
+        return { label: 'Investigateur Senior', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
       case 'system_admin':
         return { label: 'Admin Système', color: 'bg-purple-50 text-purple-800 border-purple-200' };
-      case 'auditor':
+      case 'security_admin':
+        return { label: 'Admin Sécurité', color: 'bg-red-50 text-red-800 border-red-200' };
+      case 'consultation':
         return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-700 border-slate-200' };
-      case 'whistleblower':
+      case 'darc_compliance':
+        return { label: 'DARC Conformité', color: 'bg-teal-50 text-teal-800 border-teal-200' };
+      case 'executive':
+        return { label: 'Direction Exécutive', color: 'bg-rose-50 text-rose-800 border-rose-200' };
+      case 'audit_committee':
+        return { label: 'Comité d’Audit', color: 'bg-amber-50 text-amber-900 border-amber-300' };
+      case 'reporter':
+      default:
         return { label: 'Lanceur d’alerte', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
     }
   };
