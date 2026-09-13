@@ -293,7 +293,8 @@ export interface CaseConflictDeclaration {
 export interface AlertRecord {
   id: string;
   trackingNumber: string; // ex: ACT-2026-0842
-  accessCodeHash: string; // password to access
+  accessCodeHash: string; // salted iterated-SHA-256 hash of the access password (never plaintext)
+  accessCodeSalt: string; // per-record random salt used to compute accessCodeHash
   channel: 'web' | 'qr_code' | 'direct';
   createdAt: string;
   updatedAt: string;
@@ -415,15 +416,12 @@ export interface AuditLogEntry {
     | 'STATUS_CHANGED' 
     | 'SLA_ESCALATED'
     | 'ALERT_CLOSED' 
-    | 'ALERT_REOPENED' 
-    | 'ALERT_ARCHIVED' 
-    | 'LEGAL_HOLD_TOGGLED'
-    | 'REPORT_GENERATED' 
-    | 'CONFIG_UPDATED';
-  objectType?: string;
-  objectId?: string;
-  previousValue?: string;
-  newValue?: string;
+    | 'ALERT_REOPENED'
+    | 'ALERT_ARCHIVED'
+    | 'REPORT_GENERATED'
+    | 'CONFIG_UPDATED'
+    // === AMÉLIORATION AJOUTÉE : traçabilité des tentatives d'accès refusées (rate limiting) ===
+    | 'ACCESS_DENIED';
   details: string;
   timestamp: string;
   ipAddress?: string;

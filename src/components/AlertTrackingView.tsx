@@ -18,6 +18,9 @@ import {
 import { Language, AlertRecord, CaseMessage } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE : vérification par hash salé + limitation du débit des tentatives ===
+import { verifyPassword } from '../services/crypto';
+import { getLockStatus, recordFailedAttempt, clearAttempts, formatRemaining } from '../services/rateLimiter';
 
 interface AlertTrackingViewProps {
   lang: Language;
@@ -67,29 +70,62 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     return unsub;
   }, [activeAlert]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // === AMÉLIORATION AJOUTÉE : handler asynchrone (vérification hash) + verrou anti-brute-force ===
+  const [isVerifying, setIsVerifying] = useState(false);
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
 
     const trimmedNum = trackingNumberInput.trim().toUpperCase();
+
+    // Rate limiting: block further attempts once the threshold is reached, regardless of
+    // whether the tracking number exists (avoids leaking existence via timing/behavior).
+    const lockStatus = getLockStatus(trimmedNum);
+    if (lockStatus.locked) {
+      setLoginError(
+        `Trop de tentatives incorrectes. Réessayez dans ${formatRemaining(lockStatus.remainingMs)}.`
+      );
+      return;
+    }
+
+    setIsVerifying(true);
     const alert = storage.getAlertByTracking(trimmedNum);
 
     if (!alert) {
+      recordFailedAttempt(trimmedNum);
       setLoginError('Numéro de dossier introuvable. Veuillez vérifier votre saisie.');
+      setIsVerifying(false);
       return;
     }
 
-    if (alert.accessCodeHash && passwordInput !== alert.accessCodeHash) {
-      setLoginError('Mot de passe incorrect pour ce numéro de dossier.');
+    const passwordOk = alert.accessCodeSalt
+      ? await verifyPassword(passwordInput, alert.accessCodeSalt, alert.accessCodeHash)
+      : passwordInput === alert.accessCodeHash; // fallback for legacy unsalted demo records
+
+    if (!passwordOk) {
+      const status = recordFailedAttempt(trimmedNum);
+      storage.logAudit(
+        'ACCESS_DENIED',
+        `Tentative d'accès refusée (mot de passe incorrect) au dossier ${alert.trackingNumber}. Tentatives restantes : ${status.attemptsRemaining}.`,
+        { id: alert.id, trackingNumber: alert.trackingNumber }
+      );
+      setLoginError(
+        status.locked
+          ? `Trop de tentatives incorrectes. Accès verrouillé ${formatRemaining(status.remainingMs)}.`
+          : 'Mot de passe incorrect pour ce numéro de dossier.'
+      );
+      setIsVerifying(false);
       return;
     }
 
+    clearAttempts(trimmedNum);
     setActiveAlert(alert);
     storage.logAudit(
       'ALERT_ACCESSED',
       `Accès au dossier ${alert.trackingNumber} via code d'accès sécurisé par le lanceur d'alerte.`,
       { id: alert.id, trackingNumber: alert.trackingNumber }
     );
+    setIsVerifying(false);
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -278,10 +314,11 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
             <button
               type="submit"
               id="btn-submit-tracking-login"
-              className="w-full py-2.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white text-xs font-bold shadow transition flex items-center justify-center gap-2"
+              disabled={isVerifying}
+              className="w-full py-2.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] disabled:opacity-60 text-white text-xs font-bold shadow transition flex items-center justify-center gap-2"
             >
               <Lock className="w-4 h-4 text-amber-400" />
-              <span>{t.btn_login_tracking}</span>
+              <span>{isVerifying ? 'Vérification…' : t.btn_login_tracking}</span>
             </button>
           </form>
 

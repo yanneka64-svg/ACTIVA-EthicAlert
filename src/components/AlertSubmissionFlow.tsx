@@ -36,6 +36,8 @@ import {
   computeRiskEvaluation 
 } from '../data/activaConfig';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE : hachage salé côté client du mot de passe de suivi (jamais stocké en clair) ===
+import { generateSalt, hashPassword } from '../services/crypto';
 
 interface AlertSubmissionFlowProps {
   lang: Language;
@@ -248,7 +250,9 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   };
 
   // Submit Alert Handler
-  const handleSubmit = (e: React.FormEvent) => {
+  // === AMÉLIORATION AJOUTÉE : handler asynchrone pour permettre le hachage salé du mot de passe ===
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -283,9 +287,15 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
       return;
     }
 
+    setIsSubmitting(true);
+
     // Generate unique tracking number (e.g. ACT-2026-XXXX)
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const trackingNumber = `ACT-2026-${randomSuffix}`;
+
+    // === AMÉLIORATION AJOUTÉE : le mot de passe n'est jamais stocké en clair ===
+    const accessCodeSalt = generateSalt();
+    const accessCodeHash = await hashPassword(password, accessCodeSalt);
 
     // Concerned entity & country
     const matchedEntity = ACTIVA_ENTITIES.find(e => e.name === concernedEntity);
@@ -303,7 +313,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     const newRecord: AlertRecord = {
       id: 'alt-' + Date.now(),
       trackingNumber,
-      accessCodeHash: password,
+      accessCodeHash,
+      accessCodeSalt,
       channel: 'web',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -368,6 +379,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     // Clear draft
     storage.clearDraft();
     setSubmittedAlert(newRecord);
+    setIsSubmitting(false);
   };
 
   // Formal Acknowledgment Print/Download Simulation
@@ -1430,10 +1442,11 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
               <button
                 type="submit"
                 id="btn-submit-final"
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition"
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>{t.btn_submit_alert}</span>
+                <span>{isSubmitting ? 'Sécurisation en cours…' : t.btn_submit_alert}</span>
               </button>
             </div>
           </div>

@@ -1,0 +1,122 @@
+/**
+ * ACTIVA Hotline — Phase 3: provision real Firebase Auth accounts
+ *
+ * Creates one real Firebase Authentication user per staff member already
+ * defined in `src/data/activaConfig.ts` (`INITIAL_USERS`), and sets custom
+ * claims (`role`, `countries`, `entities`) matching `src/domain/caseTypes.ts`
+ * / `src/domain/permissions.ts` — the SAME role/scope model the Firestore
+ * Security Rules (see `firestore.rules`) and the future Cloud Functions must
+ * agree with. Reporters are explicitly excluded: they never get a Firebase
+ * Auth account (see docs/DATABASE.md — they authenticate via case number +
+ * access code, not email/password).
+ *
+ * Idempotent: re-running updates claims on existing accounts rather than
+ * erroring, but only prints (and never reuses) a temporary password for
+ * accounts it actually creates.
+ *
+ * Usage:
+ *   GOOGLE_APPLICATION_CREDENTIALS_PATH=/path/to/key.json npx tsx scripts/setupAuthUsers.ts
+ */
+
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { randomBytes } from 'crypto';
+import { readFileSync } from 'fs';
+
+import { INITIAL_USERS } from '../src/data/activaConfig';
+import { UserRole } from '../src/types';
+import { RoleId } from '../src/domain/caseTypes';
+
+// Legacy demo role -> target RBAC role (src/domain/permissions.ts).
+// NOTE: 'auditor' is mapped to 'consultation' (case-level read access,
+// matching what the legacy demo currently grants) rather than 'executive'
+// (aggregated/anonymized dashboards only, no raw case content) even though
+// the legacy user's title ("Comité d'Audit & Conseil d'Administration")
+// arguably fits 'executive' better per the brief's least-privilege intent.
+// This is a deliberate, conservative choice to avoid silently reducing
+// access during provisioning — flagged here for a human decision before
+// Phase 4 wires real screens to these accounts.
+const ROLE_MAP: Partial<Record<UserRole, RoleId>> = {
+  functional_admin: 'functional_admin',
+  investigator: 'investigator',
+  system_admin: 'system_admin',
+  auditor: 'consultation', // see note above
+  // 'whistleblower' intentionally has no mapping — reporters get no Auth account.
+};
+
+// Roles with group-wide scope (see permissions.ts GLOBAL_VISIBILITY_ROLES /
+// ROLE_PERMISSIONS): empty countries/entities arrays mean "no restriction".
+const GLOBAL_SCOPE_ROLES: RoleId[] = ['functional_admin', 'darc_compliance', 'consultation', 'executive', 'system_admin'];
+
+function generateTempPassword(): string {
+  // 18 random bytes, base64url — comfortably clears typical strong-password
+  // policies (length, mixed case, digits, symbols) without relying on a
+  // predictable pattern.
+  return randomBytes(18).toString('base64url') + 'Aa1!';
+}
+
+async function main() {
+  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS_PATH;
+  if (!keyPath) throw new Error('Set GOOGLE_APPLICATION_CREDENTIALS_PATH to your service account JSON path.');
+  const sa = JSON.parse(readFileSync(keyPath, 'utf8'));
+  const app = initializeApp({ credential: cert(sa), projectId: sa.project_id });
+  const auth = getAuth(app);
+
+  console.log(`--- Provisioning staff Auth accounts in project ${sa.project_id} ---\n`);
+
+  const createdCredentials: Array<{ email: string; password: string; role: RoleId }> = [];
+
+  for (const user of INITIAL_USERS) {
+    const roleId = ROLE_MAP[user.role];
+    if (!roleId) {
+      console.log(`Skipping ${user.email} (role "${user.role}" has no staff Auth mapping — reporters never get an account).`);
+      continue;
+    }
+
+    const countries = GLOBAL_SCOPE_ROLES.includes(roleId) ? [] : [user.country];
+    const entities = GLOBAL_SCOPE_ROLES.includes(roleId) ? [] : [user.entity];
+
+    let uid: string;
+    let existed = true;
+    try {
+      const existing = await auth.getUserByEmail(user.email);
+      uid = existing.uid;
+    } catch {
+      existed = false;
+      const password = generateTempPassword();
+      const created = await auth.createUser({
+        email: user.email,
+        password,
+        displayName: user.name,
+        emailVerified: true,
+      });
+      uid = created.uid;
+      createdCredentials.push({ email: user.email, password, role: roleId });
+    }
+
+    await auth.setCustomUserClaims(uid, { role: roleId, countries, entities, legacyRole: user.role });
+    console.log(`${existed ? 'Updated claims for' : 'Created'} ${user.email} (uid=${uid}) → role=${roleId} countries=${JSON.stringify(countries)} entities=${JSON.stringify(entities)}`);
+  }
+
+  console.log(`\n--- Verification: re-reading claims from Firebase Auth (not from local memory) ---`);
+  for (const user of INITIAL_USERS) {
+    if (!ROLE_MAP[user.role]) continue;
+    const fresh = await auth.getUserByEmail(user.email);
+    console.log(` - ${fresh.email}: customClaims = ${JSON.stringify(fresh.customClaims)}`);
+  }
+
+  if (createdCredentials.length > 0) {
+    console.log(`\n--- Temporary passwords for ${createdCredentials.length} newly created account(s) (shown once, not stored anywhere) ---`);
+    createdCredentials.forEach((c) => console.log(` - ${c.email} (${c.role}): ${c.password}`));
+    console.log('\nThese are test credentials for a non-production project. Rotate them (Firebase Console → Authentication → reset password, or ask each user to use "forgot password") before any real staff member relies on this account.');
+  } else {
+    console.log('\nNo new accounts created (all already existed) — no passwords to display.');
+  }
+
+  process.exit(0);
+}
+
+main().catch((err) => {
+  console.error('Setup failed:', err);
+  process.exit(1);
+});
