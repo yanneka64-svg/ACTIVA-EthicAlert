@@ -35,15 +35,26 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { ACTIVA_ENTITIES } from '../data/activaConfig';
 import { storage } from '../services/storage';
 import { PriorityBadge } from './ui';
+import { computeSlaStatus } from '../services/statusMapping';
 
 interface InvestigationDeskProps {
   lang: Language;
   activeUser: UserProfile;
+  // === AMÉLIORATION AJOUTÉE (Phase 5) ===
+  // Lets a caller (the Control Panel's KPI cards / quick actions) land here
+  // pre-filtered, per the brief's "Dashboard KPIs must link to filtered
+  // case lists" requirement (§61). Read once at mount via the useState
+  // initializers below — consistent with how this screen already resets
+  // on every tab switch (App.tsx unmounts/remounts it, it is never kept
+  // alive across tabs), so a fresh `initialFilter` is picked up correctly
+  // every time the user navigates in from the Control Panel.
+  initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean };
 }
 
 export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   lang,
   activeUser,
+  initialFilter,
 }) => {
   const t = TRANSLATIONS[lang];
 
@@ -52,10 +63,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
   // Filters
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>(initialFilter?.status ?? 'all');
   const [entityFilter, setEntityFilter] = useState<string>('all');
   const [nocaFilter, setNocaFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  // === AMÉLIORATION AJOUTÉE (Phase 5) ===
+  const [unassignedOnlyFilter, setUnassignedOnlyFilter] = useState<boolean>(!!initialFilter?.unassignedOnly);
+  const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);
 
   // Selected case active tab: 'overview' | 'investigation' | 'messages' | 'corrective'
   const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'investigation' | 'messages' | 'corrective'>('overview');
@@ -119,6 +133,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
     // NOCA filter
     if (nocaFilter !== 'all' && alert.riskEvaluation.nocaThreshold !== nocaFilter) return false;
+
+    // === AMÉLIORATION AJOUTÉE (Phase 5) === Control-Panel-driven filters
+    if (unassignedOnlyFilter && alert.assignedInvestigators.length > 0) return false;
+    if (overdueOnlyFilter && computeSlaStatus(alert) !== 'overdue') return false;
 
     // Search query
     if (searchQuery.trim()) {
@@ -495,13 +513,25 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           <option value="NOCA 1">NOCA 1 (Faible - 30j)</option>
         </select>
 
-        {(statusFilter !== 'all' || entityFilter !== 'all' || nocaFilter !== 'all' || searchQuery) && (
+        {/* === AMÉLIORATION AJOUTÉE (Phase 5) === Control-Panel-driven filters */}
+        <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700 cursor-pointer">
+          <input type="checkbox" checked={unassignedOnlyFilter} onChange={(e) => setUnassignedOnlyFilter(e.target.checked)} className="accent-blue-600" />
+          Non attribués uniquement
+        </label>
+        <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700 cursor-pointer">
+          <input type="checkbox" checked={overdueOnlyFilter} onChange={(e) => setOverdueOnlyFilter(e.target.checked)} className="accent-rose-600" />
+          En retard uniquement
+        </label>
+
+        {(statusFilter !== 'all' || entityFilter !== 'all' || nocaFilter !== 'all' || searchQuery || unassignedOnlyFilter || overdueOnlyFilter) && (
           <button
             onClick={() => {
               setStatusFilter('all');
               setEntityFilter('all');
               setNocaFilter('all');
               setSearchQuery('');
+              setUnassignedOnlyFilter(false);
+              setOverdueOnlyFilter(false);
             }}
             className="text-blue-700 hover:underline font-semibold"
           >

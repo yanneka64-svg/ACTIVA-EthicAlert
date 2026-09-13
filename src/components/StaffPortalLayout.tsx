@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, BarChart3, History, Settings, ChevronRight } from 'lucide-react';
+import { ShieldAlert, BarChart3, History, Settings, ChevronRight, LayoutDashboard } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 
@@ -36,7 +36,11 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     activeUser.role === 'auditor';
   const canSeeSettings = activeUser.role === 'system_admin';
 
+  // === AMÉLIORATION AJOUTÉE (Phase 5) === same visibility rule as InvestigationDesk's isGlobalViewer.
+  const canSeeControlPanel = canSeeAudit;
+
   const navItems: Array<{ key: string; label: string; icon: React.ReactNode; visible: boolean }> = [
+    { key: 'control_panel', label: t.nav_control_panel, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel },
     { key: 'portal', label: t.nav_portal, icon: <ShieldAlert className="w-4 h-4" />, visible: true },
     { key: 'reports', label: t.nav_reports, icon: <BarChart3 className="w-4 h-4" />, visible: true },
     { key: 'audit', label: t.nav_audit, icon: <History className="w-4 h-4" />, visible: canSeeAudit },

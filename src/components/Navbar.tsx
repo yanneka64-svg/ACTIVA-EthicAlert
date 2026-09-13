@@ -11,7 +11,8 @@ import {
   UserCheck,
   Lock,
   ChevronDown,
-  Database
+  Database,
+  LayoutDashboard
 } from 'lucide-react';
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -246,6 +247,24 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Search className="w-4 h-4" />
               {t.nav_track}
             </button>
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 5) === Control Panel, same visibility as Audit Trail */}
+            {(activeUser.role === 'functional_admin' ||
+              activeUser.role === 'system_admin' ||
+              activeUser.role === 'auditor') && (
+              <button
+                id="nav-btn-control-panel"
+                onClick={() => setCurrentTab('control_panel')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  currentTab === 'control_panel'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-slate-200 hover:bg-white/10'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                {t.nav_control_panel}
+              </button>
+            )}
 
             {/* Portal for investigators and admins */}
             <button
