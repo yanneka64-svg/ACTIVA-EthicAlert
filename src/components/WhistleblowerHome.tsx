@@ -49,7 +49,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   ];
 
   return (
-    <div className="space-y-12 pb-8">
+    <div className="space-y-8 pb-6">
       {/* === AMÉLIORATION AJOUTÉE (Phase 20 — hero plein cadre) ===
           Retour à une photo en arrière-plan sur toute la largeur du hero
           (au lieu de la colonne dédiée Phase 17), avec un léger voile bleu
@@ -57,7 +57,11 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           droit, le texte reste lisible côté gauche. QR code et lien "Comment
           ça marche ?" retirés d'ici (sur demande) ; le lien reste accessible
           depuis la section elle-même, plus bas sur la page. */}
-      <div className="relative overflow-hidden border-b border-slate-200 min-h-[440px] sm:min-h-[540px] flex items-center">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 28 — trop d'espace vide signalé) ===
+          Hauteur minimale réduite (540px → 460px en desktop) : le contenu du
+          hero laissait un grand vide sous la note "signalement anonyme"
+          avant le bord inférieur du bandeau photo. */}
+      <div className="relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center">
         <img
           src="/brand/activa-hq.jpg"
           alt="Siège du Groupe ACTIVA"
@@ -143,7 +147,10 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         </div>
       </div>
 
-      <div className="space-y-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 28) === space-y-12 → space-y-8 :
+          resserre l'écart entre le bandeau de confiance et "Comment ça
+          marche ?", jugé trop vide sur la capture de référence. */}
+      <div className="space-y-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* === AMÉLIORATION AJOUTÉE (Phase 25 — fidélité à la capture
           fournie) === Retour à une carte à bordure/ombre (Phase 17), icône
           rond plein (fond bleu, glyphe blanc) à gauche du texte plutôt
