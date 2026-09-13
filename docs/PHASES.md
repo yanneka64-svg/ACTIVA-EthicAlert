@@ -636,3 +636,62 @@ type-checked Cloud Function** — the only remaining backlog is read-side
 (`getCase`/`listCases`, `list*` for every subcollection), which is a
 different problem (Firestore's list-query wall, Phase 4) than "not yet
 written."
+
+---
+
+## Real automated test coverage for the domain layer (first in this project)
+
+**AUDIT** → with `docs/WORKFLOW.md`/`docs/PERMISSIONS.md` now documenting
+`workflow.ts`/`permissions.ts` in detail, and both modules now load-bearing
+for 14 real Cloud Functions, a genuine gap stood out: **zero automated
+tests exist anywhere in this project.** Every verification so far —
+correctly, given what was available — was either a live signed-in request
+against the real Firebase project, or a clean `tsc --noEmit`/`npm run
+build`. Neither catches a logic regression in a pure function like
+`checkTransition()` or `can()`. This is unblocked, genuine, high-value
+work: no Cloud Functions deployment or Storage bucket needed, nothing to
+invent, and it directly protects the two modules just documented from
+silently drifting out of sync with their own docs.
+
+**PLAN** → add a minimal, real test runner (`vitest` — already
+Vite-compatible, this project's existing build tool, so no new bundler
+config needed) and write tests that exercise exactly what
+`docs/WORKFLOW.md`/`docs/PERMISSIONS.md` describe: the full transition
+adjacency table, all four closure-gating branches, `deriveOverallFinding`'s
+outcome table, and — the highest-value target — every layer of `can()`'s
+"conjunction of five checks" (active/role/scope/confidentiality/assigned-
+or-global), with rule #9 (implicated person) tested explicitly as the one
+check that overrides even global visibility.
+
+**IMPLEMENT**:
+- `npm install --save-dev vitest`; added a `"test": "vitest run"` script
+  to `package.json`. First committed `package-lock.json` for this project
+  (none existed before).
+- `src/domain/workflow.test.ts` — `isStructurallyValidTransition` (every
+  documented edge, including `archived` being terminal and `from === to`
+  always rejected), `checkTransition`'s four closure-gating branches
+  individually and combined, and `deriveOverallFinding`'s full outcome
+  table (`substantiated`/`unsubstantiated`/`mixed`/`inconclusive`/
+  undefined-when-incomplete).
+- `src/domain/permissions.test.ts` — `roleHasPermission` against a
+  representative sample of `ROLE_PERMISSIONS` (including
+  `system_admin`'s deliberate case-access exclusion, section 30), then
+  `can()`: inactive user, missing permission, rule #9 overriding an
+  assigned investigator AND a global-visibility `functional_admin` alike,
+  out-of-scope denial, empty-array-means-unrestricted scope, confidentiality
+  clearance denying both `consultation` and a plain `investigator` a
+  `highly_confidential` case while allowing `senior_investigator`,
+  assigned-vs-additional-investigator-vs-global-visibility, and
+  `implicatedUserIdsFromPersons` filtering witnesses out correctly.
+
+**TEST / VERIFY**: `npx vitest run` — **41 tests, all passing** on the
+first run (no back-and-forth fixing false assumptions — each assertion was
+traced against the actual function body while writing it, not guessed).
+Root `tsc --noEmit` — clean, confirming the new test files themselves
+type-check under the project's existing strict config.
+
+**DOCUMENT** → this entry. Coverage is deliberately scoped to
+`workflow.ts`/`permissions.ts` — the two modules with the richest pure
+business logic and the ones this session's documentation phase just
+finished writing reference docs for — not a blanket attempt at full
+project coverage in one pass.
