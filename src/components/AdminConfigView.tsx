@@ -21,13 +21,18 @@ import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { ACTIVA_COUNTRIES, EntityDef, CategoryDef } from '../data/activaConfig';
 import { storage } from '../services/storage';
-import { 
-  isFirebaseConfigured, 
-  getActiveFirebaseConfig, 
-  setCustomFirebaseConfig, 
+import {
+  isFirebaseConfigured,
+  getActiveFirebaseConfig,
+  setCustomFirebaseConfig,
   clearCustomFirebaseConfig,
   fetchAlertsFromCloud
 } from '../services/firebase';
+// === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
+// Read-only: this screen only imports and displays this real, already-
+// existing data — src/domain/permissions.ts itself is never modified.
+import { ROLE_PERMISSIONS, Permission } from '../domain/permissions';
+import { RoleId } from '../domain/caseTypes';
 
 interface AdminConfigViewProps {
   lang: Language;
@@ -40,7 +45,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'categories' | 'users' | 'database'>('matrix');
+  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'categories' | 'users' | 'roles' | 'database'>('matrix');
   const [saveBanner, setSaveBanner] = useState('');
 
   // Firebase connection state
@@ -326,6 +331,70 @@ service cloud.firestore {
     }
   };
 
+  // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
+  // Pure display data over the real ROLE_PERMISSIONS table — "no new logic
+  // needed, just a UI" per the plan. RoleId here is the target RBAC model
+  // for the future Cloud Functions / Firestore case system (src/domain),
+  // a different role vocabulary from this local demo's UserRole — the
+  // screen says so explicitly so it's never mistaken for the currently
+  // enforced local access rules.
+  const ALL_ROLE_IDS: RoleId[] = ['reporter', 'investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation', 'system_admin', 'executive'];
+  const ROLE_ID_LABELS: Record<RoleId, string> = {
+    reporter: 'Lanceur d’alerte',
+    investigator: 'Investigateur',
+    senior_investigator: 'Investigateur senior',
+    functional_admin: 'Administrateur fonctionnel',
+    darc_compliance: 'Conformité DARC',
+    consultation: 'Consultation',
+    system_admin: 'Administrateur système',
+    executive: 'Direction / Exécutif',
+  };
+  const PERMISSION_GROUPS: { group: string; permissions: { key: Permission; label: string }[] }[] = [
+    {
+      group: 'Dossiers',
+      permissions: [
+        { key: 'cases.read', label: 'Consulter les dossiers' },
+        { key: 'cases.create', label: 'Créer un dossier' },
+        { key: 'cases.assign', label: 'Attribuer un dossier' },
+        { key: 'cases.reassign', label: 'Réattribuer un dossier' },
+        { key: 'cases.edit', label: 'Modifier un dossier' },
+        { key: 'cases.close', label: 'Clôturer un dossier' },
+        { key: 'cases.reopen', label: 'Rouvrir un dossier' },
+        { key: 'cases.export', label: 'Exporter les dossiers' },
+      ],
+    },
+    {
+      group: 'Preuves',
+      permissions: [
+        { key: 'evidence.read', label: 'Consulter les preuves' },
+        { key: 'evidence.upload', label: 'Téléverser des preuves' },
+        { key: 'evidence.delete', label: 'Supprimer des preuves' },
+      ],
+    },
+    {
+      group: 'Communications',
+      permissions: [
+        { key: 'communications.read', label: 'Consulter les messages' },
+        { key: 'communications.send', label: 'Envoyer des messages' },
+      ],
+    },
+    {
+      group: 'Rapports',
+      permissions: [
+        { key: 'reports.read', label: 'Consulter les rapports' },
+        { key: 'reports.export', label: 'Exporter les rapports' },
+      ],
+    },
+    {
+      group: 'Administration',
+      permissions: [
+        { key: 'configuration.manage', label: 'Gérer la configuration' },
+        { key: 'users.manage', label: 'Gérer les comptes utilisateurs' },
+        { key: 'audit.read', label: 'Consulter la piste d’audit' },
+      ],
+    },
+  ];
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
       {/* Top Banner */}
@@ -394,6 +463,14 @@ service cloud.firestore {
             }`}
           >
             Comptes & Habilitations (CDC 3.2.3)
+          </button>
+          <button
+            onClick={() => setConfigTab('roles')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              configTab === 'roles' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Rôles & Permissions
           </button>
           <button
             onClick={() => setConfigTab('database')}
@@ -685,6 +762,72 @@ service cloud.firestore {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
+          6. ROLES & PERMISSIONS TAB — read-only visualization of the real
+          ROLE_PERMISSIONS table already defined in src/domain/permissions.ts
+          (built for the future Cloud Functions / Firestore case system).
+          No new permission logic here, purely a UI over existing data — and
+          clearly labeled as a different role model from this local demo's
+          own UserRole, so it's never mistaken for currently-enforced access. */}
+      {configTab === 'roles' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
+          <div className="border-b border-slate-100 pb-3">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-blue-700" />
+              Matrice des rôles & permissions
+            </h3>
+            <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
+              Modèle RBAC granulaire (18 permissions atomiques) défini pour la future architecture
+              Cloud Functions / Firestore de gestion des dossiers (<code className="font-mono text-slate-600">src/domain/permissions.ts</code>) —
+              la même table sera réutilisée côté serveur afin que client et serveur ne divergent jamais
+              sur ce qu'un rôle peut faire. Les rôles listés ici (ex. « Investigateur senior », « Conformité DARC »)
+              appartiennent à ce modèle cible et sont distincts des rôles actuellement actifs dans cette
+              version de démonstration locale (onglet « Comptes & Habilitations » ci-dessus).
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-[11px]">
+              <thead>
+                <tr>
+                  <th className="p-2 text-left sticky left-0 bg-white z-10"></th>
+                  {ALL_ROLE_IDS.map((r) => (
+                    <th key={r} className="p-2 text-center font-bold text-slate-700 whitespace-nowrap">
+                      {ROLE_ID_LABELS[r]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {PERMISSION_GROUPS.map((g) => (
+                  <React.Fragment key={g.group}>
+                    <tr className="bg-slate-50">
+                      <td colSpan={ALL_ROLE_IDS.length + 1} className="p-2 font-bold text-slate-500 uppercase tracking-wide text-[10px] sticky left-0">
+                        {g.group}
+                      </td>
+                    </tr>
+                    {g.permissions.map((p) => (
+                      <tr key={p.key} className="border-b border-slate-100">
+                        <td className="p-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 bg-white">{p.label}</td>
+                        {ALL_ROLE_IDS.map((r) => (
+                          <td key={r} className="p-2 text-center">
+                            {ROLE_PERMISSIONS[r].includes(p.key) ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mx-auto" />
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
