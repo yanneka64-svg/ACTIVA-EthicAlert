@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  ShieldAlert, 
-  Search, 
-  Filter, 
-  Building2, 
-  UserCheck, 
-  Clock, 
+  ShieldAlert,
+  Search,
+  Filter,
+  Building2,
+  Clock,
   MessageSquare, 
   FileText, 
   CheckCircle2, 
@@ -20,17 +19,23 @@ import {
   FileCheck2,
   SlidersHorizontal,
   ChevronRight,
-  ListTodo,
   History,
   CheckSquare,
   Square,
   ArrowLeft,
-  Scale,
   UserCog,
   // === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon maquette) ===
   ChevronDown,
   Check,
   Printer,
+  // === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la maquette) ===
+  FolderOpen,
+  Tag,
+  Globe2,
+  Info,
+  Link2,
+  ClipboardList,
+  Paperclip,
 } from 'lucide-react';
 import {
   Language,
@@ -43,7 +48,10 @@ import {
   AlertStatus,
   CaseTask,
   TaskPriority,
-  ConflictDeclaration
+  ConflictDeclaration,
+  EvidenceFile,
+  InvolvedPerson,
+  Witness,
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
@@ -112,7 +120,15 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [myCasesOnlyFilter] = useState<boolean>(!!initialFilter?.myCasesOnly);
 
   // Selected case active tab
-  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'investigation' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'conflict'>('overview');
+  // === AMÉLIORATION AJOUTÉE (Phase 11 — 9 onglets exacts de la maquette) ===
+  // 'persons' et 'evidence_tab' sont de nouveaux onglets dédiés. 'report'
+  // regroupe désormais 3 contenus existants qui n'ont pas d'onglet dédié
+  // dans la maquette (notes d'enquête internes, mesures correctives... non,
+  // uniquement notes internes + conflit d'intérêt) sous un seul onglet
+  // "Rapport", en plus d'une synthèse — rien n'est supprimé, tout reste
+  // accessible, juste réorganisé. 'triage' s'affiche sous le libellé
+  // "Allégations" (contenu existant enrichi d'un résumé de la qualification).
+  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'persons' | 'evidence_tab' | 'report'>('overview');
 
   // === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon maquette) ===
   // Consolidates the action toolbar (Attribution/Priorité/Clôture/Réouverture/
@@ -161,6 +177,16 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictOutcome, setConflictOutcome] = useState<ConflictDeclaration['outcome']>('no_conflict');
   const [conflictDetails, setConflictDetails] = useState('');
+
+  // === AMÉLIORATION AJOUTÉE (Phase 11 — actions "Modifier"/"+ Ajouter" de
+  // l'onglet Vue d'ensemble, telles que montrées dans la maquette) ===
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState('');
+  const [addPersonKind, setAddPersonKind] = useState<'subject' | 'witness' | null>(null);
+  const [personNameInput, setPersonNameInput] = useState('');
+  const [personPositionInput, setPersonPositionInput] = useState('');
+  const [personHierarchyInput, setPersonHierarchyInput] = useState<InvolvedPerson['hierarchyRole']>('Employé');
+  const evidenceFileInputRef = useRef<HTMLInputElement>(null);
 
   // Subscribe to storage updates
   useEffect(() => {
@@ -442,6 +468,64 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setShowConflictModal(false);
     setConflictOutcome('no_conflict');
     setConflictDetails('');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 11) === "Modifier" sur la description des faits.
+  const handleSaveDescription = () => {
+    if (!selectedAlert) return;
+    storage.saveAlert({
+      ...selectedAlert,
+      detailedDescription: descriptionDraft.trim() || selectedAlert.detailedDescription,
+      updatedAt: new Date().toISOString(),
+    });
+    setEditingDescription(false);
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 11) === "+ Ajouter" sur Personnes impliquées / Témoins.
+  const handleAddPerson = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAlert || !addPersonKind || !personNameInput.trim()) return;
+    if (addPersonKind === 'subject') {
+      const entry: InvolvedPerson = {
+        id: 'per-' + Date.now(),
+        name: personNameInput.trim(),
+        position: personPositionInput.trim(),
+        hierarchyRole: personHierarchyInput,
+      };
+      storage.saveAlert({ ...selectedAlert, involvedPersons: [...selectedAlert.involvedPersons, entry], updatedAt: new Date().toISOString() });
+    } else {
+      const entry: Witness = {
+        id: 'wit-' + Date.now(),
+        name: personNameInput.trim(),
+        position: personPositionInput.trim(),
+        hierarchyRole: personHierarchyInput,
+      };
+      storage.saveAlert({ ...selectedAlert, witnesses: [...selectedAlert.witnesses, entry], updatedAt: new Date().toISOString() });
+    }
+    setAddPersonKind(null);
+    setPersonNameInput('');
+    setPersonPositionInput('');
+    setPersonHierarchyInput('Employé');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 11) === "+ Ajouter" sur Preuves & pièces jointes.
+  const handleAddEvidenceFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedAlert) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const newEvidence: EvidenceFile = {
+        id: 'ev-' + Date.now(),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadedAt: new Date().toISOString(),
+        dataUrl: typeof reader.result === 'string' ? reader.result : undefined,
+      };
+      storage.saveAlert({ ...selectedAlert, evidences: [...selectedAlert.evidences, newEvidence], updatedAt: new Date().toISOString() });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // Close Alert (CDC 3.1.3: Vérifier complétude, clôturer, informer le lanceur)
@@ -785,39 +869,29 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             ]}
           />
 
-          {/* Title row: tracking number + badges + risk gauge + Actions menu */}
+          {/* Title row: folder icon + tracking number + badges + Actions menu (top),
+              description + risk gauge (below) — matches the reference mockup's
+              two-line asymmetric header exactly. */}
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-mono text-xl sm:text-2xl font-extrabold text-slate-900">
-                  {selectedAlert.trackingNumber}
-                </h1>
-                {getPriorityBadge(selectedAlert)}
-                <StatusBadge status={selectedAlert.status} label={selectedAlert.status.toUpperCase().replace('_', ' ')} size="sm" />
+            <div className="flex items-start gap-3 min-w-0">
+              <span className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
+                <FolderOpen className="w-5 h-5" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="font-mono text-xl sm:text-2xl font-extrabold text-slate-900">
+                    {selectedAlert.trackingNumber}
+                  </h1>
+                  {getPriorityBadge(selectedAlert)}
+                  <StatusBadge status={selectedAlert.status} label={selectedAlert.status.toUpperCase().replace('_', ' ')} size="sm" />
+                </div>
+                <p className="text-xs text-slate-600 mt-1 line-clamp-1 max-w-xl">
+                  {selectedAlert.detailedDescription}
+                </p>
               </div>
-              <p className="text-xs text-slate-600 mt-1">
-                {selectedAlert.category} • <span className="font-medium text-slate-800">{selectedAlert.subCategory}</span>
-              </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
-              {/* Risk score gauge — reuses the same totalScore/16 already
-                  computed at submission time (see the Triage tab below) */}
-              {(() => {
-                const score = selectedAlert.riskEvaluation.totalScore;
-                const tone = nocaColor(score);
-                const barColor = score >= 14 ? 'bg-rose-500' : score >= 11 ? 'bg-orange-500' : score >= 7 ? 'bg-amber-500' : 'bg-slate-400';
-                return (
-                  <div className={`w-40 rounded-2xl border ${tone.border} bg-white shadow-sm px-4 py-2.5`}>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t.case_risk_score}</div>
-                    <div className={`text-lg font-extrabold ${tone.text}`}>{score}/16</div>
-                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
-                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, (score / 16) * 100)}%` }} />
-                    </div>
-                  </div>
-                );
-              })()}
-
+            <div className="flex flex-col items-end gap-2.5 shrink-0">
               {/* ACTIONS MENU (CDC 3.1.2 & 3.1.3: Attribution, Priorité, Clôture, Réouverture, Archivage) —
                   every item below is the exact same button/handler as before, just grouped in one dropdown. */}
               <div className="relative">
@@ -905,44 +979,71 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Risk score gauge — reuses the same totalScore/16 already
+                  computed at submission time (see the Allégations tab below) */}
+              {(() => {
+                const score = selectedAlert.riskEvaluation.totalScore;
+                const tone = nocaColor(score);
+                const barColor = score >= 14 ? 'bg-rose-500' : score >= 11 ? 'bg-orange-500' : score >= 7 ? 'bg-amber-500' : 'bg-slate-400';
+                return (
+                  <div className={`w-40 rounded-2xl border ${tone.border} bg-white shadow-sm px-4 py-2.5`}>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t.case_risk_score}</div>
+                    <div className={`text-lg font-extrabold ${tone.text}`}>{score}/16</div>
+                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
+                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, (score / 16) * 100)}%` }} />
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
-          {/* Info row card: Catégorie / Entité / Pays / Date de réception / Échéance SLA / Investigateur */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_category}</div>
-                <div className="font-semibold text-slate-800 mt-0.5 truncate">{selectedAlert.category}</div>
+          {/* Info row: plain row with icon-prefixed values (no card border), matching the mockup exactly */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_category}</div>
+              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1 truncate">
+                <Tag className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                {selectedAlert.category}
               </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_entity}</div>
-                <div className="font-semibold text-slate-800 mt-0.5 truncate">{selectedAlert.concernedEntity}</div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_entity}</div>
+              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1 truncate">
+                <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                {selectedAlert.concernedEntity}
               </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_country}</div>
-                <div className="font-semibold text-slate-800 mt-0.5 truncate">{selectedAlert.country}</div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_country}</div>
+              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1 truncate">
+                <Globe2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                {selectedAlert.country}
               </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_received}</div>
-                <div className="font-semibold text-slate-800 mt-0.5">
-                  {new Date(selectedAlert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
-                </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_received}</div>
+              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1">
+                <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                {new Date(selectedAlert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
               </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_sla_due}</div>
-                <div className={`font-semibold mt-0.5 ${computeSlaStatus(selectedAlert) === 'overdue' ? 'text-rose-600' : 'text-slate-800'}`}>
-                  {selectedAlert.targetCompletionDate
-                    ? new Date(selectedAlert.targetCompletionDate).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')
-                    : '—'}
-                  {computeSlaStatus(selectedAlert) === 'overdue' && <span className="ml-1">({t.case_info_late})</span>}
-                </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_sla_due}</div>
+              <div className={`flex items-center gap-1.5 font-semibold mt-1 ${computeSlaStatus(selectedAlert) === 'overdue' ? 'text-rose-600' : 'text-slate-800'}`}>
+                <Calendar className={`w-3.5 h-3.5 shrink-0 ${computeSlaStatus(selectedAlert) === 'overdue' ? 'text-rose-500' : 'text-slate-400'}`} />
+                {selectedAlert.targetCompletionDate
+                  ? new Date(selectedAlert.targetCompletionDate).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')
+                  : '—'}
+                {computeSlaStatus(selectedAlert) === 'overdue' && <span>({t.case_info_late})</span>}
               </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_investigator}</div>
-                <div className="font-semibold text-slate-800 mt-0.5 truncate">
-                  {selectedAlert.assignedInvestigatorNames.length > 0 ? selectedAlert.assignedInvestigatorNames.join(', ') : t.case_info_unassigned}
-                </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_investigator}</div>
+              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1 truncate">
+                <UserCog className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                {selectedAlert.assignedInvestigatorNames.length > 0 ? selectedAlert.assignedInvestigatorNames.join(', ') : t.case_info_unassigned}
               </div>
             </div>
           </div>
@@ -950,10 +1051,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           {/* Two-column layout: tabs/content (left) + Statut/Infos/Liens (right) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            {/* Case Tabs: Overview, Investigation notes, Messages, Corrective measures, Tasks, Timeline */}
-            {/* === AMÉLIORATION AJOUTÉE (Phase 6) === overflow-x-auto + shrink-0/whitespace-nowrap on
-                each button: 6 tabs no longer fit this panel's fixed width at some viewports: without
-                this the browser scrolled the whole card horizontally instead of just the tab row. */}
+            {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Les 9 onglets exacts de
+                la maquette : Vue d'ensemble, Allégations, Personnes, Preuves,
+                Tâches, Communications, Mesures correctives, Rapport, Journal
+                d'audit. Chaque bouton pointe vers un contenu réel existant
+                (voir le mapping détaillé en commentaire au-dessus de la
+                déclaration d'activeCaseTab) — rien n'a été supprimé, certains
+                contenus ont simplement été regroupés ou dupliqués sous un
+                intitulé plus proche de la maquette. */}
             <div className="flex overflow-x-auto border-b border-slate-200 px-6 text-xs font-semibold">
               <button
                 onClick={() => setActiveCaseTab('overview')}
@@ -963,19 +1068,58 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {t.tab_overview}
+                {t.tab_overview_exact}
               </button>
               <button
-                onClick={() => setActiveCaseTab('investigation')}
+                onClick={() => setActiveCaseTab('triage')}
                 className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
-                  activeCaseTab === 'investigation'
+                  activeCaseTab === 'triage'
                     ? 'border-blue-600 text-blue-700'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span>{t.tab_investigation}</span>
+                <span>{t.tab_allegations}</span>
+                {selectedAlert.overridePriority && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Priorité ajustée" />
+                )}
+              </button>
+              <button
+                onClick={() => setActiveCaseTab('persons')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                  activeCaseTab === 'persons'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>{t.tab_persons}</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px]">
-                  {selectedAlert.internalNotes.length}
+                  {selectedAlert.involvedPersons.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveCaseTab('evidence_tab')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                  activeCaseTab === 'evidence_tab'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>{t.nav_evidence}</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px]">
+                  {selectedAlert.evidences.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveCaseTab('tasks')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                  activeCaseTab === 'tasks'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>{t.nav_tasks}</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px]">
+                  {(selectedAlert.tasks ?? []).length}
                 </span>
               </button>
               <button
@@ -986,7 +1130,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span>{t.tab_messages}</span>
+                <span>{t.nav_communications}</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 text-[10px]">
                   {selectedAlert.messages.length}
                 </span>
@@ -999,26 +1143,22 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span>{t.tab_corrective}</span>
+                <span>{t.sidebar_corrective_measures}</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                   selectedAlert.correctiveMeasures.length > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                 }`}>
                   {selectedAlert.correctiveMeasures.length}
                 </span>
               </button>
-              {/* === AMÉLIORATION AJOUTÉE (Phase 6) === */}
               <button
-                onClick={() => setActiveCaseTab('tasks')}
-                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
-                  activeCaseTab === 'tasks'
+                onClick={() => setActiveCaseTab('report')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap ${
+                  activeCaseTab === 'report'
                     ? 'border-blue-600 text-blue-700'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span>{t.tab_tasks}</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px]">
-                  {(selectedAlert.tasks ?? []).length}
-                </span>
+                {t.tab_report}
               </button>
               <button
                 onClick={() => setActiveCaseTab('timeline')}
@@ -1028,142 +1168,128 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {t.tab_timeline}
-              </button>
-              {/* === AMÉLIORATION AJOUTÉE (Phase 6 — Triage & Conflit d'intérêt) === */}
-              <button
-                onClick={() => setActiveCaseTab('triage')}
-                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
-                  activeCaseTab === 'triage'
-                    ? 'border-blue-600 text-blue-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Scale className="w-3.5 h-3.5" />
-                <span>{t.tab_triage}</span>
-                {selectedAlert.overridePriority && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Priorité ajustée" />
-                )}
-              </button>
-              <button
-                onClick={() => setActiveCaseTab('conflict')}
-                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
-                  activeCaseTab === 'conflict'
-                    ? 'border-blue-600 text-blue-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <UserCog className="w-3.5 h-3.5" />
-                <span>{t.tab_conflict}</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px]">
-                  {(selectedAlert.conflictDeclarations ?? []).length}
-                </span>
+                {t.tab_audit_journal}
               </button>
             </div>
 
-            {/* TAB CONTENT: 1. OVERVIEW */}
+            {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: 1. VUE
+                D'ENSEMBLE — reproduit exactement les 4 blocs de la maquette
+                (Description avec "Modifier", Personnes impliquées + Témoins
+                avec "+ Ajouter", Preuves avec "+ Ajouter"). L'origine du
+                signalement et l'investigateur assigné restent affichés,
+                juste ailleurs désormais (ligne d'infos + colonne "Informations
+                complémentaires" — pas de perte, seulement une relocalisation
+                fidèle à la maquette). */}
             {activeCaseTab === 'overview' && (
-              <div className="p-6 space-y-6 max-h-[560px] overflow-y-auto text-xs">
-                {/* Whistleblower info block */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] mb-2">
-                    Origine du signalement
-                  </div>
-                  {selectedAlert.whistleblower.isAnonymous ? (
-                    <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-                      <Lock className="w-4 h-4" />
-                      <span>Signalement Anonyme - Aucune coordonnée transmise</span>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2 text-slate-700">
-                      <div><span className="text-slate-500">Nom :</span> {selectedAlert.whistleblower.fullName}</div>
-                      <div><span className="text-slate-500">Qualité :</span> {selectedAlert.whistleblower.declarantType}</div>
-                      <div><span className="text-slate-500">Poste :</span> {selectedAlert.whistleblower.jobTitle || 'Non renseigné'}</div>
-                      <div><span className="text-slate-500">Email :</span> {selectedAlert.whistleblower.email}</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Assigned investigators list */}
-                <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200">
-                  <div className="font-bold text-blue-900 uppercase tracking-wider text-[11px] mb-1">
-                    Gestionnaires / Investigateurs DARC assignés
-                  </div>
-                  {selectedAlert.assignedInvestigatorNames.length === 0 ? (
-                    <span className="text-slate-500 italic">Aucun enquêteur assigné pour le moment.</span>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {selectedAlert.assignedInvestigatorNames.map((name, i) => (
-                        <span key={i} className="px-2.5 py-1 rounded-md bg-white text-blue-900 font-semibold text-xs border border-blue-200 shadow-xs">
-                          {name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
+              <div className="p-6 space-y-5 max-h-[640px] overflow-y-auto text-xs">
                 {/* Description of facts */}
-                <div>
-                  <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] mb-1">
-                    Description détaillée des faits constatés
-                  </h4>
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 leading-relaxed text-slate-800 whitespace-pre-wrap">
-                    {selectedAlert.detailedDescription}
+                <div className="p-4 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold text-slate-900 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                      Description détaillée des faits
+                    </h4>
+                    {!editingDescription && (
+                      <button
+                        onClick={() => { setDescriptionDraft(selectedAlert.detailedDescription); setEditingDescription(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                        {t.case_btn_edit}
+                      </button>
+                    )}
                   </div>
+                  {editingDescription ? (
+                    <div className="space-y-2">
+                      <textarea
+                        rows={4}
+                        value={descriptionDraft}
+                        onChange={(e) => setDescriptionDraft(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => setEditingDescription(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+                        <button onClick={handleSaveDescription} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">Enregistrer</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="leading-relaxed text-slate-700 whitespace-pre-wrap">{selectedAlert.detailedDescription}</p>
+                  )}
                 </div>
 
-                {/* Implicated & Witnesses tables */}
+                {/* Implicated & Witnesses */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl border border-slate-200">
-                    <h5 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] mb-2">
-                      Personnes impliquées ({selectedAlert.involvedPersons.length})
-                    </h5>
-                    {selectedAlert.involvedPersons.length === 0 ? (
-                      <p className="text-slate-400 italic">Non spécifié</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {selectedAlert.involvedPersons.map((p) => (
-                          <div key={p.id} className="p-2 bg-slate-50 rounded border border-slate-100">
-                            <span className="font-bold text-slate-900">{p.name || 'Anonyme'}</span>
-                            <div className="text-[11px] text-slate-500">{p.position} • {p.hierarchyRole}</div>
+                  {(['subject', 'witness'] as const).map((kind) => {
+                    const list = kind === 'subject' ? selectedAlert.involvedPersons : selectedAlert.witnesses;
+                    return (
+                      <div key={kind} className="p-4 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-bold text-slate-900">
+                            {kind === 'subject' ? 'Personnes impliquées' : 'Témoins'} ({list.length})
+                          </h5>
+                          <button
+                            onClick={() => setAddPersonKind(kind)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            {t.case_btn_add}
+                          </button>
+                        </div>
+                        {list.length === 0 ? (
+                          <p className="text-slate-400 italic">Non spécifié</p>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {list.map((p) => (
+                              <div key={p.id} className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                                  {(p.name || '??').slice(0, 2).toUpperCase()}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-bold text-slate-900 block truncate">{p.name || 'Confidentiel'}</span>
+                                  <div className="text-[11px] text-slate-500 truncate">{p.position} • {p.hierarchyRole}</div>
+                                </div>
+                                <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                  </div>
-
-                  <div className="p-4 rounded-xl border border-slate-200">
-                    <h5 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] mb-2">
-                      Témoins ({selectedAlert.witnesses.length})
-                    </h5>
-                    {selectedAlert.witnesses.length === 0 ? (
-                      <p className="text-slate-400 italic">Aucun témoin renseigné</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {selectedAlert.witnesses.map((w) => (
-                          <div key={w.id} className="p-2 bg-slate-50 rounded border border-slate-100">
-                            <span className="font-bold text-slate-900">{w.name || 'Témoin'}</span>
-                            <div className="text-[11px] text-slate-500">{w.position} • {w.hierarchyRole}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
 
                 {/* Evidences list */}
                 <div className="p-4 rounded-xl border border-slate-200">
-                  <h5 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] mb-2">
-                    Preuves & Pièces jointes ({selectedAlert.evidences.length})
-                  </h5>
+                  <div className="flex items-center justify-between mb-2">
+                    <h5 className="font-bold text-slate-900 flex items-center gap-2">
+                      <Paperclip className="w-4 h-4 text-blue-600" />
+                      Preuves & pièces jointes ({selectedAlert.evidences.length})
+                    </h5>
+                    <button
+                      onClick={() => evidenceFileInputRef.current?.click()}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {t.case_btn_add}
+                    </button>
+                    <input ref={evidenceFileInputRef} type="file" className="hidden" onChange={handleAddEvidenceFile} />
+                  </div>
                   {selectedAlert.evidences.length === 0 ? (
                     <p className="text-slate-400 italic">Aucun document joint</p>
                   ) : (
                     <div className="space-y-1.5">
                       {selectedAlert.evidences.map((ev) => (
-                        <div key={ev.id} className="p-2.5 rounded bg-slate-50 border border-slate-200 flex items-center justify-between">
-                          <span className="font-medium text-slate-800">{ev.name}</span>
-                          <span className="text-[10px] text-slate-400">({Math.round(ev.size / 1024)} Ko)</span>
+                        <div key={ev.id} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                          <span className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                            <FileText className="w-4 h-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span className="font-medium text-slate-800 block truncate">{ev.name}</span>
+                            <span className="text-[10px] text-slate-400">
+                              {new Date(ev.uploadedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 shrink-0">{Math.round(ev.size / 1024)} Ko</span>
                         </div>
                       ))}
                     </div>
@@ -1172,9 +1298,167 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </div>
             )}
 
-            {/* TAB CONTENT: 2. INVESTIGATION & INTERNAL NOTES */}
-            {activeCaseTab === 'investigation' && (
-              <div className="p-6 space-y-6 max-h-[560px] overflow-y-auto text-xs">
+            {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Modal partagée pour "+ Ajouter" (Personnes impliquées / Témoins) */}
+            {addPersonKind && (
+              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                <form onSubmit={handleAddPerson} className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-3 text-xs">
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {addPersonKind === 'subject' ? 'Ajouter une personne impliquée' : 'Ajouter un témoin'}
+                  </h3>
+                  <input
+                    autoFocus
+                    value={personNameInput}
+                    onChange={(e) => setPersonNameInput(e.target.value)}
+                    placeholder="Nom (ou « Confidentiel »)"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <input
+                    value={personPositionInput}
+                    onChange={(e) => setPersonPositionInput(e.target.value)}
+                    placeholder="Fonction / Poste"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <select
+                    value={personHierarchyInput}
+                    onChange={(e) => setPersonHierarchyInput(e.target.value as InvolvedPerson['hierarchyRole'])}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white"
+                  >
+                    <option value="Employé">Employé</option>
+                    <option value="Cadre">Cadre</option>
+                    <option value="Sous-Directeur">Sous-Directeur</option>
+                    <option value="Directeur+">Directeur+</option>
+                  </select>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={() => setAddPersonKind(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+                    <button type="submit" disabled={!personNameInput.trim()} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold">{t.case_btn_add}</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: PERSONNES
+                — vue dédiée (reprend Personnes impliquées + Témoins, avec
+                "+ Ajouter", partagée avec l'onglet Vue d'ensemble). */}
+            {activeCaseTab === 'persons' && (
+              <div className="p-6 space-y-4 max-h-[640px] overflow-y-auto text-xs">
+                {(['subject', 'witness'] as const).map((kind) => {
+                  const list = kind === 'subject' ? selectedAlert.involvedPersons : selectedAlert.witnesses;
+                  return (
+                    <div key={kind} className="p-4 rounded-xl border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-bold text-slate-900">
+                          {kind === 'subject' ? 'Personnes impliquées' : 'Témoins'} ({list.length})
+                        </h5>
+                        <button
+                          onClick={() => setAddPersonKind(kind)}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          {t.case_btn_add}
+                        </button>
+                      </div>
+                      {list.length === 0 ? (
+                        <p className="text-slate-400 italic">Non spécifié</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {list.map((p) => (
+                            <div key={p.id} className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                              <span className="w-9 h-9 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0 text-xs">
+                                {(p.name || '??').slice(0, 2).toUpperCase()}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <span className="font-bold text-slate-900 block truncate">{p.name || 'Confidentiel'}</span>
+                                <div className="text-[11px] text-slate-500 truncate">{p.position} • {p.hierarchyRole}</div>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: PREUVES —
+                vue dédiée (reprend Preuves & pièces jointes, avec
+                "+ Ajouter"), avec les métadonnées disponibles pour chaque
+                fichier (aucun champ inventé : hash/version ne sont pas
+                stockés par ce modèle, donc non affichés ici). */}
+            {activeCaseTab === 'evidence_tab' && (
+              <div className="p-6 space-y-3 max-h-[640px] overflow-y-auto text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                    {t.nav_evidence} ({selectedAlert.evidences.length})
+                  </span>
+                  <button
+                    onClick={() => evidenceFileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {t.case_btn_add}
+                  </button>
+                </div>
+                {selectedAlert.evidences.length === 0 ? (
+                  <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
+                    Aucun document joint
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {selectedAlert.evidences.map((ev) => (
+                      <div key={ev.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                        <span className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium text-slate-800 block truncate">{ev.name}</span>
+                          <span className="text-[10px] text-slate-400">
+                            {ev.type || 'application/octet-stream'} •{' '}
+                            {new Date(ev.uploadedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 shrink-0">{Math.round(ev.size / 1024)} Ko</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: RAPPORT —
+                regroupe désormais la synthèse du dossier, les notes
+                d'enquête internes (contenu inchangé) et les déclarations de
+                conflit d'intérêt (contenu inchangé, voir plus bas) sous un
+                seul onglet "Rapport", comme dans la maquette. */}
+            {activeCaseTab === 'report' && (
+              <div className="p-6 space-y-6 max-h-[640px] overflow-y-auto text-xs">
+                {/* Synthèse du dossier */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <h4 className="font-bold text-slate-900 flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4 text-blue-600" />
+                    Synthèse du dossier
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-700">
+                    <div><span className="text-slate-500">Catégorie :</span> {selectedAlert.category}</div>
+                    <div><span className="text-slate-500">Entité :</span> {selectedAlert.concernedEntity}</div>
+                    <div><span className="text-slate-500">Statut :</span> {selectedAlert.status.toUpperCase()}</div>
+                    <div><span className="text-slate-500">Investigateur(s) :</span> {selectedAlert.assignedInvestigatorNames.join(', ') || t.case_info_unassigned}</div>
+                    <div><span className="text-slate-500">Mesures correctives :</span> {selectedAlert.correctiveMeasures.length}</div>
+                    <div><span className="text-slate-500">Clôturé le :</span> {selectedAlert.closedAt ? new Date(selectedAlert.closedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR') : '—'}</div>
+                  </div>
+                  {selectedAlert.closureSummary && (
+                    <p className="pt-2 border-t border-slate-200 text-slate-700 leading-relaxed">{selectedAlert.closureSummary}</p>
+                  )}
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    {t.case_btn_generate_report}
+                  </button>
+                </div>
+
                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 flex items-center gap-2">
                   <Lock className="w-4 h-4 text-amber-700 shrink-0" />
                   <span>Ces notes sont strictement confidentielles et ne sont JAMAIS visibles par le lanceur d'alerte.</span>
@@ -1442,7 +1726,22 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 priorité / Délais") rather than a second, parallel edit
                 path. */}
             {activeCaseTab === 'triage' && (
-              <div className="p-6 space-y-5 max-h-[560px] overflow-y-auto text-xs">
+              <div className="p-6 space-y-5 max-h-[640px] overflow-y-auto text-xs">
+                {/* === AMÉLIORATION AJOUTÉE (Phase 11) === résumé de la
+                    qualification (catégorie/sous-catégorie/description),
+                    pour que l'onglet "Allégations" présente d'abord ce que
+                    le dossier reproche avant la matrice de risque. */}
+                <div className="p-4 rounded-xl border border-slate-200 space-y-2">
+                  <div className="font-bold text-slate-900">{selectedAlert.category}</div>
+                  <div className="text-slate-600">{selectedAlert.subCategory}</div>
+                  {selectedAlert.customViolationType && (
+                    <div className="text-slate-500 italic">{selectedAlert.customViolationType}</div>
+                  )}
+                  <p className="pt-2 border-t border-slate-100 leading-relaxed text-slate-700 whitespace-pre-wrap">
+                    {selectedAlert.detailedDescription}
+                  </p>
+                </div>
+
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                   <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
                     {t.triage_matrix_title}
@@ -1510,12 +1809,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </div>
             )}
 
-            {/* === AMÉLIORATION AJOUTÉE (Phase 6 — Conflit d'intérêt) === real,
-                persisted declarations (Phase 1's ConflictDeclaration type +
+            {/* === AMÉLIORATION AJOUTÉE (Phase 6 — Conflit d'intérêt ; Phase 11
+                — déplacé sous l'onglet "Rapport") === real, persisted
+                declarations (Phase 1's ConflictDeclaration type +
                 storage.declareConflict, built but unused until now) — never
                 a fabricated/derived list. */}
-            {activeCaseTab === 'conflict' && (
-              <div className="p-6 space-y-4 max-h-[560px] overflow-y-auto text-xs">
+            {activeCaseTab === 'report' && (
+              <div className="p-6 pt-0 space-y-4 text-xs">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">{t.conflict_section_title}</div>
@@ -1567,7 +1867,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 "En revue" ne sont pas modélisés par AlertStatus, ils restent
                 donc à l'état "à venir" tant qu'ils ne le sont pas). */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-4">{t.case_status_title}</h3>
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-4 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                {t.case_status_title}
+              </h3>
               {(() => {
                 const isInvestigating = ['investigation', 'corrective_action', 'closed', 'archived', 'reopened'].includes(selectedAlert.status);
                 const isClosed = ['closed', 'archived'].includes(selectedAlert.status);
@@ -1608,7 +1911,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
             {/* Informations complémentaires */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">{t.case_additional_info_title}</h3>
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-slate-400" />
+                {t.case_additional_info_title}
+              </h3>
               <div className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5 text-slate-500"><Lock className="w-3.5 h-3.5" />{t.case_origin_label}</span>
                 <span className="font-semibold text-slate-800">
@@ -1623,7 +1929,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
             {/* Liens rapides */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-2">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-1">{t.case_quick_links_title}</h3>
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5 text-slate-400" />
+                {t.case_quick_links_title}
+              </h3>
               <button
                 onClick={() => window.print()}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition"
@@ -2018,8 +2327,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     onFix={() => { setShowCloseModal(false); setActiveCaseTab('corrective'); }}
                   />
                   <ChecklistRow ok={hasAssigned} label={t.closure_check_assigned} />
-                  <ChecklistRow ok={hasNotes} label={t.closure_check_notes} onFix={() => { setShowCloseModal(false); setActiveCaseTab('investigation'); }} />
-                  <ChecklistRow ok={hasConflictDeclaration} label={t.closure_check_conflict} onFix={() => { setShowCloseModal(false); setActiveCaseTab('conflict'); }} />
+                  <ChecklistRow ok={hasNotes} label={t.closure_check_notes} onFix={() => { setShowCloseModal(false); setActiveCaseTab('report'); }} />
+                  <ChecklistRow ok={hasConflictDeclaration} label={t.closure_check_conflict} onFix={() => { setShowCloseModal(false); setActiveCaseTab('report'); }} />
                   <ChecklistRow ok={noOpenTasks} label={t.closure_check_tasks} onFix={() => { setShowCloseModal(false); setActiveCaseTab('tasks'); }} />
                 </div>
               );

@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { Language, UserProfile } from './types';
 import { storage } from './services/storage';
+import { TRANSLATIONS } from './i18n/translations';
 import { Navbar } from './components/Navbar';
 import { WhistleblowerHome } from './components/WhistleblowerHome';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
@@ -28,7 +29,7 @@ import { TasksRegistry } from './components/TasksRegistry';
 import { EvidenceRegistry } from './components/EvidenceRegistry';
 import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
-import { ShieldCheck, Lock, Building2, ShieldOff } from 'lucide-react';
+import { ShieldCheck, ShieldOff } from 'lucide-react';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -60,10 +61,13 @@ const STAFF_TAB_KEYS = [
   'settings',
   'admin_users',
   'admin_config',
+  // === AMÉLIORATION AJOUTÉE (Phase 11) ===
+  'admin_roles',
 ];
 
 export default function App() {
   const [lang, setLang] = useState<Language>('fr');
+  const t = TRANSLATIONS[lang];
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
@@ -107,6 +111,15 @@ export default function App() {
     // Leaving admin/investigator-only screens when switching to the public whistleblower profile.
     if (user.role === 'whistleblower' && STAFF_TAB_KEYS.includes(currentTab)) {
       setCurrentTab('home');
+    }
+    // === AMÉLIORATION AJOUTÉE (Phase 11) === Symmetric case: the public top
+    // nav no longer carries a visible "Espace Gestion DARC" button (removed
+    // to match the reference mockup's public header exactly — Accueil /
+    // Comment ça marche / FAQ only), so picking a staff profile from a
+    // public page needs to land somewhere real; the staff portal's own
+    // sidebar (StaffPortalLayout) then covers every other screen.
+    else if (user.role !== 'whistleblower' && !STAFF_TAB_KEYS.includes(currentTab)) {
+      setCurrentTab('portal');
     }
   };
 
@@ -220,6 +233,16 @@ export default function App() {
         renderAccessDenied('Configuration')
       );
     }
+    // === AMÉLIORATION AJOUTÉE (Phase 11 — "Rôles & Permissions" de la
+    // maquette) === même composant/CRUD/garde que 'admin_users', onglet de
+    // départ différent.
+    if (currentTab === 'admin_roles') {
+      return activeUser.role === 'system_admin' ? (
+        <AdminConfigView lang={lang} activeUser={activeUser} initialTab="roles" />
+      ) : (
+        renderAccessDenied('Rôles & Permissions')
+      );
+    }
     return null;
   };
 
@@ -287,51 +310,24 @@ export default function App() {
         {currentTab === 'firebase_lookup' && <CaseLookup lang={lang} />}
       </main>
 
-      {/* === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon
-          maquette) === Pied de page clair (fond blanc/gris très clair,
-          liens discrets) au lieu du bleu marine précédent — même contenu,
-          mêmes garanties affichées, juste restylé. */}
-      <footer className="bg-white text-slate-500 border-t border-slate-200 text-xs py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 flex items-center justify-center font-extrabold text-white text-sm">
-                A
-              </div>
-              <div>
-                <span className="font-extrabold text-[#0B2545] text-sm tracking-wide">
-                  ACTIVA EthicAlert
-                </span>
-                <span className="text-[11px] text-blue-600 block">
-                  Direction d'Audit, des Risques et de la Conformité (DARC)
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                Conforme CDC Groupe ACTIVA
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Lock className="w-4 h-4 text-amber-600" />
-                Chiffrement TLS & Intégrité Piste d'Audit
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-blue-600" />
-                16 filiales • 10 pays africains
-              </span>
-            </div>
+      {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Pied de page réduit à
+          l'exact contenu de la maquette de référence : un simple lien de
+          liens à gauche, la garantie "Plateforme sécurisée" à droite — plus
+          de bloc de branding épais. */}
+      <footer className="bg-white border-t border-slate-200 text-[11px] text-slate-500 py-4 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <span>© {new Date().getFullYear()} Groupe ACTIVA.</span>
+            <button className="hover:text-blue-700 hover:underline">{t.footer_confidentiality}</button>
+            <button className="hover:text-blue-700 hover:underline">{t.footer_legal}</button>
+            <button className="hover:text-blue-700 hover:underline">{t.footer_contact}</button>
           </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
-            <p>
-              © {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés. Plateforme de signalement éthique professionnelle.
-            </p>
-            <p className="text-center sm:text-right">
-              Garantie stricte de non-représailles et de confidentialité des données à caractère personnel (RGPD & législations CIMA).
-            </p>
-          </div>
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="font-medium text-slate-600">{t.footer_secure}</span>
+            <span className="text-slate-300">|</span>
+            <span>{t.footer_secure_sub}</span>
+          </span>
         </div>
       </footer>
 

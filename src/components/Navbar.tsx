@@ -1,8 +1,6 @@
 import React from 'react';
 import {
-  ShieldAlert,
-  Globe,
-  FileText,
+  ShieldCheck,
   Search,
   QrCode,
   ChevronDown,
@@ -115,6 +113,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const badge = getRoleBadge(activeUser.role);
 
+  // === AMÉLIORATION AJOUTÉE (Phase 11) === two-letter initials ("B. Y.
+  // Ekani" → "BY"), matching the avatar shown in the reference mockup.
+  const initials = activeUser.name
+    .replace(/[.,]/g, '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0))
+    .join('')
+    .toUpperCase();
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchValue.trim()) {
@@ -127,20 +136,30 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-40">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3 sm:gap-5 py-3">
-          {/* Logo & title */}
+          {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Logo à deux blocs, comme
+              la maquette de référence : le monogramme "activa" (icône +
+              wordmark + tagline) suivi du bloc "ACTIVA Hotline" (icône +
+              titre + sous-titre). */}
           <div
             id="brand-logo"
             onClick={() => setCurrentTab('home')}
-            className="flex items-center gap-2.5 cursor-pointer select-none group shrink-0"
+            className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 flex items-center justify-center shadow-sm ring-1 ring-black/5">
-              <ShieldAlert className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 flex items-center justify-center shadow-sm shrink-0">
+                <ShieldCheck className="w-4 h-4 text-white" />
+              </div>
+              <div className="hidden sm:block leading-none">
+                <span className="text-base font-black text-[#0B2545] tracking-tight lowercase">activa</span>
+                <p className="text-[8px] italic text-rose-600 -mt-0.5">{t.brand_tagline}</p>
+              </div>
             </div>
-            <div className="hidden sm:block leading-tight">
+            <div className="hidden md:block w-px h-8 bg-slate-200" />
+            <div className="hidden md:block leading-tight">
               <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-blue-700 transition">
                 {t.app_title}
               </h1>
-              <p className="text-[11px] text-slate-500 max-w-[220px] truncate">
+              <p className="text-[11px] text-slate-500 max-w-[260px] truncate">
                 {t.app_subtitle}
               </p>
             </div>
@@ -157,7 +176,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="text"
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
-                    placeholder={t.search_placeholder}
+                    placeholder={t.navbar_search_placeholder}
                     className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-100 border border-transparent text-xs text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
                   />
                 </div>
@@ -165,38 +184,55 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex-1 md:hidden" />
             </>
           ) : (
+            /* === AMÉLIORATION AJOUTÉE (Phase 11) === Nav publique exacte de
+                la maquette : Accueil / Comment ça marche / FAQ. Les deux
+                derniers font défiler la page d'accueil jusqu'à la section
+                correspondante (id posé dans WhistleblowerHome.tsx) plutôt que
+                de changer d'écran — "Suivre un signalement" reste accessible
+                via les gros boutons de la page d'accueil elle-même. */
             <nav className="hidden md:flex items-center gap-1 flex-1">
               <button
                 id="nav-btn-home"
                 onClick={() => setCurrentTab('home')}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'home' || currentTab === 'new_alert'
+                className={`px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  currentTab === 'home' || currentTab === 'new_alert' || currentTab === 'track'
                     ? 'bg-blue-50 text-blue-700'
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                <FileText className="w-4 h-4" />
-                {t.nav_home}
+                {t.nav_public_home}
               </button>
 
               <button
-                id="nav-btn-track"
-                onClick={() => setCurrentTab('track')}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  currentTab === 'track' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'
-                }`}
+                id="nav-btn-how-it-works"
+                onClick={() => {
+                  setCurrentTab('home');
+                  setTimeout(() => document.getElementById('how-it-works-section')?.scrollIntoView({ behavior: 'smooth' }), 50);
+                }}
+                className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
               >
-                <Search className="w-4 h-4" />
-                {t.nav_track}
+                {t.nav_public_how}
               </button>
 
-              {/* Entry point into the staff portal (sidebar covers the rest once inside) */}
+              <button
+                id="nav-btn-faq"
+                onClick={() => {
+                  setCurrentTab('home');
+                  setTimeout(() => document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' }), 50);
+                }}
+                className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+              >
+                {t.nav_public_faq}
+              </button>
+
+              {/* Kept as a discreet entry point into the staff portal (role-switch
+                  demo requirement, CDC 3.2.3) — not shown in the reference mockup,
+                  which assumes an already-authenticated staff session. */}
               <button
                 id="nav-btn-portal"
                 onClick={() => setCurrentTab('portal')}
-                className="relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+                className="relative ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-blue-700 hover:bg-slate-50 transition"
               >
-                <ShieldAlert className="w-4 h-4" />
                 <span>{t.nav_portal}</span>
                 {pendingAlertsCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
@@ -312,7 +348,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 transition text-slate-600 text-xs"
                 title="Changer de langue"
               >
-                <Globe className="w-3.5 h-3.5" />
                 <span className="font-bold uppercase">{lang}</span>
                 <ChevronDown className="w-3 h-3 opacity-70" />
               </button>
@@ -354,8 +389,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
                 className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
               >
-                <span className="w-8 h-8 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-800 font-bold text-xs shrink-0">
-                  {activeUser.name.charAt(0)}
+                <span className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
+                  {initials}
                 </span>
                 <span className="hidden sm:block text-left leading-tight">
                   <span className="block text-xs font-bold text-slate-800 max-w-[140px] truncate">{activeUser.name}</span>
