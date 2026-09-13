@@ -3,19 +3,12 @@ import {
   ShieldCheck,
   UserX,
   QrCode,
-  CheckCircle2,
-  AlertTriangle,
-  Building2,
-  Scale,
   HeartHandshake,
-  ExternalLink,
   ChevronDown,
   HelpCircle,
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { ACTIVA_COUNTRIES } from '../data/activaConfig';
-import { storage } from '../services/storage';
 
 interface WhistleblowerHomeProps {
   lang: Language;
@@ -33,11 +26,6 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   onOpenDesk,
 }) => {
   const t = TRANSLATIONS[lang];
-  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) === reads the
-  // real, editable category list (storage.ts) instead of the static
-  // ALERT_CATEGORIES import, so a category an admin adds/renames/removes
-  // is reflected here too, not just in the admin screen.
-  const alertCategories = storage.getCategories();
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section, absente jusqu'ici) ===
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -121,74 +109,6 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, white 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
           <div className="absolute -right-10 -bottom-10 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
           <div className="absolute left-10 top-16 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-        </div>
-      </div>
-
-      {/* Scope / Covered Categories (CDC 2.0) */}
-      <div className="space-y-6">
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Périmètre d'application & Comportements signalables
-          </h3>
-          <p className="text-xs text-slate-600">
-            Conformément au Code éthique et à la Politique de lutte contre la fraude du Groupe ACTIVA (CDC 2.0).
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {alertCategories.map((cat, idx) => (
-            <div
-              key={cat.id}
-              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-blue-400 transition space-y-3"
-            >
-              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm">
-                0{idx + 1}
-              </div>
-              <h4 className="font-bold text-slate-900 text-sm">
-                {cat.name}
-              </h4>
-              <ul className="space-y-1.5 text-xs text-slate-600">
-                {cat.subCategories.map((sub, sidx) => (
-                  <li key={sidx} className="flex items-start gap-1.5">
-                    <span className="text-amber-500 font-bold">•</span>
-                    <span>{sub}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ACTIVA Group Footprint (10 Countries, 16 Subsidiaries - CDC 1.0) */}
-      <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div>
-            <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">
-              Présence Panafricaine & Internationale
-            </span>
-            <h3 className="text-xl font-bold text-slate-900 mt-0.5">
-              16 entités réparties dans 10 pays
-            </h3>
-          </div>
-          <p className="text-xs text-slate-500 max-w-sm">
-            Une plateforme unifiée et centralisée pour harmoniser les pratiques de signalement dans toutes les filiales.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
-          {ACTIVA_COUNTRIES.map((c) => (
-            <div
-              key={c.code}
-              className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 flex items-center gap-2.5"
-            >
-              <span className="text-xl">{c.flag}</span>
-              <div>
-                <span className="font-bold text-slate-900 block">{c.name}</span>
-                <span className="text-[10px] text-slate-500">Filiales ACTIVA</span>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 

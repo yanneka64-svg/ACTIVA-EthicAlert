@@ -50,7 +50,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_subcollections_note: 'Allégations, personnes, preuves, notes et échanges ne sont pas affichés ici : leur lecture nécessite une Cloud Function (non déployée, projet en forfait Spark). Voir docs/FIREBASE-SETUP.md.',
     
     // Whistleblower home
-    hero_title: 'ACTIVA Hotline.',
+    hero_title: 'EthicAlert.com',
     hero_desc: 'Un canal sécurisé pour signaler les préoccupations éthiques et de conformité.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — section FAQ, absente jusqu'ici) ===
@@ -468,7 +468,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la
     // maquette : logo, sidebar, onglets de la fiche dossier, pied de page) ===
-    app_title: 'ACTIVA Hotline',
+    app_title: 'EthicAlert.com',
     app_subtitle: 'Canal sécurisé pour signaler les préoccupations éthiques et de conformité',
     brand_tagline: 'passionnément clients',
     navbar_search_placeholder: 'Rechercher un dossier, une personne, un mot-clé...',
@@ -553,7 +553,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Description',
     fb_lookup_subcollections_note: 'Allegations, persons, evidence, notes and communications are not shown here: reading them requires a Cloud Function (not deployed, project on Spark plan). See docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'ACTIVA Hotline.',
+    hero_title: 'EthicAlert.com',
     hero_desc: 'A secure channel to report ethical and compliance concerns.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section) ===
@@ -950,7 +950,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_add: 'Add',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — faithful mockup reproduction) ===
-    app_title: 'ACTIVA Hotline',
+    app_title: 'EthicAlert.com',
     app_subtitle: 'Secure channel to report ethical and compliance concerns',
     brand_tagline: 'passionately serving clients',
     navbar_search_placeholder: 'Search a case, a person, a keyword...',
@@ -1035,7 +1035,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Descrição',
     fb_lookup_subcollections_note: 'Alegações, pessoas, provas, notas e comunicações não são exibidas aqui: sua leitura requer uma Cloud Function (não implantada, projeto no plano Spark). Ver docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'ACTIVA Hotline.',
+    hero_title: 'EthicAlert.com',
     hero_desc: 'Um canal seguro para reportar preocupações éticas e de conformidade.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — seção de perguntas frequentes) ===
@@ -1432,7 +1432,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_add: 'Adicionar',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reprodução fiel da maquete) ===
-    app_title: 'ACTIVA Hotline',
+    app_title: 'EthicAlert.com',
     app_subtitle: 'Canal seguro para reportar preocupações éticas e de conformidade',
     brand_tagline: 'apaixonadamente clientes',
     navbar_search_placeholder: 'Pesquisar um caso, uma pessoa, uma palavra-chave...',
