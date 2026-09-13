@@ -266,3 +266,45 @@ it via `accounts:signInWithCustomToken` — no stored passwords used):
 **DOCUMENT** → `firestore.rules` comments, `docs/PERMISSIONS.md`,
 `docs/SECURITY.md` (new live tests + a dedicated "Fix" section), this
 entry.
+
+---
+
+## Documentation completeness (2) — `docs/API.md`
+
+**AUDIT** → of the three still-open section-50 files
+(`CONTROL-PANEL.md`, `INVESTIGATION.md`, `API.md`), the first two describe
+UI screens that literally do not exist in the codebase — nothing to
+document without inventing it. `API.md` is different: `functions/src/index.ts`
+(3 real, type-checked callables) and the full `CaseRepository` interface
+(~24 operations, `src/data-access/caseRepository.ts`) are real, existing
+code, exactly like `workflow.ts`/`permissions.ts` were for the previous two
+docs — undeployed, but not undocumented-because-unbuilt.
+
+**PLAN** → document the 3 implemented callables' real request/response
+shapes and error codes (read directly off the code, not paraphrased from
+memory), the identity/auth pattern all three share, and the remaining ~15
+planned-but-unimplemented operations as a concrete backlog table (purpose,
+not just a name) — with the deployment status stated plainly at the very
+top rather than buried, since this is exactly the kind of doc that could
+otherwise read as claiming a live API.
+
+**IMPLEMENT**: `docs/API.md` — status table up front, per-callable
+reference for `createCase`/`assignCase`/`changeCaseStatus` (permission
+required, request, response, errors, and the non-obvious behavior notes:
+priority/riskScore never settable at creation, rejected transitions are
+still audited, `overallFinding` always derived not accepted), the full
+planned-operations backlog table, and a closing section tying it back to
+`docs/ARCHITECTURE.md`'s "the client never decides a sensitive mutation
+alone" principle.
+
+**TEST / VERIFY**: re-read `functions/src/index.ts` line by line while
+writing the per-callable tables (not from the earlier phase summaries) —
+confirmed every documented default, error code, and side effect against the
+literal code. No code changed; `tsc --noEmit` re-run clean regardless
+(docs-only change) to confirm nothing else in the tree was disturbed.
+
+**DOCUMENT** → `docs/API.md`, this entry. Section 50 status: 6 of 8 files
+now present (`ARCHITECTURE.md`, `DATABASE.md`, `SECURITY.md`, `WORKFLOW.md`,
+`PERMISSIONS.md`, `API.md`). `CONTROL-PANEL.md`/`INVESTIGATION.md` remain
+the only two genuinely blocked — both would require describing screens that
+don't exist, still tied to the same Spark/Cloud-Functions decision as ever.
