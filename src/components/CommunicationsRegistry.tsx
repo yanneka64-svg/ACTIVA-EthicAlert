@@ -12,7 +12,8 @@ import { MessageSquare } from 'lucide-react';
 import { Language, AlertRecord, UserProfile, CaseMessage } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-import { isGlobalCaseViewer } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { DataTable, DataTableColumn } from './ui';
 
 interface CommunicationsRegistryProps {
@@ -41,11 +42,13 @@ export const CommunicationsRegistry: React.FC<CommunicationsRegistryProps> = ({ 
     return unsub;
   }, []);
 
-  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-  const isGlobalViewer = isGlobalCaseViewer(activeUser);
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+  // Remplace le filtre dupliqué (rôle assigné) par le hook partagé, qui
+  // applique en plus le périmètre pays/entité et la confidentialité — voir
+  // src/hooks/useVisibleAlerts.ts.
+  const visibleAlerts = useVisibleAlerts(alerts, activeUser);
 
-  const rows: MessageRow[] = alerts
-    .filter((a) => isGlobalViewer || a.assignedInvestigators.includes(activeUser.id))
+  const rows: MessageRow[] = visibleAlerts
     .flatMap((alert) => (alert.messages ?? []).map((message) => ({ message, alert })))
     .sort((a, b) => new Date(b.message.createdAt).getTime() - new Date(a.message.createdAt).getTime());
 

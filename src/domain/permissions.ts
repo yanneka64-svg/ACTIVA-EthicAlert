@@ -136,6 +136,13 @@ const ROLE_MAX_CONFIDENTIALITY: Record<RoleId, ConfidentialityLevel | null> = {
 };
 
 const CONFIDENTIALITY_RANK: Record<ConfidentialityLevel, number> = {
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+  // Nouveau palier le moins sensible (voir ConfidentialityLevel dans
+  // caseTypes.ts). N'importe quel rôle déjà autorisé à voir des dossiers
+  // (ROLE_MAX_CONFIDENTIALITY non-null) reste automatiquement autorisé à
+  // voir un dossier "standard", sans changement à ROLE_MAX_CONFIDENTIALITY
+  // lui-même.
+  standard: 0,
   restricted: 1,
   confidential: 2,
   highly_confidential: 3,
@@ -149,6 +156,19 @@ export function isConfidentialityAllowed(roleId: RoleId, level: ConfidentialityL
   const max = ROLE_MAX_CONFIDENTIALITY[roleId];
   if (!max) return false;
   return CONFIDENTIALITY_RANK[level] <= CONFIDENTIALITY_RANK[max];
+}
+
+// === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+// Même comparaison que ci-dessus, mais contre un plafond explicite plutôt
+// que le plafond par défaut du rôle — pour le nouveau champ
+// `UserProfile.sensitivityClearance` (un compte peut avoir un plafond
+// propre, distinct de celui de son rôle). Voir src/services/authz.ts
+// `canSeeAlertConfidentiality`.
+export function isConfidentialityAllowedForClearance(
+  clearance: ConfidentialityLevel,
+  level: ConfidentialityLevel
+): boolean {
+  return CONFIDENTIALITY_RANK[level] <= CONFIDENTIALITY_RANK[clearance];
 }
 
 /** True if the user's country/entity scope covers the case (empty scope = unrestricted, admin-style roles only). */

@@ -16,7 +16,8 @@ import { ListTodo } from 'lucide-react';
 import { Language, AlertRecord, UserProfile, CaseTask } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-import { isGlobalCaseViewer } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { DataTable, DataTableColumn } from './ui';
 
 interface TasksRegistryProps {
@@ -46,13 +47,15 @@ export const TasksRegistry: React.FC<TasksRegistryProps> = ({ lang, activeUser, 
     return unsub;
   }, []);
 
-  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-  const isGlobalViewer = isGlobalCaseViewer(activeUser);
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+  // Remplace le filtre dupliqué (rôle assigné) par le hook partagé, qui
+  // applique en plus le périmètre pays/entité et la confidentialité — voir
+  // src/hooks/useVisibleAlerts.ts.
+  const visibleAlerts = useVisibleAlerts(alerts, activeUser);
   const allUsers = storage.getUsers();
   const ownerName = (id: string) => allUsers.find((u) => u.id === id)?.name ?? id;
 
-  const rows: TaskRow[] = alerts
-    .filter((a) => isGlobalViewer || a.assignedInvestigators.includes(activeUser.id))
+  const rows: TaskRow[] = visibleAlerts
     .flatMap((alert) => (alert.tasks ?? []).map((task) => ({ task, alert })))
     .sort((a, b) => new Date(a.task.dueDate).getTime() - new Date(b.task.dueDate).getTime());
 

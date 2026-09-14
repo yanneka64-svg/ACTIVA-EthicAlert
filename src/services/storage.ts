@@ -1,6 +1,10 @@
 import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile } from '../types';
-import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, EntityDef, CategoryDef, SlaConfig, DEFAULT_SLA_CONFIG } from '../data/activaConfig';
+import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
+// === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
+import { CaseStatus } from '../domain/caseTypes';
+import { checkTransition, TransitionCheckResult } from '../domain/workflow';
+import { deriveCaseStatus, syncLegacyStatus } from './statusMapping';
 
 const STORAGE_KEYS = {
   ALERTS: 'activa_ethicalert_records_v1',
@@ -11,6 +15,8 @@ const STORAGE_KEYS = {
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
   ENTITIES: 'activa_ethicalert_entities_v1',
   CATEGORIES: 'activa_ethicalert_categories_v1',
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  COUNTRIES: 'activa_ethicalert_countries_v1',
   // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
   SLA_CONFIG: 'activa_ethicalert_sla_config_v1',
 };
@@ -31,6 +37,9 @@ class StorageService {
   // screen edits.
   private entities: EntityDef[] = [];
   private categories: CategoryDef[] = [];
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  // Même motif seed-then-mutate que entities/categories ci-dessus.
+  private countries: CountryDef[] = [];
   // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
   private slaConfig: SlaConfig = DEFAULT_SLA_CONFIG;
 
@@ -88,6 +97,15 @@ class StorageService {
         this.persistCategories();
       }
 
+      // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+      const storedCountries = localStorage.getItem(STORAGE_KEYS.COUNTRIES);
+      if (storedCountries) {
+        this.countries = JSON.parse(storedCountries);
+      } else {
+        this.countries = [...ACTIVA_COUNTRIES];
+        this.persistCountries();
+      }
+
       // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
       const storedSlaConfig = localStorage.getItem(STORAGE_KEYS.SLA_CONFIG);
       if (storedSlaConfig) {
@@ -104,6 +122,8 @@ class StorageService {
       this.activeUser = INITIAL_USERS[0];
       this.entities = [...ACTIVA_ENTITIES];
       this.categories = [...ALERT_CATEGORIES];
+      // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+      this.countries = [...ACTIVA_COUNTRIES];
       this.slaConfig = { ...DEFAULT_SLA_CONFIG };
     }
   }
@@ -152,6 +172,15 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(this.categories));
     } catch (e) {
       console.error('Failed to persist categories', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  private persistCountries() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(this.countries));
+    } catch (e) {
+      console.error('Failed to persist countries', e);
     }
   }
 
@@ -250,6 +279,105 @@ class StorageService {
       { id: alert.id, trackingNumber: alert.trackingNumber },
       actor
     );
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
+  /**
+   * Seul point d'entrée pour faire progresser un dossier dans la machine à
+   * états riche (`CaseStatus`, domain/workflow.ts) — réutilise
+   * `checkTransition()` telle quelle plutôt que de réinventer une
+   * validation de transition. Refuse (ne lève jamais d'exception) une
+   * transition invalide, exactement comme chaque autre mutation de ce
+   * fichier persiste puis notifie puis journalise. Synchronise en
+   * permanence `AlertRecord.status` (legacy, 7 valeurs) via
+   * `syncLegacyStatus()` pour que tout écran existant qui lit encore ce
+   * champ continue de fonctionner sans changement.
+   *
+   * LIMITE CONNUE (documentée, pas contournée en douce) : le contrôle de
+   * clôture de `checkTransition()` (`to === 'closed'`) exige des
+   * `Allegation[]` documentées — une notion du modèle `domain/caseTypes.ts`
+   * qu'`AlertRecord` ne porte pas (un signalement local a une seule
+   * catégorie/sous-catégorie, pas des allégations distinctes). Sans
+   * surcharge explicite de `context`, cette méthode refusera donc toute
+   * transition vers `closed`. Le flux de clôture existant
+   * (InvestigationDesk.tsx, sa propre checklist sur les champs réels
+   * d'AlertRecord) reste inchangé et n'utilise pas cette méthode — cette
+   * limite ne concerne qu'un futur usage de `transitionStatus` pour
+   * clôturer, pas le comportement actuel de l'application.
+   */
+  public transitionStatus(
+    alertId: string,
+    toStatus: CaseStatus,
+    actor: UserProfile,
+    reason?: string
+  ): TransitionCheckResult {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return { allowed: false, reason: 'Dossier introuvable.' };
+
+    const fromStatus = alert.workflowStatus ?? deriveCaseStatus(alert);
+    const check = checkTransition(fromStatus, toStatus);
+    if (!check.allowed) return check;
+
+    alert.workflowStatus = toStatus;
+    alert.status = syncLegacyStatus(toStatus);
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+    this.logAudit(
+      'STATUS_CHANGED',
+      `Statut du dossier ${alert.trackingNumber} : ${fromStatus} → ${toStatus}${reason ? ` (${reason})` : ''}.`,
+      { id: alert.id, trackingNumber: alert.trackingNumber },
+      actor
+    );
+    return { allowed: true };
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  /**
+   * Escalade un dossier vers la DARC Groupe (brief §14/§44) : transition
+   * `workflowStatus` → `escalated` (réutilise `checkTransition()`, refuse
+   * une escalade structurellement invalide sans lever d'exception), puis
+   * enregistre le motif et le nouveau "propriétaire" (`escalatedOwnerId`,
+   * un compte Groupe — voir `getGroupEscalationOwners()` dans
+   * domain/escalationCriteria.ts). Le pays/entité d'origine du dossier
+   * (country/concernedEntity/countryId/entityId) ne sont JAMAIS modifiés
+   * ici — seul le propriétaire change, conformément au brief. Une seule
+   * entrée d'audit `CASE_ESCALATED` (pas de double journalisation avec
+   * `transitionStatus`, dont la logique de transition est reprise ici
+   * directement plutôt qu'appelée en cascade).
+   */
+  public escalateAlert(
+    alertId: string,
+    reason: string,
+    criteriaMatched: string[],
+    ownerId: string,
+    actor: UserProfile
+  ): TransitionCheckResult {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return { allowed: false, reason: 'Dossier introuvable.' };
+
+    const fromStatus = alert.workflowStatus ?? deriveCaseStatus(alert);
+    const check = checkTransition(fromStatus, 'escalated');
+    if (!check.allowed) return check;
+
+    const owner = this.users.find((u) => u.id === ownerId);
+    alert.workflowStatus = 'escalated';
+    alert.status = syncLegacyStatus('escalated');
+    alert.escalatedAt = new Date().toISOString();
+    alert.escalatedBy = actor.id;
+    alert.escalatedReason = reason;
+    alert.escalatedOwnerId = ownerId;
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+    this.logAudit(
+      'CASE_ESCALATED',
+      `Dossier ${alert.trackingNumber} escaladé vers ${owner?.name ?? ownerId} (DARC Groupe). Motif : "${reason}".` +
+        (criteriaMatched.length > 0 ? ` Critères retenus : ${criteriaMatched.join(', ')}.` : ''),
+      { id: alert.id, trackingNumber: alert.trackingNumber },
+      actor
+    );
+    return { allowed: true };
   }
 
   // --- Audit Logs API ---
@@ -373,6 +501,55 @@ class StorageService {
     return true;
   }
 
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  // --- Countries API --- même motif seed-then-mutate que les Entités
+  // ci-dessus (ACTIVA_COUNTRIES est le jeu de départ, this.countries la
+  // copie réelle, persistée, éditable).
+  public getCountries(): CountryDef[] {
+    return [...this.countries];
+  }
+
+  public addCountry(country: CountryDef, actor: UserProfile): void {
+    this.countries.push(country);
+    this.persistCountries();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Pays "${country.name}" (${country.code}) ajouté par ${actor.name}.`, undefined, actor);
+  }
+
+  public updateCountry(code: string, updates: Partial<CountryDef>, actor: UserProfile): void {
+    const idx = this.countries.findIndex((c) => c.code === code);
+    if (idx === -1) return;
+    this.countries[idx] = { ...this.countries[idx], ...updates };
+    this.persistCountries();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Pays "${this.countries[idx].name}" mis à jour par ${actor.name}.`, undefined, actor);
+  }
+
+  /**
+   * NOUVEAU garde de sécurité (absent de `deleteEntity` ci-dessus — vérifié
+   * avant cette phase, aucune entité existante ne le fait) : refuse de
+   * supprimer un pays tant qu'au moins une entité y est encore rattachée,
+   * pour ne jamais laisser une entité orpheline avec un pays inexistant.
+   * Retourne `{ allowed: false, reason }` plutôt qu'un simple booléen pour
+   * que l'écran d'administration puisse afficher pourquoi.
+   */
+  public deleteCountry(code: string, actor: UserProfile): { allowed: boolean; reason?: string } {
+    const target = this.countries.find((c) => c.code === code);
+    if (!target) return { allowed: false, reason: 'Pays introuvable.' };
+    const entitiesInCountry = this.entities.filter((e) => e.country === target.name);
+    if (entitiesInCountry.length > 0) {
+      return {
+        allowed: false,
+        reason: `${entitiesInCountry.length} entité(s) sont encore rattachées à "${target.name}" (${entitiesInCountry.map((e) => e.name).join(', ')}). Réaffectez-les ou supprimez-les d'abord.`,
+      };
+    }
+    this.countries = this.countries.filter((c) => c.code !== code);
+    this.persistCountries();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Pays "${target.name}" supprimé par ${actor.name}.`, undefined, actor);
+    return { allowed: true };
+  }
+
   // --- Categories API (Phase 7 — Administration CRUD) ---
   public getCategories(): CategoryDef[] {
     return [...this.categories];
@@ -487,6 +664,8 @@ class StorageService {
     // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
     this.entities = [...ACTIVA_ENTITIES];
     this.categories = [...ALERT_CATEGORIES];
+    // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+    this.countries = [...ACTIVA_COUNTRIES];
     // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
     this.slaConfig = { ...DEFAULT_SLA_CONFIG };
     this.persistAlerts();
@@ -494,6 +673,7 @@ class StorageService {
     this.persistUsers();
     this.persistEntities();
     this.persistCategories();
+    this.persistCountries();
     this.persistSlaConfig();
     this.clearDraft();
     this.notify();

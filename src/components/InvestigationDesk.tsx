@@ -36,6 +36,8 @@ import {
   Link2,
   ClipboardList,
   Paperclip,
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  ArrowUpCircle,
 } from 'lucide-react';
 import {
   Language,
@@ -58,7 +60,52 @@ import { storage } from '../services/storage';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor } from './ui';
 import { computeSlaStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, userCan, canSeeAlertConfidentiality } from '../services/authz';
+import { isGlobalCaseViewer, userCan } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
+import { computeWorkload } from '../domain/workloadCalc';
+// === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+import { evaluateEscalationCriteria, getGroupEscalationOwners } from '../domain/escalationCriteria';
+
+// === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+// Petit composant partagé entre les deux groupes (compatibles / autorisés
+// Groupe) de la modale d'attribution — évite de dupliquer deux fois le
+// même balisage checkbox + charge de travail.
+function AssignCandidateRow({
+  candidate,
+  checked,
+  onToggle,
+}: {
+  candidate: AssignmentCandidate;
+  checked: boolean;
+  onToggle: (checked: boolean) => void;
+}) {
+  const { user: inv, workload } = candidate;
+  return (
+    <label
+      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+        checked ? 'bg-blue-50 border-blue-400 font-semibold' : 'border-slate-200 hover:bg-slate-50'
+      }`}
+    >
+      <div>
+        <div className="text-slate-900">{inv.name}</div>
+        <div className="text-[11px] text-slate-500">{inv.roleTitle} • {inv.country}</div>
+        <div className="text-[10px] text-slate-400 mt-0.5">
+          {workload.active} dossier(s) actif(s)
+          {workload.overdue > 0 && <span className="text-rose-600 font-semibold"> · {workload.overdue} en retard</span>}
+        </div>
+      </div>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onToggle(e.target.checked)}
+        className="rounded text-blue-600 focus:ring-blue-500"
+      />
+    </label>
+  );
+}
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -155,6 +202,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [reopenReason, setReopenReason] = useState<string>('');
 
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [escalateReason, setEscalateReason] = useState<string>('');
+  const [escalateOwnerId, setEscalateOwnerId] = useState<string>('');
+
   // Note & Message inputs
   const [internalNoteText, setInternalNoteText] = useState<string>('');
   const [investigatorMsgText, setInvestigatorMsgText] = useState<string>('');
@@ -214,20 +266,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // accès aux dossiers (brief section 30) — voir src/services/authz.ts.
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
 
-  const visibleAlerts = alerts.filter(alert => {
-    // Role filter
-    if (!isGlobalViewer) {
-      const isAssigned = alert.assignedInvestigators.includes(activeUser.id);
-      if (!isAssigned) return false;
-    }
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+  // Remplace le double filtre (rôle assigné + confidentialité) précédemment
+  // écrit ici en dur par le hook partagé `useVisibleAlerts`, qui applique
+  // en plus le nouveau périmètre pays/entité (countries/entities) — même
+  // logique, une seule implémentation désormais (voir
+  // src/hooks/useVisibleAlerts.ts). `isGlobalViewer` ci-dessus reste
+  // calculé séparément : encore utilisé plus bas pour des choix
+  // d'affichage (libellés).
+  const baseVisibleAlerts = useVisibleAlerts(alerts, activeUser);
 
-    // === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
-    // Second filtre indépendant, appliqué même à un dossier assigné ou à un
-    // profil à vision globale — reflète exactement `can()` dans
-    // domain/permissions.ts (le rôle seul ne suffit pas si le dossier
-    // dépasse le plafond de confidentialité de ce rôle).
-    if (!canSeeAlertConfidentiality(activeUser, alert)) return false;
-
+  const visibleAlerts = baseVisibleAlerts.filter(alert => {
     // Status filter
     if (statusFilter !== 'all' && alert.status !== statusFilter) return false;
 
@@ -261,6 +310,15 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // mode (e.g. a trackingNumber deep link narrows the search to one match) —
   // in list mode there is deliberately no "current" case.
   const selectedAlert = alerts.find(a => a.id === selectedAlertId) || (viewMode === 'detail' ? visibleAlerts[0] : undefined) || null;
+
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+  // Candidats à l'attribution pour le dossier actuellement sélectionné —
+  // moteur de compatibilité (pays/entité/confidentialité/conflit/
+  // disponibilité), voir domain/assignmentEngine.ts. `null` tant qu'aucun
+  // dossier n'est sélectionné (modale fermée) : pas de calcul superflu.
+  const assignCandidates = selectedAlert
+    ? computeCandidates(selectedAlert, investigatorUsers, computeWorkload(investigatorUsers, alerts))
+    : null;
 
   // Handlers
   const handleAssignInvestigators = () => {
@@ -610,6 +668,23 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setReopenReason('');
   };
 
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  const handleEscalate = () => {
+    if (!selectedAlert || !escalateReason.trim() || !escalateOwnerId) return;
+    const criteriaMatched = evaluateEscalationCriteria(selectedAlert).map((c) => c.label);
+    const result = storage.escalateAlert(selectedAlert.id, escalateReason.trim(), criteriaMatched, escalateOwnerId, activeUser);
+    if (result.allowed) {
+      setShowEscalateModal(false);
+      setEscalateReason('');
+      setEscalateOwnerId('');
+    }
+    // En cas de refus (transition invalide), la modale reste ouverte —
+    // aucun message d'erreur dédié n'est encore affiché ici, comme pour les
+    // autres actions de ce fichier qui échouent silencieusement plutôt que
+    // de casser l'écran ; `result.reason` est disponible pour un futur
+    // affichage si besoin.
+  };
+
   // Archive Alert (CDC 3.1.3)
   const handleArchiveAlert = () => {
     if (!selectedAlert) return;
@@ -945,7 +1020,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
                 {showActionsMenu && (
                   <div className="absolute right-0 mt-1.5 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-30 text-xs">
-                    {(activeUser.role === 'functional_admin' || activeUser.role === 'system_admin') && (
+                    {/* === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+                        Remplace la comparaison de rôle codée en dur par la
+                        vraie permission `cases.assign` (domain/permissions.ts).
+                        Corrige une incohérence réelle : `system_admin` n'a
+                        volontairement AUCUNE permission liée aux dossiers
+                        ("System Administrator ≠ Case Access", déjà appliqué
+                        partout ailleurs via isGlobalCaseViewer/ROLE_PERMISSIONS)
+                        mais pouvait jusqu'ici attribuer un dossier via ce
+                        bouton codé en dur ; `darc_compliance`, qui a bien
+                        `cases.assign`, ne le pouvait pas. */}
+                    {userCan(activeUser, 'cases.assign') && (
                       <button
                         id="btn-desk-assign"
                         onClick={() => {
@@ -957,6 +1042,30 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       >
                         <UserPlus className="w-3.5 h-3.5 text-blue-600" />
                         <span>{t.btn_assign_investigator}</span>
+                      </button>
+                    )}
+
+                    {/* === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+                        Escalade manuelle vers la DARC Groupe (brief §14/§44).
+                        Gardée par `cases.reassign` (comme l'attribution,
+                        l'escalade change la responsabilité du dossier) — un
+                        investigateur de base n'a pas cette permission, un
+                        senior_investigator/functional_admin/darc_compliance
+                        oui. N'apparaît que s'il existe au moins un compte
+                        Groupe éligible pour recevoir le dossier. */}
+                    {userCan(activeUser, 'cases.reassign') && getGroupEscalationOwners(allUsers).length > 0 && (
+                      <button
+                        id="btn-desk-escalate"
+                        onClick={() => {
+                          setEscalateReason('');
+                          setEscalateOwnerId(getGroupEscalationOwners(allUsers)[0]?.id ?? '');
+                          setShowEscalateModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <ArrowUpCircle className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Escalader vers la DARC Groupe</span>
                       </button>
                     )}
 
@@ -2016,35 +2125,66 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </p>
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {investigatorUsers.map((inv) => {
-                const checked = selectedInvestigatorIds.includes(inv.id);
-                return (
-                  <label
-                    key={inv.id}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                      checked ? 'bg-blue-50 border-blue-400 font-semibold' : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div>
-                      <div className="text-slate-900">{inv.name}</div>
-                      <div className="text-[11px] text-slate-500">{inv.roleTitle} • {inv.country}</div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedInvestigatorIds([...selectedInvestigatorIds, inv.id]);
-                        } else {
-                          setSelectedInvestigatorIds(selectedInvestigatorIds.filter(id => id !== inv.id));
-                        }
-                      }}
-                      className="rounded text-blue-600 focus:ring-blue-500"
+            {/* === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+                Remplace la liste plate et non triée par le moteur de
+                compatibilité : "Compatibles" (même pays+entité que le
+                dossier) affichés en premier, puis "Autorisés Groupe"
+                (périmètre vide) en second — jamais un enquêteur dont le
+                périmètre ne correspond à aucun des deux par défaut, voir
+                domain/assignmentEngine.ts. Chaque ligne affiche désormais
+                aussi la charge de travail réelle (dossiers actifs/en
+                retard), déjà calculée pour le Centre de Pilotage mais
+                jusqu'ici invisible ici. */}
+            <div className="space-y-3 max-h-72 overflow-y-auto">
+              {assignCandidates && assignCandidates.compatible.length === 0 && assignCandidates.groupAuthorized.length === 0 && (
+                <p className="text-slate-500 text-[11px] italic p-2">
+                  Aucun enquêteur compatible ou autorisé Groupe pour ce dossier (périmètre, confidentialité, conflit d'intérêt ou disponibilité).
+                </p>
+              )}
+
+              {assignCandidates && assignCandidates.compatible.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                    Enquêteurs compatibles ({selectedAlert.concernedEntity})
+                  </div>
+                  {assignCandidates.compatible.map((c) => (
+                    <AssignCandidateRow
+                      key={c.user.id}
+                      candidate={c}
+                      checked={selectedInvestigatorIds.includes(c.user.id)}
+                      onToggle={(checked) =>
+                        setSelectedInvestigatorIds(
+                          checked
+                            ? [...selectedInvestigatorIds, c.user.id]
+                            : selectedInvestigatorIds.filter((id) => id !== c.user.id)
+                        )
+                      }
                     />
-                  </label>
-                );
-              })}
+                  ))}
+                </div>
+              )}
+
+              {assignCandidates && assignCandidates.groupAuthorized.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+                    Enquêteurs autorisés Groupe (vision Groupe)
+                  </div>
+                  {assignCandidates.groupAuthorized.map((c) => (
+                    <AssignCandidateRow
+                      key={c.user.id}
+                      candidate={c}
+                      checked={selectedInvestigatorIds.includes(c.user.id)}
+                      onToggle={(checked) =>
+                        setSelectedInvestigatorIds(
+                          checked
+                            ? [...selectedInvestigatorIds, c.user.id]
+                            : selectedInvestigatorIds.filter((id) => id !== c.user.id)
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
@@ -2059,6 +2199,81 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
               >
                 Enregistrer l'attribution
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+          MODAL: ESCALADE VERS LA DARC GROUPE */}
+      {showEscalateModal && selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">Escalader vers la DARC Groupe</h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                Dossier {selectedAlert.trackingNumber} ({selectedAlert.concernedEntity}) — le pays et l'entité d'origine ne sont pas modifiés, seul le propriétaire du dossier change.
+              </p>
+            </div>
+
+            {(() => {
+              const criteria = evaluateEscalationCriteria(selectedAlert);
+              return criteria.length > 0 ? (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 space-y-1">
+                  <div className="font-bold text-rose-800">Critères d'escalade détectés (suggestion, non bloquant) :</div>
+                  <ul className="list-disc list-inside text-rose-700 space-y-0.5">
+                    {criteria.map((c) => (
+                      <li key={c.key}>{c.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-slate-500 text-[11px] italic">
+                  Aucun critère automatique détecté — l'escalade reste possible à la discrétion de l'opérateur/enquêteur.
+                </p>
+              );
+            })()}
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Propriétaire Groupe *</label>
+              <select
+                value={escalateOwnerId}
+                onChange={(e) => setEscalateOwnerId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                required
+              >
+                {getGroupEscalationOwners(allUsers).map((u) => (
+                  <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Motif de l'escalade *</label>
+              <textarea
+                rows={3}
+                value={escalateReason}
+                onChange={(e) => setEscalateReason(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                placeholder="Justification de l'escalade vers la DARC Groupe..."
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setShowEscalateModal(false)}
+                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleEscalate}
+                disabled={!escalateReason.trim() || !escalateOwnerId}
+                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold"
+              >
+                Confirmer l'escalade
               </button>
             </div>
           </div>

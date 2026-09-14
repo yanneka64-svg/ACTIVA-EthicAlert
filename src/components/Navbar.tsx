@@ -18,7 +18,6 @@ import {
 import { Language, UserProfile, UserRole, AppNotification } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-import { isGlobalCaseViewer } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
 import { generateNotifications } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
