@@ -1534,6 +1534,22 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   </h1>
                   {getPriorityBadge(selectedAlert)}
                   <StatusBadge status={selectedAlert.status} label={selectedAlert.status.toUpperCase().replace('_', ' ')} size="sm" />
+                  {/* === AMÉLIORATION AJOUTÉE (Retours visuels 3) === BUG PRÉEXISTANT
+                      CORRIGÉ, signalé par l'utilisateur (capture de référence) : le
+                      score de risque était affiché dans une box flottante séparée à
+                      droite ; l'utilisateur demande de le supprimer et d'afficher le
+                      score sur la même ligne que le statut ("INVESTIGATION"). Même
+                      donnée réelle qu'avant (riskEvaluation.totalScore/16, couleur
+                      via nocaColor) — seul l'emplacement change. */}
+                  {(() => {
+                    const score = selectedAlert.riskEvaluation.totalScore;
+                    const tone = nocaColor(score);
+                    return (
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${tone.border} ${tone.text} bg-white`}>
+                        {t.case_risk_score} : {score}/16
+                      </span>
+                    );
+                  })()}
                 </div>
                 <p className="text-xs text-slate-600 mt-1 line-clamp-1 max-w-xl">
                   {selectedAlert.detailedDescription}
@@ -1664,22 +1680,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 )}
               </div>
 
-              {/* Risk score gauge — reuses the same totalScore/16 already
-                  computed at submission time (see the Allégations tab below) */}
-              {(() => {
-                const score = selectedAlert.riskEvaluation.totalScore;
-                const tone = nocaColor(score);
-                const barColor = score >= 14 ? 'bg-rose-500' : score >= 11 ? 'bg-orange-500' : score >= 7 ? 'bg-amber-500' : 'bg-slate-400';
-                return (
-                  <div className={`w-40 rounded-2xl border ${tone.border} bg-white shadow-sm px-4 py-2.5`}>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t.case_risk_score}</div>
-                    <div className={`text-lg font-extrabold ${tone.text}`}>{score}/16</div>
-                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
-                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, (score / 16) * 100)}%` }} />
-                    </div>
-                  </div>
-                );
-              })()}
             </div>
           </div>
 
