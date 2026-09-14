@@ -24,6 +24,24 @@ export interface UserProfile {
   entity: string;
   country: string;
   avatar?: string;
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+  // Périmètre d'habilitation réel du collaborateur, en complément (jamais en
+  // remplacement) des champs `entity`/`country` ci-dessus qui restent le
+  // simple libellé d'affichage "entité de rattachement" utilisé partout
+  // aujourd'hui. Tableau vide ou absent = aucune restriction (rôles à
+  // vision Groupe : functional_admin, darc_compliance, consultation,
+  // executive — voir GLOBAL_VISIBILITY_ROLES dans domain/permissions.ts).
+  // Non consommé par aucun écran avant la Phase 2 (src/hooks/useVisibleAlerts.ts).
+  countries?: string[];
+  entities?: string[];
+  // Plafond de confidentialité propre à CE compte, quand il doit différer
+  // du plafond par défaut du rôle (ROLE_MAX_CONFIDENTIALITY). Absent =
+  // comportement inchangé (plafond du rôle appliqué tel quel).
+  sensitivityClearance?: ConfidentialityLevel;
+  // Disponibilité pour se voir attribuer de nouveaux dossiers (moteur de
+  // compatibilité d'attribution, Phase 4). Absent traité comme `true` —
+  // aucun compte existant ne devient silencieusement indisponible.
+  active?: boolean;
 }
 
 export type AlertStatus = 
@@ -37,6 +55,14 @@ export type AlertStatus =
 
 export type PriorityLevel = 'faible' | 'elevee' | 'tres_elevee' | 'critique';
 export type NocaThreshold = 'NOCA 1' | 'NOCA 2' | 'NOCA 3' | 'NOCA 4';
+
+// === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+// Dimension SÉVÉRITÉ, distincte du RISQUE (RiskEvaluation.priority/NOCA
+// ci-dessus). Aujourd'hui les deux notions sont fusionnées dans un seul
+// score NOCA ; ce nouveau champ, optionnel, permet de les évaluer
+// séparément sans toucher au champ `priority`/`riskEvaluation` existant
+// (voir AlertRecord.severity plus bas).
+export type SeverityLevel = 'mineure' | 'moderee' | 'majeure' | 'critique';
 
 export interface RiskEvaluation {
   financialImpact: 1 | 2 | 3 | 4; // <5k€, 5-10k€, 10-20k€, >20k€
@@ -140,6 +166,16 @@ export interface AlertRecord {
   incidentLocation: string;
   concernedEntity: string;
   country: string;
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+  // Identifiants stables (FK vers ACTIVA_COUNTRIES.code / ACTIVA_ENTITIES.id
+  // dans src/data/activaConfig.ts), en complément — jamais en remplacement —
+  // des champs texte libre `concernedEntity`/`country` ci-dessus, que tous
+  // les écrans existants continuent de lire sans changement. Optionnels :
+  // un dossier créé avant cette phase n'en dispose pas et reste valide (le
+  // rattachement pays/entité "structurant" au sens du moteur de visibilité
+  // — Phase 2 — ne s'applique alors simplement pas à ce dossier).
+  countryId?: string;
+  entityId?: string;
   // === AMÉLIORATION AJOUTÉE (Phase 26 — champ additif, maquette de référence) ===
   // Indique si les faits signalés sont toujours en cours au moment du dépôt.
   // Optionnel : les dossiers existants sans cette information restent valides.
@@ -149,6 +185,12 @@ export interface AlertRecord {
   riskEvaluation: RiskEvaluation;
   overridePriority?: PriorityLevel;
   overrideReason?: string;
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+  // Dimension SÉVÉRITÉ, volontairement distincte du RISQUE ci-dessus
+  // (riskEvaluation/overridePriority restent le score NOCA existant,
+  // inchangé). Optionnel : un dossier sans valeur n'est simplement pas
+  // encore évalué sur cet axe.
+  severity?: SeverityLevel;
 
   // Impact
   impactType: string;
@@ -170,6 +212,16 @@ export interface AlertRecord {
   reopenReason?: string;
   reopenedAt?: string;
   reopenedBy?: string;
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+  // Escalade vers la DARC Groupe (brief §14/§44). Le pays/entité d'origine
+  // ci-dessus (country/concernedEntity/countryId/entityId) ne sont JAMAIS
+  // modifiés par une escalade — seul le "propriétaire" du dossier change,
+  // via escalatedOwnerId (voir Phase 5, storage.escalateAlert). Optionnels :
+  // absent tant qu'aucune escalade n'a eu lieu.
+  escalatedAt?: string;
+  escalatedBy?: string;
+  escalatedReason?: string;
+  escalatedOwnerId?: string;
 
   // Communication & Notes
   internalNotes: InternalNote[];

@@ -22,7 +22,14 @@ export type CaseLanguage = 'fr' | 'en' | 'pt';
 
 export type HierarchyLevel = 'employee' | 'manager' | 'senior_manager' | 'director_plus';
 
-export type ConfidentialityLevel = 'restricted' | 'confidential' | 'highly_confidential';
+// === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+// 4ᵉ palier ajouté sous 'restricted' : le brief distingue une sensibilité
+// "Standard" (visible par tout collaborateur habilité aux dossiers) d'un
+// niveau "Restreint" déjà réservé aux rôles les plus habilités. Ajout
+// purement additif à l'union — aucune valeur existante renommée, aucun
+// dossier existant n'est concerné (voir CONFIDENTIALITY_RANK dans
+// permissions.ts pour le classement).
+export type ConfidentialityLevel = 'standard' | 'restricted' | 'confidential' | 'highly_confidential';
 
 export type ReportingMode = 'anonymous' | 'identified';
 

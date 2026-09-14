@@ -177,6 +177,15 @@ export function computeRiskEvaluation(
   };
 }
 
+// === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+// `countries`/`entities` ci-dessous sont le PÉRIMÈTRE d'habilitation réel
+// (nouveaux champs additifs sur UserProfile) — les champs `entity`/
+// `country` existants restent inchangés, simple libellé d'affichage. Un
+// tableau vide signifie "vision Groupe" (aucune restriction), réservé aux
+// rôles déjà à vision globale (voir GLOBAL_VISIBILITY_ROLES dans
+// domain/permissions.ts). `active: true` pour tous les comptes existants —
+// aucun ne devient silencieusement indisponible pour le moteur
+// d'attribution (Phase 4).
 export const INITIAL_USERS: UserProfile[] = [
   {
     id: 'usr-functional-admin',
@@ -186,6 +195,9 @@ export const INITIAL_USERS: UserProfile[] = [
     roleTitle: 'Responsable Conformité & Référent Éthique Groupe',
     entity: 'ACTIVA Finance',
     country: 'Cameroun / Maurice',
+    countries: [],
+    entities: [],
+    active: true,
   },
   {
     id: 'usr-investigator-1',
@@ -195,6 +207,9 @@ export const INITIAL_USERS: UserProfile[] = [
     roleTitle: 'Auditeur Interne Senior',
     entity: 'ACTIVA Côte d’Ivoire',
     country: 'Côte d’Ivoire',
+    countries: ['CI'],
+    entities: ['ci_activa'],
+    active: true,
   },
   {
     id: 'usr-investigator-2',
@@ -204,6 +219,9 @@ export const INITIAL_USERS: UserProfile[] = [
     roleTitle: 'Chargée d’Investigation Fraude & Éthique',
     entity: 'ACTIVA Assurances',
     country: 'Cameroun',
+    countries: ['CM'],
+    entities: ['cm_assurances'],
+    active: true,
   },
   {
     id: 'usr-system-admin',
@@ -213,6 +231,9 @@ export const INITIAL_USERS: UserProfile[] = [
     roleTitle: 'Administrateur Systèmes Sécurisés ATS',
     entity: 'Africa Technology Services (ATS)',
     country: 'Maurice',
+    countries: ['MU'],
+    entities: ['mu_ats'],
+    active: true,
   },
   {
     id: 'usr-auditor',
@@ -226,6 +247,9 @@ export const INITIAL_USERS: UserProfile[] = [
     roleTitle: 'Membre du Comité d’Audit & Conseil d’Administration',
     entity: 'ACTIVA Finance',
     country: 'Maurice',
+    countries: [],
+    entities: [],
+    active: true,
   },
   // === AMÉLIORATION AJOUTÉE (Phase 12.3) === 2 nouveaux comptes de
   // démonstration pour les 2 rôles réellement nouveaux (security_admin,
@@ -239,6 +263,9 @@ export const INITIAL_USERS: UserProfile[] = [
     roleTitle: 'Responsable Sécurité des Systèmes d’Information',
     entity: 'Africa Technology Services (ATS)',
     country: 'Maurice',
+    countries: ['MU'],
+    entities: ['mu_ats'],
+    active: true,
   },
   {
     id: 'usr-audit-committee',
@@ -248,6 +275,52 @@ export const INITIAL_USERS: UserProfile[] = [
     roleTitle: 'Membre indépendant, Comité d’Audit du Conseil d’Administration',
     entity: 'ACTIVA Finance',
     country: 'Maurice',
+    countries: [],
+    entities: [],
+    active: true,
+  },
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+  // 3 nouveaux comptes de démonstration pour les 3 rôles qui n'en avaient
+  // encore aucun (déjà définis dans RoleId/ROLE_PERMISSIONS depuis la
+  // Phase 12 mais jamais sélectionnables sur l'écran de connexion) :
+  // senior_investigator et darc_compliance à vision Groupe (périmètre
+  // vide), servant de comptes "Enquêteur Groupe"/"DARC Groupe" pour la
+  // future escalade (Phase 5) ; executive à vision agrégée uniquement.
+  {
+    id: 'usr-senior-investigator',
+    name: 'Grace Mensah (Investigatrice Senior Groupe)',
+    email: 'g.mensah@group-activa.com',
+    role: 'senior_investigator',
+    roleTitle: 'Investigatrice Senior — Enquêtes Groupe',
+    entity: 'ACTIVA Finance',
+    country: 'Maurice',
+    countries: [],
+    entities: [],
+    active: true,
+  },
+  {
+    id: 'usr-darc-compliance',
+    name: 'DARC Groupe (Conformité)',
+    email: 'darc-groupe@group-activa.com',
+    role: 'darc_compliance',
+    roleTitle: 'Direction Audit, Risques & Conformité — Groupe',
+    entity: 'ACTIVA Finance',
+    country: 'Maurice',
+    countries: [],
+    entities: [],
+    active: true,
+  },
+  {
+    id: 'usr-executive',
+    name: 'Marc Fotso (Comité de Direction)',
+    email: 'm.fotso@group-activa.com',
+    role: 'executive',
+    roleTitle: 'Membre du Comité de Direction Groupe',
+    entity: 'ACTIVA Finance',
+    country: 'Maurice',
+    countries: [],
+    entities: [],
+    active: true,
   },
 ];
 
@@ -279,6 +352,9 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     incidentLocation: 'Direction Sinistres - Siège Douala',
     concernedEntity: 'ACTIVA Assurances',
     country: 'Cameroun',
+    // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+    countryId: 'CM',
+    entityId: 'cm_assurances',
     riskEvaluation: {
       financialImpact: 3,
       hierarchyLevel: 3,
@@ -389,6 +465,9 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     incidentLocation: 'Immeuble ACTIVA Plateau, Abidjan',
     concernedEntity: 'ACTIVA Côte d’Ivoire',
     country: 'Côte d’Ivoire',
+    // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+    countryId: 'CI',
+    entityId: 'ci_activa',
     riskEvaluation: {
       financialImpact: 1,
       hierarchyLevel: 2,
@@ -464,6 +543,9 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     incidentLocation: 'Accra Branch Office',
     concernedEntity: 'ACTIVA International Ghana',
     country: 'Ghana',
+    // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+    countryId: 'GH',
+    entityId: 'gh_activa',
     riskEvaluation: {
       financialImpact: 1,
       hierarchyLevel: 1,

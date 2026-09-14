@@ -136,6 +136,13 @@ const ROLE_MAX_CONFIDENTIALITY: Record<RoleId, ConfidentialityLevel | null> = {
 };
 
 const CONFIDENTIALITY_RANK: Record<ConfidentialityLevel, number> = {
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
+  // Nouveau palier le moins sensible (voir ConfidentialityLevel dans
+  // caseTypes.ts). N'importe quel rôle déjà autorisé à voir des dossiers
+  // (ROLE_MAX_CONFIDENTIALITY non-null) reste automatiquement autorisé à
+  // voir un dossier "standard", sans changement à ROLE_MAX_CONFIDENTIALITY
+  // lui-même.
+  standard: 0,
   restricted: 1,
   confidential: 2,
   highly_confidential: 3,
