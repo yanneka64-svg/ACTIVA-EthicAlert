@@ -29,7 +29,6 @@ import { CaseLookup } from './components/CaseLookup';
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) ===
 import { StaffSpaceHome } from './components/StaffSpaceHome';
-import { computeAvailableSpaces } from './domain/staffSpaces';
 // === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructurée façon maquette) ===
 // 4 écrans transverses réels (Tâches / Preuves / Communications / Actions
 // correctives), agrégeant des données déjà existantes sur `AlertRecord` —
@@ -51,7 +50,7 @@ import { ShieldOff } from 'lucide-react';
 // Restaurés ici, sans rien changer au reste de la restructuration visuelle.
 import { resolveRoute, pathForTab } from './routing/routes';
 import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
-import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from './services/authz';
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from './services/authz';
 import { StaffLoginView } from './components/StaffLoginView';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
@@ -228,60 +227,20 @@ function AppShell() {
     setIsStaffSessionActive(true);
   };
 
+  // === AMÉLIORATION AJOUTÉE (Accueil des espaces — étendu à tous les
+  // profils) === Toute connexion atterrit désormais sur l'accueil des
+  // espaces (`/espace`, StaffSpaceHome.tsx) — y compris un compte à un seul
+  // espace réel ou à aucun des 3 (repli "vision globale"), qui n'y voyait
+  // pas cet écran avant cette phase. La redirection par rôle (Opérateur →
+  // `op_dashboard`, Enquêteur → `inv_dashboard`, Administration →
+  // `settings`, repli vision globale → `control_panel`/`reports`) n'a pas
+  // disparu : elle vit désormais dans StaffSpaceHome.tsx (via
+  // domain/staffSpaces.ts, réutilisé plutôt que dupliqué), déclenchée par
+  // le clic sur la carte correspondante plutôt qu'automatiquement ici.
   const handleLogin = (user: UserProfile) => {
     handleUserChange(user);
     setIsStaffSessionActive(true);
-    // === AMÉLIORATION AJOUTÉE (Phase 7 — évolution multi-pays/multi-entité) ===
-    // Redirection selon le rôle plutôt que toujours vers le Centre de
-    // Pilotage (comportement précédent). Réutilise exactement les mêmes
-    // permissions que le sélecteur d'espace (StaffPortalLayout.tsx) :
-    // cases.assign → Opérateur, cases.edit → Enquêteur, configuration.manage
-    // → Administration. `user` (le compte qui vient de se connecter), pas
-    // `activeUser`/`isGlobalViewer` — ces derniers reflètent encore
-    // l'ancien profil tant que le state React n'a pas été mis à jour.
-    // Pour tout rôle sans aucun de ces 3 accès, la vision globale existante
-    // continue de donner accès au Centre de Pilotage comme avant
-    // (comportement inchangé pour consultation/executive). Les 2 seuls
-    // rôles qui n'avaient AUCUN de ces accès — security_admin et
-    // audit_committee — atterrissaient déjà, avant cette phase, sur un
-    // Centre de Pilotage inaccessible ("Accès restreint", vérifié en
-    // direct) : ils atterrissent désormais sur Rapports (`/reports`), le
-    // seul écran interne sans garde de permission, ce qui corrige leur
-    // expérience de connexion sans rien changer pour un rôle qui
-    // fonctionnait déjà.
-    // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === BUG
-    // PRÉEXISTANT CORRIGÉ : `cases.assign` seul ne suffit plus depuis que
-    // la matrice de permissions est éditable en administration — la vraie
-    // garde de `/operator/dashboard` (branche `op_dashboard` ci-dessous)
-    // est `isGlobalViewer`, une table séparée (GLOBAL_VISIBILITY_ROLES)
-    // que l'édition de `cases.assign` ne modifie jamais. Coïncidaient
-    // toujours avant cette amélioration (seuls functional_admin/
-    // darc_compliance avaient `cases.assign`, tous deux à vision globale) ;
-    // plus garanti maintenant qu'un admin peut accorder `cases.assign` à
-    // n'importe quel rôle. Même correctif que StaffPortalLayout.tsx
-    // (canSeeOperatorSpace) pour le sélecteur d'espace.
-    //
-    // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur
-    // en barre latérale) === Un compte à 2 espaces ou plus (ex. B. Y. Ekani,
-    // Opérateur + Enquêteur) atterrit désormais sur une vraie page d'accueil
-    // dédiée au choix d'espace, plutôt que directement dans l'un des deux
-    // sans étape de choix explicite. Un compte à un seul espace réel — ou à
-    // aucun des 3 (repli "vision globale" existant, inchangé) — continue
-    // d'atterrir directement dans son interface, exactement comme avant :
-    // cet accueil n'a de sens que s'il y a un vrai choix à faire.
-    if (computeAvailableSpaces(user).length >= 2) {
-      navigate(pathForTab('space_home'));
-    } else if (userCan(user, 'cases.assign') && isGlobalCaseViewer(user)) {
-      navigate(pathForTab('op_dashboard'));
-    } else if (userCan(user, 'cases.edit')) {
-      navigate(pathForTab('inv_dashboard'));
-    } else if (canManageConfiguration(user)) {
-      navigate(pathForTab('settings'));
-    } else if (isGlobalCaseViewer(user)) {
-      navigate(pathForTab('control_panel'));
-    } else {
-      navigate(pathForTab('reports'));
-    }
+    navigate(pathForTab('space_home'));
   };
 
   const handleLogout = () => {

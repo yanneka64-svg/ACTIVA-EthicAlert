@@ -47,3 +47,15 @@ export const SPACE_DASHBOARD_TAB: Record<'operator' | 'investigator' | 'admin', 
   investigator: 'inv_dashboard',
   admin: 'settings',
 };
+
+// === AMÉLIORATION AJOUTÉE (Accueil des espaces — étendu à tous les
+// profils) === Un compte sans aucun des 3 espaces réels (consultation,
+// executive, audit_committee, security_admin — lecture globale sans
+// attribution ni investigation ni administration) reçoit un unique espace
+// "general" de repli. Cette fonction reprend exactement la logique qui
+// vivait jusqu'ici dans `App.tsx` (`handleLogin`) — extraite ici pour que
+// `StaffSpaceHome.tsx` puisse déterminer la destination de cette carte
+// sans dupliquer la règle.
+export function computeGeneralDashboardTab(user: UserProfile): string {
+  return isGlobalCaseViewer(user) ? 'control_panel' : 'reports';
+}
