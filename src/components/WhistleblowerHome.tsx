@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   UserX,
@@ -14,9 +14,6 @@ import {
   Shield,
   Users,
   Leaf,
-  Camera,
-  RotateCcw,
-  Upload,
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -63,50 +60,6 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   const activeHeroMessage = heroMessages[heroMsgIndex];
   const ActiveHeroIcon = activeHeroMessage.icon;
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [heroBg, setHeroBg] = useState<string>(() => {
-    return localStorage.getItem('activa_custom_hero_bg') || '/brand/activa-hq.jpg';
-  });
-  const [isCustomBg, setIsCustomBg] = useState<boolean>(() => {
-    return !!localStorage.getItem('activa_custom_hero_bg');
-  });
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-
-  const handleFile = (file: File) => {
-    if (!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (result) {
-        try {
-          localStorage.setItem('activa_custom_hero_bg', result);
-          setHeroBg(result);
-          setIsCustomBg(true);
-        } catch {
-          // If localStorage is full, still display in memory
-          setHeroBg(result);
-          setIsCustomBg(true);
-        }
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleResetBg = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    localStorage.removeItem('activa_custom_hero_bg');
-    setHeroBg('/brand/activa-hq.jpg');
-    setIsCustomBg(false);
-  };
-
   return (
     <div className="space-y-8 pb-6">
       {/* === AMÉLIORATION AJOUTÉE (Phase 20 — hero plein cadre) ===
@@ -120,49 +73,22 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           Hauteur minimale réduite (540px → 460px en desktop) : le contenu du
           hero laissait un grand vide sous la note "signalement anonyme"
           avant le bord inférieur du bandeau photo. */}
-      {/* Hero container with image drop support */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        className={`relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center transition-all ${
-          isDragging ? 'ring-4 ring-blue-500 ring-inset bg-blue-50/20' : ''
-        }`}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files && e.target.files[0]) {
-              handleFile(e.target.files[0]);
-            }
-          }}
-        />
-
+      {/* === AMÉLIORATION AJOUTÉE (Phase 32) === La fonctionnalité de
+          téléversement/glisser-déposer d'une photo de fond personnalisée
+          (introduite par un commit poussé directement sur `main`, hors de
+          cette session — voir Phase 29) est retirée sur demande explicite
+          (« supprime le bouton changer de photos ») : bouton, bouton de
+          réinitialisation, zone de dépôt et état associé disparaissent ;
+          l'image du hero redevient fixe comme sur toutes les maquettes de
+          référence fournies depuis la Phase 17. */}
+      <div className="relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center">
         <img
-          src={heroBg}
+          src="/brand/activa-hq.jpg"
           alt="Siège du Groupe ACTIVA"
           className="absolute inset-0 w-full h-full object-cover object-right sm:object-[88%_center]"
-          referrerPolicy="no-referrer"
         />
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
         <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/35 to-transparent pointer-events-none" />
-
-        {isDragging && (
-          <div className="absolute inset-0 bg-blue-600/20 backdrop-blur-xs flex items-center justify-center z-30 pointer-events-none">
-            <div className="bg-white px-6 py-4 rounded-2xl shadow-xl border border-blue-200 flex items-center gap-3">
-              <Upload className="w-6 h-6 text-blue-600 animate-bounce" />
-              <span className="text-sm font-bold text-slate-800">
-                Déposez votre photo ici pour l'appliquer en fond d'écran
-              </span>
-            </div>
-          </div>
-        )}
 
         <div className="relative z-10 max-w-xl p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)] space-y-5">
           <span className="block text-xs font-bold tracking-wider text-blue-700 uppercase">
@@ -240,30 +166,6 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               />
             ))}
           </div>
-        </div>
-
-        {/* Bouton discret pour changer la photo de fond ou glisser-déposer */}
-        <div className="absolute left-6 bottom-3 sm:bottom-4 z-10 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/85 hover:bg-white text-slate-700 hover:text-blue-700 text-xs font-semibold backdrop-blur-sm border border-slate-200/80 shadow-xs transition cursor-pointer"
-            title="Sélectionnez votre fichier image ou glissez-le directement ici"
-          >
-            <Camera className="w-3.5 h-3.5 text-blue-600" />
-            <span>Changer la photo de fond</span>
-          </button>
-          {isCustomBg && (
-            <button
-              type="button"
-              onClick={handleResetBg}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/85 hover:bg-white text-slate-500 hover:text-red-600 text-xs font-semibold backdrop-blur-sm border border-slate-200/80 shadow-xs transition cursor-pointer"
-              title="Réinitialiser la photo"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Réinitialiser</span>
-            </button>
-          )}
         </div>
       </div>
 
