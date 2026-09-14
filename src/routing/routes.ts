@@ -88,6 +88,13 @@ export const TAB_TO_PATH: Record<string, string> = {
   advanced_search: '/search/advanced',
   // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
   admin_workflow: '/admin/workflow',
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === 3 sections
+  // jusqu'ici seulement atteignables via la rangée d'onglets interne
+  // d'AdminConfigView (retirée), jamais par une URL propre — voir
+  // StaffPortalLayout.tsx (adminItems) et App.tsx (renderStaffContent).
+  admin_entities: '/admin/entities',
+  admin_categories: '/admin/alert-categories',
+  admin_database: '/admin/database',
 };
 
 const PATH_TO_TAB: Record<string, string> = Object.fromEntries(

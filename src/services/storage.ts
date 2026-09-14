@@ -201,6 +201,33 @@ class StorageService {
     // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === même
     // raisonnement, vers domain/workflow.ts.
     setWorkflowTransitions(this.workflowTransitions);
+    // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
+    // Complète `code`/`active` pour toute catégorie qui n'en a pas encore
+    // (catégories déjà semées avant cet ajout, ou stockage plus ancien) —
+    // hors du try/catch pour couvrir les 3 chemins ci-dessus (chargé,
+    // seedé, repli). `createdAt` n'est volontairement jamais backfillé
+    // (voir CategoryDef dans data/activaConfig.ts) : rien à reconstituer
+    // honnêtement pour une catégorie déjà existante.
+    const backfilled = this.backfillCategoryDefaults(this.categories);
+    if (backfilled !== this.categories) {
+      this.categories = backfilled;
+      this.persistCategories();
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
+  private backfillCategoryDefaults(cats: CategoryDef[]): CategoryDef[] {
+    let changed = false;
+    const next = cats.map((c, idx) => {
+      if (c.code && c.active !== undefined) return c;
+      changed = true;
+      return {
+        ...c,
+        code: c.code ?? `CAT-${String(idx + 1).padStart(3, '0')}`,
+        active: c.active ?? true,
+      };
+    });
+    return changed ? next : cats;
   }
 
   private notify() {
@@ -749,7 +776,18 @@ class StorageService {
   }
 
   public addCategory(category: CategoryDef, actor: UserProfile): void {
-    this.categories.push(category);
+    // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
+    // `code` et `createdAt` réels, posés une seule fois ici à la création
+    // (jamais fabriqués a posteriori) ; `active` par défaut à `true`. Le
+    // même motif que `backfillCategoryDefaults` pour le calcul du code
+    // (position réelle dans la liste au moment de l'ajout).
+    const withDefaults: CategoryDef = {
+      ...category,
+      code: category.code ?? `CAT-${String(this.categories.length + 1).padStart(3, '0')}`,
+      active: category.active ?? true,
+      createdAt: category.createdAt ?? new Date().toISOString(),
+    };
+    this.categories.push(withDefaults);
     this.persistCategories();
     this.notify();
     this.logAudit('CONFIG_UPDATED', `Catégorie d'alerte "${category.name}" ajoutée par ${actor.name}.`, undefined, actor);
@@ -762,6 +800,22 @@ class StorageService {
     this.persistCategories();
     this.notify();
     this.logAudit('CONFIG_UPDATED', `Catégorie "${this.categories[idx].name}" mise à jour par ${actor.name}.`, undefined, actor);
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
+  public toggleCategoryActive(categoryId: string, actor: UserProfile): void {
+    const idx = this.categories.findIndex((c) => c.id === categoryId);
+    if (idx === -1) return;
+    const nextActive = !(this.categories[idx].active ?? true);
+    this.categories[idx] = { ...this.categories[idx], active: nextActive };
+    this.persistCategories();
+    this.notify();
+    this.logAudit(
+      'CONFIG_UPDATED',
+      `Catégorie "${this.categories[idx].name}" ${nextActive ? 'réactivée' : 'désactivée'} par ${actor.name}.`,
+      undefined,
+      actor
+    );
   }
 
   public deleteCategory(categoryId: string, actor: UserProfile): boolean {

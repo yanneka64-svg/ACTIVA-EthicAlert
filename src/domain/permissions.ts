@@ -101,14 +101,17 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
   // aucun accès aux dossiers/preuves/communications, uniquement la gestion
   // des politiques de sécurité (brief section 19).
   security_admin: ['security.manage', 'audit.read'],
-  // Audit Committee: lecture seule agrégée — jamais de cases.read direct
-  // (accès uniquement via les rapports/l'Exécutif, comme `executive`),
-  // mais avec en plus `audit.read` que `executive` n'a pas (brief section
-  // 20 : "Executive Dashboard, Aggregated Reports... Audit information").
-  // Interdiction explicite de modifier dossiers/preuves/permissions/
-  // utilisateurs/workflows : obtenue simplement en n'accordant aucune de
-  // ces permissions, jamais par une exception codée en dur.
-  audit_committee: ['reports.read', 'audit.read'],
+  // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe — retour
+  // utilisateur explicite) === "Auditeur externe et interne c'est la même
+  // chose" : `audit_committee` reçoit désormais exactement les mêmes
+  // permissions que `consultation` (cases.read/evidence.read/
+  // communications.read), en plus de `reports.read`/`audit.read` déjà
+  // présents. Remplace le choix précédent — lecture agrégée uniquement,
+  // motivé par le "brief section 20" cité ci-dessus — sur décision
+  // explicite de l'utilisateur ; toujours aucune permission d'écriture
+  // (cases.edit/assign/close, evidence.upload, communications.send...),
+  // même principe de moindre privilège que `consultation`.
+  audit_committee: ['cases.read', 'evidence.read', 'communications.read', 'reports.read', 'audit.read'],
 };
 
 export function roleHasPermission(roleId: RoleId, permission: Permission): boolean {
@@ -132,7 +135,10 @@ const ROLE_MAX_CONFIDENTIALITY: Record<RoleId, ConfidentialityLevel | null> = {
   executive: 'restricted',
   // === AMÉLIORATION AJOUTÉE (Phase 12) ===
   security_admin: null, // aucun accès aux dossiers, quel que soit leur niveau
-  audit_committee: 'restricted', // même plafond qu'executive — vision agrégée, pas le contenu brut des dossiers
+  // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe — retour
+  // utilisateur explicite) === aligné sur `consultation` (même plafond),
+  // voir ROLE_PERMISSIONS ci-dessus pour le contexte complet du changement.
+  audit_committee: 'confidential',
 };
 
 const CONFIDENTIALITY_RANK: Record<ConfidentialityLevel, number> = {
@@ -179,7 +185,12 @@ function isInScope(user: AppUser, kase: Pick<Case, 'country' | 'entity'>): boole
 }
 
 /** Global-visibility roles see every in-scope case; others only see cases they're explicitly assigned to. */
-const GLOBAL_VISIBILITY_ROLES: RoleId[] = ['functional_admin', 'darc_compliance', 'consultation', 'executive'];
+// === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe — retour
+// utilisateur explicite) === `audit_committee` ajouté, même motif que
+// `consultation` : sans vision globale, `cases.read` seul resterait sans
+// effet (un compte non assigné à aucun dossier ne verrait jamais rien —
+// voir `useVisibleAlerts.ts`).
+const GLOBAL_VISIBILITY_ROLES: RoleId[] = ['functional_admin', 'darc_compliance', 'consultation', 'executive', 'audit_committee'];
 
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles
 // dans l'app réelle) === Exposé pour que `src/services/authz.ts` (couche

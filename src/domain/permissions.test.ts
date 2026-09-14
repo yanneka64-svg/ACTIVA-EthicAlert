@@ -73,10 +73,18 @@ describe('roleHasPermission', () => {
     expect(roleHasPermission('security_admin', 'configuration.manage')).toBe(false);
   });
 
-  it('grants audit_committee read-only reporting + audit access, and nothing that modifies data', () => {
+  // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe — retour
+  // utilisateur explicite) === "Auditeur externe et interne c'est la même
+  // chose" : audit_committee reçoit désormais cases.read/evidence.read/
+  // communications.read, exactement comme consultation — remplace
+  // l'ancienne restriction "rapports/audit uniquement" testée ici avant ce
+  // changement. Toujours aucune permission d'écriture.
+  it('grants audit_committee the same read access as consultation, and nothing that modifies data', () => {
     expect(roleHasPermission('audit_committee', 'reports.read')).toBe(true);
     expect(roleHasPermission('audit_committee', 'audit.read')).toBe(true);
-    expect(roleHasPermission('audit_committee', 'cases.read')).toBe(false);
+    expect(roleHasPermission('audit_committee', 'cases.read')).toBe(true);
+    expect(roleHasPermission('audit_committee', 'evidence.read')).toBe(true);
+    expect(roleHasPermission('audit_committee', 'communications.read')).toBe(true);
     expect(roleHasPermission('audit_committee', 'cases.edit')).toBe(false);
     expect(roleHasPermission('audit_committee', 'evidence.delete')).toBe(false);
     expect(roleHasPermission('audit_committee', 'users.manage')).toBe(false);
@@ -175,10 +183,14 @@ describe('can — assigned vs. global visibility', () => {
     expect(can(user({ userId: 'u-1', roleId: 'system_admin' }), 'cases.read', ctx)).toBe(false);
   });
 
-  // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu à 10 rôles) ===
-  it('denies audit_committee direct case read even when assigned — reports/audit only, never raw case content', () => {
-    const ctx = caseContext({ assignee: 'u-1' });
-    expect(can(user({ userId: 'u-1', roleId: 'audit_committee' }), 'cases.read', ctx)).toBe(false);
+  // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe — retour
+  // utilisateur explicite) === audit_committee est désormais une
+  // global-visibility role au même titre que consultation ("même chose") —
+  // remplace l'ancien test qui vérifiait l'inverse (voir git blame pour le
+  // contexte avant ce changement).
+  it('allows audit_committee to read an in-scope case with no assignment at all, same as consultation', () => {
+    const ctx = caseContext({ assignee: 'someone-else', additionalInvestigators: [] });
+    expect(can(user({ userId: 'u-1', roleId: 'audit_committee' }), 'cases.read', ctx)).toBe(true);
   });
 
   it('denies security_admin direct case read under any circumstance', () => {

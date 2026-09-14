@@ -272,6 +272,22 @@ interface InvestigationDeskProps {
   // par défaut (chaque appelant qui ne passe pas ce prop garde le bandeau,
   // comportement strictement inchangé).
   hideTopBanner?: boolean;
+  // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Tableau de bord",
+  // captures de référence) === Indépendant de `hideTopBanner` : un écran
+  // peut vouloir garder son bandeau (ex. "Tableau de bord" Enquêteur,
+  // délibérément conservé) tout en allégeant la barre de filtres à
+  // Recherche + Entité (pas de "Pays" ici, jamais eu ce filtre). Avant cet
+  // ajout, seul `hideTopBanner` gouvernait aussi ce choix — les deux
+  // callers qui en avaient besoin (l'écran "Dossiers" pour un compte en
+  // lecture seule) masquaient déjà le bandeau, donc ça suffisait ; ce
+  // n'est plus vrai pour "Tableau de bord" Enquêteur.
+  simplifiedFilters?: boolean;
+  // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Tableau de bord",
+  // captures de référence) === Masque la rangée d'onglets par panier de
+  // statut (Tous/À traiter/En cours/...) et le bouton "+ Nouveau" — n'a de
+  // sens que sur un écran déjà spécialisé par ailleurs (ex. un Tableau de
+  // bord qui a ses propres cartes KPI), jamais par défaut.
+  hideStatusTabsBar?: boolean;
   // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Boîte de réception) ===
   // La Boîte de réception est désormais le seul point d'entrée des
   // signalements publics ET permet l'échange avec le lanceur d'alerte :
@@ -287,6 +303,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   initialFilter,
   onCreateNewCase,
   hideTopBanner = false,
+  simplifiedFilters = false,
+  hideStatusTabsBar = false,
   initialCaseTab,
 }) => {
   const t = TRANSLATIONS[lang];
@@ -1247,8 +1265,54 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           bandeau ni barre de filtres) === même correction que le bandeau
           ci-dessus (BUG PRÉEXISTANT CORRIGÉ) : cette barre de filtres n'a de
           sens qu'au-dessus d'une LISTE — elle s'affichait aussi en mode
-          détail. */}
-      {viewMode === 'list' && (
+          détail.
+          === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Dossiers",
+          même correction que côté Opérateur ; puis écran "Tableau de bord"
+          Enquêteur, captures de référence) === BUG PRÉEXISTANT CORRIGÉ,
+          signalé par l'utilisateur : ces écrans gardaient encore la barre
+          de filtres complète (Statut/Entité/Criticité NOCA + 2 cases à
+          cocher) alors que les écrans Opérateur sœurs (À attribuer, En
+          attente d'infos, Dossiers attribués) avaient déjà été allégés à
+          Recherche + Entité (pas de "Pays" ici : cet écran n'a jamais eu ce
+          filtre, contrairement à `OperatorCaseDesk`). Gouverné par
+          `simplifiedFilters`, indépendant de `hideTopBanner` (le Tableau de
+          bord Enquêteur garde son bandeau tout en simplifiant cette barre).
+          Les états (statusFilter/nocaFilter/les 2 cases) restent inchangés
+          dans le code — seuls leurs contrôles disparaissent de cette
+          variante. */}
+      {viewMode === 'list' && simplifiedFilters && (
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-3 text-xs">
+        <div className="flex-1 min-w-[200px] relative">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t.search_placeholder}
+            className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+        </div>
+        <select
+          value={entityFilter}
+          onChange={(e) => setEntityFilter(e.target.value)}
+          className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700"
+        >
+          <option value="all">Toutes les entités ACTIVA</option>
+          {entities.map(e => (
+            <option key={e.id} value={e.name}>{e.flag} {e.name}</option>
+          ))}
+        </select>
+        {(entityFilter !== 'all' || searchQuery) && (
+          <button
+            onClick={() => { setEntityFilter('all'); setSearchQuery(''); }}
+            className="text-blue-700 hover:underline font-semibold"
+          >
+            Réinitialiser filtres
+          </button>
+        )}
+      </div>
+      )}
+      {viewMode === 'list' && !simplifiedFilters && (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-3 text-xs">
         <div className="flex-1 min-w-[200px] relative">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -1340,7 +1404,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               façon maquette. Les filtres détaillés existants (recherche,
               statut précis, entité, NOCA, non-attribués, en retard) restent
               inchangés dans le bloc "Filtre bar" juste au-dessus — rien
-              n'est retiré, ce nouveau raccourci s'ajoute simplement. */}
+              n'est retiré, ce nouveau raccourci s'ajoute simplement.
+              === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Tableau de
+              bord" Enquêteur, capture de référence) === BUG PRÉEXISTANT
+              CORRIGÉ, signalé par l'utilisateur : masquable via
+              `hideStatusTabsBar` — un Tableau de bord a déjà ses propres
+              cartes KPI juste au-dessus, cette rangée y fait doublon. */}
+          {!hideStatusTabsBar && (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 overflow-x-auto">
               {(
@@ -1381,6 +1451,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               <Plus className="w-3.5 h-3.5" /> {t.db_new_case_button}
             </button>
           </div>
+          )}
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">

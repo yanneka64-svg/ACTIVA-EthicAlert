@@ -58,7 +58,7 @@ import { ShieldOff } from 'lucide-react';
 // Restaurés ici, sans rien changer au reste de la restructuration visuelle.
 import { resolveRoute, pathForTab } from './routing/routes';
 import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
-import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from './services/authz';
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from './services/authz';
 import { StaffLoginView } from './components/StaffLoginView';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
@@ -114,6 +114,8 @@ const STAFF_TAB_KEYS = [
   'advanced_search',
   // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
   'admin_workflow',
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===
+  'admin_entities', 'admin_categories', 'admin_database',
 ];
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
@@ -343,7 +345,45 @@ function AppShell() {
     // ne change), les autres varient simplement avec `currentTab` puisque
     // leur filtre associé est fixe pour cet onglet. Aucune logique interne
     // d'InvestigationDesk n'est modifiée — seul le remontage est corrigé.
-    if (currentTab === 'portal') return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} />;
+    // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Dossiers", style
+    // OperatorCaseDesk pour les comptes en lecture seule) === BUG
+    // PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur (captures de
+    // référence) : pour un compte sans aucun droit d'écriture sur les
+    // dossiers (ni cases.edit ni cases.assign — ex. Consultation, Comité
+    // d'Audit), "Dossiers" (`portal`) reprend désormais le même composant
+    // que les écrans Opérateur/Enquêteur (cartes KPI réelles, tableau
+    // Pays/Entité/Nature/Criticité/Sévérité-Urgence) plutôt que l'ancienne
+    // vue InvestigationDesk (bandeau + filtres riches déjà allégés dans un
+    // tour précédent, mais visuellement différente des écrans sœurs).
+    // Réutilise le mode `my_cases` (prédicat toujours vrai, aucune
+    // notion d'attribution) — `useVisibleAlerts` fait déjà le bon travail :
+    // un compte à vision globale (Consultation/Comité d'Audit) y voit tous
+    // les dossiers, pas seulement "les siens". Titre/sous-titre/état vide
+    // surchargés pour ne jamais dire "vos dossiers attribués" à un compte
+    // qui n'a justement aucune attribution.
+    // La fiche dossier en détail (`/cases/:trackingNumber`, tout autre
+    // appelant y compris ce même onglet `portal`) continue de passer par
+    // InvestigationDesk, strictement inchangé — seule la LISTE change, et
+    // seulement pour ces comptes précis (tout compte avec cases.edit ou
+    // cases.assign garde exactement l'écran "Dossiers" d'avant).
+    if (currentTab === 'portal') {
+      const isReadOnlyCaseViewer = !userCan(activeUser, 'cases.edit') && !userCan(activeUser, 'cases.assign');
+      if (isReadOnlyCaseViewer && !effectiveCaseFilter?.trackingNumber) {
+        return (
+          <OperatorCaseDesk
+            key="portal-readonly-list"
+            lang={lang}
+            activeUser={activeUser}
+            mode="my_cases"
+            titleOverride="Dossiers"
+            subtitleOverride="Consultez et suivez l'ensemble des dossiers signalés dans le cadre d'EthicsAlert."
+            emptyOverride="Aucun dossier à afficher pour le moment."
+            onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
+          />
+        );
+      }
+      return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner simplifiedFilters />;
+    }
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
     // écran de détail, mêmes actions) avec un `initialFilter` préréglé
@@ -489,7 +529,15 @@ function AppShell() {
     // Tableau de bord (inv_dashboard) conserve son bandeau, comme le vrai
     // Tableau de bord Opérateur (ControlPanel) — hors périmètre de cette
     // refonte, qui ne concernait que les 4 écrans nommés explicitement.
-    if (currentTab === 'inv_dashboard') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Tableau de bord"
+    // Enquêteur, capture de référence) === BUG PRÉEXISTANT CORRIGÉ, signalé
+    // par l'utilisateur : le bandeau reste (décision ci-dessus, toujours
+    // valable), mais la barre de filtres se simplifie à Recherche + Entité
+    // (`simplifiedFilters`, comme "Dossiers") et la rangée d'onglets par
+    // panier de statut + bouton "+ Nouveau" disparaît (`hideStatusTabsBar`)
+    // — ce Tableau de bord a déjà ses propres cartes KPI juste au-dessus,
+    // cette rangée y faisait doublon.
+    if (currentTab === 'inv_dashboard') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} simplifiedFilters hideStatusTabsBar />;
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
     // Enquêteur) === même remplacement par `OperatorCaseDesk` que côté
     // Opérateur (voir plus haut) — `myCasesOnly` n'a plus besoin d'être
@@ -539,6 +587,33 @@ function AppShell() {
       return (
         <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Gouvernance">
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="governance" />
+        </PermissionGuard>
+      );
+    }
+    // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === 3 nouvelles
+    // entrées de barre latérale pour des sections déjà réelles
+    // (AdminConfigView les rendait déjà, uniquement via sa rangée d'onglets
+    // interne retirée) — même garde, même composant, seul l'onglet de
+    // départ diffère, exactement le motif déjà suivi par admin_organization/
+    // admin_governance/admin_workflow ci-dessus.
+    if (currentTab === 'admin_entities') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Entités du Groupe">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="entities" />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'admin_categories') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Catégories d'alerte">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="categories" />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'admin_database') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Base de données">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="database" />
         </PermissionGuard>
       );
     }

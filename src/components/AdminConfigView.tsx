@@ -19,6 +19,9 @@ import {
   Network,
   // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
   GitBranch,
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
+  Search,
+  Folder,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -88,6 +91,11 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   // of this file already uses, no dedicated storage.subscribe needed).
   const entities = storage.getEntities();
   const categoriesConfig = storage.getCategories();
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
+  // Comptage réel des dossiers par catégorie (colonne "Dossiers associés")
+  // — jamais un chiffre inventé, même motif de lecture directe que
+  // `categoriesConfig` ci-dessus.
+  const allAlertsForCategoryCounts = storage.getAlerts();
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   // Remplace l'import statique ACTIVA_COUNTRIES (utilisé ci-dessous dans
   // les listes déroulantes pays des formulaires Entité/Compte) par la
@@ -219,6 +227,8 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const [categoryName, setCategoryName] = useState('');
   const [deleteCategoryConfirmId, setDeleteCategoryConfirmId] = useState<string | null>(null);
   const [newSubCategoryInputs, setNewSubCategoryInputs] = useState<Record<string, string>>({});
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
+  const [categorySearch, setCategorySearch] = useState('');
 
   // --- Users CRUD state ---
   const [showUserModal, setShowUserModal] = useState(false);
@@ -345,6 +355,11 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     storage.deleteCategory(cat.id, activeUser);
     setDeleteCategoryConfirmId(null);
     flashBanner(`Catégorie "${cat.name}" supprimée.`);
+  };
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
+  const handleToggleCategoryActive = (cat: CategoryDef) => {
+    storage.toggleCategoryActive(cat.id, activeUser);
+    flashBanner(`Catégorie "${cat.name}" ${(cat.active ?? true) ? 'désactivée' : 'réactivée'}.`);
   };
   const handleAddSubCategory = (categoryId: string) => {
     const val = (newSubCategoryInputs[categoryId] || '').trim();
@@ -607,11 +622,11 @@ service cloud.firestore {
             <div className="flex items-center gap-2 mb-1">
               <Settings className="w-5 h-5 text-blue-700" />
               <h2 className="text-xl font-bold text-slate-900">
-                {t.nav_settings} (CDC 3.2.4)
+                {t.nav_settings}
               </h2>
             </div>
             <p className="text-xs text-slate-600">
-              Paramétrage global de la plateforme réservé à l'Administrateur Système ATS & DARC.
+              Paramétrage global de la plateforme réservé à l'Administrateur Système.
             </p>
           </div>
 
@@ -633,86 +648,28 @@ service cloud.firestore {
           </div>
         )}
 
-        {/* Tab switcher */}
-        <div className="flex flex-wrap gap-2 mt-4 pt-1">
-          <button
-            onClick={() => setConfigTab('matrix')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-              configTab === 'matrix' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            Matrice des risques & Délais SLA
-          </button>
-          <button
-            onClick={() => setConfigTab('entities')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-              configTab === 'entities' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            Entités du Groupe (16 filiales / 10 pays)
-          </button>
-          {/* === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) === */}
-          <button
-            onClick={() => setConfigTab('organization')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-              configTab === 'organization' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            Pays ({countries.length})
-          </button>
-          <button
-            onClick={() => setConfigTab('categories')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-              configTab === 'categories' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            Catégories d'alerte (CDC 2.0)
-          </button>
-          <button
-            onClick={() => setConfigTab('users')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-              configTab === 'users' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            Comptes & Habilitations (CDC 3.2.3)
-          </button>
-          <button
-            onClick={() => setConfigTab('roles')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-              configTab === 'roles' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            Rôles & Permissions
-          </button>
-          {/* === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === */}
-          <button
-            onClick={() => setConfigTab('governance')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              configTab === 'governance' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <Network className="w-3.5 h-3.5" />
-            <span>Gouvernance (Routage indépendant)</span>
-          </button>
-          {/* === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === */}
-          <button
-            onClick={() => setConfigTab('workflow')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              configTab === 'workflow' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <GitBranch className="w-3.5 h-3.5" />
-            <span>Workflows & Statuts</span>
-          </button>
-          <button
-            onClick={() => setConfigTab('database')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              configTab === 'database' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <Database className="w-3.5 h-3.5 text-amber-400" />
-            <span>Base de données & Firebase</span>
-          </button>
+        {/* === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === BUG
+            PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : cette rangée de
+            9 boutons dupliquait exactement les entrées de la barre latérale
+            Admin (StaffPortalLayout.tsx) — 5 d'entre elles y figuraient déjà
+            en double, et les 4 autres (Matrice & SLA, Entités, Catégories,
+            Base de données) n'étaient accessibles que par ici. La barre
+            latérale liste désormais les 9 sections ; `configTab` (état,
+            logique de rendu ci-dessous, tout le contenu de chaque section)
+            reste strictement inchangé — seule cette navigation redondante
+            disparaît. Un simple repère visuel remplace la rangée retirée. */}
+        <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+          {{
+            matrix: 'Matrice des risques & Délais SLA',
+            entities: 'Entités du Groupe',
+            organization: 'Organisation (Pays)',
+            categories: "Catégories d'alerte",
+            users: 'Comptes & Habilitations',
+            roles: 'Rôles & Permissions',
+            governance: 'Gouvernance (Routage indépendant)',
+            workflow: 'Workflows & Statuts',
+            database: 'Base de données & Firebase',
+          }[configTab]}
         </div>
       </div>
 
@@ -721,7 +678,7 @@ service cloud.firestore {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6 text-xs">
           <div className="border-b border-slate-100 pb-3">
             <h3 className="text-sm font-bold text-slate-900">
-              Barème officiel de la Matrice des Risques (Annexe 9)
+              Barème officiel de la Matrice des Risques
             </h3>
             <p className="text-slate-500 text-[11px] mt-0.5">
               Évaluation pondérée sur 4 axes conduisant aux seuils NOCA 1, NOCA 2, NOCA 3 et NOCA 4.
@@ -994,76 +951,165 @@ service cloud.firestore {
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
           3. CATEGORIES TAB — real CRUD (categories + their subcategories)
           against storage.ts, replacing the static ALERT_CATEGORIES display. */}
-      {configTab === 'categories' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-bold text-slate-900">
-              Nomenclature des catégories et sous-catégories de manquements (CDC 2.0)
-            </h3>
-            <button
-              onClick={openAddCategory}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" /> Ajouter une catégorie
-            </button>
-          </div>
-
-          {categoriesConfig.length === 0 ? (
-            <p className="text-slate-400 text-center py-8">Aucune catégorie configurée.</p>
-          ) : (
-            <div className="space-y-4">
-              {categoriesConfig.map((cat) => (
-                <div key={cat.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="font-bold text-[#0B2545] text-sm">{cat.name}</div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => openEditCategory(cat)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Renommer">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      {deleteCategoryConfirmId === cat.id ? (
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => handleDeleteCategory(cat)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">Confirmer</button>
-                          <button onClick={() => setDeleteCategoryConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">Annuler</button>
-                        </div>
-                      ) : (
-                        <button onClick={() => setDeleteCategoryConfirmId(cat.id)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title="Supprimer">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {cat.subCategories.map((sub, i) => (
-                      <span key={i} className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 font-medium">
-                        {sub}
-                        <button onClick={() => handleRemoveSubCategory(cat.id, sub)} className="text-slate-400 hover:text-rose-600" title="Retirer">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={newSubCategoryInputs[cat.id] || ''}
-                      onChange={(e) => setNewSubCategoryInputs((prev) => ({ ...prev, [cat.id]: e.target.value }))}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubCategory(cat.id); } }}
-                      placeholder="Nouvelle sous-catégorie..."
-                      className="flex-1 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
-                    />
-                    <button
-                      onClick={() => handleAddSubCategory(cat.id)}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-semibold whitespace-nowrap"
-                    >
-                      + Ajouter
-                    </button>
-                  </div>
-                </div>
-              ))}
+      {/* === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table
+          Catégories) === BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur
+          (capture de référence) : remplace la liste de cartes par un
+          tableau (#, Nom, Code, Description, Statut, Dossiers associés,
+          Date de création, Actions) — mêmes handlers CRUD qu'avant
+          (openAddCategory/openEditCategory/handleDeleteCategory), aucun
+          retiré. La gestion des sous-catégories (ajout/retrait), qui
+          n'apparaît pas dans la capture de référence, reste accessible
+          intégralement sur une seconde ligne sous chaque catégorie —
+          aucune fonctionnalité existante supprimée. */}
+      {configTab === 'categories' && (() => {
+        const filteredCategories = categoriesConfig.filter((cat) => {
+          const q = categorySearch.trim().toLowerCase();
+          if (!q) return true;
+          return (
+            cat.name.toLowerCase().includes(q) ||
+            (cat.code ?? '').toLowerCase().includes(q) ||
+            cat.subCategories.some((s) => s.toLowerCase().includes(q))
+          );
+        });
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3 flex flex-wrap items-center justify-between gap-3">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                <Folder className="w-4 h-4 text-blue-700" />
+                Catégories ({categoriesConfig.length})
+              </h3>
+              <button
+                onClick={openAddCategory}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" /> Ajouter une catégorie
+              </button>
             </div>
-          )}
-        </div>
-      )}
+
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={categorySearch}
+                onChange={(e) => setCategorySearch(e.target.value)}
+                placeholder="Rechercher une catégorie par nom, code ou sous-catégorie..."
+                className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl bg-white"
+              />
+            </div>
+
+            {filteredCategories.length === 0 ? (
+              <p className="text-slate-400 text-center py-8">
+                {categoriesConfig.length === 0 ? 'Aucune catégorie configurée.' : 'Aucune catégorie ne correspond à la recherche.'}
+              </p>
+            ) : (
+              <div className="overflow-x-auto -mx-6 px-6">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
+                      <th className="py-2 pr-3 font-bold">#</th>
+                      <th className="py-2 pr-3 font-bold">Nom de la catégorie</th>
+                      <th className="py-2 pr-3 font-bold">Code</th>
+                      <th className="py-2 pr-3 font-bold">Description</th>
+                      <th className="py-2 pr-3 font-bold">Statut</th>
+                      <th className="py-2 pr-3 font-bold">Dossiers associés</th>
+                      <th className="py-2 pr-3 font-bold">Date de création</th>
+                      <th className="py-2 pl-3 font-bold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCategories.map((cat, i) => {
+                      const isActive = cat.active ?? true;
+                      const caseCount = allAlertsForCategoryCounts.filter((a) => a.category === cat.name).length;
+                      return (
+                        <React.Fragment key={cat.id}>
+                          <tr className="border-b border-slate-100 align-top">
+                            <td className="py-3 pr-3 text-slate-400 font-semibold">{i + 1}</td>
+                            <td className="py-3 pr-3 font-bold text-[#0B2545]">{cat.name}</td>
+                            <td className="py-3 pr-3 font-mono text-slate-500">{cat.code ?? '—'}</td>
+                            <td className="py-3 pr-3 text-slate-600 max-w-xs">
+                              <span className="line-clamp-2">{cat.subCategories.length > 0 ? cat.subCategories.join(', ') : '—'}</span>
+                            </td>
+                            <td className="py-3 pr-3">
+                              <button
+                                onClick={() => handleToggleCategoryActive(cat)}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold text-[10.5px] transition ${
+                                  isActive ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                                }`}
+                                title={isActive ? 'Cliquer pour désactiver' : 'Cliquer pour réactiver'}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                {isActive ? 'Actif' : 'Inactif'}
+                              </button>
+                            </td>
+                            <td className="py-3 pr-3 text-slate-700 font-semibold">{caseCount}</td>
+                            <td className="py-3 pr-3 text-slate-500">
+                              {cat.createdAt ? new Date(cat.createdAt).toLocaleDateString('fr-FR') : '—'}
+                            </td>
+                            <td className="py-3 pl-3">
+                              <div className="flex items-center justify-end gap-1">
+                                <button onClick={() => openEditCategory(cat)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Renommer">
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                {deleteCategoryConfirmId === cat.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <button onClick={() => handleDeleteCategory(cat)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">Confirmer</button>
+                                    <button onClick={() => setDeleteCategoryConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">Annuler</button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => setDeleteCategoryConfirmId(cat.id)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title="Supprimer">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                          {/* Sous-catégories — hors de la capture de référence, gardée
+                              intégralement (ajout/retrait), rattachée visuellement à
+                              la ligne au-dessus plutôt que retirée. */}
+                          <tr className="border-b border-slate-100 bg-slate-50/70">
+                            <td></td>
+                            <td colSpan={7} className="py-2.5 pr-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {cat.subCategories.map((sub, si) => (
+                                  <span key={si} className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 font-medium">
+                                    {sub}
+                                    <button onClick={() => handleRemoveSubCategory(cat.id, sub)} className="text-slate-400 hover:text-rose-600" title="Retirer">
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                                <div className="flex gap-1.5 min-w-[220px] flex-1">
+                                  <input
+                                    type="text"
+                                    value={newSubCategoryInputs[cat.id] || ''}
+                                    onChange={(e) => setNewSubCategoryInputs((prev) => ({ ...prev, [cat.id]: e.target.value }))}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubCategory(cat.id); } }}
+                                    placeholder="Nouvelle sous-catégorie..."
+                                    className="flex-1 px-2.5 py-1 border border-slate-300 rounded-lg bg-white"
+                                  />
+                                  <button
+                                    onClick={() => handleAddSubCategory(cat.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-semibold whitespace-nowrap"
+                                  >
+                                    + Ajouter
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <p className="text-slate-400 mt-3">
+                  Affichage de {filteredCategories.length} sur {categoriesConfig.length} catégorie{categoriesConfig.length > 1 ? 's' : ''}.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
           4. USERS & ROLES TAB — real CRUD against storage.ts (addUser

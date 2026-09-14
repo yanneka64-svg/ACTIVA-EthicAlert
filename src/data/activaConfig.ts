@@ -118,6 +118,23 @@ export interface CategoryDef {
   id: string;
   name: string;
   subCategories: string[];
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
+  // 3 champs additifs, jamais renseignés pour les catégories déjà semées
+  // via `ALERT_CATEGORIES` ci-dessous (backfill réel dans storage.ts, pas
+  // ici) :
+  // - `code` : identifiant court stable (ex. "CAT-001"), calculé une seule
+  //   fois depuis la position réelle dans la liste, jamais réinventé à
+  //   chaque rendu (sinon une suppression déciderait les codes suivants).
+  // - `active` : bascule Actif/Inactif (défaut `true` si absent — aucune
+  //   catégorie existante ne doit apparaître comme désactivée sans action
+  //   explicite d'un admin).
+  // - `createdAt` : ISO réel, posé uniquement à la création. Les
+  //   catégories déjà présentes avant cet ajout n'ont pas de date de
+  //   création réelle connue — laissé `undefined` plutôt que d'en
+  //   fabriquer une (affiché "—" côté UI, jamais une date inventée).
+  code?: string;
+  active?: boolean;
+  createdAt?: string;
 }
 
 export const ALERT_CATEGORIES: CategoryDef[] = [
