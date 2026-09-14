@@ -258,11 +258,21 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
           active ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
         }`}
       >
-        <span className="flex items-center gap-2.5">
+        {/* === AMÉLIORATION AJOUTÉE (Correction bug — la liste change de
+            position au clic) === BUG PRÉEXISTANT CORRIGÉ, signalé par
+            l'utilisateur sur "Toutes les communications" : sans
+            `whitespace-nowrap`, le libellé le plus long du menu passait sur 2
+            lignes une fois actif (le `<ChevronRight>` ci-dessous, affiché
+            uniquement à l'état actif, réduit la largeur dispo pour le
+            texte) — le bouton devenait alors plus haut, poussant tous les
+            éléments suivants vers le bas. `truncate` + `min-w-0` sur le
+            libellé garantit une hauteur strictement identique, actif ou
+            non, pour tous les éléments du menu. */}
+        <span className="flex items-center gap-2.5 min-w-0">
           <span className={active ? 'text-blue-600' : 'text-slate-400'}>{item.icon}</span>
-          <span>{item.label}</span>
+          <span className="truncate">{item.label}</span>
         </span>
-        {active && <ChevronRight className="w-3.5 h-3.5 text-blue-500" />}
+        {active && <ChevronRight className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
       </button>
     );
   };

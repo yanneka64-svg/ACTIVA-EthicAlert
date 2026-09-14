@@ -206,10 +206,21 @@ interface InvestigationDeskProps {
   // Lets a caller (the Control Panel's KPI cards / quick actions) land here
   // pre-filtered, per the brief's "Dashboard KPIs must link to filtered
   // case lists" requirement (§61). Read once at mount via the useState
-  // initializers below — consistent with how this screen already resets
-  // on every tab switch (App.tsx unmounts/remounts it, it is never kept
-  // alive across tabs), so a fresh `initialFilter` is picked up correctly
-  // every time the user navigates in from the Control Panel.
+  // initializers below.
+  // === AMÉLIORATION AJOUTÉE (Correction bug — filtres de dossiers figés) ===
+  // BUG PRÉEXISTANT CORRIGÉ : le commentaire ci-dessus supposait à tort que
+  // ce composant était démonté/remonté par App.tsx à chaque changement
+  // d'onglet — faux dès que deux onglets rendent ce même composant à la
+  // même position de l'arbre (ex. "Boîte de réception" puis "Dossiers
+  // traités") : React se contente alors de re-rendre avec de nouvelles
+  // props, sans jamais réexécuter ces initialiseurs `useState`, donc le
+  // filtre reste figé sur la toute première valeur vue. Chaque appelant
+  // (App.tsx) doit désormais passer une `key` React qui change avec
+  // `currentTab` (et avec le filtre effectif pour l'écran "Dossiers", qui
+  // peut changer de dossier ciblé sans changer d'onglet) pour garantir un
+  // vrai remontage — c'est cette clé, pas une hypothèse sur App.tsx, qui
+  // fait maintenant que `initialFilter` est repris correctement à chaque
+  // navigation.
   // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel deep-link) ===
   // `trackingNumber` lets a caller (a specific case row in the Control
   // Panel's "Requires Immediate Attention" / "Most Urgent Cases" / "Recent
