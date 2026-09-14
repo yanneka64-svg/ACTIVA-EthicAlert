@@ -58,7 +58,7 @@ import { ShieldOff } from 'lucide-react';
 // Restaurés ici, sans rien changer au reste de la restructuration visuelle.
 import { resolveRoute, pathForTab } from './routing/routes';
 import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
-import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from './services/authz';
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from './services/authz';
 import { StaffLoginView } from './components/StaffLoginView';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
@@ -345,16 +345,45 @@ function AppShell() {
     // ne change), les autres varient simplement avec `currentTab` puisque
     // leur filtre associé est fixe pour cet onglet. Aucune logique interne
     // d'InvestigationDesk n'est modifiée — seul le remontage est corrigé.
-    // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Dossiers", même
-    // correction que côté Opérateur) === `hideTopBanner` masque désormais
-    // aussi le bandeau "Portail DARC" + ses 4 cartes KPI et allège la
-    // barre de filtres à Recherche + Entité (voir InvestigationDesk.tsx)
-    // — même traitement que les écrans Opérateur (À attribuer, En attente
-    // d'infos, Dossiers attribués) déjà simplifiés. "Dossiers" (`portal`)
-    // est le seul appelant concerné : c'est l'écran que l'espace
-    // Consultation utilise pour "Dossiers", et le seul visé par le retour
-    // utilisateur.
-    if (currentTab === 'portal') return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner />;
+    // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Dossiers", style
+    // OperatorCaseDesk pour les comptes en lecture seule) === BUG
+    // PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur (captures de
+    // référence) : pour un compte sans aucun droit d'écriture sur les
+    // dossiers (ni cases.edit ni cases.assign — ex. Consultation, Comité
+    // d'Audit), "Dossiers" (`portal`) reprend désormais le même composant
+    // que les écrans Opérateur/Enquêteur (cartes KPI réelles, tableau
+    // Pays/Entité/Nature/Criticité/Sévérité-Urgence) plutôt que l'ancienne
+    // vue InvestigationDesk (bandeau + filtres riches déjà allégés dans un
+    // tour précédent, mais visuellement différente des écrans sœurs).
+    // Réutilise le mode `my_cases` (prédicat toujours vrai, aucune
+    // notion d'attribution) — `useVisibleAlerts` fait déjà le bon travail :
+    // un compte à vision globale (Consultation/Comité d'Audit) y voit tous
+    // les dossiers, pas seulement "les siens". Titre/sous-titre/état vide
+    // surchargés pour ne jamais dire "vos dossiers attribués" à un compte
+    // qui n'a justement aucune attribution.
+    // La fiche dossier en détail (`/cases/:trackingNumber`, tout autre
+    // appelant y compris ce même onglet `portal`) continue de passer par
+    // InvestigationDesk, strictement inchangé — seule la LISTE change, et
+    // seulement pour ces comptes précis (tout compte avec cases.edit ou
+    // cases.assign garde exactement l'écran "Dossiers" d'avant).
+    if (currentTab === 'portal') {
+      const isReadOnlyCaseViewer = !userCan(activeUser, 'cases.edit') && !userCan(activeUser, 'cases.assign');
+      if (isReadOnlyCaseViewer && !effectiveCaseFilter?.trackingNumber) {
+        return (
+          <OperatorCaseDesk
+            key="portal-readonly-list"
+            lang={lang}
+            activeUser={activeUser}
+            mode="my_cases"
+            titleOverride="Dossiers"
+            subtitleOverride="Consultez et suivez l'ensemble des dossiers signalés dans le cadre d'EthicsAlert."
+            emptyOverride="Aucun dossier à afficher pour le moment."
+            onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
+          />
+        );
+      }
+      return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner />;
+    }
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
     // écran de détail, mêmes actions) avec un `initialFilter` préréglé
