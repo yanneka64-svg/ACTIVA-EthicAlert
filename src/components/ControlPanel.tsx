@@ -55,6 +55,8 @@ import { computeSlaStatus } from '../services/statusMapping';
 import { isGlobalCaseViewer, userCan } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+import { ACTIVE_STATUSES, computeWorkload, WorkloadRow } from '../domain/workloadCalc';
 import { KpiCard, DataTable, EmptyState, StatusBadge, MiniLineChart, MiniDonutChart, MiniBarChart } from './ui';
 import type { DataTableColumn, TrendPoint, DonutSlice, BarDatum } from './ui';
 
@@ -76,14 +78,7 @@ interface ControlPanelProps {
   onNavigateToNewCase: () => void;
 }
 
-interface WorkloadRow {
-  investigator: UserProfile;
-  active: number;
-  overdue: number;
-  critical: number;
-}
 
-const ACTIVE_STATUSES: AlertRecord['status'][] = ['new', 'under_review', 'investigation', 'corrective_action', 'reopened'];
 const PRIORITY_RANK: Record<PriorityLevel, number> = { critique: 4, tres_elevee: 3, elevee: 2, faible: 1 };
 const CATEGORY_PALETTE = ['#2563eb', '#6366f1', '#f97316', '#9333ea', '#0891b2', '#f43f5e', '#10b981', '#64748b', '#eab308', '#14b8a6'];
 
@@ -230,16 +225,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // plutôt que 2 rôles codés en dur — voir InvestigationDesk.tsx pour le
   // même remplacement.
   const investigatorUsers = storage.getUsers().filter((u) => userCan(u, 'cases.edit'));
-  const workload: WorkloadRow[] = investigatorUsers
-    .map((inv) => {
-      const assigned = alerts.filter((a) => a.assignedInvestigators.includes(inv.id) && ACTIVE_STATUSES.includes(a.status));
-      return {
-        investigator: inv,
-        active: assigned.length,
-        overdue: assigned.filter((a) => computeSlaStatus(a) === 'overdue').length,
-        critical: assigned.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'critique').length,
-      };
-    })
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+  // Calcul déplacé dans domain/workloadCalc.ts (réutilisé par le moteur
+  // d'attribution) — comportement inchangé, y compris le filtre "au moins
+  // 1 dossier actif" et le tri, propres à cet écran.
+  const workload: WorkloadRow[] = computeWorkload(investigatorUsers, alerts)
     .filter((row) => row.active > 0)
     .sort((a, b) => b.active - a.active);
 

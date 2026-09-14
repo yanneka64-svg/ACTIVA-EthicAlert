@@ -61,6 +61,47 @@ import { computeSlaStatus } from '../services/statusMapping';
 import { isGlobalCaseViewer, userCan } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
+import { computeWorkload } from '../domain/workloadCalc';
+
+// === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+// Petit composant partagé entre les deux groupes (compatibles / autorisés
+// Groupe) de la modale d'attribution — évite de dupliquer deux fois le
+// même balisage checkbox + charge de travail.
+function AssignCandidateRow({
+  candidate,
+  checked,
+  onToggle,
+}: {
+  candidate: AssignmentCandidate;
+  checked: boolean;
+  onToggle: (checked: boolean) => void;
+}) {
+  const { user: inv, workload } = candidate;
+  return (
+    <label
+      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+        checked ? 'bg-blue-50 border-blue-400 font-semibold' : 'border-slate-200 hover:bg-slate-50'
+      }`}
+    >
+      <div>
+        <div className="text-slate-900">{inv.name}</div>
+        <div className="text-[11px] text-slate-500">{inv.roleTitle} • {inv.country}</div>
+        <div className="text-[10px] text-slate-400 mt-0.5">
+          {workload.active} dossier(s) actif(s)
+          {workload.overdue > 0 && <span className="text-rose-600 font-semibold"> · {workload.overdue} en retard</span>}
+        </div>
+      </div>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onToggle(e.target.checked)}
+        className="rounded text-blue-600 focus:ring-blue-500"
+      />
+    </label>
+  );
+}
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -260,6 +301,15 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // mode (e.g. a trackingNumber deep link narrows the search to one match) —
   // in list mode there is deliberately no "current" case.
   const selectedAlert = alerts.find(a => a.id === selectedAlertId) || (viewMode === 'detail' ? visibleAlerts[0] : undefined) || null;
+
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+  // Candidats à l'attribution pour le dossier actuellement sélectionné —
+  // moteur de compatibilité (pays/entité/confidentialité/conflit/
+  // disponibilité), voir domain/assignmentEngine.ts. `null` tant qu'aucun
+  // dossier n'est sélectionné (modale fermée) : pas de calcul superflu.
+  const assignCandidates = selectedAlert
+    ? computeCandidates(selectedAlert, investigatorUsers, computeWorkload(investigatorUsers, alerts))
+    : null;
 
   // Handlers
   const handleAssignInvestigators = () => {
@@ -944,7 +994,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
                 {showActionsMenu && (
                   <div className="absolute right-0 mt-1.5 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-30 text-xs">
-                    {(activeUser.role === 'functional_admin' || activeUser.role === 'system_admin') && (
+                    {/* === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+                        Remplace la comparaison de rôle codée en dur par la
+                        vraie permission `cases.assign` (domain/permissions.ts).
+                        Corrige une incohérence réelle : `system_admin` n'a
+                        volontairement AUCUNE permission liée aux dossiers
+                        ("System Administrator ≠ Case Access", déjà appliqué
+                        partout ailleurs via isGlobalCaseViewer/ROLE_PERMISSIONS)
+                        mais pouvait jusqu'ici attribuer un dossier via ce
+                        bouton codé en dur ; `darc_compliance`, qui a bien
+                        `cases.assign`, ne le pouvait pas. */}
+                    {userCan(activeUser, 'cases.assign') && (
                       <button
                         id="btn-desk-assign"
                         onClick={() => {
@@ -2015,35 +2075,66 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </p>
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {investigatorUsers.map((inv) => {
-                const checked = selectedInvestigatorIds.includes(inv.id);
-                return (
-                  <label
-                    key={inv.id}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                      checked ? 'bg-blue-50 border-blue-400 font-semibold' : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div>
-                      <div className="text-slate-900">{inv.name}</div>
-                      <div className="text-[11px] text-slate-500">{inv.roleTitle} • {inv.country}</div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedInvestigatorIds([...selectedInvestigatorIds, inv.id]);
-                        } else {
-                          setSelectedInvestigatorIds(selectedInvestigatorIds.filter(id => id !== inv.id));
-                        }
-                      }}
-                      className="rounded text-blue-600 focus:ring-blue-500"
+            {/* === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
+                Remplace la liste plate et non triée par le moteur de
+                compatibilité : "Compatibles" (même pays+entité que le
+                dossier) affichés en premier, puis "Autorisés Groupe"
+                (périmètre vide) en second — jamais un enquêteur dont le
+                périmètre ne correspond à aucun des deux par défaut, voir
+                domain/assignmentEngine.ts. Chaque ligne affiche désormais
+                aussi la charge de travail réelle (dossiers actifs/en
+                retard), déjà calculée pour le Centre de Pilotage mais
+                jusqu'ici invisible ici. */}
+            <div className="space-y-3 max-h-72 overflow-y-auto">
+              {assignCandidates && assignCandidates.compatible.length === 0 && assignCandidates.groupAuthorized.length === 0 && (
+                <p className="text-slate-500 text-[11px] italic p-2">
+                  Aucun enquêteur compatible ou autorisé Groupe pour ce dossier (périmètre, confidentialité, conflit d'intérêt ou disponibilité).
+                </p>
+              )}
+
+              {assignCandidates && assignCandidates.compatible.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                    Enquêteurs compatibles ({selectedAlert.concernedEntity})
+                  </div>
+                  {assignCandidates.compatible.map((c) => (
+                    <AssignCandidateRow
+                      key={c.user.id}
+                      candidate={c}
+                      checked={selectedInvestigatorIds.includes(c.user.id)}
+                      onToggle={(checked) =>
+                        setSelectedInvestigatorIds(
+                          checked
+                            ? [...selectedInvestigatorIds, c.user.id]
+                            : selectedInvestigatorIds.filter((id) => id !== c.user.id)
+                        )
+                      }
                     />
-                  </label>
-                );
-              })}
+                  ))}
+                </div>
+              )}
+
+              {assignCandidates && assignCandidates.groupAuthorized.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+                    Enquêteurs autorisés Groupe (vision Groupe)
+                  </div>
+                  {assignCandidates.groupAuthorized.map((c) => (
+                    <AssignCandidateRow
+                      key={c.user.id}
+                      candidate={c}
+                      checked={selectedInvestigatorIds.includes(c.user.id)}
+                      onToggle={(checked) =>
+                        setSelectedInvestigatorIds(
+                          checked
+                            ? [...selectedInvestigatorIds, c.user.id]
+                            : selectedInvestigatorIds.filter((id) => id !== c.user.id)
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
