@@ -466,11 +466,29 @@ function AppShell() {
     // (routing/routes.ts, LEGACY_PATH_ALIASES) et retombent directement sur
     // ces mêmes branches partagées.
 
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — miroir Espace
+    // Enquêteur) === Même redéfinition que côté Opérateur, appliquée à
+    // l'équivalent Enquêteur de chaque écran (toujours restreint à
+    // `myCasesOnly` — un enquêteur ne voit jamais que ses propres
+    // dossiers, mécanisme inchangé) :
+    // - "À traiter" (inv_to_process) capte désormais "mes affaires
+    //   nouvelles et en cours" (`excludeClosed`), pas seulement les
+    //   nouvelles — même principe que "À attribuer" côté Opérateur.
+    // - "Mes dossiers" (inv_my_cases) était déjà l'équivalent exact de
+    //   "Dossiers attribués" (aucun enquêteur ne voit un dossier non
+    //   attribué) — filtre inchangé, bandeau retiré.
+    // - "En attente" (inv_pending) : filtre déjà exact, bandeau retiré.
+    // - "En cours" (inv_in_progress) : reste un raccourci plus étroit que
+    //   "À traiter" (même principe que "En attente d'infos" à côté
+    //   d'"À attribuer" côté Opérateur) — filtre inchangé, bandeau retiré.
+    // Tableau de bord (inv_dashboard) conserve son bandeau, comme le vrai
+    // Tableau de bord Opérateur (ControlPanel) — hors périmètre de cette
+    // refonte, qui ne concernait que les 4 écrans nommés explicitement.
     if (currentTab === 'inv_dashboard') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'inv_my_cases') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'inv_to_process') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'new' }} />;
-    if (currentTab === 'inv_in_progress') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'investigation' }} />;
-    if (currentTab === 'inv_pending') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'under_review' }} />;
+    if (currentTab === 'inv_my_cases') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} hideTopBanner />;
+    if (currentTab === 'inv_to_process') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, excludeClosed: true }} hideTopBanner />;
+    if (currentTab === 'inv_in_progress') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'investigation' }} hideTopBanner />;
+    if (currentTab === 'inv_pending') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'under_review' }} hideTopBanner />;
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
     // morts) === `inv_tasks`/`inv_evidence`/`inv_communications`/
     // `inv_reports`/`inv_search` (Phase 6) supprimés d'ici, même motif que
