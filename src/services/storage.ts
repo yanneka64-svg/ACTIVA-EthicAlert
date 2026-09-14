@@ -1,4 +1,4 @@
-import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile } from '../types';
+import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile, UserRole } from '../types';
 import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG, HierarchyLevels, DEFAULT_HIERARCHY_LEVELS } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
@@ -7,6 +7,9 @@ import { checkTransition, TransitionCheckResult } from '../domain/workflow';
 import { deriveCaseStatus, syncLegacyStatus } from './statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
 import { getConflictedUserIds, resolveIndependentAuthority } from '../domain/independentRouting';
+// === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+import { Permission, ROLE_PERMISSIONS } from '../domain/permissions';
+import { setRolePermissionOverrides } from '../domain/permissionOverrides';
 
 const STORAGE_KEYS = {
   ALERTS: 'activa_ethicalert_records_v1',
@@ -23,6 +26,8 @@ const STORAGE_KEYS = {
   SLA_CONFIG: 'activa_ethicalert_sla_config_v1',
   // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
   HIERARCHY_LEVELS: 'activa_ethicalert_hierarchy_levels_v1',
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  ROLE_PERMISSIONS: 'activa_ethicalert_role_permissions_v1',
 };
 
 // Event dispatched when data changes
@@ -49,6 +54,16 @@ class StorageService {
   // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
   // Même motif seed-then-mutate que slaConfig ci-dessus.
   private hierarchyLevels: HierarchyLevels = DEFAULT_HIERARCHY_LEVELS;
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  // Copie mutable, persistée, de la table ROLE_PERMISSIONS
+  // (domain/permissions.ts) — même motif seed-then-mutate que
+  // hierarchyLevels/slaConfig ci-dessus. `domain/permissions.ts` lui-même
+  // n'est JAMAIS modifié : il reste la table PAR DÉFAUT (utilisée telle
+  // quelle par domain/permissions.test.ts et par le modèle Firestore
+  // dormant). Poussée dans domain/permissionOverrides.ts à chaque
+  // changement, pour qu'authz.userCan() (donc toute l'application) reflète
+  // immédiatement une édition en administration.
+  private rolePermissions: Record<UserRole, Permission[]> = ROLE_PERMISSIONS;
 
   constructor() {
     this.init();
@@ -130,6 +145,15 @@ class StorageService {
         this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
         this.persistHierarchyLevels();
       }
+
+      // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+      const storedRolePermissions = localStorage.getItem(STORAGE_KEYS.ROLE_PERMISSIONS);
+      if (storedRolePermissions) {
+        this.rolePermissions = { ...ROLE_PERMISSIONS, ...JSON.parse(storedRolePermissions) };
+      } else {
+        this.rolePermissions = { ...ROLE_PERMISSIONS };
+        this.persistRolePermissions();
+      }
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
       this.alerts = [...INITIAL_ALERTS];
@@ -143,7 +167,15 @@ class StorageService {
       this.slaConfig = { ...DEFAULT_SLA_CONFIG };
       // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
       this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
+      // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+      this.rolePermissions = { ...ROLE_PERMISSIONS };
     }
+    // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+    // Pousse l'état courant (chargé, seedé, ou de repli) vers le pont
+    // domain/permissionOverrides.ts, hors du try/catch pour couvrir les
+    // deux chemins — sans cet appel, authz.userCan() continuerait de lire
+    // silencieusement la table par défaut malgré une édition persistée.
+    setRolePermissionOverrides(this.rolePermissions);
   }
 
   private notify() {
@@ -217,6 +249,15 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.HIERARCHY_LEVELS, JSON.stringify(this.hierarchyLevels));
     } catch (e) {
       console.error('Failed to persist hierarchy levels', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  private persistRolePermissions() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(this.rolePermissions));
+    } catch (e) {
+      console.error('Failed to persist role permissions', e);
     }
   }
 
@@ -760,6 +801,38 @@ class StorageService {
     );
   }
 
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  // --- Role permissions API --- rend éditable en administration
+  // (AdminConfigView.tsx, onglet "Rôles & Permissions") la table jusqu'ici
+  // uniquement affichée en lecture seule. `domain/permissions.ts` reste la
+  // table PAR DÉFAUT, jamais modifiée — voir domain/permissionOverrides.ts.
+  // Réservée en écriture à system_admin (même garde `configuration.manage`
+  // que toutes les autres tables de configuration ci-dessus).
+  public getRolePermissions(): Record<UserRole, Permission[]> {
+    return { ...this.rolePermissions };
+  }
+
+  /**
+   * Remplace la liste COMPLÈTE des permissions d'UN rôle (pas une fusion
+   * partielle) — l'écran d'administration soumet toujours l'état complet
+   * des cases cochées pour le rôle édité, jamais une liste de deltas.
+   */
+  public updateRolePermissions(role: UserRole, permissions: Permission[], actor: UserProfile): void {
+    this.rolePermissions = { ...this.rolePermissions, [role]: [...permissions] };
+    this.persistRolePermissions();
+    // Pousse immédiatement vers le pont domain/permissionOverrides.ts —
+    // sans cet appel, authz.userCan() (donc toute l'application) continuerait
+    // de servir l'ancienne liste jusqu'au prochain rechargement complet.
+    setRolePermissionOverrides(this.rolePermissions);
+    this.notify();
+    this.logAudit(
+      'CONFIG_UPDATED',
+      `Permissions du rôle "${role}" mises à jour par ${actor.name}.`,
+      undefined,
+      actor
+    );
+  }
+
   // --- Draft auto-save for whistleblowers ---
   public getDraft(): any {
     try {
@@ -810,6 +883,9 @@ class StorageService {
     this.slaConfig = { ...DEFAULT_SLA_CONFIG };
     // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
     this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
+    // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+    this.rolePermissions = { ...ROLE_PERMISSIONS };
+    setRolePermissionOverrides(this.rolePermissions);
     this.persistAlerts();
     this.persistAuditLogs();
     this.persistUsers();
@@ -818,6 +894,7 @@ class StorageService {
     this.persistCountries();
     this.persistSlaConfig();
     this.persistHierarchyLevels();
+    this.persistRolePermissions();
     this.clearDraft();
     this.notify();
   }

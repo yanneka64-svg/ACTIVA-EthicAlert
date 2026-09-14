@@ -21,7 +21,6 @@
 import { UserProfile, AlertRecord } from '../types';
 import {
   Permission,
-  roleHasPermission,
   hasGlobalCaseVisibility,
   isConfidentialityAllowed,
   isConfidentialityAllowedForClearance,
@@ -32,9 +31,15 @@ import {
 // fichier (authz.ts) pour canSeeAlertConfidentiality/userCan — un import
 // direct vers independentRouting.ts créerait donc un cycle à 3 modules.
 import { getImplicatedUserIds } from '../domain/routingConflicts';
+// === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+// `roleHasEffectivePermission` retombe sur la table par défaut
+// (ROLE_PERMISSIONS) tant qu'aucune édition n'a été poussée par
+// storage.ts — voir domain/permissionOverrides.ts pour la justification
+// complète de cet indirection (évite un cycle storage → authz → storage).
+import { roleHasEffectivePermission } from '../domain/permissionOverrides';
 
 export function userCan(user: UserProfile, permission: Permission): boolean {
-  return roleHasPermission(user.role, permission);
+  return roleHasEffectivePermission(user.role, permission);
 }
 
 /**

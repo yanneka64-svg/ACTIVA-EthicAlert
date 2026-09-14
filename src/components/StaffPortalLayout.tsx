@@ -81,7 +81,22 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // existants) — une restructuration complète de la barre latérale en 3
   // silos stricts est repoussée à une phase ultérieure nécessitant une
   // vérification plus large par rôle.
-  const canSeeOperatorSpace = userCan(activeUser, 'cases.assign');
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === BUG
+  // PRÉEXISTANT CORRIGÉ : `cases.assign` seul ne suffit plus à garantir
+  // l'accès à /operator/dashboard depuis que la matrice de permissions est
+  // éditable en administration (system_admin peut désormais accorder
+  // `cases.assign` à n'importe quel rôle, ex. `investigator`) — la vraie
+  // garde de cette route (App.tsx, onglet `op_dashboard`) est
+  // `isGlobalViewer`/`isGlobalCaseViewer`, une table SÉPARÉE
+  // (GLOBAL_VISIBILITY_ROLES) que cet onglet n'a jamais mise à jour.
+  // Jusqu'ici les deux coïncidaient toujours par construction (seuls
+  // functional_admin/darc_compliance avaient `cases.assign`, et les deux
+  // sont aussi à vision globale) ; ce n'est plus garanti. Vérifié en
+  // direct : accorder `cases.assign` à `investigator` faisait apparaître
+  // "Espace Opérateur" dans ce sélecteur puis un "Accès restreint" au
+  // clic. Corrigé en alignant cette condition sur la garde réelle de la
+  // route, exactement comme `canSeeControlPanel` ci-dessus.
+  const canSeeOperatorSpace = userCan(activeUser, 'cases.assign') && canSeeControlPanel;
   const canSeeInvestigatorSpace = userCan(activeUser, 'cases.edit');
   const spaceCount = [canSeeOperatorSpace, canSeeInvestigatorSpace, canSeeAdmin].filter(Boolean).length;
   const showSpaceSwitcher = spaceCount >= 2;

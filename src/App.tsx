@@ -228,7 +228,18 @@ function AppShell() {
     // seul écran interne sans garde de permission, ce qui corrige leur
     // expérience de connexion sans rien changer pour un rôle qui
     // fonctionnait déjà.
-    if (userCan(user, 'cases.assign')) {
+    // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === BUG
+    // PRÉEXISTANT CORRIGÉ : `cases.assign` seul ne suffit plus depuis que
+    // la matrice de permissions est éditable en administration — la vraie
+    // garde de `/operator/dashboard` (branche `op_dashboard` ci-dessous)
+    // est `isGlobalViewer`, une table séparée (GLOBAL_VISIBILITY_ROLES)
+    // que l'édition de `cases.assign` ne modifie jamais. Coïncidaient
+    // toujours avant cette amélioration (seuls functional_admin/
+    // darc_compliance avaient `cases.assign`, tous deux à vision globale) ;
+    // plus garanti maintenant qu'un admin peut accorder `cases.assign` à
+    // n'importe quel rôle. Même correctif que StaffPortalLayout.tsx
+    // (canSeeOperatorSpace) pour le sélecteur d'espace.
+    if (userCan(user, 'cases.assign') && isGlobalCaseViewer(user)) {
       navigate(pathForTab('op_dashboard'));
     } else if (userCan(user, 'cases.edit')) {
       navigate(pathForTab('inv_dashboard'));

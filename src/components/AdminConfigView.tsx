@@ -32,7 +32,7 @@ import {
 // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
 // Read-only: this screen only imports and displays this real, already-
 // existing data — src/domain/permissions.ts itself is never modified.
-import { ROLE_PERMISSIONS, Permission } from '../domain/permissions';
+import { Permission } from '../domain/permissions';
 import { RoleId } from '../domain/caseTypes';
 // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
 import { getRoutingMatrixView } from '../domain/independentRouting';
@@ -115,6 +115,48 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     e.preventDefault();
     storage.updateHierarchyLevels(hierarchyLevelsDraft, activeUser);
     flashBanner('Niveaux hiérarchiques de routage indépendant mis à jour.');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  // --- Role permissions state --- même motif seed-then-edit-then-save que
+  // la configuration SLA/gouvernance ci-dessus. `rolePermissionsDraft` est
+  // une copie locale éditée par cases à cocher ; seul un clic sur
+  // "Enregistrer" persiste réellement (storage.updateRolePermissions),
+  // et uniquement pour les rôles dont la liste a changé — pour ne pas
+  // journaliser 10 entrées d'audit identiques à chaque sauvegarde.
+  const [rolePermissionsDraft, setRolePermissionsDraft] = useState<Record<RoleId, Permission[]>>(storage.getRolePermissions());
+  // Empêche de se retirer soi-même (ou tout système_admin) l'accès à cet
+  // écran — même principe de garde anti-auto-verrouillage déjà appliqué à
+  // la suppression de son propre compte (handleDeleteUser ci-dessous) :
+  // sans configuration.manage, PERSONNE ne peut plus revenir ici pour la
+  // réactiver, puisque cet onglet lui-même est gardé par
+  // canManageConfiguration.
+  const isProtectedPermissionCell = (role: RoleId, permission: Permission) =>
+    role === 'system_admin' && permission === 'configuration.manage';
+  const toggleRolePermissionDraft = (role: RoleId, permission: Permission) => {
+    if (isProtectedPermissionCell(role, permission)) return;
+    setRolePermissionsDraft((prev) => {
+      const current = prev[role] ?? [];
+      const next = current.includes(permission)
+        ? current.filter((p) => p !== permission)
+        : [...current, permission];
+      return { ...prev, [role]: next };
+    });
+  };
+  const handleSaveRolePermissions = (e: React.FormEvent) => {
+    e.preventDefault();
+    const saved = storage.getRolePermissions();
+    let changedCount = 0;
+    for (const role of ALL_ROLE_IDS) {
+      const before = [...(saved[role] ?? [])].sort();
+      const after = [...(rolePermissionsDraft[role] ?? [])].sort();
+      const unchanged = before.length === after.length && before.every((p, i) => p === after[i]);
+      if (!unchanged) {
+        storage.updateRolePermissions(role, rolePermissionsDraft[role], activeUser);
+        changedCount += 1;
+      }
+    }
+    flashBanner(changedCount > 0 ? `Permissions mises à jour pour ${changedCount} rôle(s).` : 'Aucune modification à enregistrer.');
   };
 
   // --- Entities CRUD state ---
@@ -434,8 +476,11 @@ service cloud.firestore {
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
-  // Pure display data over the real ROLE_PERMISSIONS table — "no new logic
-  // needed, just a UI" per the plan.
+  // Structure d'affichage (groupes/libellés) au-dessus de la table réelle.
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === n'est plus
+  // un affichage pur : la case cochée/décochée vient désormais de
+  // `rolePermissionsDraft` (storage.getRolePermissions()), pas de la
+  // constante ROLE_PERMISSIONS statique importée ci-dessus.
   // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu à 10 rôles) === les 2
   // nouveaux rôles (security_admin, audit_committee) suivent exactement le
   // même principe d'affichage pur que les 8 précédents — voir
@@ -1022,31 +1067,45 @@ service cloud.firestore {
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
-          6. ROLES & PERMISSIONS TAB — read-only visualization of the real
-          ROLE_PERMISSIONS table (src/domain/permissions.ts). No new
-          permission logic here, purely a UI over existing data.
+          6. ROLES & PERMISSIONS TAB.
+          === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === n'est
+          plus un affichage en lecture seule : chaque case est une vraie
+          case à cocher, sauvegardée via storage.updateRolePermissions()
+          (voir domain/permissionOverrides.ts pour la mécanique complète —
+          domain/permissions.ts, la table PAR DÉFAUT, reste inchangée).
           === AMÉLIORATION AJOUTÉE (Phase 12.3) === this table is no longer
           a separate/future model — it is the exact set of permissions this
           application actually enforces (see src/services/authz.ts). */}
       {configTab === 'roles' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-blue-700" />
-              Matrice des rôles & permissions
-            </h3>
-            <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
-              Modèle RBAC granulaire (19 permissions atomiques, <code className="font-mono text-slate-600">src/domain/permissions.ts</code>) —
-              la même table sera réutilisée côté serveur (future architecture Cloud Functions / Firestore)
-              afin que client et serveur ne divergent jamais sur ce qu'un rôle peut faire.
-              {/* === AMÉLIORATION AJOUTÉE (Phase 12.3) === ce n'est plus un
-                  modèle "cible" séparé : ce sont exactement les 10 rôles et
-                  permissions réellement appliqués par cette application
-                  (onglet « Comptes & Habilitations » ci-dessus utilise ces
-                  mêmes valeurs). */}
-              {' '}Ce sont exactement les rôles et permissions réellement appliqués par cette
-              application — l'onglet « Comptes & Habilitations » ci-dessus utilise ces mêmes valeurs.
-            </p>
+        <form onSubmit={handleSaveRolePermissions} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
+          <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-blue-700" />
+                Matrice des rôles & permissions
+              </h3>
+              <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
+                Modèle RBAC granulaire (19 permissions atomiques, <code className="font-mono text-slate-600">src/domain/permissions.ts</code>) —
+                la même table sera réutilisée côté serveur (future architecture Cloud Functions / Firestore)
+                afin que client et serveur ne divergent jamais sur ce qu'un rôle peut faire.
+                {/* === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+                    Cette matrice est désormais RÉELLEMENT éditable — cocher/
+                    décocher une case change immédiatement ce que ce rôle
+                    peut faire dans toute l'application (authz.userCan),
+                    dès l'enregistrement. Réservé à system_admin, comme les
+                    autres tables de configuration. */}
+                {' '}Cochez ou décochez une permission puis "Enregistrer" — le changement s'applique
+                immédiatement à toute l'application. La case grisée (Administrateur système ×
+                Gérer la configuration) est protégée : la retirer priverait tout le monde de l'accès
+                à cet écran.
+              </p>
+            </div>
+            <button
+              type="submit"
+              className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
+            >
+              Enregistrer les permissions
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -1072,15 +1131,22 @@ service cloud.firestore {
                     {g.permissions.map((p) => (
                       <tr key={p.key} className="border-b border-slate-100">
                         <td className="p-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 bg-white">{p.label}</td>
-                        {ALL_ROLE_IDS.map((r) => (
-                          <td key={r} className="p-2 text-center">
-                            {ROLE_PERMISSIONS[r].includes(p.key) ? (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mx-auto" />
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </td>
-                        ))}
+                        {ALL_ROLE_IDS.map((r) => {
+                          const protectedCell = isProtectedPermissionCell(r, p.key);
+                          const checked = (rolePermissionsDraft[r] ?? []).includes(p.key);
+                          return (
+                            <td key={r} className="p-2 text-center">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={protectedCell}
+                                onChange={() => toggleRolePermissionDraft(r, p.key)}
+                                title={protectedCell ? 'Protégé : nécessaire pour conserver l\'accès à cet écran' : undefined}
+                                className={`accent-blue-600 w-3.5 h-3.5 ${protectedCell ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                              />
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </React.Fragment>
@@ -1088,7 +1154,7 @@ service cloud.firestore {
               </tbody>
             </table>
           </div>
-        </div>
+        </form>
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
