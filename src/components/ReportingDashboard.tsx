@@ -17,8 +17,9 @@ import {
 } from 'lucide-react';
 import { Language, AlertRecord, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { ACTIVA_COUNTRIES } from '../data/activaConfig';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
+import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 
 interface ReportingDashboardProps {
   lang: Language;
@@ -30,12 +31,42 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   activeUser,
 }) => {
   const t = TRANSLATIONS[lang];
-  const allAlerts: AlertRecord[] = storage.getAlerts();
+  // === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
+  // Applique désormais le même périmètre (pays/entité/confidentialité/
+  // assignation) que tous les autres écrans internes migrés en Phase 2 —
+  // cet écran lisait jusqu'ici storage.getAlerts() SANS aucun filtre de
+  // visibilité : n'importe quel rôle interne (y compris un investigateur
+  // scopé sur un seul pays) voyait les statistiques agrégées de
+  // l'ensemble du Groupe. Corrige une vraie lacune par rapport au brief
+  // §35 ("l'utilisateur ne doit voir que les niveaux correspondant à son
+  // périmètre") — voir aussi reportLevelLabel plus bas, qui n'annonce
+  // jamais "Groupe" à un compte dont le périmètre ne couvre pas
+  // réellement tout le Groupe.
+  const allAlerts: AlertRecord[] = useVisibleAlerts(storage.getAlerts(), activeUser);
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) === real,
   // editable entity/category lists instead of the static activaConfig
   // imports, so admin changes are reflected in these filter dropdowns too.
   const entities = storage.getEntities();
   const categoriesConfig = storage.getCategories();
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  // Remplace l'import statique ACTIVA_COUNTRIES par la copie réelle,
+  // éditable (même motif que entities/categoriesConfig ci-dessus).
+  const allCountries = storage.getCountries();
+
+  // === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
+  // Pays/entités que CE compte peut choisir dans les filtres ci-dessous —
+  // périmètre vide (rôles à vision Groupe) = tous, sinon uniquement son
+  // propre périmètre. Ne masque rien qui ne soit déjà filtré côté données
+  // (allAlerts ci-dessus) : évite simplement de proposer un niveau que le
+  // compte ne pourrait de toute façon pas voir.
+  const isCountryScoped = (activeUser.countries?.length ?? 0) > 0;
+  const isEntityScoped = (activeUser.entities?.length ?? 0) > 0;
+  const visibleCountries = isCountryScoped
+    ? allCountries.filter((c) => activeUser.countries!.includes(c.code))
+    : allCountries;
+  const visibleEntities = isEntityScoped
+    ? entities.filter((e) => activeUser.entities!.includes(e.id))
+    : entities;
 
   // Mode: 'realtime' | 'monthly_darc' | 'quarterly_board'
   const [reportView, setReportView] = useState<'realtime' | 'monthly_darc' | 'quarterly_board'>('realtime');
@@ -71,6 +102,21 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     setCategoryFilter('all');
     setStatusFilter('all');
   };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
+  // Libellé du niveau d'agrégation actuel (brief §35 : Vue Groupe / Vue
+  // Pays / Vue Entité). N'annonce jamais "Groupe ACTIVA" à un compte dont
+  // le périmètre pays est restreint — même sans filtre pays/entité
+  // sélectionné, ses chiffres ne portent déjà que sur son propre
+  // périmètre (allAlerts, filtré via useVisibleAlerts ci-dessus).
+  const reportLevelLabel =
+    entityFilter !== 'all'
+      ? `Entité — ${entityFilter}`
+      : countryFilter !== 'all'
+      ? `Pays — ${countryFilter}`
+      : isCountryScoped
+      ? `Pays (périmètre) — ${visibleCountries.map((c) => c.name).join(', ')}`
+      : 'Groupe ACTIVA';
 
   // Core Statistics Calculations (CDC 3.1.4)
   const totalAlerts = alerts.length;
@@ -266,6 +312,17 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         </div>
       </div>
 
+      {/* === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
+          Indicateur de niveau d'agrégation (brief §35 : Vue Groupe/Pays/Entité) —
+          purement informatif, dérivé des filtres pays/entité déjà existants
+          ci-dessous, qui restent le mécanisme réel de "descente" d'un
+          niveau à l'autre. */}
+      <div className="flex items-center gap-2">
+        <span className="px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold">
+          Vue : {reportLevelLabel}
+        </span>
+      </div>
+
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — barre de filtres réels) === */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-2">
         <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wide mr-1">
@@ -277,15 +334,19 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
           <option value="90d">{t.report_filter_period_90d}</option>
           <option value="365d">{t.report_filter_period_365d}</option>
         </select>
+        {/* === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
+            Ne propose que les pays/entités du périmètre de ce compte
+            (visibleCountries/visibleEntities) — un compte à vision Groupe
+            continue de voir la liste complète, inchangée. */}
         <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
           <option value="all">{t.report_filter_country_all}</option>
-          {ACTIVA_COUNTRIES.map((c) => (
+          {visibleCountries.map((c) => (
             <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
           ))}
         </select>
         <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
           <option value="all">{t.report_filter_entity_all}</option>
-          {entities.map((e) => (
+          {visibleEntities.map((e) => (
             <option key={e.id} value={e.name}>{e.name}</option>
           ))}
         </select>
@@ -465,13 +526,17 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
               <Building2 className="w-4 h-4 text-blue-700" />
-              Répartition géographique (10 pays d'implantation)
+              {/* === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
+                  Libellés dynamiques (visibleCountries/visibleEntities), plus
+                  de "10 pays"/"16 entités" en dur — s'ajuste au périmètre du
+                  compte ET aux pays/entités réellement configurés (Phase 8). */}
+              Répartition géographique ({visibleCountries.length} pays d'implantation)
             </h3>
-            <span className="text-[11px] text-slate-500 font-medium">16 entités</span>
+            <span className="text-[11px] text-slate-500 font-medium">{visibleEntities.length} entités</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
-            {ACTIVA_COUNTRIES.map((cty) => {
+            {visibleCountries.map((cty) => {
               const count = countryCounts[cty.name] || 0;
               return (
                 <div key={cty.code} className="p-2.5 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between">
