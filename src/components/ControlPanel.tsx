@@ -53,6 +53,8 @@ import { storage } from '../services/storage';
 import { computeSlaStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { isGlobalCaseViewer, userCan } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { KpiCard, DataTable, EmptyState, StatusBadge, MiniLineChart, MiniDonutChart, MiniBarChart } from './ui';
 import type { DataTableColumn, TrendPoint, DonutSlice, BarDatum } from './ui';
 
@@ -182,9 +184,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     setLastRefreshed(new Date());
   };
 
-  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+  // `visible` vient désormais du hook partagé, qui applique en plus le
+  // périmètre pays/entité et la confidentialité — voir
+  // src/hooks/useVisibleAlerts.ts. `isGlobalViewer` reste calculé
+  // séparément : encore utilisé plus bas pour le filtre du fil d'activité
+  // (ligne ~250).
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
-  const visible = alerts.filter((a) => isGlobalViewer || a.assignedInvestigators.includes(activeUser.id));
+  const visible = useVisibleAlerts(alerts, activeUser);
 
   // --- KPIs ---
   const totalCount = visible.length;

@@ -158,6 +158,19 @@ export function isConfidentialityAllowed(roleId: RoleId, level: ConfidentialityL
   return CONFIDENTIALITY_RANK[level] <= CONFIDENTIALITY_RANK[max];
 }
 
+// === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+// Même comparaison que ci-dessus, mais contre un plafond explicite plutôt
+// que le plafond par défaut du rôle — pour le nouveau champ
+// `UserProfile.sensitivityClearance` (un compte peut avoir un plafond
+// propre, distinct de celui de son rôle). Voir src/services/authz.ts
+// `canSeeAlertConfidentiality`.
+export function isConfidentialityAllowedForClearance(
+  clearance: ConfidentialityLevel,
+  level: ConfidentialityLevel
+): boolean {
+  return CONFIDENTIALITY_RANK[level] <= CONFIDENTIALITY_RANK[clearance];
+}
+
 /** True if the user's country/entity scope covers the case (empty scope = unrestricted, admin-style roles only). */
 function isInScope(user: AppUser, kase: Pick<Case, 'country' | 'entity'>): boolean {
   const countryOk = user.countries.length === 0 || user.countries.includes(kase.country);

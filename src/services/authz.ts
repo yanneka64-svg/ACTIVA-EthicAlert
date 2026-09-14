@@ -19,7 +19,13 @@
  * existante dans chaque écran, inchangée.
  */
 import { UserProfile, AlertRecord } from '../types';
-import { Permission, roleHasPermission, hasGlobalCaseVisibility, isConfidentialityAllowed } from '../domain/permissions';
+import {
+  Permission,
+  roleHasPermission,
+  hasGlobalCaseVisibility,
+  isConfidentialityAllowed,
+  isConfidentialityAllowedForClearance,
+} from '../domain/permissions';
 
 export function userCan(user: UserProfile, permission: Permission): boolean {
   return roleHasPermission(user.role, permission);
@@ -63,5 +69,34 @@ export function isStaffUser(user: UserProfile): boolean {
  * personne rétroactivement.
  */
 export function canSeeAlertConfidentiality(user: UserProfile, alert: Pick<AlertRecord, 'confidentialityLevel'>): boolean {
-  return isConfidentialityAllowed(user.role, alert.confidentialityLevel ?? 'restricted');
+  const level = alert.confidentialityLevel ?? 'restricted';
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+  // Un compte avec un plafond propre (sensitivityClearance) est évalué
+  // contre CE plafond plutôt que celui, par défaut, de son rôle. Absent
+  // (cas de tous les comptes aujourd'hui) → comportement strictement
+  // inchangé.
+  if (user.sensitivityClearance) {
+    return isConfidentialityAllowedForClearance(user.sensitivityClearance, level);
+  }
+  return isConfidentialityAllowed(user.role, level);
+}
+
+// === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+/**
+ * Le périmètre pays/entité (`UserProfile.countries`/`entities`, Phase 1)
+ * couvre-t-il ce dossier (`AlertRecord.countryId`/`entityId`, Phase 1) ?
+ * Reprend exactement la logique déjà éprouvée d'`isInScope()` dans
+ * `domain/permissions.ts` (périmètre vide = illimité), avec UNE différence
+ * volontaire : un dossier qui n'a pas encore de `countryId`/`entityId`
+ * (tout dossier créé avant cette phase) n'est JAMAIS restreint par cette
+ * dimension — le rattachement pays/entité "structurant" ne s'applique
+ * simplement pas encore à lui, il reste visible exactement comme avant
+ * cette phase.
+ */
+export function isInScope(user: UserProfile, alert: Pick<AlertRecord, 'countryId' | 'entityId'>): boolean {
+  const countries = user.countries ?? [];
+  const entities = user.entities ?? [];
+  const countryOk = countries.length === 0 || !alert.countryId || countries.includes(alert.countryId);
+  const entityOk = entities.length === 0 || !alert.entityId || entities.includes(alert.entityId);
+  return countryOk && entityOk;
 }

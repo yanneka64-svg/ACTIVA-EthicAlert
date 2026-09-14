@@ -11,7 +11,8 @@ import { Paperclip } from 'lucide-react';
 import { Language, AlertRecord, UserProfile, EvidenceFile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-import { isGlobalCaseViewer } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { DataTable, DataTableColumn } from './ui';
 
 interface EvidenceRegistryProps {
@@ -40,11 +41,13 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
     return unsub;
   }, []);
 
-  // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-  const isGlobalViewer = isGlobalCaseViewer(activeUser);
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+  // Remplace le filtre dupliqué (rôle assigné) par le hook partagé, qui
+  // applique en plus le périmètre pays/entité et la confidentialité — voir
+  // src/hooks/useVisibleAlerts.ts.
+  const visibleAlerts = useVisibleAlerts(alerts, activeUser);
 
-  const rows: EvidenceRow[] = alerts
-    .filter((a) => isGlobalViewer || a.assignedInvestigators.includes(activeUser.id))
+  const rows: EvidenceRow[] = visibleAlerts
     .flatMap((alert) => (alert.evidences ?? []).map((evidence) => ({ evidence, alert })))
     .sort((a, b) => new Date(b.evidence.uploadedAt).getTime() - new Date(a.evidence.uploadedAt).getTime());
 

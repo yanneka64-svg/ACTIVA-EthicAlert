@@ -58,7 +58,9 @@ import { storage } from '../services/storage';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor } from './ui';
 import { computeSlaStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, userCan, canSeeAlertConfidentiality } from '../services/authz';
+import { isGlobalCaseViewer, userCan } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -214,20 +216,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // accès aux dossiers (brief section 30) — voir src/services/authz.ts.
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
 
-  const visibleAlerts = alerts.filter(alert => {
-    // Role filter
-    if (!isGlobalViewer) {
-      const isAssigned = alert.assignedInvestigators.includes(activeUser.id);
-      if (!isAssigned) return false;
-    }
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
+  // Remplace le double filtre (rôle assigné + confidentialité) précédemment
+  // écrit ici en dur par le hook partagé `useVisibleAlerts`, qui applique
+  // en plus le nouveau périmètre pays/entité (countries/entities) — même
+  // logique, une seule implémentation désormais (voir
+  // src/hooks/useVisibleAlerts.ts). `isGlobalViewer` ci-dessus reste
+  // calculé séparément : encore utilisé plus bas pour des choix
+  // d'affichage (libellés).
+  const baseVisibleAlerts = useVisibleAlerts(alerts, activeUser);
 
-    // === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
-    // Second filtre indépendant, appliqué même à un dossier assigné ou à un
-    // profil à vision globale — reflète exactement `can()` dans
-    // domain/permissions.ts (le rôle seul ne suffit pas si le dossier
-    // dépasse le plafond de confidentialité de ce rôle).
-    if (!canSeeAlertConfidentiality(activeUser, alert)) return false;
-
+  const visibleAlerts = baseVisibleAlerts.filter(alert => {
     // Status filter
     if (statusFilter !== 'all' && alert.status !== statusFilter) return false;
 
