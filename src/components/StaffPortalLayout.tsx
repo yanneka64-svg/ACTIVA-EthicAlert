@@ -163,7 +163,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'tasks', label: t.reg_investigations_title, icon: <BarChart3 className="w-4 h-4" /> },
     { key: 'evidence', label: canSeeControlPanel ? t.sidebar_evidence_registry : t.sidebar_my_evidence, icon: <Paperclip className="w-4 h-4" /> },
     { key: 'communications', label: canSeeControlPanel ? t.sidebar_comms_registry : t.sidebar_my_comms, icon: <MessageSquare className="w-4 h-4" /> },
-    { key: 'corrective_actions', label: t.sidebar_corrective_measures, icon: <Wrench className="w-4 h-4" /> },
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des recommandations) ===
+    { key: 'corrective_actions', label: t.reg_recommendations_title, icon: <Wrench className="w-4 h-4" /> },
     { key: 'reports', label: t.sidebar_reports_exports, icon: <LayoutGrid className="w-4 h-4" /> },
   ];
 

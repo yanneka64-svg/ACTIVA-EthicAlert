@@ -690,15 +690,22 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     e.preventDefault();
     if (!measureTitle.trim() || !selectedAlert) return;
 
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des
+    // recommandations) === `closedAt` renseignée uniquement si la mesure
+    // est créée directement au statut "Vérifiée" — aucun autre point du
+    // code ne change le statut d'une mesure existante aujourd'hui, donc
+    // c'est le seul moment où cette transition peut réellement survenir.
+    const now = new Date().toISOString();
     const newMeasure: CorrectiveMeasure = {
       id: 'cm-' + Date.now(),
       title: measureTitle.trim(),
       description: measureDesc.trim(),
       responsiblePerson: measureResp.trim() || 'Direction Concernée',
-      dueDate: measureDueDate || new Date().toISOString().split('T')[0],
+      dueDate: measureDueDate || now.split('T')[0],
       status: measureStatus,
       documentedBy: activeUser.name,
-      documentedAt: new Date().toISOString(),
+      documentedAt: now,
+      closedAt: measureStatus === 'verified' ? now : undefined,
     };
 
     const updatedAlert: AlertRecord = {

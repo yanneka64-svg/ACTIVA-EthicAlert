@@ -140,6 +140,13 @@ export interface CorrectiveMeasure {
   status: 'planned' | 'in_progress' | 'implemented' | 'verified';
   documentedBy: string;
   documentedAt: string;
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des
+  // recommandations) === Date de clôture EFFECTIVE, distincte de
+  // `dueDate` (échéance cible) — renseignée uniquement quand `status`
+  // vaut "verified" (voir InvestigationDesk.tsx, `handleAddCorrectiveMeasure`).
+  // Optionnel : absente pour toute mesure pas encore vérifiée, ou créée
+  // avant cette phase.
+  closedAt?: string;
 }
 
 export interface WhistleblowerInfo {
