@@ -3,7 +3,7 @@
  * Tests du moteur de compatibilité d'attribution.
  */
 import { describe, expect, it } from 'vitest';
-import { AlertRecord, ConflictDeclaration, UserProfile } from '../types';
+import { AlertRecord, ConflictDeclaration, InvolvedPerson, UserProfile, Witness } from '../types';
 import { computeCandidates } from './assignmentEngine';
 import { WorkloadRow } from './workloadCalc';
 
@@ -160,6 +160,26 @@ describe('computeCandidates — non-scope exclusions', () => {
     const user = makeUser();
     const result = computeCandidates(alert, [user], [noWorkload(user)]);
     expect(result.compatible.map((c) => c.user.id)).toEqual(['u-1']);
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+describe('computeCandidates — routage indépendant (§57)', () => {
+  it('excludes a candidate linked as the accused on this case', () => {
+    const person: InvolvedPerson = { id: 'per-1', name: 'x', position: 'x', hierarchyRole: 'Cadre', linkedUserId: 'u-1' };
+    const alert = makeAlert({ involvedPersons: [person] });
+    const user = makeUser();
+    const result = computeCandidates(alert, [user], [noWorkload(user)]);
+    expect(result.compatible).toEqual([]);
+    expect(result.groupAuthorized).toEqual([]);
+  });
+
+  it('excludes a candidate linked as a witness on this case, not just the accused', () => {
+    const witness: Witness = { id: 'wit-1', name: 'x', position: 'x', hierarchyRole: 'Employé', linkedUserId: 'u-1' };
+    const alert = makeAlert({ witnesses: [witness] });
+    const user = makeUser();
+    const result = computeCandidates(alert, [user], [noWorkload(user)]);
+    expect(result.compatible).toEqual([]);
   });
 });
 

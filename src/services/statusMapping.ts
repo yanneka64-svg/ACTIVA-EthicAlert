@@ -10,8 +10,10 @@
  * `computeRiskEvaluation()` in `data/activaConfig.ts` already computes a
  * derived value from raw inputs.
  */
-import { AlertRecord, AlertStatus, AppNotification, AuditLogEntry, EnterpriseWorkflowStatus, SlaStatus } from '../types';
+import { AlertRecord, AlertStatus, AppNotification, AuditLogEntry, EnterpriseWorkflowStatus, SlaStatus, UserProfile } from '../types';
 import { CaseStatus } from '../domain/caseTypes';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+import { isGlobalCaseViewer, isImplicated } from './authz';
 
 /** Legacy AlertStatus -> the richer enterprise lifecycle the Control Panel/workspace UI uses. */
 export function mapToEnterpriseStatus(alert: AlertRecord): EnterpriseWorkflowStatus {
@@ -109,8 +111,14 @@ export function computeSlaStatus(alert: AlertRecord): SlaStatus {
   return 'on_track';
 }
 
-function isVisibleToUser(alert: AlertRecord, userId: string, isGlobalViewer: boolean): boolean {
-  return isGlobalViewer || alert.assignedInvestigators.includes(userId);
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+// La personne mise en cause d'un dossier (§49) ne doit jamais recevoir de
+// notification qui révélerait ne serait-ce que l'existence du dossier —
+// vérifiée EN PREMIER, avant la règle de visibilité normale, exactement
+// comme dans useVisibleAlerts.computeVisibleAlerts (Phase 4).
+function isVisibleToUser(alert: AlertRecord, activeUser: UserProfile, isGlobalViewer: boolean): boolean {
+  if (isImplicated(activeUser, alert)) return false;
+  return isGlobalViewer || alert.assignedInvestigators.includes(activeUser.id);
 }
 
 /**
@@ -121,15 +129,23 @@ function isVisibleToUser(alert: AlertRecord, userId: string, isGlobalViewer: boo
  * `AppNotification` collection in `storage.ts`; this function is the
  * single source new callers should use so notification logic isn't
  * duplicated per screen.
+ *
+ * === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+ * Signature simplifiée : prend désormais `activeUser: UserProfile` au lieu
+ * de `userId`/`isGlobalViewer` séparés — l'unique appelant (Navbar.tsx)
+ * calculait déjà `isGlobalViewer` via `isGlobalCaseViewer(activeUser)`
+ * juste avant d'appeler cette fonction ; la calculer ICI, une seule fois,
+ * évite de la dupliquer côté appelant ET permet d'appliquer la nouvelle
+ * exclusion `isImplicated` sans élargir la signature davantage.
  */
 export function generateNotifications(
   alerts: AlertRecord[],
   auditLogs: AuditLogEntry[],
-  userId: string,
-  isGlobalViewer: boolean
+  activeUser: UserProfile
 ): AppNotification[] {
+  const isGlobalViewer = isGlobalCaseViewer(activeUser);
   const notifications: AppNotification[] = [];
-  const visible = alerts.filter((a) => isVisibleToUser(a, userId, isGlobalViewer));
+  const visible = alerts.filter((a) => isVisibleToUser(a, activeUser, isGlobalViewer));
 
   for (const alert of visible) {
     const sla = computeSlaStatus(alert);

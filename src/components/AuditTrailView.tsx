@@ -133,6 +133,9 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
             <option value="ALERT_ARCHIVED">Archivage légal</option>
             <option value="REPORT_GENERATED">Export de rapport</option>
             <option value="CONFIG_UPDATED">Configuration mise à jour</option>
+            {/* === AMÉLIORATION AJOUTÉE (Phase 7 — routage indépendant) === */}
+            <option value="INDEPENDENT_ROUTING_TRIGGERED">Routage indépendant déclenché</option>
+            <option value="NO_INDEPENDENT_AUTHORITY_FOUND">Aucune autorité indépendante disponible</option>
           </select>
         </div>
       </div>

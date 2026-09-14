@@ -66,30 +66,55 @@ export const TAB_TO_PATH: Record<string, string> = {
   op_pending_info: '/operator/pending-information',
   op_assign: '/operator/assign',
   op_processed: '/operator/processed',
-  op_search: '/operator/search',
-  op_reports: '/operator/reports',
-  op_communications: '/operator/communications',
 
   inv_dashboard: '/investigator/dashboard',
   inv_my_cases: '/investigator/cases',
   inv_to_process: '/investigator/to-process',
   inv_in_progress: '/investigator/in-progress',
   inv_pending: '/investigator/pending',
-  inv_tasks: '/investigator/tasks',
-  inv_evidence: '/investigator/evidence',
-  inv_communications: '/investigator/communications',
-  inv_reports: '/investigator/reports',
-  inv_search: '/investigator/search',
 
   admin_audit: '/admin/audit',
   admin_reports: '/admin/reports',
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   admin_organization: '/admin/organization',
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+  admin_governance: '/admin/governance',
+  // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+  // Nouvelle entrée de barre latérale, partagée (pas spécifique à un
+  // espace) — voir StaffPortalLayout.tsx.
+  advanced_search: '/search/advanced',
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  admin_workflow: '/admin/workflow',
 };
 
 const PATH_TO_TAB: Record<string, string> = Object.fromEntries(
   Object.entries(TAB_TO_PATH).map(([tab, path]) => [path, tab])
 );
+
+// === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons morts) ===
+// `op_search`/`op_reports`/`op_communications`/`inv_tasks`/`inv_evidence`/
+// `inv_communications`/`inv_reports`/`inv_search` (Phase 6) rendaient
+// EXACTEMENT le même écran, avec les mêmes props, que les onglets partagés
+// `advanced_search`/`reports`/`communications`/`tasks`/`evidence` — aucune
+// différenciation fonctionnelle (contrairement à `op_inbox`/`inv_my_cases`
+// etc., qui ont un vrai `initialFilter` distinct). Depuis la Proposition B
+// de réorganisation de la navigation, plus aucun bouton de menu n'y mène :
+// ces 8 branches d'App.tsx sont devenues du code mort. Elles sont retirées
+// ci-dessus de `TAB_TO_PATH` (donc de `renderStaffContent()`), MAIS leurs
+// URLs restent volontairement vivantes ici, redirigées vers l'onglet
+// canonique équivalent — un lien déjà partagé ou mis en favori vers
+// /operator/reports, par exemple, doit continuer à fonctionner à
+// l'identique plutôt que retomber sur la page d'accueil publique.
+const LEGACY_PATH_ALIASES: Record<string, string> = {
+  '/operator/search': 'advanced_search',
+  '/operator/reports': 'reports',
+  '/operator/communications': 'communications',
+  '/investigator/tasks': 'tasks',
+  '/investigator/evidence': 'evidence',
+  '/investigator/communications': 'communications',
+  '/investigator/reports': 'reports',
+  '/investigator/search': 'advanced_search',
+};
 
 // Sub-paths of /cases/* that are NOT a tracking-number deep link — kept in
 // sync with TAB_TO_PATH above (their own path already appears there).
@@ -105,6 +130,10 @@ export interface ResolvedRoute {
 export function resolveRoute(pathname: string): ResolvedRoute {
   const known = PATH_TO_TAB[pathname];
   if (known) return { tab: known };
+
+  // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons morts) ===
+  const legacyAlias = LEGACY_PATH_ALIASES[pathname];
+  if (legacyAlias) return { tab: legacyAlias };
 
   const caseMatch = pathname.match(/^\/cases\/([^/]+)\/?$/);
   if (caseMatch && !CASES_STATIC_SUBPATHS.has(caseMatch[1])) {

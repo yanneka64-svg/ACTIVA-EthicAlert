@@ -12,6 +12,10 @@ import {
   FileCheck2,
   Send,
   User,
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
+  Settings,
+  HelpCircle,
+  LogOut,
 } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (Phase 27) === `QrCode` et `Lock` retirés : ils ne
 // servaient plus qu'aux icônes de l'en-tête public retirées cette phase.
@@ -26,7 +30,7 @@ import { ActivaLogo } from './ui';
 // import avait de nouveau été perdu par une fusion avec `main` (déjà
 // documenté une première fois plus haut dans l'historique du fichier) alors
 // que le code plus bas l'utilise toujours — voir `isGlobalViewer` ci-dessous.
-import { isGlobalCaseViewer } from '../services/authz';
+import { isGlobalCaseViewer, canManageConfiguration } from '../services/authz';
 
 interface NavbarProps {
   currentTab: string;
@@ -94,6 +98,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
   const [showNotifDropdown, setShowNotifDropdown] = React.useState(false);
   const [dismissedIds, setDismissedIds] = React.useState<Set<string>>(new Set());
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) === onglet de
+  // filtre façon maquette ("Toutes"/"Tâches"). Pas d'onglet "Non lues" :
+  // toute notification affichée ici est par construction non lue (une
+  // notification "lue" est immédiatement retirée via `dismissedIds`, il
+  // n'existe pas de distinction lu/non-lu au sein de la liste affichée) —
+  // un tel onglet afficherait toujours exactement la même chose que
+  // "Toutes", donc rien de réellement filtrant (brief §32).
+  const [notifTab, setNotifTab] = React.useState<'all' | 'tasks'>('all');
   const [notifRefresh, setNotifRefresh] = React.useState(0);
   React.useEffect(() => {
     const unsub = storage.subscribe(() => setNotifRefresh((n) => n + 1));
@@ -109,13 +121,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   // exprime directement l'intention.
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
   const isStaffUser = activeUser.role !== 'reporter';
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+  // `generateNotifications` prend désormais `activeUser` directement (au
+  // lieu de `activeUser.id`/`isGlobalViewer` séparés) — voir
+  // services/statusMapping.ts pour la justification complète.
   const notifications = React.useMemo(
     () =>
       isStaffUser
-        ? generateNotifications(storage.getAlerts(), storage.getAuditLogs(), activeUser.id, isGlobalViewer).filter((n) => !dismissedIds.has(n.id))
+        ? generateNotifications(storage.getAlerts(), storage.getAuditLogs(), activeUser).filter((n) => !dismissedIds.has(n.id))
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isStaffUser, isGlobalViewer, activeUser.id, dismissedIds, notifRefresh]
+    [isStaffUser, isGlobalViewer, activeUser, dismissedIds, notifRefresh]
   );
 
   // === AMÉLIORATION AJOUTÉE (Phase 12.3) === étendu de 5 à 10 rôles ; les
@@ -323,11 +339,30 @@ export const Navbar: React.FC<NavbarProps> = ({
                           </button>
                         )}
                       </div>
+                      {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) === */}
+                      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-slate-100 shrink-0">
+                        {(['all', 'tasks'] as const).map((tab) => {
+                          const count = tab === 'all' ? notifications.length : notifications.filter((n) => n.type === 'task_overdue').length;
+                          return (
+                            <button
+                              key={tab}
+                              onClick={() => setNotifTab(tab)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition ${
+                                notifTab === tab ? 'bg-[#0B2545] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            >
+                              {tab === 'all' ? t.notif_tab_all : t.notif_tab_tasks} ({count})
+                            </button>
+                          );
+                        })}
+                      </div>
                       <div className="overflow-y-auto flex-1">
-                        {notifications.length === 0 ? (
-                          <div className="text-center py-8 text-slate-400 text-[11px]">{t.notif_empty}</div>
-                        ) : (
-                          notifications.map((n) => {
+                        {(() => {
+                          const filtered = notifTab === 'tasks' ? notifications.filter((n) => n.type === 'task_overdue') : notifications;
+                          if (filtered.length === 0) {
+                            return <div className="text-center py-8 text-slate-400 text-[11px]">{t.notif_empty}</div>;
+                          }
+                          return filtered.map((n) => {
                             const Icon = NOTIFICATION_ICONS[n.type] ?? Bell;
                             return (
                               <button
@@ -354,8 +389,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 </span>
                               </button>
                             );
-                          })
-                        )}
+                          });
+                        })()}
                       </div>
                     </div>
                   )}
@@ -496,6 +531,40 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="absolute right-0 mt-1 w-72 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 py-1.5 z-50 text-xs"
                   onClick={() => setShowUserDropdown(false)}
                 >
+                  {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
+                      Résumé "Mon profil" (lecture seule, données réelles de
+                      l'utilisateur actif — jamais un formulaire d'édition
+                      fabriqué) + liens réels vers des écrans existants.
+                      Choix délibéré à signaler : pas de "Changer le mot de
+                      passe" ni de "Préférences de notification" — l'app n'a
+                      volontairement aucun backend d'authentification réel
+                      (voir StaffLoginView.tsx) ni aucun système de
+                      préférences persistées ; les ajouter aurait été une
+                      fausse fonctionnalité (brief §32). "Paramètres"
+                      n'apparaît que pour un compte ayant réellement accès à
+                      l'écran d'administration correspondant. */}
+                  {isStaffUser && (
+                    <div className="px-3 py-2.5 border-b border-slate-100">
+                      <p className="font-bold text-slate-900">{activeUser.name}</p>
+                      <p className="text-[11px] text-slate-500">{activeUser.roleTitle}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{activeUser.email}</p>
+                    </div>
+                  )}
+                  {isStaffUser && canManageConfiguration(activeUser) && (
+                    <button
+                      onClick={() => setCurrentTab('settings')}
+                      className="w-full flex items-center gap-2 text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium border-b border-slate-100"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-slate-400" /> {t.profile_menu_settings}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setCurrentTab('faq')}
+                    className="w-full flex items-center gap-2 text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium border-b border-slate-100"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 text-slate-400" /> {t.profile_menu_help}
+                  </button>
+
                   <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">
                     <p className="font-semibold text-slate-600">{t.switch_role}</p>
                     <p className="text-[11px] text-slate-500">Testez les accès selon le profil (CDC 3.2.3)</p>
@@ -548,9 +617,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {isStaffUser && isStaffSessionActive && (
                     <button
                       onClick={onLogout}
-                      className="w-full text-left px-3 py-2 hover:bg-rose-50 text-rose-700 font-medium border-t border-slate-100"
+                      className="w-full flex items-center gap-2 text-left px-3 py-2 hover:bg-rose-50 text-rose-700 font-medium border-t border-slate-100"
                     >
-                      Se déconnecter
+                      <LogOut className="w-3.5 h-3.5" /> Se déconnecter
                     </button>
                   )}
                 </div>

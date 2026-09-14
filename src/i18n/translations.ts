@@ -354,6 +354,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     
     // Reports
     reporting_title: 'Statistiques & Tableaux de bord DARC',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
+    report_card_activity: 'Activité globale',
+    report_card_by_country: 'Par pays',
+    report_card_by_entity: 'Par entité',
+    report_card_by_category: 'Par catégorie',
+    report_card_sla: 'SLA et délais',
+    report_card_custom: 'Rapport personnalisé',
+    report_card_generate: 'Générer',
+    report_card_configure: 'Configurer',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — filtres réels des rapports) ===
     report_filters_label: 'Filtres',
     report_filter_period_all: 'Toute période',
@@ -378,6 +387,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     exec_section_category: 'Répartition par catégorie',
     exec_confidentiality_note: 'Conformément à la politique de confidentialité du Groupe, cette vue exécutive n’expose ni identité du lanceur d’alerte, ni notes internes d’investigation, ni pièces jointes — uniquement des indicateurs agrégés.',
     btn_export_csv: 'Export CSV brut',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
+    export_modal_title: 'Exporter les résultats',
+    export_modal_format: 'Format',
+    export_modal_format_csv: 'CSV (compatible Excel)',
+    export_modal_format_pdf: 'PDF',
+    export_modal_fields: 'Champs à inclure',
+    export_modal_export: 'Exporter',
     btn_export_excel: 'Export Données Formatées',
     btn_print_report: 'Imprimer / Exporter Rapport PDF',
     toggle_anonymize: 'Générer un rapport 100% anonymisé (Caviardage)',
@@ -391,6 +407,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     notif_title: 'Notifications',
     notif_mark_all_read: 'Tout marquer comme lu',
     notif_empty: 'Aucune notification pour le moment.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
+    notif_tab_all: 'Toutes',
+    notif_tab_tasks: 'Tâches',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
+    profile_menu_settings: 'Paramètres',
+    profile_menu_help: 'Aide & support',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Centre de Pilotage',
@@ -419,6 +441,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     nav_corrective_actions: 'Actions Correctives',
     nav_admin_users: 'Utilisateurs & Rôles',
     nav_admin_config: 'Configuration',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    nav_search_advanced: 'Recherche avancée',
     btn_open_case: 'Ouvrir le dossier',
     reg_tasks_title: 'Registre des Tâches',
     reg_tasks_subtitle: 'Toutes les tâches d’investigation, tous dossiers confondus, avec échéance et responsable.',
@@ -429,12 +453,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_comms_title: 'Registre des Communications',
     reg_comms_subtitle: 'Tous les échanges avec les lanceurs d’alerte, tous dossiers confondus.',
     reg_comms_empty: 'Aucune communication enregistrée pour le moment.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Communications) ===
+    reg_comms_open_case: 'Ouvrir le dossier',
+    reg_comms_reply_placeholder: 'Écrire un message confidentiel...',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    search_advanced_title: 'Recherche avancée',
+    search_advanced_subtitle: 'Recherchez par mot-clé, pays, entité, catégorie, statut, criticité, sévérité, sensibilité, canal ou période — parmi les dossiers que vous êtes habilité à voir.',
+    search_advanced_empty: 'Aucun dossier ne correspond à votre périmètre pour le moment.',
+    search_advanced_empty_filtered: 'Aucun dossier ne correspond à ces critères.',
     reg_corrective_title: 'Registre des Actions Correctives',
     reg_corrective_subtitle: 'Toutes les mesures correctives documentées, tous dossiers confondus.',
     reg_corrective_empty: 'Aucune action corrective enregistrée pour le moment.',
     reg_col_title: 'Intitulé',
     reg_col_owner: 'Responsable',
     reg_col_due: 'Échéance',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+    reg_col_priority: 'Priorité',
+    tasks_bucket_a_faire: 'À faire',
+    tasks_bucket_terminees: 'Terminées',
+    evidence_bucket_documents: 'Documents',
+    evidence_bucket_images: 'Images',
+    evidence_bucket_autres: 'Autres',
     reg_col_sender: 'Émetteur',
     reg_col_message: 'Message',
     reg_col_date: 'Date',
@@ -482,6 +521,43 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_qa_review_closure: 'Examiner les clôtures',
     cp_qa_view_reports: 'Voir les rapports',
 
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
+    // maquette Tableau de bord) === regroupement en 5 paniers de statut
+    // (voir domain/alertStatusBuckets.ts), réutilisé aussi par l'écran
+    // Dossiers (onglets de filtre).
+    db_bucket_a_traiter: 'À traiter',
+    db_bucket_en_cours: 'En cours',
+    db_bucket_en_attente: 'En attente',
+    db_bucket_clotures: 'Clôturés',
+    db_bucket_rejetes: 'Rejetés',
+    db_section_evolution: 'Évolution des signalements',
+    db_section_repartition_statut: 'Répartition par statut',
+    db_section_top_pays: 'Top 5 pays',
+    db_section_top_categories: 'Top 5 catégories',
+    db_advanced_section_title: 'Indicateurs avancés DARC',
+    db_kpi_total_label: 'Total signalements',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+    db_bucket_tous: 'Tous',
+    db_new_case_button: 'Nouveau',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+    create_case_title: 'Nouveau dossier',
+    create_case_step_info: 'Informations',
+    create_case_step_classification: 'Classification',
+    create_case_step_validation: 'Validation',
+    create_case_objet: 'Objet du signalement',
+    create_case_country: 'Pays',
+    create_case_entity: 'Entité',
+    create_case_category: 'Catégorie',
+    create_case_subcategory: 'Sous-catégorie',
+    create_case_default_risk_notice: 'Ce dossier sera créé avec un niveau de risque provisoire (NOCA 2), ajustable ensuite depuis l’onglet Allégations du dossier.',
+    create_case_default_risk_label: 'Niveau de risque provisoire',
+    create_case_validation_notice: 'Vérifiez les informations avant de créer le dossier — un numéro de suivi et un code d’accès sécurisé seront générés automatiquement.',
+    create_case_back: 'Précédent',
+    create_case_next: 'Suivant',
+    create_case_creating: 'Création…',
+    create_case_confirm: 'Créer le dossier',
+    create_case_dates_unspecified: 'Non précisé (dossier créé directement)',
+
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tâches',
     tab_timeline: 'Chronologie',
@@ -518,6 +594,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     triage_override_priority: 'Priorité ajustée manuellement',
     triage_override_reason: 'Motif de l’ajustement',
     triage_btn_adjust: 'Ajuster la priorité / le triage',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
+    allegation_narrative_title: 'Récit de l’allégation',
+    allegation_reassign: 'Réattribuer',
+    allegation_key_elements: 'Éléments clés',
+    allegation_classification: 'Classification',
+    allegation_type: 'Type d’allégation',
+    allegation_estimated_amount: 'Montant estimé',
+    allegation_period: 'Période',
+    allegation_location: 'Lieu',
+    allegation_persons_cited: 'Personnes citées',
+    allegation_entities_concerned: 'Entités concernées',
+    allegation_noca: 'Criticité (NOCA)',
+    allegation_severity: 'Sévérité',
+    allegation_sensitivity: 'Sensibilité',
+    severity_mineure: 'Mineure',
+    severity_moderee: 'Modérée',
+    severity_majeure: 'Majeure',
+    severity_critique: 'Critique',
+    confidentiality_restricted: 'Standard',
+    confidentiality_confidential: 'Confidentiel',
+    confidentiality_highly_confidential: 'Très confidentiel',
     conflict_section_title: 'Déclarations de conflit d’intérêt',
     conflict_section_desc: 'Chaque investigateur assigné doit se prononcer sur un éventuel conflit d’intérêt avant de traiter ce dossier.',
     conflict_btn_declare: 'Déclarer un conflit',
@@ -619,6 +716,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_view_timeline: 'Voir la chronologie',
     case_btn_edit: 'Modifier',
     case_btn_add: 'Ajouter',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une personne) ===
+    person_modal_title: 'Ajouter une personne',
+    person_modal_type: 'Type de personne',
+    person_modal_kind_subject: 'Mis en cause',
+    person_modal_kind_witness: 'Témoin',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la
     // maquette : logo, sidebar, onglets de la fiche dossier, pied de page) ===
@@ -642,6 +744,35 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_group_compliance: 'CONFORMITÉ',
     sidebar_group_reports: 'RAPPORTS',
     sidebar_group_admin: 'ADMINISTRATION',
+    // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
+    // Le sélecteur d'espace filtre désormais réellement la liste ci-dessous
+    // (voir StaffPortalLayout.tsx) — ces libellés couvrent les écrans
+    // Opérateur/Enquêteur déjà réels (op_*/inv_*) mais jusqu'ici sans aucun
+    // bouton de menu.
+    sidebar_group_tools: 'OUTILS',
+    sidebar_all_cases: 'Tous les dossiers',
+    sidebar_op_inbox: 'Boîte de réception',
+    sidebar_op_assign: 'À attribuer',
+    sidebar_op_pending: 'En attente d’infos',
+    sidebar_op_processed: 'Dossiers traités',
+    sidebar_inv_my_cases: 'Mes dossiers',
+    sidebar_inv_to_process: 'À traiter',
+    sidebar_inv_in_progress: 'En cours',
+    sidebar_inv_pending: 'En attente',
+    // Registres transverses — libellé désormais distinct de l'onglet
+    // interne d'un dossier portant le même nom (ex. onglet "Tâches" d'une
+    // fiche dossier), pour lever l'ambiguïté relevée par l'utilisateur.
+    sidebar_tasks_registry: 'Toutes les tâches',
+    sidebar_evidence_registry: 'Toutes les preuves',
+    sidebar_comms_registry: 'Toutes les communications',
+    // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
+    // Un compte sans vision globale (ex. investigator) ne voit jamais
+    // "toutes" les données via ces écrans — computeVisibleAlerts
+    // (useVisibleAlerts.ts) le limite déjà à ses dossiers assignés. Ces
+    // libellés reflètent ce périmètre réel au lieu de dire "Toutes" à tort.
+    sidebar_my_tasks: 'Mes tâches',
+    sidebar_my_evidence: 'Mes preuves',
+    sidebar_my_comms: 'Mes communications',
     sidebar_help_title: 'Besoin d’aide ?',
     sidebar_help_body: 'Consultez la documentation ou contactez l’équipe conformité.',
     footer_confidentiality: 'Confidentialité',
@@ -652,7 +783,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     tab_allegations: 'Allégations',
     tab_persons: 'Personnes',
     tab_report: 'Rapport',
-    tab_audit_journal: 'Journal d’audit',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Historique) === libellé
+    // aligné sur la maquette ("Historique" plutôt que "Journal d'audit") —
+    // même onglet, même contenu réel (piste d'audit du dossier), seule la
+    // clé de traduction change de valeur ; utilisée à un seul endroit
+    // (InvestigationDesk.tsx), vérifié avant renommage.
+    tab_audit_journal: 'Historique',
     tab_overview_exact: 'Vue d’ensemble',
     hero_feature_confidentiality_title: 'Confidentialité',
     hero_feature_confidentiality_desc: 'Vos informations sont protégées et accessibles uniquement aux personnes habilitées.',
@@ -1020,6 +1156,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_add_measure: '+ Document corrective measure',
 
     reporting_title: 'DARC Analytics & Dashboards',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
+    report_card_activity: 'Overall activity',
+    report_card_by_country: 'By country',
+    report_card_by_entity: 'By entity',
+    report_card_by_category: 'By category',
+    report_card_sla: 'SLA & turnaround',
+    report_card_custom: 'Custom report',
+    report_card_generate: 'Generate',
+    report_card_configure: 'Configure',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — real report filters) ===
     report_filters_label: 'Filters',
     report_filter_period_all: 'All time',
@@ -1044,6 +1189,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     exec_section_category: 'Breakdown by category',
     exec_confidentiality_note: 'In accordance with the Group\'s confidentiality policy, this executive view exposes no whistleblower identity, no internal investigation notes, and no attachments — aggregated indicators only.',
     btn_export_csv: 'Raw CSV Export',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
+    export_modal_title: 'Export Results',
+    export_modal_format: 'Format',
+    export_modal_format_csv: 'CSV (Excel-compatible)',
+    export_modal_format_pdf: 'PDF',
+    export_modal_fields: 'Fields to Include',
+    export_modal_export: 'Export',
     btn_export_excel: 'Formatted Data Export',
     btn_print_report: 'Print / Save PDF Report',
     toggle_anonymize: 'Generate 100% Anonymized Report (Redaction)',
@@ -1056,6 +1208,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     notif_title: 'Notifications',
     notif_mark_all_read: 'Mark all as read',
     notif_empty: 'No notifications yet.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
+    notif_tab_all: 'All',
+    notif_tab_tasks: 'Tasks',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
+    profile_menu_settings: 'Settings',
+    profile_menu_help: 'Help & Support',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Control Panel',
@@ -1079,6 +1237,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     nav_corrective_actions: 'Corrective Actions',
     nav_admin_users: 'Users & Roles',
     nav_admin_config: 'Configuration',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    nav_search_advanced: 'Advanced Search',
     btn_open_case: 'Open case',
     reg_tasks_title: 'Task Registry',
     reg_tasks_subtitle: 'Every investigation task across all cases, with due date and owner.',
@@ -1089,12 +1249,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_comms_title: 'Communications Registry',
     reg_comms_subtitle: 'Every exchange with reporters, across all cases.',
     reg_comms_empty: 'No communication recorded yet.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Communications) ===
+    reg_comms_open_case: 'Open case',
+    reg_comms_reply_placeholder: 'Write a confidential message...',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    search_advanced_title: 'Advanced Search',
+    search_advanced_subtitle: 'Search by keyword, country, entity, category, status, criticality, severity, sensitivity, channel or date — across the cases you are cleared to see.',
+    search_advanced_empty: 'No case in your scope yet.',
+    search_advanced_empty_filtered: 'No case matches these criteria.',
     reg_corrective_title: 'Corrective Actions Registry',
     reg_corrective_subtitle: 'Every documented corrective measure across all cases.',
     reg_corrective_empty: 'No corrective action recorded yet.',
     reg_col_title: 'Title',
     reg_col_owner: 'Owner',
     reg_col_due: 'Due date',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+    reg_col_priority: 'Priority',
+    tasks_bucket_a_faire: 'To do',
+    tasks_bucket_terminees: 'Completed',
+    evidence_bucket_documents: 'Documents',
+    evidence_bucket_images: 'Images',
+    evidence_bucket_autres: 'Other',
     reg_col_sender: 'Sender',
     reg_col_message: 'Message',
     reg_col_date: 'Date',
@@ -1142,6 +1317,41 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_qa_review_closure: 'Review Closure',
     cp_qa_view_reports: 'View Reports',
 
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
+    // maquette Tableau de bord) ===
+    db_bucket_a_traiter: 'To process',
+    db_bucket_en_cours: 'In progress',
+    db_bucket_en_attente: 'Pending',
+    db_bucket_clotures: 'Closed',
+    db_bucket_rejetes: 'Rejected',
+    db_section_evolution: 'Reports Trend',
+    db_section_repartition_statut: 'Breakdown by Status',
+    db_section_top_pays: 'Top 5 Countries',
+    db_section_top_categories: 'Top 5 Categories',
+    db_advanced_section_title: 'Advanced DARC Indicators',
+    db_kpi_total_label: 'Total Reports',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+    db_bucket_tous: 'All',
+    db_new_case_button: 'New',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+    create_case_title: 'New Case',
+    create_case_step_info: 'Information',
+    create_case_step_classification: 'Classification',
+    create_case_step_validation: 'Validation',
+    create_case_objet: 'Report Subject',
+    create_case_country: 'Country',
+    create_case_entity: 'Entity',
+    create_case_category: 'Category',
+    create_case_subcategory: 'Subcategory',
+    create_case_default_risk_notice: 'This case will be created with a provisional risk level (NOCA 2), adjustable afterwards from the case’s Allegations tab.',
+    create_case_default_risk_label: 'Provisional risk level',
+    create_case_validation_notice: 'Review the information before creating the case — a tracking number and secure access code will be generated automatically.',
+    create_case_back: 'Back',
+    create_case_next: 'Next',
+    create_case_creating: 'Creating…',
+    create_case_confirm: 'Create Case',
+    create_case_dates_unspecified: 'Unspecified (case created directly)',
+
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tasks',
     tab_timeline: 'Timeline',
@@ -1178,6 +1388,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     triage_override_priority: 'Manually Adjusted Priority',
     triage_override_reason: 'Adjustment Reason',
     triage_btn_adjust: 'Adjust Priority / Triage',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
+    allegation_narrative_title: 'Allegation Narrative',
+    allegation_reassign: 'Reassign',
+    allegation_key_elements: 'Key Elements',
+    allegation_classification: 'Classification',
+    allegation_type: 'Allegation Type',
+    allegation_estimated_amount: 'Estimated Amount',
+    allegation_period: 'Period',
+    allegation_location: 'Location',
+    allegation_persons_cited: 'Persons Cited',
+    allegation_entities_concerned: 'Entities Concerned',
+    allegation_noca: 'Criticality (NOCA)',
+    allegation_severity: 'Severity',
+    allegation_sensitivity: 'Sensitivity',
+    severity_mineure: 'Minor',
+    severity_moderee: 'Moderate',
+    severity_majeure: 'Major',
+    severity_critique: 'Critical',
+    confidentiality_restricted: 'Standard',
+    confidentiality_confidential: 'Confidential',
+    confidentiality_highly_confidential: 'Highly Confidential',
     conflict_section_title: 'Conflict of Interest Declarations',
     conflict_section_desc: 'Every assigned investigator must state any potential conflict of interest before working this case.',
     conflict_btn_declare: 'Declare a Conflict',
@@ -1279,6 +1510,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_view_timeline: 'View timeline',
     case_btn_edit: 'Edit',
     case_btn_add: 'Add',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une personne) ===
+    person_modal_title: 'Add a Person',
+    person_modal_type: 'Person Type',
+    person_modal_kind_subject: 'Implicated',
+    person_modal_kind_witness: 'Witness',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — faithful mockup reproduction) ===
     app_title: 'EthicsAlert.Com',
@@ -1301,6 +1537,24 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_group_compliance: 'COMPLIANCE',
     sidebar_group_reports: 'REPORTS',
     sidebar_group_admin: 'ADMINISTRATION',
+    // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
+    sidebar_group_tools: 'TOOLS',
+    sidebar_all_cases: 'All Cases',
+    sidebar_op_inbox: 'Inbox',
+    sidebar_op_assign: 'To Assign',
+    sidebar_op_pending: 'Pending Info',
+    sidebar_op_processed: 'Processed Cases',
+    sidebar_inv_my_cases: 'My Cases',
+    sidebar_inv_to_process: 'To Process',
+    sidebar_inv_in_progress: 'In Progress',
+    sidebar_inv_pending: 'Pending',
+    sidebar_tasks_registry: 'All Tasks',
+    sidebar_evidence_registry: 'All Evidence',
+    sidebar_comms_registry: 'All Communications',
+    // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
+    sidebar_my_tasks: 'My Tasks',
+    sidebar_my_evidence: 'My Evidence',
+    sidebar_my_comms: 'My Communications',
     sidebar_help_title: 'Need help?',
     sidebar_help_body: 'Check the documentation or contact the compliance team.',
     footer_confidentiality: 'Confidentiality',
@@ -1311,7 +1565,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     tab_allegations: 'Allegations',
     tab_persons: 'Persons',
     tab_report: 'Report',
-    tab_audit_journal: 'Audit Journal',
+    tab_audit_journal: 'History',
     tab_overview_exact: 'Overview',
     hero_feature_confidentiality_title: 'Confidentiality',
     hero_feature_confidentiality_desc: 'Your information is protected and only accessible to authorized personnel.',
@@ -1680,6 +1934,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_add_measure: '+ Registrar medida corretiva',
 
     reporting_title: 'Estatísticas & Painéis DARC',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
+    report_card_activity: 'Atividade global',
+    report_card_by_country: 'Por país',
+    report_card_by_entity: 'Por entidade',
+    report_card_by_category: 'Por categoria',
+    report_card_sla: 'SLA e prazos',
+    report_card_custom: 'Relatório personalizado',
+    report_card_generate: 'Gerar',
+    report_card_configure: 'Configurar',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — filtros reais dos relatórios) ===
     report_filters_label: 'Filtros',
     report_filter_period_all: 'Todo o período',
@@ -1704,6 +1967,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     exec_section_category: 'Distribuição por categoria',
     exec_confidentiality_note: 'Em conformidade com a política de confidencialidade do Grupo, esta visão executiva não expõe identidade do denunciante, notas internas de investigação nem anexos — apenas indicadores agregados.',
     btn_export_csv: 'Exportar CSV bruto',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
+    export_modal_title: 'Exportar resultados',
+    export_modal_format: 'Formato',
+    export_modal_format_csv: 'CSV (compatível com Excel)',
+    export_modal_format_pdf: 'PDF',
+    export_modal_fields: 'Campos a incluir',
+    export_modal_export: 'Exportar',
     btn_export_excel: 'Exportar Dados Formatados',
     btn_print_report: 'Imprimir / Salvar Relatório PDF',
     toggle_anonymize: 'Gerar Relatório 100% Anonimizado',
@@ -1716,6 +1986,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     notif_title: 'Notificações',
     notif_mark_all_read: 'Marcar tudo como lido',
     notif_empty: 'Nenhuma notificação no momento.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
+    notif_tab_all: 'Todas',
+    notif_tab_tasks: 'Tarefas',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
+    profile_menu_settings: 'Definições',
+    profile_menu_help: 'Ajuda & suporte',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Centro de Controle',
@@ -1739,6 +2015,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     nav_corrective_actions: 'Ações Corretivas',
     nav_admin_users: 'Usuários & Papéis',
     nav_admin_config: 'Configuração',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    nav_search_advanced: 'Pesquisa avançada',
     btn_open_case: 'Abrir o caso',
     reg_tasks_title: 'Registo de Tarefas',
     reg_tasks_subtitle: 'Todas as tarefas de investigação, em todos os casos, com prazo e responsável.',
@@ -1749,12 +2027,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_comms_title: 'Registo de Comunicações',
     reg_comms_subtitle: 'Todas as trocas com os denunciantes, em todos os casos.',
     reg_comms_empty: 'Nenhuma comunicação registada até o momento.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Communications) ===
+    reg_comms_open_case: 'Abrir o processo',
+    reg_comms_reply_placeholder: 'Escrever uma mensagem confidencial...',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    search_advanced_title: 'Pesquisa avançada',
+    search_advanced_subtitle: 'Pesquise por palavra-chave, país, entidade, categoria, estado, criticidade, gravidade, sensibilidade, canal ou período — entre os casos que está autorizado a ver.',
+    search_advanced_empty: 'Nenhum caso no seu âmbito por enquanto.',
+    search_advanced_empty_filtered: 'Nenhum caso corresponde a estes critérios.',
     reg_corrective_title: 'Registo de Ações Corretivas',
     reg_corrective_subtitle: 'Todas as medidas corretivas documentadas, em todos os casos.',
     reg_corrective_empty: 'Nenhuma ação corretiva registada até o momento.',
     reg_col_title: 'Título',
     reg_col_owner: 'Responsável',
     reg_col_due: 'Prazo',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+    reg_col_priority: 'Prioridade',
+    tasks_bucket_a_faire: 'A fazer',
+    tasks_bucket_terminees: 'Concluídas',
+    evidence_bucket_documents: 'Documentos',
+    evidence_bucket_images: 'Imagens',
+    evidence_bucket_autres: 'Outros',
     reg_col_sender: 'Remetente',
     reg_col_message: 'Mensagem',
     reg_col_date: 'Data',
@@ -1802,6 +2095,41 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_qa_review_closure: 'Analisar Encerramentos',
     cp_qa_view_reports: 'Ver Relatórios',
 
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
+    // maquette Tableau de bord) ===
+    db_bucket_a_traiter: 'A tratar',
+    db_bucket_en_cours: 'Em curso',
+    db_bucket_en_attente: 'Em espera',
+    db_bucket_clotures: 'Encerrados',
+    db_bucket_rejetes: 'Rejeitados',
+    db_section_evolution: 'Evolução dos sinais',
+    db_section_repartition_statut: 'Distribuição por estatuto',
+    db_section_top_pays: 'Top 5 países',
+    db_section_top_categories: 'Top 5 categorias',
+    db_advanced_section_title: 'Indicadores avançados DARC',
+    db_kpi_total_label: 'Total de sinais',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+    db_bucket_tous: 'Todos',
+    db_new_case_button: 'Novo',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+    create_case_title: 'Novo processo',
+    create_case_step_info: 'Informações',
+    create_case_step_classification: 'Classificação',
+    create_case_step_validation: 'Validação',
+    create_case_objet: 'Objeto do sinal',
+    create_case_country: 'País',
+    create_case_entity: 'Entidade',
+    create_case_category: 'Categoria',
+    create_case_subcategory: 'Subcategoria',
+    create_case_default_risk_notice: 'Este processo será criado com um nível de risco provisório (NOCA 2), ajustável depois a partir do separador Alegações do processo.',
+    create_case_default_risk_label: 'Nível de risco provisório',
+    create_case_validation_notice: 'Verifique as informações antes de criar o processo — um número de referência e um código de acesso seguro serão gerados automaticamente.',
+    create_case_back: 'Anterior',
+    create_case_next: 'Seguinte',
+    create_case_creating: 'A criar…',
+    create_case_confirm: 'Criar o processo',
+    create_case_dates_unspecified: 'Não especificado (processo criado diretamente)',
+
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tarefas',
     tab_timeline: 'Cronologia',
@@ -1838,6 +2166,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     triage_override_priority: 'Prioridade Ajustada Manualmente',
     triage_override_reason: 'Motivo do Ajuste',
     triage_btn_adjust: 'Ajustar Prioridade / Triagem',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
+    allegation_narrative_title: 'Relato da Alegação',
+    allegation_reassign: 'Reatribuir',
+    allegation_key_elements: 'Elementos-chave',
+    allegation_classification: 'Classificação',
+    allegation_type: 'Tipo de alegação',
+    allegation_estimated_amount: 'Montante estimado',
+    allegation_period: 'Período',
+    allegation_location: 'Local',
+    allegation_persons_cited: 'Pessoas citadas',
+    allegation_entities_concerned: 'Entidades envolvidas',
+    allegation_noca: 'Criticidade (NOCA)',
+    allegation_severity: 'Gravidade',
+    allegation_sensitivity: 'Sensibilidade',
+    severity_mineure: 'Menor',
+    severity_moderee: 'Moderada',
+    severity_majeure: 'Maior',
+    severity_critique: 'Crítica',
+    confidentiality_restricted: 'Padrão',
+    confidentiality_confidential: 'Confidencial',
+    confidentiality_highly_confidential: 'Altamente confidencial',
     conflict_section_title: 'Declarações de Conflito de Interesses',
     conflict_section_desc: 'Cada investigador designado deve se manifestar sobre um possível conflito de interesses antes de tratar este caso.',
     conflict_btn_declare: 'Declarar um Conflito',
@@ -1939,6 +2288,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_view_timeline: 'Ver cronologia',
     case_btn_edit: 'Editar',
     case_btn_add: 'Adicionar',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une personne) ===
+    person_modal_title: 'Adicionar uma pessoa',
+    person_modal_type: 'Tipo de pessoa',
+    person_modal_kind_subject: 'Implicado',
+    person_modal_kind_witness: 'Testemunha',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reprodução fiel da maquete) ===
     app_title: 'EthicsAlert.Com',
@@ -1961,6 +2315,24 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_group_compliance: 'CONFORMIDADE',
     sidebar_group_reports: 'RELATÓRIOS',
     sidebar_group_admin: 'ADMINISTRAÇÃO',
+    // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
+    sidebar_group_tools: 'FERRAMENTAS',
+    sidebar_all_cases: 'Todos os casos',
+    sidebar_op_inbox: 'Caixa de entrada',
+    sidebar_op_assign: 'A atribuir',
+    sidebar_op_pending: 'Aguardando informações',
+    sidebar_op_processed: 'Casos processados',
+    sidebar_inv_my_cases: 'Meus casos',
+    sidebar_inv_to_process: 'A processar',
+    sidebar_inv_in_progress: 'Em curso',
+    sidebar_inv_pending: 'Em espera',
+    sidebar_tasks_registry: 'Todas as tarefas',
+    sidebar_evidence_registry: 'Todas as provas',
+    sidebar_comms_registry: 'Todas as comunicações',
+    // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
+    sidebar_my_tasks: 'Minhas tarefas',
+    sidebar_my_evidence: 'Minhas provas',
+    sidebar_my_comms: 'Minhas comunicações',
     sidebar_help_title: 'Precisa de ajuda?',
     sidebar_help_body: 'Consulte a documentação ou contacte a equipa de conformidade.',
     footer_confidentiality: 'Confidencialidade',
@@ -1971,7 +2343,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     tab_allegations: 'Alegações',
     tab_persons: 'Pessoas',
     tab_report: 'Relatório',
-    tab_audit_journal: 'Diário de Auditoria',
+    tab_audit_journal: 'Histórico',
     tab_overview_exact: 'Visão geral',
     hero_feature_confidentiality_title: 'Confidencialidade',
     hero_feature_confidentiality_desc: 'As suas informações estão protegidas e acessíveis apenas a pessoas autorizadas.',

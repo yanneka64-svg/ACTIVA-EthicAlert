@@ -1,10 +1,11 @@
-import { 
-  AlertRecord, 
-  AuditLogEntry, 
-  RiskEvaluation, 
-  UserProfile, 
-  PriorityLevel, 
-  NocaThreshold 
+import {
+  AlertRecord,
+  AuditLogEntry,
+  RiskEvaluation,
+  UserProfile,
+  PriorityLevel,
+  NocaThreshold,
+  UserRole
 } from '../types';
 
 export interface EntityDef {
@@ -33,6 +34,42 @@ export const DEFAULT_SLA_CONFIG: SlaConfig = {
   noca2Days: 15,
   noca3Days: 7,
   noca4Days: 2,
+};
+
+// === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+// Hiérarchie PAR RÔLE (pas par utilisateur individuel — aucune "ligne
+// hiérarchique" nominative n'est modélisée dans ce système, voir le plan).
+// Même motif seed-then-mutate que SlaConfig/DEFAULT_SLA_CONFIG ci-dessus :
+// storage.ts seed sa copie mutable/persistée depuis cette constante,
+// éditable en administration (AdminConfigView.tsx, onglet "Gouvernance",
+// Phase 5), jamais codée en dur dans le moteur de routage lui-même
+// (src/domain/independentRouting.ts, Phase 3).
+//
+// Chaque rôle a une valeur DISTINCTE (jamais d'ex-æquo entre deux rôles
+// pouvant réellement traiter un dossier, sinon la recherche "niveau
+// strictement supérieur" échouerait silencieusement). Vérifié contre
+// ROLE_PERMISSIONS (domain/permissions.ts) : un investigator mis en cause
+// trouve un senior_investigator au-dessus ; un senior_investigator mis en
+// cause trouve functional_admin/darc_compliance ; darc_compliance (le rôle
+// opérationnel le plus élevé) mis en cause ne trouve légitimement AUCUNE
+// autorité indépendante — cas NO_INDEPENDENT_AUTHORITY_FOUND prévu par
+// conception, pas un bug. Les rôles au niveau 7 (executive/consultation/
+// audit_committee) n'ont ni cases.edit ni cases.assign et ne sont donc
+// jamais éligibles comme cible de routage, quel que soit leur niveau —
+// confirme le §63 "privilège technique ≠ autorité d'investigation".
+export type HierarchyLevels = Record<UserRole, number>;
+
+export const DEFAULT_HIERARCHY_LEVELS: HierarchyLevels = {
+  reporter: 1,
+  investigator: 3,
+  senior_investigator: 4,
+  functional_admin: 5,
+  system_admin: 5,
+  security_admin: 5,
+  darc_compliance: 6,
+  executive: 7,
+  consultation: 7,
+  audit_committee: 7,
 };
 
 // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===

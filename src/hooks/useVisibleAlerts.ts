@@ -28,7 +28,7 @@
 
 import { useMemo } from 'react';
 import { AlertRecord, UserProfile } from '../types';
-import { isGlobalCaseViewer, isInScope, canSeeAlertConfidentiality } from '../services/authz';
+import { isGlobalCaseViewer, isInScope, canSeeAlertConfidentiality, isImplicated } from '../services/authz';
 
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 // Logique pure séparée du hook React lui-même, pour être testable
@@ -39,6 +39,13 @@ import { isGlobalCaseViewer, isInScope, canSeeAlertConfidentiality } from '../se
 export function computeVisibleAlerts(alerts: AlertRecord[], activeUser: UserProfile): AlertRecord[] {
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
   return alerts.filter((alert) => {
+    // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+    // Vérifiée EN PREMIER, avant toute autre règle — la personne mise en
+    // cause d'un dossier ne doit JAMAIS le voir, quel que soit son rôle,
+    // son périmètre ou son habilitation de confidentialité (brief §49).
+    // Un seul changement, à ce point d'entrée unique déjà consommé par
+    // les 7 écrans existants, protège l'ensemble de l'application.
+    if (isImplicated(activeUser, alert)) return false;
     if (!isGlobalViewer && !alert.assignedInvestigators.includes(activeUser.id)) return false;
     if (!isInScope(activeUser, alert)) return false;
     if (!canSeeAlertConfidentiality(activeUser, alert)) return false;

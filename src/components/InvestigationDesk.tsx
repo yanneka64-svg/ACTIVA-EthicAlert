@@ -38,6 +38,8 @@ import {
   Paperclip,
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   ArrowUpCircle,
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+  ChevronLeft,
 } from 'lucide-react';
 import {
   Language,
@@ -57,7 +59,8 @@ import {
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor } from './ui';
+import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
+import type { DataTableColumn } from './ui';
 import { computeSlaStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { isGlobalCaseViewer, userCan } from '../services/authz';
@@ -68,6 +71,16 @@ import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngi
 import { computeWorkload } from '../domain/workloadCalc';
 // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
 import { evaluateEscalationCriteria, getGroupEscalationOwners } from '../domain/escalationCriteria';
+// === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === même
+// regroupement en 5 paniers que le Tableau de bord (Phase 1), pour que les
+// onglets de filtre affichent exactement les mêmes catégories.
+import { AlertStatusBucket, getAlertStatusBucket, isRejectedBucket } from '../domain/alertStatusBuckets';
+// === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+// Mêmes fonctions réelles que le formulaire public (AlertSubmissionFlow.tsx)
+// pour l'évaluation de risque et la génération du code d'accès sécurisé —
+// jamais réimplémentées à la main pour cette modale.
+import { computeRiskEvaluation } from '../data/activaConfig';
+import { generateSalt, hashPassword, generateAccessPassword } from '../services/crypto';
 
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 // Petit composant partagé entre les deux groupes (compatibles / autorisés
@@ -107,6 +120,85 @@ function AssignCandidateRow({
   );
 }
 
+// === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+// Petit composant partagé entre la modale "+ Ajouter" et la modale "Lier à
+// un compte" — évite de dupliquer deux fois le même <select> de
+// rattachement d'une personne impliquée/témoin à un compte réel de la
+// plateforme (InvolvedPerson.linkedUserId / Witness.linkedUserId,
+// types.ts Phase 1). Dès qu'un rattachement est défini, le routage
+// indépendant (domain/independentRouting.ts, Phase 3-4) exclura
+// automatiquement ce compte de l'accès au dossier.
+function LinkedAccountSelect({
+  users,
+  value,
+  onChange,
+}: {
+  users: UserProfile[];
+  value: string;
+  onChange: (userId: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white"
+    >
+      <option value="">Aucun (personne externe)</option>
+      {users.map((u) => (
+        <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
+      ))}
+    </select>
+  );
+}
+
+// === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+// Ligne Personne impliquée/Témoin, partagée entre le résumé de l'onglet
+// Vue d'ensemble et l'onglet Personnes dédié — ces deux rendus affichaient
+// jusqu'ici un balisage identique dupliqué. Ajoute l'indicateur "Compte
+// lié" et l'affordance "Lier à un compte" sans changer le rendu existant
+// (avatar/nom/fonction/niveau hiérarchique) ; `dense` reproduit fidèlement
+// les deux légères différences de taille qui existaient déjà entre les
+// deux contextes (résumé compact vs. onglet dédié).
+function PersonRow({
+  person,
+  users,
+  dense,
+  onLinkClick,
+}: {
+  person: InvolvedPerson | Witness;
+  users: UserProfile[];
+  dense: boolean;
+  onLinkClick: () => void;
+}) {
+  const linkedUser = person.linkedUserId ? users.find((u) => u.id === person.linkedUserId) : undefined;
+  return (
+    <div className={`flex items-center gap-2.5 ${dense ? 'p-2' : 'p-2.5'} bg-slate-50 rounded-lg border border-slate-100`}>
+      <span className={`${dense ? 'w-8 h-8 text-[11px]' : 'w-9 h-9 text-xs'} rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0`}>
+        {(person.name || '??').slice(0, 2).toUpperCase()}
+      </span>
+      <div className="min-w-0 flex-1">
+        <span className="font-bold text-slate-900 block truncate">{person.name || 'Confidentiel'}</span>
+        <div className="text-[11px] text-slate-500 truncate">{person.position} • {person.hierarchyRole}</div>
+        {linkedUser && (
+          <div className="text-[10px] text-emerald-700 font-semibold truncate flex items-center gap-1 mt-0.5">
+            <Link2 className="w-3 h-3" />
+            Compte lié : {linkedUser.name}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onLinkClick}
+        title="Lier à un compte"
+        className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-blue-700 hover:bg-blue-50"
+      >
+        <Link2 className="w-3.5 h-3.5" />
+      </button>
+      <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+    </div>
+  );
+}
+
 interface InvestigationDeskProps {
   lang: Language;
   activeUser: UserProfile;
@@ -132,12 +224,17 @@ interface InvestigationDeskProps {
   // every case — it narrows the list to cases assigned to the *active* user
   // specifically, without touching the underlying visibility rule itself.
   initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean };
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === bouton
+  // "+ Nouveau" de la maquette — optionnel, additif (chaque appelant qui ne
+  // le passe pas garde simplement le bouton masqué, comportement inchangé).
+  onCreateNewCase?: () => void;
 }
 
 export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   lang,
   activeUser,
   initialFilter,
+  onCreateNewCase,
 }) => {
   const t = TRANSLATIONS[lang];
 
@@ -167,6 +264,19 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);
   // === AMÉLIORATION AJOUTÉE (Phase 9 — écran dédié "Mes Dossiers") ===
   const [myCasesOnlyFilter] = useState<boolean>(!!initialFilter?.myCasesOnly);
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === onglets
+  // de filtre par panier de statut façon maquette — filtre plus large que
+  // `statusFilter` (un panier regroupe plusieurs statuts réels). Initialisé
+  // sur le panier du statut éventuellement précisé par `initialFilter`, pour
+  // que l'onglet correspondant apparaisse déjà actif sur un deep link
+  // existant (ex. depuis le Tableau de bord).
+  const [bucketFilter, setBucketFilter] = useState<AlertStatusBucket | 'all'>(
+    initialFilter?.status ? getAlertStatusBucket(initialFilter.status as AlertStatus) : 'all'
+  );
+  // Pagination façon maquette (10/page) — cet écran affichait jusqu'ici
+  // l'intégralité de la liste sans découpage.
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // Selected case active tab
   // === AMÉLIORATION AJOUTÉE (Phase 11 — 9 onglets exacts de la maquette) ===
@@ -240,7 +350,38 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [personNameInput, setPersonNameInput] = useState('');
   const [personPositionInput, setPersonPositionInput] = useState('');
   const [personHierarchyInput, setPersonHierarchyInput] = useState<InvolvedPerson['hierarchyRole']>('Employé');
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+  // Rattachement (facultatif) de la personne en cours de création à un
+  // compte réel de la plateforme.
+  const [personLinkedUserId, setPersonLinkedUserId] = useState('');
+  // Édition du rattachement d'une personne/témoin déjà enregistré·e — aucun
+  // handleEditPerson générique n'existait avant cette phase (seul
+  // handleAddPerson, pour la création), d'où un état dédié plutôt que de
+  // réutiliser addPersonKind (formulaire de création différent : nom/
+  // fonction/niveau hiérarchique).
+  const [linkingPerson, setLinkingPerson] = useState<{ kind: 'subject' | 'witness'; id: string; currentName: string } | null>(null);
+  const [linkingUserId, setLinkingUserId] = useState('');
   const evidenceFileInputRef = useRef<HTMLInputElement>(null);
+
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+  // Modale courte à 3 étapes (Informations/Classification/Validation),
+  // réservée aux opérateurs (décision confirmée par l'utilisateur : pas de
+  // questionnaire de risque complet ici — le dossier créé reçoit un niveau
+  // par défaut NOCA 2, ajustable ensuite depuis l'onglet Allégations
+  // existant, exactement comme pour tout autre dossier). Réutilise le
+  // même mécanisme réel que le formulaire public
+  // (AlertSubmissionFlow.tsx) pour tout ce qui doit rester honnête :
+  // numéro de suivi, code d'accès salé/haché, évaluation de risque via la
+  // vraie fonction `computeRiskEvaluation` (jamais un objet RiskEvaluation
+  // inventé à la main), délai cible dérivé de la config SLA réelle.
+  const [showCreateCaseModal, setShowCreateCaseModal] = useState(false);
+  const [createCaseStep, setCreateCaseStep] = useState<1 | 2 | 3>(1);
+  const [newCaseObjet, setNewCaseObjet] = useState('');
+  const [newCaseCountry, setNewCaseCountry] = useState('');
+  const [newCaseEntity, setNewCaseEntity] = useState('');
+  const [newCaseCategory, setNewCaseCategory] = useState('');
+  const [newCaseSubCategory, setNewCaseSubCategory] = useState('');
+  const [isCreatingCase, setIsCreatingCase] = useState(false);
 
   // Subscribe to storage updates
   useEffect(() => {
@@ -253,6 +394,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const allUsers = storage.getUsers();
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
   const entities = storage.getEntities();
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+  const countries = storage.getCountries();
+  const categoriesConfig = storage.getCategories();
+  const newCaseEntityOptions = newCaseCountry ? entities.filter((e) => e.country === newCaseCountry) : entities;
+  const newCaseSubCategoryOptions = categoriesConfig.find((c) => c.name === newCaseCategory)?.subCategories ?? [];
   // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
   // Candidats à l'attribution d'un dossier : tout profil qui fait
   // réellement de l'investigation (permission `cases.edit`) — remplace la
@@ -276,10 +422,26 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // d'affichage (libellés).
   const baseVisibleAlerts = useVisibleAlerts(alerts, activeUser);
 
-  const visibleAlerts = baseVisibleAlerts.filter(alert => {
-    // Status filter
-    if (statusFilter !== 'all' && alert.status !== statusFilter) return false;
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — routage indépendant) ===
+  // Ce compte a-t-il été exclu par le routage indépendant d'au moins un
+  // dossier (brief §47-68) ? Réutilise `independentRoutingExcludedUserIds`
+  // (déjà posé par storage.triggerIndependentRouting, Phase 4) plutôt que
+  // de redériver la liste des personnes mises en cause depuis ce composant
+  // — évite aussi de sous-compter un dossier déjà routé ailleurs (le champ
+  // est déjà calculé une fois pour toutes par le moteur de routage). Un
+  // simple booléen, jamais un nombre affiché : le bandeau ci-dessous ne
+  // révèle ni combien de dossiers, ni lesquels, ni pourquoi.
+  const hasConfidentialRoutingExclusion = alerts.some((a) =>
+    (a.independentRoutingExcludedUserIds ?? []).includes(activeUser.id)
+  );
 
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+  // Filtres "hors statut" calculés séparément (entité/NOCA/non-attribués/
+  // en retard/mes dossiers/recherche) — même logique qu'avant, simplement
+  // isolée pour que les compteurs des onglets de statut ci-dessous
+  // (bucketTabCounts) reflètent ces filtres en direct sans dupliquer cette
+  // logique une seconde fois.
+  const preStatusFilteredAlerts = baseVisibleAlerts.filter(alert => {
     // Entity filter
     if (entityFilter !== 'all' && alert.concernedEntity !== entityFilter) return false;
 
@@ -304,6 +466,42 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
     return true;
   });
+
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+  // Compteurs des onglets de filtre par panier (façon maquette : Tous/À
+  // traiter/En cours/En attente/Clôturés/Rejetés) — "rejetes" reste
+  // honnêtement à 0 aujourd'hui (voir domain/alertStatusBuckets.ts).
+  const bucketTabCounts: Record<AlertStatusBucket | 'all', number> = {
+    all: preStatusFilteredAlerts.length,
+    a_traiter: preStatusFilteredAlerts.filter((a) => getAlertStatusBucket(a.status) === 'a_traiter').length,
+    en_cours: preStatusFilteredAlerts.filter((a) => getAlertStatusBucket(a.status) === 'en_cours').length,
+    en_attente: preStatusFilteredAlerts.filter((a) => getAlertStatusBucket(a.status) === 'en_attente').length,
+    clotures: preStatusFilteredAlerts.filter((a) => getAlertStatusBucket(a.status) === 'clotures').length,
+    rejetes: preStatusFilteredAlerts.filter((a) => isRejectedBucket(a.status)).length,
+  };
+
+  const visibleAlerts = preStatusFilteredAlerts.filter(alert => {
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+    // Onglet de panier (large, façon maquette) — se combine sans conflit
+    // avec `statusFilter` (plus précis, toujours utilisé par les deep links
+    // existants type `{ status: 'new' }`) : un panier est toujours un
+    // sur-ensemble d'un statut précis, donc les deux peuvent s'appliquer
+    // ensemble sans jamais se contredire.
+    if (bucketFilter !== 'all' && getAlertStatusBucket(alert.status) !== bucketFilter) return false;
+    // Status filter
+    if (statusFilter !== 'all' && alert.status !== statusFilter) return false;
+    return true;
+  });
+
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+  // Pagination façon maquette (10 dossiers/page) — la page revient à 1 dès
+  // qu'un filtre change, pour ne jamais rester bloqué sur une page devenue
+  // vide.
+  const totalPages = Math.max(1, Math.ceil(visibleAlerts.length / PAGE_SIZE));
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, entityFilter, nocaFilter, bucketFilter, searchQuery, unassignedOnlyFilter, overdueOnlyFilter]);
+  const pagedAlerts = visibleAlerts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Currently active selected alert
   // Only auto-falls-back to the first visible case while actually in detail
@@ -468,6 +666,93 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setShowAddMeasureModal(false);
   };
 
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+  // Construit un AlertRecord complet et honnête à partir de la saisie
+  // courte de la modale — même mécanique que AlertSubmissionFlow.tsx
+  // (numéro de suivi, code d'accès salé/haché, délai cible dérivé de la
+  // config SLA réelle), avec un niveau de risque par défaut NOCA 2
+  // (impact financier/niveau hiérarchique/récidive/réputation = 2 sur 4
+  // chacun, via la vraie fonction `computeRiskEvaluation` — jamais un
+  // score inventé à la main), à affiner ensuite depuis l'onglet
+  // Allégations comme pour tout autre dossier.
+  const handleCreateCase = async () => {
+    if (!newCaseObjet.trim() || !newCaseCountry || !newCaseEntity || !newCaseCategory || !newCaseSubCategory) return;
+    setIsCreatingCase(true);
+
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const trackingNumber = `ACT-2026-${randomSuffix}`;
+    const generatedPassword = generateAccessPassword();
+    const accessCodeSalt = generateSalt();
+    const accessCodeHash = await hashPassword(generatedPassword, accessCodeSalt);
+
+    const slaConfig = storage.getSlaConfig();
+    const riskEvaluation = computeRiskEvaluation(2, 2, 2, 2, slaConfig);
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + slaConfig.noca2Days);
+
+    const newRecord: AlertRecord = {
+      id: 'alt-' + Date.now(),
+      trackingNumber,
+      accessCodeHash,
+      accessCodeSalt,
+      // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+      // 'direct' : dossier saisi directement par un opérateur (téléphone,
+      // rencontre en personne...), distinct de 'web' (formulaire public
+      // en ligne) et 'qr_code' — les 3 valeurs réelles du canal existant.
+      channel: 'direct',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      targetCompletionDate: targetDate.toISOString(),
+      confidentialityLevel: 'confidential',
+      whistleblower: { isAnonymous: true, declarantType: 'Employé' },
+      category: newCaseCategory,
+      subCategory: newCaseSubCategory,
+      detailedDescription: newCaseObjet.trim(),
+      incidentDates: t.create_case_dates_unspecified,
+      incidentLocation: newCaseEntity,
+      concernedEntity: newCaseEntity,
+      country: newCaseCountry,
+      riskEvaluation,
+      impactType: newCaseCategory,
+      involvedPersons: [],
+      witnesses: [],
+      evidences: [],
+      status: 'new',
+      assignedInvestigators: [],
+      assignedInvestigatorNames: [],
+      internalNotes: [],
+      messages: [
+        {
+          id: 'msg-init',
+          sender: 'admin',
+          senderDisplayName: `DARC (${activeUser.name})`,
+          content: `Dossier créé par ${activeUser.name} sous la référence ${trackingNumber}. Classification provisoire : ${riskEvaluation.nocaThreshold} (${riskEvaluation.expectedTreatment}).`,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      correctiveMeasures: [],
+    };
+
+    storage.saveAlert(newRecord);
+    storage.logAudit(
+      'ALERT_SUBMITTED',
+      `Nouveau dossier créé par un opérateur : ${trackingNumber} (${newRecord.category} - ${newRecord.concernedEntity}). Classification provisoire : ${riskEvaluation.nocaThreshold}.`,
+      { id: newRecord.id, trackingNumber: newRecord.trackingNumber },
+      activeUser
+    );
+
+    setIsCreatingCase(false);
+    setShowCreateCaseModal(false);
+    setCreateCaseStep(1);
+    setNewCaseObjet('');
+    setNewCaseCountry('');
+    setNewCaseEntity('');
+    setNewCaseCategory('');
+    setNewCaseSubCategory('');
+    setSelectedAlertId(newRecord.id);
+    setViewMode('detail');
+  };
+
   // === AMÉLIORATION AJOUTÉE (Phase 6) === Task management, via the Phase 1
   // storage.addTask/updateTask pair — same audit+notify pattern as every
   // other mutation here.
@@ -564,6 +849,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         name: personNameInput.trim(),
         position: personPositionInput.trim(),
         hierarchyRole: personHierarchyInput,
+        // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+        linkedUserId: personLinkedUserId || undefined,
       };
       storage.saveAlert({ ...selectedAlert, involvedPersons: [...selectedAlert.involvedPersons, entry], updatedAt: new Date().toISOString() });
     } else {
@@ -572,13 +859,52 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         name: personNameInput.trim(),
         position: personPositionInput.trim(),
         hierarchyRole: personHierarchyInput,
+        // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+        linkedUserId: personLinkedUserId || undefined,
       };
       storage.saveAlert({ ...selectedAlert, witnesses: [...selectedAlert.witnesses, entry], updatedAt: new Date().toISOString() });
+    }
+    // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+    // Un rattachement défini dès la création déclenche immédiatement le
+    // routage indépendant (storage.triggerIndependentRouting, Phase 4).
+    if (personLinkedUserId) {
+      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
     }
     setAddPersonKind(null);
     setPersonNameInput('');
     setPersonPositionInput('');
     setPersonHierarchyInput('Employé');
+    // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+    setPersonLinkedUserId('');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+  // Rattache (ou modifie le rattachement) d'une personne/témoin déjà
+  // enregistré·e à un compte réel de la plateforme. Dès que le
+  // rattachement résultant est défini (nouveau lien ou changement de
+  // compte lié), déclenche le routage indépendant (Phase 4) — voir
+  // storage.triggerIndependentRouting ci-dessous.
+  const handleLinkPerson = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAlert || !linkingPerson) return;
+    const resolvedUserId = linkingUserId || undefined;
+    if (linkingPerson.kind === 'subject') {
+      const involvedPersons = selectedAlert.involvedPersons.map((p) =>
+        p.id === linkingPerson.id ? { ...p, linkedUserId: resolvedUserId } : p
+      );
+      storage.saveAlert({ ...selectedAlert, involvedPersons, updatedAt: new Date().toISOString() });
+    } else {
+      const witnesses = selectedAlert.witnesses.map((w) =>
+        w.id === linkingPerson.id ? { ...w, linkedUserId: resolvedUserId } : w
+      );
+      storage.saveAlert({ ...selectedAlert, witnesses, updatedAt: new Date().toISOString() });
+    }
+    // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+    if (resolvedUserId) {
+      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+    }
+    setLinkingPerson(null);
+    setLinkingUserId('');
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 11) === "+ Ajouter" sur Preuves & pièces jointes.
@@ -799,6 +1125,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         </div>
       </div>
 
+      {/* === AMÉLIORATION AJOUTÉE (Phase 6 — routage indépendant) ===
+          Bandeau neutre : jamais de nombre, jamais de nom, jamais de motif —
+          uniquement une mention générique de l'existence du mécanisme, pour
+          ne révéler à aucun utilisateur exclu qu'un dossier précis le
+          concerne. Visible quel que soit viewMode (liste ou détail), sur
+          toutes les routes /operator/ et /investigator/ qui réutilisent
+          cet écran. */}
+      {hasConfidentialRoutingExclusion && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">
+          <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span>Certains signalements sont soumis à un routage confidentiel.</span>
+        </div>
+      )}
+
       {/* Filter bar */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-3 text-xs">
         <div className="flex-1 min-w-[200px] relative">
@@ -884,84 +1224,170 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           screen, shown one at a time via viewMode — replacing the previous
           always-both split-pane. Same data, same filters, same handlers. */}
       {viewMode === 'list' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-700 uppercase tracking-wider">
-              Dossiers ({visibleAlerts.length})
-            </span>
-            <span className="text-[11px] text-slate-500">
-              {isGlobalViewer ? 'Toutes filiales' : 'Assignés'}
-            </span>
+        <div className="space-y-3">
+          {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+              Onglets de filtre par panier de statut + bouton "+ Nouveau",
+              façon maquette. Les filtres détaillés existants (recherche,
+              statut précis, entité, NOCA, non-attribués, en retard) restent
+              inchangés dans le bloc "Filtre bar" juste au-dessus — rien
+              n'est retiré, ce nouveau raccourci s'ajoute simplement. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              {(
+                [
+                  ['all', t.db_bucket_tous],
+                  ['a_traiter', t.db_bucket_a_traiter],
+                  ['en_cours', t.db_bucket_en_cours],
+                  ['en_attente', t.db_bucket_en_attente],
+                  ['clotures', t.db_bucket_clotures],
+                  ['rejetes', t.db_bucket_rejetes],
+                ] as [AlertStatusBucket | 'all', string][]
+              ).map(([bucket, label]) => (
+                <button
+                  key={bucket}
+                  onClick={() => setBucketFilter(bucket)}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition border ${
+                    bucketFilter === bucket
+                      ? 'bg-[#0B2545] text-white border-[#0B2545]'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                  }`}
+                >
+                  {label} ({bucketTabCounts[bucket]})
+                </button>
+              ))}
+            </div>
+            {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau
+                dossier) === ouvre désormais la vraie modale de création
+                (voir plus bas) plutôt que de renvoyer vers le formulaire
+                public. `onCreateNewCase` reste une prop déclarée (câblée
+                par tous les appelants existants dans App.tsx) mais n'est
+                plus utilisée ici — conservée pour un éventuel appelant
+                futur qui préférerait rediriger plutôt qu'ouvrir la
+                modale. */}
+            <button
+              onClick={() => setShowCreateCaseModal(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" /> {t.db_new_case_button}
+            </button>
           </div>
 
-          {visibleAlerts.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-500">
-              Aucun dossier ne correspond à vos critères de filtrage.
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-700 uppercase tracking-wider">
+                Dossiers ({visibleAlerts.length})
+              </span>
+              <span className="text-[11px] text-slate-500">
+                {isGlobalViewer ? 'Toutes filiales' : 'Assignés'}
+              </span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-4">
-              {visibleAlerts.map((alert) => {
-                const isSelected = selectedAlert?.id === alert.id;
-                return (
-                  <div
-                    key={alert.id}
-                    onClick={() => {
-                      setSelectedAlertId(alert.id);
-                      setViewMode('detail');
-                      storage.logAudit(
-                        'ALERT_ACCESSED',
-                        `Consultation de la fiche dossier ${alert.trackingNumber} par ${activeUser.name}.`,
-                        { id: alert.id, trackingNumber: alert.trackingNumber },
-                        activeUser
-                      );
-                    }}
-                    className={`p-4 rounded-xl border cursor-pointer transition ${
-                      isSelected
-                        ? 'bg-blue-50/70 border-blue-400 ring-1 ring-blue-200'
-                        : 'border-slate-200 hover:border-blue-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-mono font-bold text-xs text-[#0B2545] flex items-center gap-1.5">
-                        {alert.trackingNumber}
-                        {getConfidentialityBadge(alert)}
-                      </span>
-                      {getPriorityBadge(alert)}
-                    </div>
 
-                    <div className="font-semibold text-xs text-slate-900 line-clamp-1 mb-1">
-                      {alert.category}
-                    </div>
-
-                    <div className="text-[11px] text-slate-600 line-clamp-2 mb-2">
-                      {alert.detailedDescription}
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-slate-100">
-                      <span className="flex items-center gap-1 font-medium text-slate-700 truncate max-w-[160px]">
-                        <Building2 className="w-3 h-3 text-slate-400" />
-                        {alert.concernedEntity}
-                      </span>
-
-                      <div className="flex items-center gap-2">
-                        {alert.messages.length > 0 && (
-                          <span className="flex items-center gap-0.5 text-blue-600 font-semibold">
-                            <MessageSquare className="w-3 h-3" />
-                            {alert.messages.length}
-                          </span>
-                        )}
-                        <span className={`font-semibold ${
-                          alert.status === 'closed' ? 'text-emerald-700' : 'text-slate-600'
-                        }`}>
-                          {alert.status.toUpperCase()}
+            <div className="p-4">
+              <DataTable
+                columns={
+                  [
+                    {
+                      key: 'id',
+                      header: 'N° Dossier',
+                      render: (alert) => (
+                        <span className="font-mono font-bold text-[#0B2545] flex items-center gap-1.5">
+                          {alert.trackingNumber}
+                          {getConfidentialityBadge(alert)}
                         </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                      ),
+                    },
+                    {
+                      key: 'object',
+                      header: 'Objet',
+                      render: (alert) => <span className="line-clamp-1 max-w-[220px]">{alert.detailedDescription}</span>,
+                      hideOnMobile: true,
+                    },
+                    {
+                      key: 'country_entity',
+                      header: 'Pays / Entité',
+                      render: (alert) => (
+                        <span className="flex items-center gap-1 truncate max-w-[160px]">
+                          <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+                          {alert.concernedEntity}
+                        </span>
+                      ),
+                      hideOnMobile: true,
+                    },
+                    { key: 'category', header: 'Catégorie', render: (alert) => alert.category },
+                    {
+                      key: 'status',
+                      header: 'Statut',
+                      render: (alert) => (
+                        <StatusBadge
+                          status={alert.status === 'corrective_action' ? 'closed' : (alert.status as any)}
+                          label={t[`status_${alert.status}` as keyof typeof t] ?? alert.status}
+                          size="sm"
+                        />
+                      ),
+                    },
+                    { key: 'priority', header: 'Priorité', render: (alert) => getPriorityBadge(alert) },
+                    {
+                      key: 'received',
+                      header: 'Reçu le',
+                      render: (alert) => new Date(alert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'),
+                      hideOnMobile: true,
+                    },
+                  ] as DataTableColumn<AlertRecord>[]
+                }
+                rows={pagedAlerts}
+                getRowKey={(alert) => alert.id}
+                onRowClick={(alert) => {
+                  setSelectedAlertId(alert.id);
+                  setViewMode('detail');
+                  storage.logAudit(
+                    'ALERT_ACCESSED',
+                    `Consultation de la fiche dossier ${alert.trackingNumber} par ${activeUser.name}.`,
+                    { id: alert.id, trackingNumber: alert.trackingNumber },
+                    activeUser
+                  );
+                }}
+                emptyTitle="Aucun dossier ne correspond à vos critères de filtrage."
+              />
             </div>
-          )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === */}
+            {visibleAlerts.length > 0 && totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-[11px] text-slate-500">
+                <span>{visibleAlerts.length} résultats</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                    .map((p, idx, arr) => (
+                      <React.Fragment key={p}>
+                        {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-slate-300">…</span>}
+                        <button
+                          onClick={() => setCurrentPage(p)}
+                          className={`w-7 h-7 rounded-lg font-bold ${
+                            p === currentPage ? 'bg-[#0B2545] text-white' : 'border border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1388,16 +1814,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                         ) : (
                           <div className="space-y-1.5">
                             {list.map((p) => (
-                              <div key={p.id} className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-lg border border-slate-100">
-                                <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                                  {(p.name || '??').slice(0, 2).toUpperCase()}
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                  <span className="font-bold text-slate-900 block truncate">{p.name || 'Confidentiel'}</span>
-                                  <div className="text-[11px] text-slate-500 truncate">{p.position} • {p.hierarchyRole}</div>
-                                </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                              </div>
+                              <PersonRow
+                                key={p.id}
+                                person={p}
+                                users={allUsers}
+                                dense
+                                onLinkClick={() => { setLinkingPerson({ kind, id: p.id, currentName: p.name }); setLinkingUserId(p.linkedUserId ?? ''); }}
+                              />
                             ))}
                           </div>
                         )}
@@ -1450,9 +1873,33 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             {addPersonKind && (
               <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
                 <form onSubmit={handleAddPerson} className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-3 text-xs">
-                  <h3 className="text-sm font-bold text-slate-900">
-                    {addPersonKind === 'subject' ? 'Ajouter une personne impliquée' : 'Ajouter un témoin'}
-                  </h3>
+                  <h3 className="text-sm font-bold text-slate-900">{t.person_modal_title}</h3>
+                  {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une
+                      personne) === pills "Type de personne" façon maquette —
+                      permet de choisir/changer la liste cible (Personnes
+                      impliquées ou Témoins) directement dans la modale,
+                      plutôt que par deux boutons "+ Ajouter" distincts
+                      seulement. Pas de pill "Autre" : aucune 3e liste
+                      n'existe sur AlertRecord (seuls `involvedPersons` et
+                      `witnesses`) — l'ajouter aurait été une catégorie sans
+                      donnée réelle derrière (brief §32). */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{t.person_modal_type}</label>
+                    <div className="flex gap-1.5">
+                      {(['subject', 'witness'] as const).map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setAddPersonKind(k)}
+                          className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition ${
+                            addPersonKind === k ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                          }`}
+                        >
+                          {k === 'subject' ? t.person_modal_kind_subject : t.person_modal_kind_witness}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <input
                     autoFocus
                     value={personNameInput}
@@ -1476,9 +1923,33 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     <option value="Sous-Directeur">Sous-Directeur</option>
                     <option value="Directeur+">Directeur+</option>
                   </select>
+                  {/* === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) === */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Rattachement à un compte (facultatif)</label>
+                    <LinkedAccountSelect users={allUsers} value={personLinkedUserId} onChange={setPersonLinkedUserId} />
+                  </div>
                   <div className="flex justify-end gap-2 pt-2">
                     <button type="button" onClick={() => setAddPersonKind(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
                     <button type="submit" disabled={!personNameInput.trim()} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold">{t.case_btn_add}</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) === Modale "Lier à un compte" pour une personne/témoin déjà enregistré·e */}
+            {linkingPerson && (
+              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                <form onSubmit={handleLinkPerson} className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-3 text-xs">
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Lier « {linkingPerson.currentName || 'Confidentiel'} » à un compte
+                  </h3>
+                  <p className="text-slate-500">
+                    Si vous reconnaissez cette personne comme un collaborateur de la plateforme, rattachez-la à son compte réel. Le routage indépendant l'exclura alors automatiquement de l'accès à ce dossier.
+                  </p>
+                  <LinkedAccountSelect users={allUsers} value={linkingUserId} onChange={setLinkingUserId} />
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={() => setLinkingPerson(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+                    <button type="submit" className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">Enregistrer</button>
                   </div>
                 </form>
               </div>
@@ -1510,16 +1981,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       ) : (
                         <div className="space-y-1.5">
                           {list.map((p) => (
-                            <div key={p.id} className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-                              <span className="w-9 h-9 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0 text-xs">
-                                {(p.name || '??').slice(0, 2).toUpperCase()}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <span className="font-bold text-slate-900 block truncate">{p.name || 'Confidentiel'}</span>
-                                <div className="text-[11px] text-slate-500 truncate">{p.position} • {p.hierarchyRole}</div>
-                              </div>
-                              <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                            </div>
+                            <PersonRow
+                              key={p.id}
+                              person={p}
+                              users={allUsers}
+                              dense={false}
+                              onLinkClick={() => { setLinkingPerson({ kind, id: p.id, currentName: p.name }); setLinkingUserId(p.linkedUserId ?? ''); }}
+                            />
                           ))}
                         </div>
                       )}
@@ -1875,6 +2343,21 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 path. */}
             {activeCaseTab === 'triage' && (
               <div className="p-6 space-y-5 max-h-[640px] overflow-y-auto text-xs">
+                {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
+                    "Récit de l'allégation" + bouton "Réattribuer" façon
+                    maquette — réutilise la modale d'attribution déjà
+                    existante (Actions > Assigner), jamais une seconde
+                    modale dupliquée. */}
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">{t.allegation_narrative_title}</h3>
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700 transition"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" /> {t.allegation_reassign}
+                  </button>
+                </div>
+
                 {/* === AMÉLIORATION AJOUTÉE (Phase 11) === résumé de la
                     qualification (catégorie/sous-catégorie/description),
                     pour que l'onglet "Allégations" présente d'abord ce que
@@ -1888,6 +2371,58 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   <p className="pt-2 border-t border-slate-100 leading-relaxed text-slate-700 whitespace-pre-wrap">
                     {selectedAlert.detailedDescription}
                   </p>
+                </div>
+
+                {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
+                    "Éléments clés" / "Classification" façon maquette —
+                    chaque champ réutilise une donnée réelle déjà existante
+                    sur AlertRecord (jamais une valeur fabriquée) ; "—"
+                    quand la donnée est absente (ex. dossier créé avant
+                    qu'un champ optionnel n'existe). Pas de ligne
+                    "Mots-clés" : aucun champ de ce type n'existe sur
+                    AlertRecord aujourd'hui — ajoutée uniquement si un vrai
+                    champ voit le jour, plutôt que d'inventer des tags
+                    (brief §32). */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5">
+                    <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-100">
+                      {t.allegation_key_elements}
+                    </div>
+                    {[
+                      [t.allegation_type, selectedAlert.customViolationType || selectedAlert.subCategory],
+                      [t.allegation_estimated_amount, selectedAlert.estimatedImpactValue || '—'],
+                      [t.allegation_period, selectedAlert.incidentDates || '—'],
+                      [t.allegation_location, selectedAlert.incidentLocation || '—'],
+                      [t.allegation_persons_cited, String(selectedAlert.involvedPersons.length)],
+                      [t.allegation_entities_concerned, selectedAlert.concernedEntity],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between gap-2">
+                        <span className="text-slate-500">{label}</span>
+                        <span className="font-semibold text-slate-900 text-right truncate max-w-[55%]">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5">
+                    <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-100">
+                      {t.allegation_classification}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-500">{t.allegation_noca}</span>
+                      <span className="font-semibold text-slate-900">{selectedAlert.riskEvaluation.nocaThreshold}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-500">{t.allegation_severity}</span>
+                      <span className="font-semibold text-slate-900">
+                        {selectedAlert.severity ? t[`severity_${selectedAlert.severity}` as keyof typeof t] ?? selectedAlert.severity : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-500">{t.allegation_sensitivity}</span>
+                      <span className="font-semibold text-slate-900">
+                        {t[`confidentiality_${selectedAlert.confidentialityLevel ?? 'restricted'}` as keyof typeof t] ?? (selectedAlert.confidentialityLevel ?? 'restricted')}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
@@ -2501,15 +3036,24 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t.task_priority_label}</label>
-                <select
-                  value={taskPriority}
-                  onChange={(e: any) => setTaskPriority(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                >
-                  <option value="low">{t.task_priority_low}</option>
-                  <option value="medium">{t.task_priority_medium}</option>
-                  <option value="high">{t.task_priority_high}</option>
-                </select>
+                {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une
+                    tâche) === pills façon maquette au lieu d'un <select> —
+                    même état `taskPriority`, mêmes 3 valeurs réelles
+                    (TaskPriority), rien d'autre ne change. */}
+                <div className="flex gap-1.5">
+                  {(['low', 'medium', 'high'] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setTaskPriority(p)}
+                      className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition ${
+                        taskPriority === p ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                      }`}
+                    >
+                      {p === 'low' ? t.task_priority_low : p === 'medium' ? t.task_priority_medium : t.task_priority_high}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
@@ -2739,6 +3283,190 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+          Modale courte à 3 étapes façon maquette (Informations/
+          Classification/Validation) — visuels validés par l'utilisateur
+          avant intégration finale. */}
+      {showCreateCaseModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau
+              dossier) === un <div>, pas un <form> : avec 2 boutons qui
+              partagent la même position mais changent de `type`
+              (button → submit) selon l'étape, un <form> déclenchait une
+              soumission native imprévue au moment même où React réécrit
+              l'attribut `type` du bouton en place (juste avant l'action
+              par défaut du clic) — bug confirmé en test Playwright, corrigé
+              en gérant la validation "Suivant"/"Créer" entièrement par
+              handlers, sans jamais dépendre de la sémantique native d'un
+              formulaire. */}
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">{t.create_case_title}</h3>
+              {/* Step indicator */}
+              <div className="flex items-center gap-2 mt-2.5">
+                {([1, 2, 3] as const).map((step) => (
+                  <React.Fragment key={step}>
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        step === createCaseStep
+                          ? 'bg-blue-600 text-white'
+                          : step < createCaseStep
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-slate-100 text-slate-400'
+                      }`}
+                    >
+                      {step < createCaseStep ? <Check className="w-3 h-3" /> : step}
+                    </span>
+                    <span className={`text-[10px] font-semibold ${step === createCaseStep ? 'text-slate-800' : 'text-slate-400'}`}>
+                      {step === 1 ? t.create_case_step_info : step === 2 ? t.create_case_step_classification : t.create_case_step_validation}
+                    </span>
+                    {step < 3 && <span className="flex-1 h-px bg-slate-200" />}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+
+            {createCaseStep === 1 && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.create_case_objet} *</label>
+                  <textarea
+                    autoFocus
+                    rows={3}
+                    value={newCaseObjet}
+                    onChange={(e) => setNewCaseObjet(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">{t.create_case_country} *</label>
+                    <select
+                      value={newCaseCountry}
+                      onChange={(e) => {
+                        setNewCaseCountry(e.target.value);
+                        setNewCaseEntity('');
+                      }}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                      required
+                    >
+                      <option value="">—</option>
+                      {countries.map((c) => (
+                        <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">{t.create_case_entity} *</label>
+                    <select
+                      value={newCaseEntity}
+                      onChange={(e) => setNewCaseEntity(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                      required
+                    >
+                      <option value="">—</option>
+                      {newCaseEntityOptions.map((en) => (
+                        <option key={en.id} value={en.name}>{en.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {createCaseStep === 2 && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.create_case_category} *</label>
+                  <select
+                    value={newCaseCategory}
+                    onChange={(e) => {
+                      setNewCaseCategory(e.target.value);
+                      setNewCaseSubCategory('');
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                    required
+                  >
+                    <option value="">—</option>
+                    {categoriesConfig.map((c) => (
+                      <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.create_case_subcategory} *</label>
+                  <select
+                    value={newCaseSubCategory}
+                    onChange={(e) => setNewCaseSubCategory(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                    disabled={!newCaseCategory}
+                    required
+                  >
+                    <option value="">—</option>
+                    {newCaseSubCategoryOptions.map((sc) => (
+                      <option key={sc} value={sc}>{sc}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                  {t.create_case_default_risk_notice}
+                </p>
+              </div>
+            )}
+
+            {createCaseStep === 3 && (
+              <div className="space-y-2.5">
+                <div className="p-3.5 rounded-xl border border-slate-200 space-y-2">
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_objet}</span><span className="font-semibold text-slate-900 text-right max-w-[60%] truncate">{newCaseObjet}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_country}</span><span className="font-semibold text-slate-900">{newCaseCountry}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_entity}</span><span className="font-semibold text-slate-900">{newCaseEntity}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_category}</span><span className="font-semibold text-slate-900">{newCaseCategory}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_subcategory}</span><span className="font-semibold text-slate-900">{newCaseSubCategory}</span></div>
+                  <div className="flex justify-between pt-2 border-t border-slate-100"><span className="text-slate-500">{t.create_case_default_risk_label}</span><span className="font-bold text-amber-700">NOCA 2</span></div>
+                </div>
+                <p className="text-[11px] text-slate-500">{t.create_case_validation_notice}</p>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  if (createCaseStep === 1) setShowCreateCaseModal(false);
+                  else setCreateCaseStep((s) => (s - 1) as 1 | 2 | 3);
+                }}
+                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                {createCaseStep === 1 ? t.btn_cancel : t.create_case_back}
+              </button>
+              {createCaseStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (createCaseStep === 1 && (!newCaseObjet.trim() || !newCaseCountry || !newCaseEntity)) return;
+                    setCreateCaseStep((s) => (s + 1) as 1 | 2 | 3);
+                  }}
+                  disabled={createCaseStep === 1 && (!newCaseObjet.trim() || !newCaseCountry || !newCaseEntity)}
+                  className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold"
+                >
+                  {t.create_case_next}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleCreateCase()}
+                  disabled={isCreatingCase || !newCaseCategory || !newCaseSubCategory}
+                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold"
+                >
+                  {isCreatingCase ? t.create_case_creating : t.create_case_confirm}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

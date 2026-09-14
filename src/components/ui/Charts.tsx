@@ -139,6 +139,45 @@ interface MiniBarChartProps {
   height?: number;
 }
 
+// === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord, "Top 5 pays" /
+// "Top 5 catégories") ===
+// Liste de barres HORIZONTALES (étiquette à gauche, barre proportionnelle,
+// valeur à droite) — étend le fichier plutôt que de le modifier, même
+// principe que MiniLineChart/MiniDonutChart/MiniBarChart ci-dessus.
+// Réutilise le motif CSS déjà existant dans ReportingDashboard.tsx
+// (`bg-slate-100 rounded-full` + barre colorée en `width: X%`) sous forme
+// de composant partagé, plutôt que de le dupliquer une troisième fois.
+export interface HBarDatum {
+  label: string;
+  value: number;
+  color?: string;
+}
+
+interface MiniHBarListProps {
+  data: HBarDatum[];
+  color?: string;
+}
+
+export const MiniHBarList: React.FC<MiniHBarListProps> = ({ data, color = '#2563eb' }) => {
+  const max = Math.max(1, ...data.map((d) => d.value));
+  return (
+    <ul className="space-y-2.5">
+      {data.map((d, i) => (
+        <li key={i} className="flex items-center gap-2.5">
+          <span className="w-20 sm:w-24 shrink-0 text-[11px] font-semibold text-slate-600 truncate">{d.label}</span>
+          <span className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+            <span
+              className="block h-2 rounded-full transition-all"
+              style={{ width: `${(d.value / max) * 100}%`, backgroundColor: d.color ?? color }}
+            />
+          </span>
+          <span className="w-5 shrink-0 text-right text-[11px] font-extrabold text-slate-800">{d.value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
 export const MiniBarChart: React.FC<MiniBarChartProps> = ({ data, height = 140 }) => {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (

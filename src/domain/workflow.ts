@@ -20,8 +20,22 @@ import { Case, CaseStatus, CorrectiveAction, Allegation } from './caseTypes';
  *   → ESCALATED → CONCLUSION_PENDING → FUNCTIONAL_REVIEW → CLOSED → REOPENED → ARCHIVED
  * plus the side-statuses (DUPLICATE, OUT_OF_SCOPE) reachable only from early triage,
  * and REOPENED looping back into INVESTIGATION.
+ *
+ * === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+ * Exportée (était privée à ce module) et renommée en DEFAULT_TRANSITIONS
+ * dans son rôle : c'est désormais la valeur PAR DÉFAUT/de repli, jamais
+ * modifiée elle-même — storage.ts en seed une copie mutable et persistée
+ * (même motif seed-then-mutate que hierarchyLevels/rolePermissions), que
+ * `setWorkflowTransitions()` ci-dessous pousse dans l'état effectif que
+ * `isStructurallyValidTransition` consulte réellement. Contrairement à
+ * domain/permissions.ts (voir domain/permissionOverrides.ts), ce module
+ * n'a AUCUNE dépendance transitive vers services/storage.ts ou
+ * services/authz.ts (seul `./caseTypes`, un module de purs types) — l'état
+ * mutable peut donc vivre directement ici, sans fichier-pont séparé, tout
+ * en restant "storage-agnostic" au sens où ce fichier n'importe jamais
+ * storage.ts lui-même (c'est storage.ts qui l'appelle, jamais l'inverse).
  */
-const ALLOWED_TRANSITIONS: Record<CaseStatus, CaseStatus[]> = {
+export const ALLOWED_TRANSITIONS: Record<CaseStatus, CaseStatus[]> = {
   new: ['triage', 'duplicate', 'out_of_scope'],
   triage: ['under_review', 'duplicate', 'out_of_scope'],
   under_review: ['assigned', 'pending_information', 'duplicate', 'out_of_scope'],
@@ -38,6 +52,23 @@ const ALLOWED_TRANSITIONS: Record<CaseStatus, CaseStatus[]> = {
   out_of_scope: ['archived'],
 };
 
+// === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+// État effectif consulté par isStructurallyValidTransition — tant que
+// storage.ts n'a rien poussé (ex. ce module utilisé isolément, ou par les
+// tests de workflow.test.ts, qui n'importent jamais storage.ts), reste
+// strictement égal à ALLOWED_TRANSITIONS : comportement inchangé pour
+// quiconque n'édite jamais cette table en administration.
+let effectiveTransitions: Record<CaseStatus, CaseStatus[]> = ALLOWED_TRANSITIONS;
+
+/** Appelé par storage.ts — jamais directement par un écran. */
+export function setWorkflowTransitions(next: Record<CaseStatus, CaseStatus[]>): void {
+  effectiveTransitions = next;
+}
+
+export function getWorkflowTransitions(): Record<CaseStatus, CaseStatus[]> {
+  return effectiveTransitions;
+}
+
 export interface TransitionCheckResult {
   allowed: boolean;
   reason?: string;
@@ -46,7 +77,7 @@ export interface TransitionCheckResult {
 /** Pure structural check: is `to` reachable from `from` at all? */
 export function isStructurallyValidTransition(from: CaseStatus, to: CaseStatus): boolean {
   if (from === to) return false;
-  return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
+  return effectiveTransitions[from]?.includes(to) ?? false;
 }
 
 /**

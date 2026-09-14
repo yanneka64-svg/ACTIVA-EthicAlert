@@ -14,11 +14,15 @@ import {
   Cloud,
   Server,
   Pencil,
-  X
+  X,
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+  Network,
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  GitBranch,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { EntityDef, CategoryDef, CountryDef } from '../data/activaConfig';
+import { EntityDef, CategoryDef, CountryDef, HierarchyLevels } from '../data/activaConfig';
 import { storage } from '../services/storage';
 import {
   isFirebaseConfigured,
@@ -30,8 +34,12 @@ import {
 // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
 // Read-only: this screen only imports and displays this real, already-
 // existing data — src/domain/permissions.ts itself is never modified.
-import { ROLE_PERMISSIONS, Permission } from '../domain/permissions';
-import { RoleId } from '../domain/caseTypes';
+import { Permission } from '../domain/permissions';
+import { RoleId, CaseStatus } from '../domain/caseTypes';
+// === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+import { getRoutingMatrixView } from '../domain/independentRouting';
+// === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+import { CASE_STATUS_LABELS } from '../domain/workflow';
 
 interface AdminConfigViewProps {
   lang: Language;
@@ -45,7 +53,9 @@ interface AdminConfigViewProps {
   // n'est retiré, le sélecteur d'onglets complet reste toujours visible et
   // navigable, exactement comme avant.
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
-  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database';
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === 'governance'
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === 'workflow'
+  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow';
 }
 
 export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
@@ -55,7 +65,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database'>(initialTab ?? 'matrix');
+  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow'>(initialTab ?? 'matrix');
   const [saveBanner, setSaveBanner] = useState('');
 
   // Firebase connection state
@@ -98,6 +108,91 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     e.preventDefault();
     storage.updateSlaConfig({ noca1Days: slaNoca1, noca2Days: slaNoca2, noca3Days: slaNoca3, noca4Days: slaNoca4 }, activeUser);
     flashBanner('Délais SLA mis à jour.');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+  // --- Hierarchy levels state (routage indépendant) --- même motif
+  // seed-then-edit-then-save que la configuration SLA ci-dessus : une
+  // copie locale éditée puis sauvegardée explicitement, jamais écrite
+  // directement dans storage.ts à chaque frappe.
+  const [hierarchyLevelsDraft, setHierarchyLevelsDraft] = useState<HierarchyLevels>(storage.getHierarchyLevels());
+  const handleSaveHierarchyLevels = (e: React.FormEvent) => {
+    e.preventDefault();
+    storage.updateHierarchyLevels(hierarchyLevelsDraft, activeUser);
+    flashBanner('Niveaux hiérarchiques de routage indépendant mis à jour.');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  // --- Role permissions state --- même motif seed-then-edit-then-save que
+  // la configuration SLA/gouvernance ci-dessus. `rolePermissionsDraft` est
+  // une copie locale éditée par cases à cocher ; seul un clic sur
+  // "Enregistrer" persiste réellement (storage.updateRolePermissions),
+  // et uniquement pour les rôles dont la liste a changé — pour ne pas
+  // journaliser 10 entrées d'audit identiques à chaque sauvegarde.
+  const [rolePermissionsDraft, setRolePermissionsDraft] = useState<Record<RoleId, Permission[]>>(storage.getRolePermissions());
+  // Empêche de se retirer soi-même (ou tout système_admin) l'accès à cet
+  // écran — même principe de garde anti-auto-verrouillage déjà appliqué à
+  // la suppression de son propre compte (handleDeleteUser ci-dessous) :
+  // sans configuration.manage, PERSONNE ne peut plus revenir ici pour la
+  // réactiver, puisque cet onglet lui-même est gardé par
+  // canManageConfiguration.
+  const isProtectedPermissionCell = (role: RoleId, permission: Permission) =>
+    role === 'system_admin' && permission === 'configuration.manage';
+  const toggleRolePermissionDraft = (role: RoleId, permission: Permission) => {
+    if (isProtectedPermissionCell(role, permission)) return;
+    setRolePermissionsDraft((prev) => {
+      const current = prev[role] ?? [];
+      const next = current.includes(permission)
+        ? current.filter((p) => p !== permission)
+        : [...current, permission];
+      return { ...prev, [role]: next };
+    });
+  };
+  const handleSaveRolePermissions = (e: React.FormEvent) => {
+    e.preventDefault();
+    const saved = storage.getRolePermissions();
+    let changedCount = 0;
+    for (const role of ALL_ROLE_IDS) {
+      const before = [...(saved[role] ?? [])].sort();
+      const after = [...(rolePermissionsDraft[role] ?? [])].sort();
+      const unchanged = before.length === after.length && before.every((p, i) => p === after[i]);
+      if (!unchanged) {
+        storage.updateRolePermissions(role, rolePermissionsDraft[role], activeUser);
+        changedCount += 1;
+      }
+    }
+    flashBanner(changedCount > 0 ? `Permissions mises à jour pour ${changedCount} rôle(s).` : 'Aucune modification à enregistrer.');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  // --- Workflow transitions state --- même motif seed-then-edit-then-save
+  // que rolePermissionsDraft ci-dessus : une copie locale éditée par cases
+  // à cocher (colonnes = statuts CIBLES accessibles depuis la ligne =
+  // statut SOURCE), sauvegardée uniquement pour les statuts dont la liste
+  // a changé.
+  const [workflowTransitionsDraft, setWorkflowTransitionsDraft] = useState<Record<CaseStatus, CaseStatus[]>>(storage.getWorkflowTransitions());
+  const toggleWorkflowTransitionDraft = (status: CaseStatus, target: CaseStatus) => {
+    if (status === target) return; // une transition vers soi-même n'a jamais de sens (isStructurallyValidTransition la refuse de toute façon)
+    setWorkflowTransitionsDraft((prev) => {
+      const current = prev[status] ?? [];
+      const next = current.includes(target) ? current.filter((s) => s !== target) : [...current, target];
+      return { ...prev, [status]: next };
+    });
+  };
+  const handleSaveWorkflowTransitions = (e: React.FormEvent) => {
+    e.preventDefault();
+    const saved = storage.getWorkflowTransitions();
+    let changedCount = 0;
+    for (const status of ALL_CASE_STATUSES) {
+      const before = [...(saved[status] ?? [])].sort();
+      const after = [...(workflowTransitionsDraft[status] ?? [])].sort();
+      const unchanged = before.length === after.length && before.every((s, i) => s === after[i]);
+      if (!unchanged) {
+        storage.updateWorkflowTransitions(status, workflowTransitionsDraft[status], activeUser);
+        changedCount += 1;
+      }
+    }
+    flashBanner(changedCount > 0 ? `Transitions mises à jour pour ${changedCount} statut(s).` : 'Aucune modification à enregistrer.');
   };
 
   // --- Entities CRUD state ---
@@ -417,8 +512,11 @@ service cloud.firestore {
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
-  // Pure display data over the real ROLE_PERMISSIONS table — "no new logic
-  // needed, just a UI" per the plan.
+  // Structure d'affichage (groupes/libellés) au-dessus de la table réelle.
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === n'est plus
+  // un affichage pur : la case cochée/décochée vient désormais de
+  // `rolePermissionsDraft` (storage.getRolePermissions()), pas de la
+  // constante ROLE_PERMISSIONS statique importée ci-dessus.
   // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu à 10 rôles) === les 2
   // nouveaux rôles (security_admin, audit_committee) suivent exactement le
   // même principe d'affichage pur que les 8 précédents — voir
@@ -431,6 +529,15 @@ service cloud.firestore {
   // d'affichage : il énumère TOUTES les valeurs possibles, y compris
   // celles qu'aucun compte de démonstration n'utilise encore.
   const ALL_ROLE_IDS: RoleId[] = ['reporter', 'investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation', 'system_admin', 'security_admin', 'audit_committee', 'executive'];
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  // Les 14 valeurs de CaseStatus (domain/caseTypes.ts), dans l'ordre du
+  // pipeline décrit par CASE_STATUS_LABELS/domain/workflow.ts (NEW → ... →
+  // ARCHIVED, puis les 2 statuts annexes DUPLICATE/OUT_OF_SCOPE).
+  const ALL_CASE_STATUSES: CaseStatus[] = [
+    'new', 'triage', 'under_review', 'assigned', 'investigation', 'pending_information',
+    'escalated', 'conclusion_pending', 'functional_review', 'closed', 'reopened', 'archived',
+    'duplicate', 'out_of_scope',
+  ];
   const ROLE_ID_LABELS: Record<RoleId, string> = {
     reporter: 'Lanceur d’alerte',
     investigator: 'Investigateur',
@@ -576,6 +683,26 @@ service cloud.firestore {
             }`}
           >
             Rôles & Permissions
+          </button>
+          {/* === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === */}
+          <button
+            onClick={() => setConfigTab('governance')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+              configTab === 'governance' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Network className="w-3.5 h-3.5" />
+            <span>Gouvernance (Routage indépendant)</span>
+          </button>
+          {/* === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === */}
+          <button
+            onClick={() => setConfigTab('workflow')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+              configTab === 'workflow' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            <span>Workflows & Statuts</span>
           </button>
           <button
             onClick={() => setConfigTab('database')}
@@ -995,31 +1122,45 @@ service cloud.firestore {
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
-          6. ROLES & PERMISSIONS TAB — read-only visualization of the real
-          ROLE_PERMISSIONS table (src/domain/permissions.ts). No new
-          permission logic here, purely a UI over existing data.
+          6. ROLES & PERMISSIONS TAB.
+          === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === n'est
+          plus un affichage en lecture seule : chaque case est une vraie
+          case à cocher, sauvegardée via storage.updateRolePermissions()
+          (voir domain/permissionOverrides.ts pour la mécanique complète —
+          domain/permissions.ts, la table PAR DÉFAUT, reste inchangée).
           === AMÉLIORATION AJOUTÉE (Phase 12.3) === this table is no longer
           a separate/future model — it is the exact set of permissions this
           application actually enforces (see src/services/authz.ts). */}
       {configTab === 'roles' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-blue-700" />
-              Matrice des rôles & permissions
-            </h3>
-            <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
-              Modèle RBAC granulaire (19 permissions atomiques, <code className="font-mono text-slate-600">src/domain/permissions.ts</code>) —
-              la même table sera réutilisée côté serveur (future architecture Cloud Functions / Firestore)
-              afin que client et serveur ne divergent jamais sur ce qu'un rôle peut faire.
-              {/* === AMÉLIORATION AJOUTÉE (Phase 12.3) === ce n'est plus un
-                  modèle "cible" séparé : ce sont exactement les 10 rôles et
-                  permissions réellement appliqués par cette application
-                  (onglet « Comptes & Habilitations » ci-dessus utilise ces
-                  mêmes valeurs). */}
-              {' '}Ce sont exactement les rôles et permissions réellement appliqués par cette
-              application — l'onglet « Comptes & Habilitations » ci-dessus utilise ces mêmes valeurs.
-            </p>
+        <form onSubmit={handleSaveRolePermissions} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
+          <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-blue-700" />
+                Matrice des rôles & permissions
+              </h3>
+              <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
+                Modèle RBAC granulaire (19 permissions atomiques, <code className="font-mono text-slate-600">src/domain/permissions.ts</code>) —
+                la même table sera réutilisée côté serveur (future architecture Cloud Functions / Firestore)
+                afin que client et serveur ne divergent jamais sur ce qu'un rôle peut faire.
+                {/* === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+                    Cette matrice est désormais RÉELLEMENT éditable — cocher/
+                    décocher une case change immédiatement ce que ce rôle
+                    peut faire dans toute l'application (authz.userCan),
+                    dès l'enregistrement. Réservé à system_admin, comme les
+                    autres tables de configuration. */}
+                {' '}Cochez ou décochez une permission puis "Enregistrer" — le changement s'applique
+                immédiatement à toute l'application. La case grisée (Administrateur système ×
+                Gérer la configuration) est protégée : la retirer priverait tout le monde de l'accès
+                à cet écran.
+              </p>
+            </div>
+            <button
+              type="submit"
+              className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
+            >
+              Enregistrer les permissions
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -1045,15 +1186,22 @@ service cloud.firestore {
                     {g.permissions.map((p) => (
                       <tr key={p.key} className="border-b border-slate-100">
                         <td className="p-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 bg-white">{p.label}</td>
-                        {ALL_ROLE_IDS.map((r) => (
-                          <td key={r} className="p-2 text-center">
-                            {ROLE_PERMISSIONS[r].includes(p.key) ? (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mx-auto" />
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </td>
-                        ))}
+                        {ALL_ROLE_IDS.map((r) => {
+                          const protectedCell = isProtectedPermissionCell(r, p.key);
+                          const checked = (rolePermissionsDraft[r] ?? []).includes(p.key);
+                          return (
+                            <td key={r} className="p-2 text-center">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={protectedCell}
+                                onChange={() => toggleRolePermissionDraft(r, p.key)}
+                                title={protectedCell ? 'Protégé : nécessaire pour conserver l\'accès à cet écran' : undefined}
+                                className={`accent-blue-600 w-3.5 h-3.5 ${protectedCell ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                              />
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </React.Fragment>
@@ -1061,7 +1209,153 @@ service cloud.firestore {
               </tbody>
             </table>
           </div>
+        </form>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+          GOUVERNANCE TAB — hiérarchie PAR RÔLE (jamais codée en dur, brief
+          §47-68) utilisée par domain/independentRouting.ts pour trouver une
+          autorité indépendante de niveau strictement supérieur, + vue
+          dérivée en LECTURE SEULE (getRoutingMatrixView) : jamais une
+          seconde table à maintenir à la main, qui pourrait diverger de la
+          table de niveaux éditée ci-dessous. */}
+      {configTab === 'governance' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6 text-xs">
+          <div className="border-b border-slate-100 pb-3">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <Network className="w-4 h-4 text-blue-700" />
+              Routage indépendant — Niveaux hiérarchiques
+            </h3>
+            <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
+              Lorsqu'un signalement met en cause un opérateur, un enquêteur ou un administrateur (personne
+              impliquée rattachée à un compte réel, onglet Personnes d'un dossier), ce compte perd tout accès et
+              le dossier est routé vers un compte dont le rôle a un niveau strictement supérieur ci-dessous, capable
+              d'investiguer (Enquêteur/Admin fonctionnel/Conformité DARC), en priorité de même périmètre pays/entité,
+              sinon vers le Groupe. Aucune autorité disponible → intervention manuelle requise (piste d'audit,
+              indicateur "NO_INDEPENDENT_AUTHORITY_FOUND").
+            </p>
+          </div>
+
+          <form onSubmit={handleSaveHierarchyLevels} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ALL_ROLE_IDS.map((r) => (
+                <label key={r} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200">
+                  <span className="font-semibold text-slate-700">{ROLE_ID_LABELS[r]}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={hierarchyLevelsDraft[r]}
+                    onChange={(e) =>
+                      setHierarchyLevelsDraft((prev) => ({ ...prev, [r]: Number(e.target.value) || 0 }))
+                    }
+                    className="w-20 px-2.5 py-1.5 border border-slate-300 rounded-lg text-right font-mono"
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition"
+              >
+                Enregistrer les niveaux
+              </button>
+            </div>
+          </form>
+
+          <div className="pt-2 border-t border-slate-100">
+            <h4 className="font-bold text-slate-900 mb-2">
+              Vue dérivée — autorité de repli par rôle (lecture seule)
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {getRoutingMatrixView(hierarchyLevelsDraft).map((row) => (
+                <div key={row.role} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2">
+                  <span className="text-slate-700 font-medium">{ROLE_ID_LABELS[row.role]} (niveau {row.level})</span>
+                  <span className="text-slate-500 text-right">
+                    {row.nextLevelRoles.length > 0
+                      ? row.nextLevelRoles.map((r) => ROLE_ID_LABELS[r]).join(', ')
+                      : 'Aucune — intervention manuelle'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+          WORKFLOW TAB — matrice d'adjacence des 14 statuts CaseStatus
+          (domain/caseTypes.ts), jusqu'ici codée en dur dans
+          domain/workflow.ts (ALLOWED_TRANSITIONS) sans aucun écran pour
+          l'éditer. Même mécanique que la matrice Rôles & Permissions
+          ci-dessus : cases à cocher réelles, sauvegarde uniquement des
+          lignes modifiées, effet immédiat sur checkTransition() via
+          domain/workflow.ts (setWorkflowTransitions). */}
+      {configTab === 'workflow' && (
+        <form onSubmit={handleSaveWorkflowTransitions} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
+          <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <GitBranch className="w-4 h-4 text-blue-700" />
+                Workflows & Statuts — Transitions autorisées
+              </h3>
+              <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
+                Chaque ligne est un statut de DÉPART, chaque colonne cochée un statut D'ARRIVÉE autorisé depuis cette
+                ligne. Cochez ou décochez une case puis "Enregistrer" — le changement s'applique immédiatement à
+                toute l'application (storage.transitionStatus / escalateAlert). Cette table ne gouverne que la
+                structure du parcours : les conditions métier de clôture (allégations documentées, mesures
+                correctives soldées, visa de revue fonctionnelle) restent toujours appliquées par ailleurs et ne
+                peuvent pas être contournées d'ici.
+              </p>
+            </div>
+            <button
+              type="submit"
+              className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
+            >
+              Enregistrer les transitions
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-[11px]">
+              <thead>
+                <tr>
+                  <th className="p-2 text-left sticky left-0 bg-white z-10">Depuis \ Vers</th>
+                  {ALL_CASE_STATUSES.map((s) => (
+                    <th key={s} className="p-2 text-center font-bold text-slate-700 whitespace-nowrap">
+                      {CASE_STATUS_LABELS[s].fr}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ALL_CASE_STATUSES.map((source) => (
+                  <tr key={source} className="border-b border-slate-100">
+                    <td className="p-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 bg-white">
+                      {CASE_STATUS_LABELS[source].fr}
+                    </td>
+                    {ALL_CASE_STATUSES.map((target) => {
+                      const isSelf = source === target;
+                      const checked = !isSelf && (workflowTransitionsDraft[source] ?? []).includes(target);
+                      return (
+                        <td key={target} className="p-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={isSelf}
+                            onChange={() => toggleWorkflowTransitionDraft(source, target)}
+                            title={isSelf ? 'Un statut ne transite jamais vers lui-même' : undefined}
+                            className={`accent-blue-600 w-3.5 h-3.5 ${isSelf ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </form>
       )}
 
       {/* 5. DATABASE & FIREBASE PERSISTENCE TAB */}

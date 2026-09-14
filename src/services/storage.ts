@@ -1,10 +1,15 @@
-import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile } from '../types';
-import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG } from '../data/activaConfig';
+import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile, UserRole } from '../types';
+import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG, HierarchyLevels, DEFAULT_HIERARCHY_LEVELS } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
 import { CaseStatus } from '../domain/caseTypes';
-import { checkTransition, TransitionCheckResult } from '../domain/workflow';
+import { checkTransition, TransitionCheckResult, ALLOWED_TRANSITIONS, setWorkflowTransitions } from '../domain/workflow';
 import { deriveCaseStatus, syncLegacyStatus } from './statusMapping';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+import { getConflictedUserIds, resolveIndependentAuthority } from '../domain/independentRouting';
+// === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+import { Permission, ROLE_PERMISSIONS } from '../domain/permissions';
+import { setRolePermissionOverrides } from '../domain/permissionOverrides';
 
 const STORAGE_KEYS = {
   ALERTS: 'activa_ethicalert_records_v1',
@@ -19,6 +24,12 @@ const STORAGE_KEYS = {
   COUNTRIES: 'activa_ethicalert_countries_v1',
   // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
   SLA_CONFIG: 'activa_ethicalert_sla_config_v1',
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+  HIERARCHY_LEVELS: 'activa_ethicalert_hierarchy_levels_v1',
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  ROLE_PERMISSIONS: 'activa_ethicalert_role_permissions_v1',
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  WORKFLOW_TRANSITIONS: 'activa_ethicalert_workflow_transitions_v1',
 };
 
 // Event dispatched when data changes
@@ -42,6 +53,28 @@ class StorageService {
   private countries: CountryDef[] = [];
   // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
   private slaConfig: SlaConfig = DEFAULT_SLA_CONFIG;
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+  // Même motif seed-then-mutate que slaConfig ci-dessus.
+  private hierarchyLevels: HierarchyLevels = DEFAULT_HIERARCHY_LEVELS;
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  // Copie mutable, persistée, de la table ROLE_PERMISSIONS
+  // (domain/permissions.ts) — même motif seed-then-mutate que
+  // hierarchyLevels/slaConfig ci-dessus. `domain/permissions.ts` lui-même
+  // n'est JAMAIS modifié : il reste la table PAR DÉFAUT (utilisée telle
+  // quelle par domain/permissions.test.ts et par le modèle Firestore
+  // dormant). Poussée dans domain/permissionOverrides.ts à chaque
+  // changement, pour qu'authz.userCan() (donc toute l'application) reflète
+  // immédiatement une édition en administration.
+  private rolePermissions: Record<UserRole, Permission[]> = ROLE_PERMISSIONS;
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  // Copie mutable, persistée, de la table ALLOWED_TRANSITIONS
+  // (domain/workflow.ts) — même motif seed-then-mutate que rolePermissions
+  // ci-dessus. `ALLOWED_TRANSITIONS` reste la table PAR DÉFAUT, utilisée
+  // telle quelle par domain/workflow.test.ts. Poussée dans
+  // domain/workflow.ts (setWorkflowTransitions) à chaque changement, pour
+  // que checkTransition() — donc storage.transitionStatus()/escalateAlert()
+  // — reflète immédiatement une édition en administration.
+  private workflowTransitions: Record<CaseStatus, CaseStatus[]> = ALLOWED_TRANSITIONS;
 
   constructor() {
     this.init();
@@ -114,6 +147,33 @@ class StorageService {
         this.slaConfig = { ...DEFAULT_SLA_CONFIG };
         this.persistSlaConfig();
       }
+
+      // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+      const storedHierarchyLevels = localStorage.getItem(STORAGE_KEYS.HIERARCHY_LEVELS);
+      if (storedHierarchyLevels) {
+        this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS, ...JSON.parse(storedHierarchyLevels) };
+      } else {
+        this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
+        this.persistHierarchyLevels();
+      }
+
+      // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+      const storedRolePermissions = localStorage.getItem(STORAGE_KEYS.ROLE_PERMISSIONS);
+      if (storedRolePermissions) {
+        this.rolePermissions = { ...ROLE_PERMISSIONS, ...JSON.parse(storedRolePermissions) };
+      } else {
+        this.rolePermissions = { ...ROLE_PERMISSIONS };
+        this.persistRolePermissions();
+      }
+
+      // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+      const storedWorkflowTransitions = localStorage.getItem(STORAGE_KEYS.WORKFLOW_TRANSITIONS);
+      if (storedWorkflowTransitions) {
+        this.workflowTransitions = { ...ALLOWED_TRANSITIONS, ...JSON.parse(storedWorkflowTransitions) };
+      } else {
+        this.workflowTransitions = { ...ALLOWED_TRANSITIONS };
+        this.persistWorkflowTransitions();
+      }
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
       this.alerts = [...INITIAL_ALERTS];
@@ -125,7 +185,22 @@ class StorageService {
       // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
       this.countries = [...ACTIVA_COUNTRIES];
       this.slaConfig = { ...DEFAULT_SLA_CONFIG };
+      // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+      this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
+      // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+      this.rolePermissions = { ...ROLE_PERMISSIONS };
+      // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+      this.workflowTransitions = { ...ALLOWED_TRANSITIONS };
     }
+    // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+    // Pousse l'état courant (chargé, seedé, ou de repli) vers le pont
+    // domain/permissionOverrides.ts, hors du try/catch pour couvrir les
+    // deux chemins — sans cet appel, authz.userCan() continuerait de lire
+    // silencieusement la table par défaut malgré une édition persistée.
+    setRolePermissionOverrides(this.rolePermissions);
+    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === même
+    // raisonnement, vers domain/workflow.ts.
+    setWorkflowTransitions(this.workflowTransitions);
   }
 
   private notify() {
@@ -190,6 +265,33 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.SLA_CONFIG, JSON.stringify(this.slaConfig));
     } catch (e) {
       console.error('Failed to persist SLA config', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+  private persistHierarchyLevels() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.HIERARCHY_LEVELS, JSON.stringify(this.hierarchyLevels));
+    } catch (e) {
+      console.error('Failed to persist hierarchy levels', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  private persistRolePermissions() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(this.rolePermissions));
+    } catch (e) {
+      console.error('Failed to persist role permissions', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  private persistWorkflowTransitions() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.WORKFLOW_TRANSITIONS, JSON.stringify(this.workflowTransitions));
+    } catch (e) {
+      console.error('Failed to persist workflow transitions', e);
     }
   }
 
@@ -378,6 +480,97 @@ class StorageService {
       actor
     );
     return { allowed: true };
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+  /**
+   * Déclenche le routage indépendant d'un dossier (brief §47-68) : exclut
+   * automatiquement de l'accès tout compte mis en cause/témoin lié
+   * (domain/independentRouting.ts, getConflictedUserIds) et route vers
+   * l'autorité indépendante de niveau hiérarchique supérieur
+   * (resolveIndependentAuthority), ou marque le dossier comme nécessitant
+   * une intervention manuelle si aucune autorité n'est disponible.
+   *
+   * Appelée dès qu'un `linkedUserId` est défini sur une personne
+   * impliquée/témoin (InvestigationDesk.tsx, Phase 2). Ne passe
+   * délibérément PAS par `checkTransition()`/`workflowStatus='escalated'` :
+   * le routage indépendant doit pouvoir se déclencher depuis n'importe
+   * quel stade du cycle de vie, pas seulement depuis `investigation` comme
+   * `ALLOWED_TRANSITIONS` l'exige pour `'escalated'` — et réutiliser le
+   * libellé "Escalade vers la DARC Groupe" pour ceci induirait en erreur
+   * dans la Piste d'Audit. Réutilise en revanche
+   * escalatedAt/By/Reason/OwnerId (déjà existants) pour enregistrer "routé
+   * vers qui et pourquoi", plutôt que d'ajouter des champs dupliqués.
+   *
+   * Deux événements d'audit séquentiels (même principe que le §59 du
+   * brief) : INDEPENDENT_ROUTING_TRIGGERED d'abord (l'exclusion),
+   * puis INVESTIGATOR_ASSIGNED (nouvelle autorité trouvée) ou
+   * NO_INDEPENDENT_AUTHORITY_FOUND (aucune autorité disponible).
+   *
+   * Les détails journalisés ne révèlent jamais l'identité de la personne
+   * exclue ni le contenu du dossier (uniquement des comptes et un nombre),
+   * conformément au principe de routage confidentiel du brief.
+   */
+  public triggerIndependentRouting(alertId: string, actor: UserProfile): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return;
+
+    const conflictedIds = getConflictedUserIds(alert);
+    if (conflictedIds.length === 0) return; // rien à router (aucun linkedUserId sur ce dossier)
+
+    const previousAssigned = alert.assignedInvestigators.length;
+    alert.assignedInvestigators = alert.assignedInvestigators.filter((id) => !conflictedIds.includes(id));
+    alert.assignedInvestigatorNames = alert.assignedInvestigators
+      .map((id) => this.users.find((u) => u.id === id)?.name)
+      .filter((n): n is string => !!n);
+    alert.independentRoutingExcludedUserIds = conflictedIds;
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+
+    const removedFromAssignment = previousAssigned - alert.assignedInvestigators.length;
+    this.logAudit(
+      'INDEPENDENT_ROUTING_TRIGGERED',
+      `Routage indépendant déclenché sur ${alert.trackingNumber} : ${conflictedIds.length} compte(s) exclu(s) de l'accès au dossier` +
+        (removedFromAssignment > 0 ? ` (dont ${removedFromAssignment} retiré(s) des enquêteurs assignés)` : '') +
+        '.',
+      { id: alert.id, trackingNumber: alert.trackingNumber },
+      actor
+    );
+
+    const resolution = resolveIndependentAuthority(alert, this.users, this.hierarchyLevels);
+    if (resolution.found) {
+      const owner = resolution.candidates[0];
+      if (!alert.assignedInvestigators.includes(owner.id)) {
+        alert.assignedInvestigators = [...alert.assignedInvestigators, owner.id];
+        alert.assignedInvestigatorNames = [...alert.assignedInvestigatorNames, owner.name];
+      }
+      alert.independentRoutingUnresolved = false;
+      alert.escalatedAt = new Date().toISOString();
+      alert.escalatedBy = actor.id;
+      alert.escalatedReason = 'Routage indépendant : exclusion automatique d’une personne mise en cause de ce dossier.';
+      alert.escalatedOwnerId = owner.id;
+      alert.updatedAt = new Date().toISOString();
+      this.persistAlerts();
+      this.notify();
+      this.logAudit(
+        'INVESTIGATOR_ASSIGNED',
+        `Dossier ${alert.trackingNumber} routé vers ${owner.name} (${owner.roleTitle}), autorité indépendante de niveau hiérarchique supérieur (périmètre ${resolution.scopeMatch === 'local' ? 'local' : 'Groupe'}).`,
+        { id: alert.id, trackingNumber: alert.trackingNumber },
+        actor
+      );
+    } else {
+      alert.independentRoutingUnresolved = true;
+      alert.updatedAt = new Date().toISOString();
+      this.persistAlerts();
+      this.notify();
+      this.logAudit(
+        'NO_INDEPENDENT_AUTHORITY_FOUND',
+        `Aucune autorité indépendante disponible pour ${alert.trackingNumber} après exclusion automatique — intervention manuelle requise.`,
+        { id: alert.id, trackingNumber: alert.trackingNumber },
+        actor
+      );
+    }
   }
 
   // --- Audit Logs API ---
@@ -620,6 +813,95 @@ class StorageService {
     );
   }
 
+  // --- Hierarchy levels API (Phase 1 — routage indépendant) ---
+  // Table par rôle utilisée par domain/independentRouting.ts pour trouver
+  // une autorité indépendante de niveau strictement supérieur. Réservée en
+  // écriture à system_admin en administration (AdminConfigView.tsx, onglet
+  // Gouvernance, Phase 5) — même garde `configuration.manage` que SLA/
+  // matrice de risque/catégories/entités/pays ci-dessus.
+  public getHierarchyLevels(): HierarchyLevels {
+    return { ...this.hierarchyLevels };
+  }
+
+  public updateHierarchyLevels(updates: Partial<HierarchyLevels>, actor: UserProfile): void {
+    this.hierarchyLevels = { ...this.hierarchyLevels, ...updates };
+    this.persistHierarchyLevels();
+    this.notify();
+    this.logAudit(
+      'CONFIG_UPDATED',
+      `Niveaux hiérarchiques de routage indépendant mis à jour par ${actor.name}.`,
+      undefined,
+      actor
+    );
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+  // --- Role permissions API --- rend éditable en administration
+  // (AdminConfigView.tsx, onglet "Rôles & Permissions") la table jusqu'ici
+  // uniquement affichée en lecture seule. `domain/permissions.ts` reste la
+  // table PAR DÉFAUT, jamais modifiée — voir domain/permissionOverrides.ts.
+  // Réservée en écriture à system_admin (même garde `configuration.manage`
+  // que toutes les autres tables de configuration ci-dessus).
+  public getRolePermissions(): Record<UserRole, Permission[]> {
+    return { ...this.rolePermissions };
+  }
+
+  /**
+   * Remplace la liste COMPLÈTE des permissions d'UN rôle (pas une fusion
+   * partielle) — l'écran d'administration soumet toujours l'état complet
+   * des cases cochées pour le rôle édité, jamais une liste de deltas.
+   */
+  public updateRolePermissions(role: UserRole, permissions: Permission[], actor: UserProfile): void {
+    this.rolePermissions = { ...this.rolePermissions, [role]: [...permissions] };
+    this.persistRolePermissions();
+    // Pousse immédiatement vers le pont domain/permissionOverrides.ts —
+    // sans cet appel, authz.userCan() (donc toute l'application) continuerait
+    // de servir l'ancienne liste jusqu'au prochain rechargement complet.
+    setRolePermissionOverrides(this.rolePermissions);
+    this.notify();
+    this.logAudit(
+      'CONFIG_UPDATED',
+      `Permissions du rôle "${role}" mises à jour par ${actor.name}.`,
+      undefined,
+      actor
+    );
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  // --- Workflow transitions API --- rend éditable en administration
+  // (AdminConfigView.tsx, onglet "Workflows & Statuts") la table de
+  // transitions jusqu'ici codée en dur dans domain/workflow.ts, jamais
+  // exposée dans aucun écran. `ALLOWED_TRANSITIONS` reste la table PAR
+  // DÉFAUT, jamais modifiée. Réservée en écriture à system_admin (même
+  // garde `configuration.manage` que toutes les autres tables de
+  // configuration ci-dessus).
+  public getWorkflowTransitions(): Record<CaseStatus, CaseStatus[]> {
+    return { ...this.workflowTransitions };
+  }
+
+  /**
+   * Remplace la liste COMPLÈTE des statuts cibles accessibles DEPUIS un
+   * statut (pas une fusion partielle) — même convention que
+   * updateRolePermissions ci-dessus : l'écran d'administration soumet
+   * toujours l'état complet des cases cochées pour la ligne éditée.
+   */
+  public updateWorkflowTransitions(status: CaseStatus, targets: CaseStatus[], actor: UserProfile): void {
+    this.workflowTransitions = { ...this.workflowTransitions, [status]: [...targets] };
+    this.persistWorkflowTransitions();
+    // Pousse immédiatement vers domain/workflow.ts — sans cet appel,
+    // checkTransition() (donc storage.transitionStatus()/escalateAlert())
+    // continuerait de servir l'ancienne table jusqu'au prochain
+    // rechargement complet.
+    setWorkflowTransitions(this.workflowTransitions);
+    this.notify();
+    this.logAudit(
+      'CONFIG_UPDATED',
+      `Transitions autorisées depuis le statut "${status}" mises à jour par ${actor.name}.`,
+      undefined,
+      actor
+    );
+  }
+
   // --- Draft auto-save for whistleblowers ---
   public getDraft(): any {
     try {
@@ -668,6 +950,14 @@ class StorageService {
     this.countries = [...ACTIVA_COUNTRIES];
     // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
     this.slaConfig = { ...DEFAULT_SLA_CONFIG };
+    // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+    this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
+    // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
+    this.rolePermissions = { ...ROLE_PERMISSIONS };
+    setRolePermissionOverrides(this.rolePermissions);
+    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+    this.workflowTransitions = { ...ALLOWED_TRANSITIONS };
+    setWorkflowTransitions(this.workflowTransitions);
     this.persistAlerts();
     this.persistAuditLogs();
     this.persistUsers();
@@ -675,6 +965,9 @@ class StorageService {
     this.persistCategories();
     this.persistCountries();
     this.persistSlaConfig();
+    this.persistHierarchyLevels();
+    this.persistRolePermissions();
+    this.persistWorkflowTransitions();
     this.clearDraft();
     this.notify();
   }

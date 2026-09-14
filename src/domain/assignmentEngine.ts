@@ -15,10 +15,21 @@
 import { AlertRecord, UserProfile } from '../types';
 import { canSeeAlertConfidentiality, userCan } from '../services/authz';
 import { WorkloadRow } from './workloadCalc';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+// Depuis domain/routingConflicts.ts (pas domain/independentRouting.ts, qui
+// importe déjà scopeMatchFor DEPUIS ce fichier-ci — voir le commentaire de
+// routingConflicts.ts pour l'explication complète de cet évitement
+// d'import circulaire).
+import { getConflictedUserIds } from './routingConflicts';
 
-type ScopeMatch = 'local' | 'global' | 'mismatch';
+export type ScopeMatch = 'local' | 'global' | 'mismatch';
 
-function scopeMatchFor(user: UserProfile, alert: Pick<AlertRecord, 'countryId' | 'entityId'>): ScopeMatch {
+// === AMÉLIORATION AJOUTÉE (Phase 3 — routage indépendant) ===
+// Exportée (auparavant privée à ce module) pour que
+// domain/independentRouting.ts réutilise exactement la même logique de
+// périmètre local/Groupe plutôt que de la redériver — aucun changement de
+// comportement ici, uniquement la visibilité du symbole.
+export function scopeMatchFor(user: UserProfile, alert: Pick<AlertRecord, 'countryId' | 'entityId'>): ScopeMatch {
   const countries = user.countries ?? [];
   const entities = user.entities ?? [];
   if (countries.length === 0 && entities.length === 0) return 'global';
@@ -73,6 +84,15 @@ export function computeCandidates(
   const hasConflict = (u: UserProfile) =>
     (alert.conflictDeclarations ?? []).some((c) => c.userId === u.id && c.outcome === 'conflict_identified');
 
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+  // Personnes mises en cause ET témoins liés (InvolvedPerson/Witness.
+  // linkedUserId, domain/independentRouting.ts) : empêche une
+  // réattribution MANUELLE de recontourner l'exclusion automatique du
+  // routage indépendant (brief §57 : "le frontend ne doit jamais pouvoir
+  // contourner cette règle" — cette liste de candidats est le seul chemin
+  // par lequel un opérateur choisit un nouvel enquêteur).
+  const conflictedByRouting = new Set(getConflictedUserIds(alert));
+
   const compatible: AssignmentCandidate[] = [];
   const groupAuthorized: AssignmentCandidate[] = [];
 
@@ -81,6 +101,7 @@ export function computeCandidates(
     if (user.active === false) continue; // explicitement marqué indisponible
     if (!canSeeAlertConfidentiality(user, alert)) continue; // plafond de confidentialité insuffisant
     if (hasConflict(user)) continue; // conflit d'intérêts déclaré sur ce dossier
+    if (conflictedByRouting.has(user.id)) continue; // mis en cause ou témoin lié sur ce dossier (routage indépendant)
 
     const scopeMatch = scopeMatchFor(user, alert);
     if (scopeMatch === 'mismatch') continue;
