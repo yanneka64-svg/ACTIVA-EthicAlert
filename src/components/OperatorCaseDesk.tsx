@@ -513,42 +513,59 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           <option key={e.id} value={e.name}>{e.flag} {e.name}</option>
         ))}
       </select>
-      <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
-        <option value="all">Toutes natures</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.name}>{c.name}</option>
-        ))}
-      </select>
-      <select value={nocaFilter} onChange={(e) => setNocaFilter(e.target.value as 'all' | NocaThreshold)} className={selectClass}>
-        <option value="all">Toutes criticités</option>
-        {NOCA_OPTIONS.map((n) => (
-          <option key={n} value={n}>{n}</option>
-        ))}
-      </select>
-      <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value as 'all' | SeverityLevel)} className={selectClass}>
-        <option value="all">Toutes sévérités</option>
-        {(Object.keys(SEVERITY_LABELS) as SeverityLevel[]).map((s) => (
-          <option key={s} value={s}>{SEVERITY_LABELS[s]}</option>
-        ))}
-      </select>
-      <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value as 'all' | PriorityLevel)} className={selectClass}>
-        <option value="all">Toutes urgences</option>
-        {(Object.keys(URGENCY_LABELS) as PriorityLevel[]).map((p) => (
-          <option key={p} value={p}>{URGENCY_LABELS[p]}</option>
-        ))}
-      </select>
-      <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value as 'all' | AlertRecord['channel'])} className={selectClass}>
-        <option value="all">Tous canaux</option>
-        {(Object.keys(CHANNEL_LABELS) as AlertRecord['channel'][]).map((c) => (
-          <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
-        ))}
-      </select>
-      <select value={confidentialityFilter} onChange={(e) => setConfidentialityFilter(e.target.value as 'all' | ConfidentialityLevel)} className={selectClass}>
-        <option value="all">Toutes sensibilités</option>
-        {(Object.keys(CONFIDENTIALITY_LABELS) as ConfidentialityLevel[]).map((c) => (
-          <option key={c} value={c}>{CONFIDENTIALITY_LABELS[c]}</option>
-        ))}
-      </select>
+      {/* === AMÉLIORATION AJOUTÉE (Retours visuels — filtres allégés) ===
+          Nature/Criticité/Sévérité/Urgence/Canal/Sensibilité retirés sur
+          demande explicite pour les écrans "de travail" (À attribuer/En
+          attente d'infos/Dossiers attribués, et leurs équivalents
+          Enquêteur) — Recherche + Pays + Entité suffisent. La Boîte de
+          réception (image 2 de référence, jamais visée par cette demande)
+          garde le jeu complet : c'est le seul écran où trier par nature/
+          criticité/urgence avant attribution a été explicitement demandé.
+          Ces filtres restent des critères réels (`AdvancedSearchCriteria`,
+          domain/advancedSearch.ts) : rien n'est supprimé côté logique,
+          seuls ces contrôles disparaissent de l'écran pour les modes
+          concernés — un compte revenant sur la Boîte de réception les
+          retrouve intacts. */}
+      {mode === 'inbox' && (
+        <>
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
+            <option value="all">Toutes natures</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+          <select value={nocaFilter} onChange={(e) => setNocaFilter(e.target.value as 'all' | NocaThreshold)} className={selectClass}>
+            <option value="all">Toutes criticités</option>
+            {NOCA_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value as 'all' | SeverityLevel)} className={selectClass}>
+            <option value="all">Toutes sévérités</option>
+            {(Object.keys(SEVERITY_LABELS) as SeverityLevel[]).map((s) => (
+              <option key={s} value={s}>{SEVERITY_LABELS[s]}</option>
+            ))}
+          </select>
+          <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value as 'all' | PriorityLevel)} className={selectClass}>
+            <option value="all">Toutes urgences</option>
+            {(Object.keys(URGENCY_LABELS) as PriorityLevel[]).map((p) => (
+              <option key={p} value={p}>{URGENCY_LABELS[p]}</option>
+            ))}
+          </select>
+          <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value as 'all' | AlertRecord['channel'])} className={selectClass}>
+            <option value="all">Tous canaux</option>
+            {(Object.keys(CHANNEL_LABELS) as AlertRecord['channel'][]).map((c) => (
+              <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
+            ))}
+          </select>
+          <select value={confidentialityFilter} onChange={(e) => setConfidentialityFilter(e.target.value as 'all' | ConfidentialityLevel)} className={selectClass}>
+            <option value="all">Toutes sensibilités</option>
+            {(Object.keys(CONFIDENTIALITY_LABELS) as ConfidentialityLevel[]).map((c) => (
+              <option key={c} value={c}>{CONFIDENTIALITY_LABELS[c]}</option>
+            ))}
+          </select>
+        </>
+      )}
       {hasActiveFilters && (
         <button onClick={resetFilters} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs font-semibold">
           <RotateCcw className="w-3.5 h-3.5" />
