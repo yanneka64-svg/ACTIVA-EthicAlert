@@ -1749,9 +1749,33 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             {addPersonKind && (
               <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
                 <form onSubmit={handleAddPerson} className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-3 text-xs">
-                  <h3 className="text-sm font-bold text-slate-900">
-                    {addPersonKind === 'subject' ? 'Ajouter une personne impliquée' : 'Ajouter un témoin'}
-                  </h3>
+                  <h3 className="text-sm font-bold text-slate-900">{t.person_modal_title}</h3>
+                  {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une
+                      personne) === pills "Type de personne" façon maquette —
+                      permet de choisir/changer la liste cible (Personnes
+                      impliquées ou Témoins) directement dans la modale,
+                      plutôt que par deux boutons "+ Ajouter" distincts
+                      seulement. Pas de pill "Autre" : aucune 3e liste
+                      n'existe sur AlertRecord (seuls `involvedPersons` et
+                      `witnesses`) — l'ajouter aurait été une catégorie sans
+                      donnée réelle derrière (brief §32). */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{t.person_modal_type}</label>
+                    <div className="flex gap-1.5">
+                      {(['subject', 'witness'] as const).map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setAddPersonKind(k)}
+                          className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition ${
+                            addPersonKind === k ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                          }`}
+                        >
+                          {k === 'subject' ? t.person_modal_kind_subject : t.person_modal_kind_witness}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <input
                     autoFocus
                     value={personNameInput}
@@ -2888,15 +2912,24 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t.task_priority_label}</label>
-                <select
-                  value={taskPriority}
-                  onChange={(e: any) => setTaskPriority(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                >
-                  <option value="low">{t.task_priority_low}</option>
-                  <option value="medium">{t.task_priority_medium}</option>
-                  <option value="high">{t.task_priority_high}</option>
-                </select>
+                {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une
+                    tâche) === pills façon maquette au lieu d'un <select> —
+                    même état `taskPriority`, mêmes 3 valeurs réelles
+                    (TaskPriority), rien d'autre ne change. */}
+                <div className="flex gap-1.5">
+                  {(['low', 'medium', 'high'] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setTaskPriority(p)}
+                      className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition ${
+                        taskPriority === p ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                      }`}
+                    >
+                      {p === 'low' ? t.task_priority_low : p === 'medium' ? t.task_priority_medium : t.task_priority_high}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">

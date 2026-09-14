@@ -400,6 +400,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     notif_title: 'Notifications',
     notif_mark_all_read: 'Tout marquer comme lu',
     notif_empty: 'Aucune notification pour le moment.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
+    notif_tab_all: 'Toutes',
+    notif_tab_tasks: 'Tâches',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
+    profile_menu_settings: 'Paramètres',
+    profile_menu_help: 'Aide & support',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Centre de Pilotage',
@@ -685,6 +691,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_view_timeline: 'Voir la chronologie',
     case_btn_edit: 'Modifier',
     case_btn_add: 'Ajouter',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une personne) ===
+    person_modal_title: 'Ajouter une personne',
+    person_modal_type: 'Type de personne',
+    person_modal_kind_subject: 'Mis en cause',
+    person_modal_kind_witness: 'Témoin',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la
     // maquette : logo, sidebar, onglets de la fiche dossier, pied de page) ===
@@ -1136,6 +1147,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     notif_title: 'Notifications',
     notif_mark_all_read: 'Mark all as read',
     notif_empty: 'No notifications yet.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
+    notif_tab_all: 'All',
+    notif_tab_tasks: 'Tasks',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
+    profile_menu_settings: 'Settings',
+    profile_menu_help: 'Help & Support',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Control Panel',
@@ -1414,6 +1431,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_view_timeline: 'View timeline',
     case_btn_edit: 'Edit',
     case_btn_add: 'Add',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une personne) ===
+    person_modal_title: 'Add a Person',
+    person_modal_type: 'Person Type',
+    person_modal_kind_subject: 'Implicated',
+    person_modal_kind_witness: 'Witness',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — faithful mockup reproduction) ===
     app_title: 'EthicsAlert.Com',
@@ -1860,6 +1882,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     notif_title: 'Notificações',
     notif_mark_all_read: 'Marcar tudo como lido',
     notif_empty: 'Nenhuma notificação no momento.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
+    notif_tab_all: 'Todas',
+    notif_tab_tasks: 'Tarefas',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
+    profile_menu_settings: 'Definições',
+    profile_menu_help: 'Ajuda & suporte',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Centro de Controle',
@@ -2138,6 +2166,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     case_btn_view_timeline: 'Ver cronologia',
     case_btn_edit: 'Editar',
     case_btn_add: 'Adicionar',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une personne) ===
+    person_modal_title: 'Adicionar uma pessoa',
+    person_modal_type: 'Tipo de pessoa',
+    person_modal_kind_subject: 'Implicado',
+    person_modal_kind_witness: 'Testemunha',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reprodução fiel da maquete) ===
     app_title: 'EthicsAlert.Com',
