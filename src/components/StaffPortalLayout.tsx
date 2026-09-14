@@ -18,7 +18,7 @@ import {
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from '../services/authz';
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from '../services/authz';
 
 /**
  * === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la maquette) ===
@@ -61,6 +61,29 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // plutôt qu'une liste de rôles codée en dur.
   const canSeeControlPanel = isGlobalCaseViewer(activeUser);
   const canSeeAdmin = canManageConfiguration(activeUser);
+
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
+  // Un compte peut relever de plusieurs "espaces" à la fois (ex :
+  // functional_admin a à la fois `cases.assign` — Opérateur — et
+  // `cases.edit` — Enquêteur). Réutilise exactement les mêmes permissions
+  // déjà appliquées ailleurs (bouton "Assigner" d'InvestigationDesk pour
+  // Opérateur, `investigatorUsers`/candidats d'attribution pour Enquêteur,
+  // `canSeeAdmin` ci-dessus pour Admin) plutôt que d'inventer un nouveau
+  // critère. Choix délibéré pour cette phase : n'AJOUTE qu'un sélecteur
+  // d'espace au-dessus de la barre latérale existante, qui reste
+  // entièrement inchangée pour tout le monde (y compris les rôles
+  // consultation/executive/audit_committee/security_admin, qui ne relèvent
+  // d'aucun des 3 espaces mais gardent leur accès actuel aux écrans
+  // existants) — une restructuration complète de la barre latérale en 3
+  // silos stricts est repoussée à une phase ultérieure nécessitant une
+  // vérification plus large par rôle.
+  const canSeeOperatorSpace = userCan(activeUser, 'cases.assign');
+  const canSeeInvestigatorSpace = userCan(activeUser, 'cases.edit');
+  const spaceCount = [canSeeOperatorSpace, canSeeInvestigatorSpace, canSeeAdmin].filter(Boolean).length;
+  const showSpaceSwitcher = spaceCount >= 2;
+  const isOperatorTabActive = currentTab.startsWith('op_');
+  const isInvestigatorTabActive = currentTab.startsWith('inv_');
+  const isAdminTabActive = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports'].includes(currentTab);
 
   const navItems: Array<{ key: string; label: string; icon: React.ReactNode; visible: boolean; group: string }> = [
     { key: 'control_panel', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel, group: '' },
@@ -127,6 +150,52 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
       <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
+        {/* === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
+            Sélecteur d'espace — additif, visible uniquement pour un compte
+            relevant de 2 espaces ou plus (ex : functional_admin, à la fois
+            Opérateur et Enquêteur). N'affecte en rien la navigation
+            existante en dessous. */}
+        {showSpaceSwitcher && (
+          <div className="p-2.5 border-b border-slate-100 space-y-1">
+            <div className="px-0.5 pb-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">Espaces</div>
+            <div className="flex flex-col gap-1">
+              {canSeeOperatorSpace && (
+                <button
+                  id="space-switcher-operator"
+                  onClick={() => setCurrentTab('op_dashboard')}
+                  className={`text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition ${
+                    isOperatorTabActive ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Espace Opérateur
+                </button>
+              )}
+              {canSeeInvestigatorSpace && (
+                <button
+                  id="space-switcher-investigator"
+                  onClick={() => setCurrentTab('inv_dashboard')}
+                  className={`text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition ${
+                    isInvestigatorTabActive ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Espace Enquêteur
+                </button>
+              )}
+              {canSeeAdmin && (
+                <button
+                  id="space-switcher-admin"
+                  onClick={() => setCurrentTab('settings')}
+                  className={`text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition ${
+                    isAdminTabActive ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Administration
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <nav className="flex-1 py-3 px-2.5">
           {visibleNavItems.map((item) => {
             const showGroupHeader = !!item.group && item.group !== lastGroup;

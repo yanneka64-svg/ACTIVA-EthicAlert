@@ -80,6 +80,10 @@ const STAFF_TAB_KEYS = [
   'admin_config',
   // === AMÉLIORATION AJOUTÉE (Phase 11) ===
   'admin_roles',
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
+  'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed', 'op_search', 'op_reports', 'op_communications',
+  'inv_dashboard', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending', 'inv_tasks', 'inv_evidence', 'inv_communications', 'inv_reports', 'inv_search',
+  'admin_audit', 'admin_reports',
 ];
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
@@ -355,6 +359,66 @@ function AppShell() {
         </PermissionGuard>
       );
     }
+
+    // === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
+    // Chaque nouvelle URL réutilise un écran déjà réel avec un
+    // `initialFilter` préréglé différent — même technique que triage/
+    // assignment/my_cases (Phase 9) ci-dessus, jamais un écran fabriqué ou
+    // un placeholder. Voir routing/routes.ts pour la table complète des
+    // nouveaux chemins.
+    if (currentTab === 'op_dashboard') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Tableau de bord Opérateur">
+          <ControlPanel
+            lang={lang}
+            activeUser={activeUser}
+            onNavigateToCases={navigateToCases}
+            onNavigateToReports={() => goToTab('op_reports')}
+            onNavigateToNewCase={() => goToTab('new_alert')}
+          />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'op_inbox') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'new' }} />;
+    if (currentTab === 'op_pending_info') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'under_review' }} />;
+    if (currentTab === 'op_assign') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Attribution">
+          <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ unassignedOnly: true }} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'op_processed') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'closed' }} />;
+    if (currentTab === 'op_search') return <InvestigationDesk lang={lang} activeUser={activeUser} />;
+    if (currentTab === 'op_reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
+    if (currentTab === 'op_communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+
+    if (currentTab === 'inv_dashboard') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'inv_my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'inv_to_process') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true, status: 'new' }} />;
+    if (currentTab === 'inv_in_progress') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true, status: 'investigation' }} />;
+    if (currentTab === 'inv_pending') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true, status: 'under_review' }} />;
+    if (currentTab === 'inv_tasks') return <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'inv_evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'inv_communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'inv_reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
+    if (currentTab === 'inv_search') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true }} />;
+
+    if (currentTab === 'admin_audit') {
+      return (
+        <PermissionGuard allowed={canSeeAuditTrail(activeUser)} label="Piste d’Audit">
+          <AuditTrailView lang={lang} activeUser={activeUser} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'admin_reports') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Rapports système">
+          <ReportingDashboard lang={lang} activeUser={activeUser} />
+        </PermissionGuard>
+      );
+    }
+
     return null;
   };
 

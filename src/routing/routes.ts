@@ -45,6 +45,44 @@ export const TAB_TO_PATH: Record<string, string> = {
   settings: '/admin',
   admin_users: '/admin/users',
   admin_config: '/admin/categories',
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — évolution multi-pays/multi-entité) ===
+  // BUG PRÉEXISTANT CORRIGÉ : `admin_roles` (bouton "Rôles & Permissions" de
+  // la barre latérale, StaffPortalLayout.tsx) n'avait jamais eu d'entrée
+  // ici. `pathForTab('admin_roles')` retombait donc sur `'/'` (repli), ce
+  // qui renvoyait silencieusement l'utilisateur admin vers la page
+  // d'accueil publique au lieu de l'écran Rôles & Permissions — vérifié en
+  // direct avant correction. Découvert en travaillant sur ce fichier pour
+  // la présente phase, corrigé ici plutôt que laissé de côté.
+  admin_roles: '/admin/roles',
+
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
+  // Nouveaux préfixes d'URL additifs (brief section 25) — chaque nouvelle
+  // route réutilise un écran déjà réel et fonctionnel (voir App.tsx
+  // renderStaffContent), avec un `initialFilter` préréglé différent,
+  // exactement comme triage/assignment/my_cases le font déjà depuis la
+  // Phase 9. Aucune route existante ci-dessus n'est retirée ni renommée.
+  op_dashboard: '/operator/dashboard',
+  op_inbox: '/operator/inbox',
+  op_pending_info: '/operator/pending-information',
+  op_assign: '/operator/assign',
+  op_processed: '/operator/processed',
+  op_search: '/operator/search',
+  op_reports: '/operator/reports',
+  op_communications: '/operator/communications',
+
+  inv_dashboard: '/investigator/dashboard',
+  inv_my_cases: '/investigator/cases',
+  inv_to_process: '/investigator/to-process',
+  inv_in_progress: '/investigator/in-progress',
+  inv_pending: '/investigator/pending',
+  inv_tasks: '/investigator/tasks',
+  inv_evidence: '/investigator/evidence',
+  inv_communications: '/investigator/communications',
+  inv_reports: '/investigator/reports',
+  inv_search: '/investigator/search',
+
+  admin_audit: '/admin/audit',
+  admin_reports: '/admin/reports',
 };
 
 const PATH_TO_TAB: Record<string, string> = Object.fromEntries(
