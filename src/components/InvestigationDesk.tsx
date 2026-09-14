@@ -1247,8 +1247,54 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           bandeau ni barre de filtres) === même correction que le bandeau
           ci-dessus (BUG PRÉEXISTANT CORRIGÉ) : cette barre de filtres n'a de
           sens qu'au-dessus d'une LISTE — elle s'affichait aussi en mode
-          détail. */}
-      {viewMode === 'list' && (
+          détail.
+          === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Dossiers",
+          même correction que côté Opérateur) === BUG PRÉEXISTANT CORRIGÉ,
+          signalé par l'utilisateur : "Dossiers" (onglet `portal`, utilisé
+          entre autres par l'espace Consultation) gardait encore la barre de
+          filtres complète (Statut/Entité/Criticité NOCA + 2 cases à cocher)
+          alors que les écrans Opérateur sœurs (À attribuer, En attente
+          d'infos, Dossiers attribués) avaient déjà été allégés à Recherche +
+          Entité (pas de "Pays" ici : cet écran n'a jamais eu ce filtre,
+          contrairement à `OperatorCaseDesk`). Réutilise `hideTopBanner`
+          (déjà vrai pour cet appelant) plutôt qu'une nouvelle prop — les
+          deux étaient déjà pensés comme un même bandeau "vue simplifiée" par
+          les commentaires existants ci-dessus. Les états
+          (statusFilter/nocaFilter/les 2 cases) restent inchangés dans le
+          code — seuls leurs contrôles disparaissent de cette variante. */}
+      {viewMode === 'list' && hideTopBanner && (
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-3 text-xs">
+        <div className="flex-1 min-w-[200px] relative">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t.search_placeholder}
+            className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+        </div>
+        <select
+          value={entityFilter}
+          onChange={(e) => setEntityFilter(e.target.value)}
+          className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700"
+        >
+          <option value="all">Toutes les entités ACTIVA</option>
+          {entities.map(e => (
+            <option key={e.id} value={e.name}>{e.flag} {e.name}</option>
+          ))}
+        </select>
+        {(entityFilter !== 'all' || searchQuery) && (
+          <button
+            onClick={() => { setEntityFilter('all'); setSearchQuery(''); }}
+            className="text-blue-700 hover:underline font-semibold"
+          >
+            Réinitialiser filtres
+          </button>
+        )}
+      </div>
+      )}
+      {viewMode === 'list' && !hideTopBanner && (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-3 text-xs">
         <div className="flex-1 min-w-[200px] relative">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />

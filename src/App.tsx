@@ -345,7 +345,16 @@ function AppShell() {
     // ne change), les autres varient simplement avec `currentTab` puisque
     // leur filtre associé est fixe pour cet onglet. Aucune logique interne
     // d'InvestigationDesk n'est modifiée — seul le remontage est corrigé.
-    if (currentTab === 'portal') return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} />;
+    // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Dossiers", même
+    // correction que côté Opérateur) === `hideTopBanner` masque désormais
+    // aussi le bandeau "Portail DARC" + ses 4 cartes KPI et allège la
+    // barre de filtres à Recherche + Entité (voir InvestigationDesk.tsx)
+    // — même traitement que les écrans Opérateur (À attribuer, En attente
+    // d'infos, Dossiers attribués) déjà simplifiés. "Dossiers" (`portal`)
+    // est le seul appelant concerné : c'est l'écran que l'espace
+    // Consultation utilise pour "Dossiers", et le seul visé par le retour
+    // utilisateur.
+    if (currentTab === 'portal') return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner />;
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
     // écran de détail, mêmes actions) avec un `initialFilter` préréglé
