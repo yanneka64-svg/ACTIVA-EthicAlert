@@ -13,6 +13,17 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
+// === AMÉLIORATION AJOUTÉE (Retours visuels — export Excel réel) === sur
+// retour utilisateur explicite : un vrai fichier .xlsx (pas seulement un
+// CSV "compatible Excel", choix précédent documenté plus bas) — `exceljs`,
+// bibliothèque réelle et activement maintenue (préférée à `xlsx`/SheetJS,
+// dont la version publiée sur le registre npm porte une vulnérabilité
+// haute non corrigée). Chargée en dynamique (voir `handleExportExcel`
+// ci-dessous), pas en import statique : elle alourdissait le paquet
+// principal de ~950 Ko pour un bouton que la plupart des visites
+// n'utilisent jamais — même motif que le chargement dynamique déjà réel de
+// `services/firebase` ailleurs dans l'app.
+import type ExcelJS from 'exceljs';
 
 interface ReportingDashboardProps {
   lang: Language;
@@ -124,7 +135,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   const anonymizeExport = true;
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  const [exportFormat, setExportFormat] = useState<'excel' | 'pdf'>('excel');
   const [exportFields, setExportFields] = useState<Set<ExportFieldGroupKey>>(new Set(EXPORT_FIELD_GROUPS.map((g) => g.key)));
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — filtres réels période/pays/entité/catégorie/statut) ===
@@ -238,6 +249,58 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     );
   };
 
+  // === AMÉLIORATION AJOUTÉE (Retours visuels — export Excel réel) === même
+  // logique de colonnes/champs que `handleExportCSV` ci-dessus (réutilise
+  // exactement EXPORT_FIELD_GROUPS/anonymizeExport — jamais dupliquée), mais
+  // écrit un vrai classeur .xlsx via `exceljs` au lieu d'un texte CSV. Les
+  // valeurs des colonnes CSV s'entourent de guillemets pour l'échappement
+  // CSV (ex. `"${a.category}"`) — inutile et trompeur dans une vraie
+  // cellule d'un tableur, d'où `stripCsvQuotes`.
+  const stripCsvQuotes = (v: string | number) => (typeof v === 'string' ? v.replace(/^"|"$/g, '') : v);
+
+  const handleExportExcel = async (fields: Set<ExportFieldGroupKey> = exportFields) => {
+    const activeGroups = EXPORT_FIELD_GROUPS.filter((g) => fields.has(g.key));
+    const headers = [...activeGroups.flatMap((g) => g.columns.map((c) => c.header)), 'Declarant_Mode', 'Declarant_Identite'];
+
+    // Chargement dynamique — voir le commentaire d'import en haut du fichier.
+    const ExcelJSModule = await import('exceljs');
+    const Excel = (ExcelJSModule.default ?? ExcelJSModule) as typeof ExcelJS;
+    const workbook = new Excel.Workbook();
+    workbook.creator = 'ACTIVA EthicAlert';
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet('Rapport');
+    sheet.addRow(headers).font = { bold: true };
+    sheet.columns = headers.map(() => ({ width: 22 }));
+
+    alerts.forEach((a) => {
+      sheet.addRow([
+        ...activeGroups.flatMap((g) => g.columns.map((c) => stripCsvQuotes(c.value(a)))),
+        a.whistleblower.isAnonymous ? 'Anonyme' : 'Identifie',
+        anonymizeExport
+          ? '[CAVIARDE / ANONYMISE]'
+          : (a.whistleblower.isAnonymous ? 'Anonyme' : (a.whistleblower.fullName || '')),
+      ]);
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ACTIVA_EthicAlert_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    storage.logAudit(
+      'REPORT_GENERATED',
+      `Génération d'un export Excel (.xlsx) des données d'alertes (${anonymizeExport ? 'Anonymisé' : 'Complet'}, champs : ${activeGroups.map((g) => g.label).join(', ') || 'aucun'}) par ${activeUser.name}.`,
+      undefined,
+      activeUser
+    );
+  };
+
   // Export Formatted Print/PDF
   const handlePrint = () => {
     storage.logAudit(
@@ -270,14 +333,17 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
               allégé) === bouton unique (PDF + CSV réunis, la case
               "anonymiser" et le bouton "Imprimer" séparé retirés) — ouvre
               toujours la même modale déjà réelle, qui propose le choix du
-              format. */}
+              format.
+              === AMÉLIORATION AJOUTÉE (Retours visuels — bouton bleu, export
+              Excel réel) === couleur passée en bleu (au lieu du bleu marine
+              #0B2545) sur retour utilisateur explicite. */}
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <button
               id="btn-export-report"
               onClick={() => setShowExportModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold shadow-xs transition"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-xs transition"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
               <span>{t.report_btn_export}</span>
             </button>
           </div>
@@ -548,13 +614,19 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
       </div>
 
       {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des
-          données) === Choix délibéré à signaler : seuls CSV et PDF sont de
-          vraies capacités d'export de cet écran (`handleExportCSV`/
-          `handlePrint`, déjà réelles) — pas de format "Excel" natif
-          distinct (aucun générateur .xlsx dans l'app) : le format CSV est
-          donc explicitement labellisé "compatible Excel" plutôt que de
-          fabriquer un troisième format qui n'existerait pas réellement
-          (brief §32). */}
+          données) === Choix délibéré à l'origine : seuls CSV et PDF étaient
+          de vraies capacités d'export de cet écran — pas de format "Excel"
+          natif distinct (aucun générateur .xlsx dans l'app à l'époque), le
+          CSV étant alors labellisé "compatible Excel" plutôt que de
+          fabriquer un format qui n'existait pas réellement (brief §32).
+          === AMÉLIORATION AJOUTÉE (Retours visuels — export Excel réel,
+          bouton bleu) === Sur retour utilisateur explicite ("PDF et Excel"),
+          le CSV devient un vrai fichier .xlsx (`handleExportExcel`,
+          `exceljs`) — la promesse "ouvrable dans Excel" est désormais
+          tenue littéralement, pas seulement approchée ; `handleExportCSV`
+          reste dans le code (jamais supprimée) mais n'est plus le format
+          proposé ici, remplacé par la vraie chose. Couleurs passées en bleu
+          (au lieu du bleu marine #0B2545), sur le même retour. */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
@@ -563,22 +635,22 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
             <div>
               <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_format}</label>
               <div className="flex gap-1.5">
-                {(['csv', 'pdf'] as const).map((fmt) => (
+                {(['excel', 'pdf'] as const).map((fmt) => (
                   <button
                     key={fmt}
                     type="button"
                     onClick={() => setExportFormat(fmt)}
                     className={`flex-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border transition ${
-                      exportFormat === fmt ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                      exportFormat === fmt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
                     }`}
                   >
-                    {fmt === 'csv' ? t.export_modal_format_csv : t.export_modal_format_pdf}
+                    {fmt === 'excel' ? t.export_modal_format_excel : t.export_modal_format_pdf}
                   </button>
                 ))}
               </div>
             </div>
 
-            {exportFormat === 'csv' && (
+            {exportFormat === 'excel' && (
               <div>
                 <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_fields}</label>
                 <div className="space-y-1.5">
@@ -608,12 +680,12 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (exportFormat === 'csv') handleExportCSV(exportFields);
+                onClick={async () => {
+                  if (exportFormat === 'excel') await handleExportExcel(exportFields);
                   else handlePrint();
                   setShowExportModal(false);
                 }}
-                disabled={exportFormat === 'csv' && exportFields.size === 0}
+                disabled={exportFormat === 'excel' && exportFields.size === 0}
                 className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold"
               >
                 {t.export_modal_export}

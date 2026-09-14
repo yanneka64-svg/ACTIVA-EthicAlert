@@ -382,7 +382,7 @@ function AppShell() {
           />
         );
       }
-      return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner />;
+      return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner simplifiedFilters />;
     }
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
@@ -529,7 +529,15 @@ function AppShell() {
     // Tableau de bord (inv_dashboard) conserve son bandeau, comme le vrai
     // Tableau de bord Opérateur (ControlPanel) — hors périmètre de cette
     // refonte, qui ne concernait que les 4 écrans nommés explicitement.
-    if (currentTab === 'inv_dashboard') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Tableau de bord"
+    // Enquêteur, capture de référence) === BUG PRÉEXISTANT CORRIGÉ, signalé
+    // par l'utilisateur : le bandeau reste (décision ci-dessus, toujours
+    // valable), mais la barre de filtres se simplifie à Recherche + Entité
+    // (`simplifiedFilters`, comme "Dossiers") et la rangée d'onglets par
+    // panier de statut + bouton "+ Nouveau" disparaît (`hideStatusTabsBar`)
+    // — ce Tableau de bord a déjà ses propres cartes KPI juste au-dessus,
+    // cette rangée y faisait doublon.
+    if (currentTab === 'inv_dashboard') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} simplifiedFilters hideStatusTabsBar />;
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
     // Enquêteur) === même remplacement par `OperatorCaseDesk` que côté
     // Opérateur (voir plus haut) — `myCasesOnly` n'a plus besoin d'être

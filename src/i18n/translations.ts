@@ -412,7 +412,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
     export_modal_title: 'Exporter les résultats',
     export_modal_format: 'Format',
-    export_modal_format_csv: 'CSV (compatible Excel)',
+    export_modal_format_excel: 'Excel (.xlsx)',
     export_modal_format_pdf: 'PDF',
     export_modal_fields: 'Champs à inclure',
     export_modal_export: 'Exporter',
@@ -426,7 +426,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // n'est plus modifiable (toujours activée, jamais un recul de
     // confidentialité) et le format PDF n'a jamais changé de mécanisme
     // (`window.print()`, inchangé).
-    report_btn_export: 'Exporter (PDF / CSV)',
+    report_btn_export: 'Exporter (PDF / Excel)',
     report_monthly_darc: 'Reporting Mensuel DARC',
     report_quarterly_board: 'Reporting Trimestriel Comité d’Audit & CA',
 
@@ -1305,14 +1305,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
     export_modal_title: 'Export Results',
     export_modal_format: 'Format',
-    export_modal_format_csv: 'CSV (Excel-compatible)',
+    export_modal_format_excel: 'Excel (.xlsx)',
     export_modal_format_pdf: 'PDF',
     export_modal_fields: 'Fields to Include',
     export_modal_export: 'Export',
     btn_export_excel: 'Formatted Data Export',
     btn_print_report: 'Print / Save PDF Report',
     toggle_anonymize: 'Generate 100% Anonymized Report (Redaction)',
-    report_btn_export: 'Export (PDF / CSV)',
+    report_btn_export: 'Export (PDF / Excel)',
     report_monthly_darc: 'DARC Monthly Report',
     report_quarterly_board: 'Audit Committee & Board Quarterly Report',
 
@@ -2146,14 +2146,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
     export_modal_title: 'Exportar resultados',
     export_modal_format: 'Formato',
-    export_modal_format_csv: 'CSV (compatível com Excel)',
+    export_modal_format_excel: 'Excel (.xlsx)',
     export_modal_format_pdf: 'PDF',
     export_modal_fields: 'Campos a incluir',
     export_modal_export: 'Exportar',
     btn_export_excel: 'Exportar Dados Formatados',
     btn_print_report: 'Imprimir / Salvar Relatório PDF',
     toggle_anonymize: 'Gerar Relatório 100% Anonimizado',
-    report_btn_export: 'Exportar (PDF / CSV)',
+    report_btn_export: 'Exportar (PDF / Excel)',
     report_monthly_darc: 'Relatório Mensal DARC',
     report_quarterly_board: 'Relatório Trimestral Comitê de Auditoria & Conselho',
 
