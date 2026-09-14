@@ -431,6 +431,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_comms_title: 'Registre des Communications',
     reg_comms_subtitle: 'Tous les échanges avec les lanceurs d’alerte, tous dossiers confondus.',
     reg_comms_empty: 'Aucune communication enregistrée pour le moment.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Communications) ===
+    reg_comms_open_case: 'Ouvrir le dossier',
+    reg_comms_reply_placeholder: 'Écrire un message confidentiel...',
     // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
     search_advanced_title: 'Recherche avancée',
     search_advanced_subtitle: 'Recherchez par mot-clé, pays, entité, catégorie, statut, criticité, sévérité, sensibilité, canal ou période — parmi les dossiers que vous êtes habilité à voir.',
@@ -442,6 +445,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_col_title: 'Intitulé',
     reg_col_owner: 'Responsable',
     reg_col_due: 'Échéance',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+    reg_col_priority: 'Priorité',
+    tasks_bucket_a_faire: 'À faire',
+    tasks_bucket_terminees: 'Terminées',
+    evidence_bucket_documents: 'Documents',
+    evidence_bucket_images: 'Images',
+    evidence_bucket_autres: 'Autres',
     reg_col_sender: 'Émetteur',
     reg_col_message: 'Message',
     reg_col_date: 'Date',
@@ -1117,6 +1127,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_comms_title: 'Communications Registry',
     reg_comms_subtitle: 'Every exchange with reporters, across all cases.',
     reg_comms_empty: 'No communication recorded yet.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Communications) ===
+    reg_comms_open_case: 'Open case',
+    reg_comms_reply_placeholder: 'Write a confidential message...',
     // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
     search_advanced_title: 'Advanced Search',
     search_advanced_subtitle: 'Search by keyword, country, entity, category, status, criticality, severity, sensitivity, channel or date — across the cases you are cleared to see.',
@@ -1128,6 +1141,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_col_title: 'Title',
     reg_col_owner: 'Owner',
     reg_col_due: 'Due date',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+    reg_col_priority: 'Priority',
+    tasks_bucket_a_faire: 'To do',
+    tasks_bucket_terminees: 'Completed',
+    evidence_bucket_documents: 'Documents',
+    evidence_bucket_images: 'Images',
+    evidence_bucket_autres: 'Other',
     reg_col_sender: 'Sender',
     reg_col_message: 'Message',
     reg_col_date: 'Date',
@@ -1801,6 +1821,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_comms_title: 'Registo de Comunicações',
     reg_comms_subtitle: 'Todas as trocas com os denunciantes, em todos os casos.',
     reg_comms_empty: 'Nenhuma comunicação registada até o momento.',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Communications) ===
+    reg_comms_open_case: 'Abrir o processo',
+    reg_comms_reply_placeholder: 'Escrever uma mensagem confidencial...',
     // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
     search_advanced_title: 'Pesquisa avançada',
     search_advanced_subtitle: 'Pesquise por palavra-chave, país, entidade, categoria, estado, criticidade, gravidade, sensibilidade, canal ou período — entre os casos que está autorizado a ver.',
@@ -1812,6 +1835,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_col_title: 'Título',
     reg_col_owner: 'Responsável',
     reg_col_due: 'Prazo',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+    reg_col_priority: 'Prioridade',
+    tasks_bucket_a_faire: 'A fazer',
+    tasks_bucket_terminees: 'Concluídas',
+    evidence_bucket_documents: 'Documentos',
+    evidence_bucket_images: 'Imagens',
+    evidence_bucket_autres: 'Outros',
     reg_col_sender: 'Remetente',
     reg_col_message: 'Mensagem',
     reg_col_date: 'Data',

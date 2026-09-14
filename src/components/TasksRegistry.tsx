@@ -10,6 +10,17 @@
  * donnée fabriquée) et renvoie vers le dossier concerné en un clic, via le
  * même mécanisme de lien profond `trackingNumber` déjà utilisé par le
  * Centre de Pilotage et la cloche de notifications.
+ *
+ * === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+ * Ajout des onglets de filtre (Toutes/À faire/En cours/Terminées) et de la
+ * colonne Priorité, façon maquette. Choix délibéré à signaler : le bouton
+ * "+ Nouvelle tâche" de la maquette n'est PAS ajouté sur cet écran
+ * transverse — créer une tâche exige de choisir un dossier, et ce
+ * sélecteur n'existe nulle part ailleurs dans l'app ; la création réelle
+ * reste accessible depuis l'onglet "Tâches" d'un dossier ouvert
+ * (InvestigationDesk, inchangé), où elle fonctionne déjà pleinement.
+ * Ajouter ici un bouton qui ouvrirait une modale non fonctionnelle aurait
+ * été une fausse fonctionnalité (brief §32) — écarté plutôt que simulé.
  */
 import React, { useEffect, useState } from 'react';
 import { ListTodo } from 'lucide-react';
@@ -38,9 +49,32 @@ const TASK_STATUS_STYLE: Record<CaseTask['status'], string> = {
   overdue: 'bg-rose-100 text-rose-800 border-rose-200',
 };
 
+const TASK_PRIORITY_STYLE: Record<CaseTask['priority'], string> = {
+  low: 'text-slate-500',
+  medium: 'text-amber-700',
+  high: 'text-rose-700',
+};
+
+// === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+// Les 4 statuts réels (not_started/in_progress/completed/overdue) se
+// regroupent en 3 onglets façon maquette (À faire/En cours/Terminées) :
+// "overdue" reste rangé sous "En cours" (une tâche en retard est toujours
+// une tâche active, juste signalée visuellement par son badge de statut
+// rouge dans le tableau) plutôt que d'inventer un 4e onglet absent de la
+// maquette.
+type TaskBucket = 'a_faire' | 'en_cours' | 'terminees';
+const TASK_BUCKET_OF_STATUS: Record<CaseTask['status'], TaskBucket> = {
+  not_started: 'a_faire',
+  in_progress: 'en_cours',
+  overdue: 'en_cours',
+  completed: 'terminees',
+};
+
 export const TasksRegistry: React.FC<TasksRegistryProps> = ({ lang, activeUser, onOpenCase }) => {
   const t = TRANSLATIONS[lang];
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+  const [bucketFilter, setBucketFilter] = useState<TaskBucket | 'all'>('all');
 
   useEffect(() => {
     const unsub = storage.subscribe(() => setAlerts(storage.getAlerts()));
@@ -55,9 +89,18 @@ export const TasksRegistry: React.FC<TasksRegistryProps> = ({ lang, activeUser, 
   const allUsers = storage.getUsers();
   const ownerName = (id: string) => allUsers.find((u) => u.id === id)?.name ?? id;
 
-  const rows: TaskRow[] = visibleAlerts
+  const allRows: TaskRow[] = visibleAlerts
     .flatMap((alert) => (alert.tasks ?? []).map((task) => ({ task, alert })))
     .sort((a, b) => new Date(a.task.dueDate).getTime() - new Date(b.task.dueDate).getTime());
+
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+  const bucketCounts: Record<TaskBucket | 'all', number> = {
+    all: allRows.length,
+    a_faire: allRows.filter((r) => TASK_BUCKET_OF_STATUS[r.task.status] === 'a_faire').length,
+    en_cours: allRows.filter((r) => TASK_BUCKET_OF_STATUS[r.task.status] === 'en_cours').length,
+    terminees: allRows.filter((r) => TASK_BUCKET_OF_STATUS[r.task.status] === 'terminees').length,
+  };
+  const rows = bucketFilter === 'all' ? allRows : allRows.filter((r) => TASK_BUCKET_OF_STATUS[r.task.status] === bucketFilter);
 
   const columns: DataTableColumn<TaskRow>[] = [
     {
@@ -69,6 +112,16 @@ export const TasksRegistry: React.FC<TasksRegistryProps> = ({ lang, activeUser, 
       key: 'case',
       header: t.cp_col_case_id,
       render: (r) => <span className="font-mono text-[11px] text-slate-600">{r.alert.trackingNumber}</span>,
+    },
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
+    {
+      key: 'priority',
+      header: t.reg_col_priority,
+      render: (r) => (
+        <span className={`text-[11px] font-bold uppercase ${TASK_PRIORITY_STYLE[r.task.priority]}`}>
+          {r.task.priority === 'high' ? t.priority_tres_elevee : r.task.priority === 'medium' ? t.priority_elevee : t.priority_faible}
+        </span>
+      ),
     },
     {
       key: 'owner',
@@ -101,6 +154,32 @@ export const TasksRegistry: React.FC<TasksRegistryProps> = ({ lang, activeUser, 
         </h2>
         <p className="text-xs text-slate-600 mt-1">{t.reg_tasks_subtitle}</p>
       </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) === onglets de
+          filtre façon maquette (Toutes/À faire/En cours/Terminées). */}
+      <div className="flex items-center gap-1.5 overflow-x-auto">
+        {(
+          [
+            ['all', t.db_bucket_tous],
+            ['a_faire', t.tasks_bucket_a_faire],
+            ['en_cours', t.db_bucket_en_cours],
+            ['terminees', t.tasks_bucket_terminees],
+          ] as [TaskBucket | 'all', string][]
+        ).map(([bucket, label]) => (
+          <button
+            key={bucket}
+            onClick={() => setBucketFilter(bucket)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition border ${
+              bucketFilter === bucket
+                ? 'bg-[#0B2545] text-white border-[#0B2545]'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+            }`}
+          >
+            {label} ({bucketCounts[bucket]})
+          </button>
+        ))}
+      </div>
+
       <DataTable
         columns={columns}
         rows={rows}
