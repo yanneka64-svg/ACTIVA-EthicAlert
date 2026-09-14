@@ -12,7 +12,7 @@
 // périmètre RBAC/pays/entité/confidentialité/routage indépendant déjà
 // appliqué partout ailleurs.
 
-import { AlertRecord, AlertStatus, NocaThreshold, SeverityLevel } from '../types';
+import { AlertRecord, AlertStatus, NocaThreshold, PriorityLevel, SeverityLevel } from '../types';
 import { ConfidentialityLevel } from './caseTypes';
 
 export interface AdvancedSearchCriteria {
@@ -31,9 +31,22 @@ export interface AdvancedSearchCriteria {
   /** Comparé avec le même repli que partout ailleurs (authz.canSeeAlertConfidentiality) : absent = 'restricted'. */
   confidentiality?: ConfidentialityLevel;
   channel?: AlertRecord['channel'];
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — filtre "Urgence") ===
+  // Comparé à la priorité EFFECTIVE (voir `effectivePriority` ci-dessous),
+  // exactement la même règle que `InvestigationDesk.getPriorityBadge` :
+  // l'ajustement manuel (`overridePriority`) prime toujours sur le score
+  // NOCA calculé à la soumission.
+  priority?: PriorityLevel;
   /** Dates ISO (yyyy-mm-dd, format natif d'un <input type="date">), comparées à AlertRecord.createdAt. */
   dateFrom?: string;
   dateTo?: string;
+}
+
+// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === Priorité effective
+// d'un dossier (Urgence) — extrait de `InvestigationDesk.getPriorityBadge`
+// pour être réutilisable en dehors de ce composant, sans dupliquer la règle.
+export function effectivePriority(alert: AlertRecord): PriorityLevel {
+  return alert.overridePriority || alert.riskEvaluation.priority;
 }
 
 function matchesKeyword(alert: AlertRecord, keyword: string): boolean {
@@ -61,6 +74,7 @@ export function searchAlerts(alerts: AlertRecord[], criteria: AdvancedSearchCrit
     if (criteria.severity && alert.severity !== criteria.severity) return false;
     if (criteria.confidentiality && (alert.confidentialityLevel ?? 'restricted') !== criteria.confidentiality) return false;
     if (criteria.channel && alert.channel !== criteria.channel) return false;
+    if (criteria.priority && effectivePriority(alert) !== criteria.priority) return false;
     if (criteria.dateFrom && alert.createdAt < criteria.dateFrom) return false;
     // Borne inclusive : compare contre le lendemain de dateTo (createdAt porte une heure, dateTo n'en a pas).
     if (criteria.dateTo && alert.createdAt.slice(0, 10) > criteria.dateTo) return false;

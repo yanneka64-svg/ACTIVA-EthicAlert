@@ -506,6 +506,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des recommandations) ===
     reg_recommendations_title: 'Suivi des recommandations',
     reg_recommendations_subtitle: 'Mesures correctives de tous les dossiers, par pays, entité, sévérité et statut.',
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — Boîte de réception,
+    // À attribuer, En attente d'infos, Dossiers attribués) === sous-titres
+    // et états vides des 4 écrans réécrits (OperatorCaseDesk.tsx). Titres
+    // réutilisent les clés `sidebar_op_*` déjà existantes ; les libellés de
+    // filtres/colonnes/actions eux-mêmes restent des chaînes françaises en
+    // dur dans le composant, exactement comme AdvancedSearchView.tsx (même
+    // précédent déjà établi dans ce code pour un écran transverse de ce
+    // type).
+    ocd_inbox_subtitle: 'Tous les signalements reçus du public — triez-les et échangez avec le lanceur d’alerte avant attribution.',
+    ocd_to_assign_subtitle: 'Dossiers nouveaux et en cours, classés par pays, entité, nature, criticité, sévérité et urgence — attribuez-les à un enquêteur.',
+    ocd_pending_info_subtitle: 'Dossiers en cours nécessitant des informations complémentaires du lanceur d’alerte.',
+    ocd_assigned_subtitle: 'Toutes les affaires déjà attribuées à un enquêteur.',
+    ocd_empty_inbox: 'Aucun signalement en attente de tri.',
+    ocd_empty_to_assign: 'Aucun dossier à attribuer pour le moment.',
+    ocd_empty_pending_info: 'Aucun dossier en attente d’informations complémentaires.',
+    ocd_empty_assigned: 'Aucun dossier attribué pour le moment.',
     reg_col_entity: 'Entité',
     reg_col_severity: 'Sévérité',
     reg_col_due_target: 'Échéance cible',
@@ -1353,6 +1369,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_col_due: 'Due date',
     reg_recommendations_title: 'Recommendations Tracking',
     reg_recommendations_subtitle: 'Corrective measures for every case, by country, entity, severity and status.',
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) ===
+    ocd_inbox_subtitle: 'All reports received from the public — triage them and message the reporter before assignment.',
+    ocd_to_assign_subtitle: 'New and in-progress cases, classified by country, entity, nature, criticality, severity and urgency — assign them to an investigator.',
+    ocd_pending_info_subtitle: 'In-progress cases awaiting additional information from the reporter.',
+    ocd_assigned_subtitle: 'All cases already assigned to an investigator.',
+    ocd_empty_inbox: 'No reports awaiting triage.',
+    ocd_empty_to_assign: 'No cases to assign at the moment.',
+    ocd_empty_pending_info: 'No cases awaiting additional information.',
+    ocd_empty_assigned: 'No assigned cases at the moment.',
     reg_col_entity: 'Entity',
     reg_col_severity: 'Severity',
     reg_col_due_target: 'Target date',
@@ -2178,6 +2203,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_col_due: 'Prazo',
     reg_recommendations_title: 'Acompanhamento das recomendações',
     reg_recommendations_subtitle: 'Medidas corretivas de todos os casos, por país, entidade, gravidade e estatuto.',
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) ===
+    ocd_inbox_subtitle: 'Todas as denúncias recebidas do público — triadas e trocando mensagens com o denunciante antes da atribuição.',
+    ocd_to_assign_subtitle: 'Casos novos e em curso, classificados por país, entidade, natureza, criticidade, gravidade e urgência — atribua-os a um investigador.',
+    ocd_pending_info_subtitle: 'Casos em curso que aguardam informações complementares do denunciante.',
+    ocd_assigned_subtitle: 'Todos os casos já atribuídos a um investigador.',
+    ocd_empty_inbox: 'Nenhuma denúncia à espera de triagem.',
+    ocd_empty_to_assign: 'Nenhum caso a atribuir no momento.',
+    ocd_empty_pending_info: 'Nenhum caso à espera de informações complementares.',
+    ocd_empty_assigned: 'Nenhum caso atribuído no momento.',
     reg_col_entity: 'Entidade',
     reg_col_severity: 'Gravidade',
     reg_col_due_target: 'Prazo alvo',

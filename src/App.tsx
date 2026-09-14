@@ -18,6 +18,14 @@ import { ContactView } from './components/ContactView';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
 import { AlertTrackingView } from './components/AlertTrackingView';
 import { InvestigationDesk } from './components/InvestigationDesk';
+// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — Boîte de réception /
+// À attribuer / En attente d'infos / Dossiers attribués) === remplace le
+// rendu InvestigationDesk+initialFilter des 4 onglets ci-dessous par ce
+// nouvel écran dédié (KPI réels, sélection multiple, filtres riches,
+// panneau liste + détail pour la Boîte de réception) — voir le fichier
+// pour le détail. La fiche dossier complète (InvestigationDesk, inchangée)
+// reste accessible en un clic via `onOpenCase`/`navigateToCases`.
+import { OperatorCaseDesk } from './components/OperatorCaseDesk';
 import { ControlPanel } from './components/ControlPanel';
 import { ReportingDashboard } from './components/ReportingDashboard';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
@@ -432,31 +440,28 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) ===
-    // 4 écrans redéfinis sur retour utilisateur détaillé (captures +
-    // description écran par écran) :
-    // - Boîte de réception : seul point d'entrée des signalements
-    //   publics, ouvre directement sur la messagerie avec le lanceur
-    //   d'alerte (`initialCaseTab="messages"`) plutôt que la synthèse.
-    // - À attribuer : "toutes les affaires nouvelles et en cours"
-    //   (`excludeClosed`), plus large que le seul filtre "non attribués"
-    //   d'avant — qui reste disponible en case à cocher manuelle dans
-    //   l'écran lui-même, inchangée.
-    // - Dossiers attribués (ex-"Dossiers traités") : "toutes les affaires
-    //   attribuées" (`assignedOnly`), plus la même notion que "Clôturé".
-    // - En attente d'infos : filtre déjà exact, inchangé.
-    // Bandeau de métriques retiré des 4 (`hideTopBanner`) — il fait
-    // doublon avec le vrai Tableau de bord Opérateur ci-dessus.
-    if (currentTab === 'op_inbox') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} hideTopBanner initialCaseTab="messages" />;
-    if (currentTab === 'op_pending_info') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'under_review' }} hideTopBanner />;
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) ===
+    // 4 écrans réécrits une seconde fois sur retour utilisateur détaillé
+    // (captures de référence supplémentaires) : `OperatorCaseDesk` (KPI
+    // réels, sélection multiple, filtres riches pays/entité/nature/
+    // criticité/sévérité/urgence/canal/sensibilité, panneau liste+détail
+    // pour la Boîte de réception) remplace le rendu InvestigationDesk+
+    // initialFilter de la Refonte Opérateur (phase précédente) — même
+    // périmètre de dossiers par écran (voir OperatorCaseDesk.tsx
+    // MODE_CONFIG, qui reprend exactement les mêmes règles `status`/
+    // `excludeClosed`/`assignedOnly` qu'avant). La fiche dossier complète
+    // (InvestigationDesk, strictement inchangée) reste à un clic via
+    // `onOpenCase`/`navigateToCases`.
+    if (currentTab === 'op_inbox') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'op_pending_info') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'op_assign') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
-          <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ excludeClosed: true }} hideTopBanner />
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="to_assign" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
     }
-    if (currentTab === 'op_processed') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ assignedOnly: true }} hideTopBanner />;
+    if (currentTab === 'op_processed') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="assigned" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
     // morts) === `op_search`/`op_reports`/`op_communications` (Phase 6)
     // supprimés d'ici : ils rendaient exactement `advanced_search`/
