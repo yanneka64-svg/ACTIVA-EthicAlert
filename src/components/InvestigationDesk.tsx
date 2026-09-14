@@ -86,7 +86,12 @@ import { generateSalt, hashPassword, generateAccessPassword } from '../services/
 // Petit composant partagé entre les deux groupes (compatibles / autorisés
 // Groupe) de la modale d'attribution — évite de dupliquer deux fois le
 // même balisage checkbox + charge de travail.
-function AssignCandidateRow({
+// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === Exportée (auparavant
+// privée à ce fichier) pour que le nouvel écran OperatorCaseDesk.tsx
+// réutilise exactement le même balisage checkbox + charge de travail pour
+// son propre panneau d'attribution, plutôt que de le dupliquer — aucun
+// changement de comportement ici.
+export function AssignCandidateRow({
   candidate,
   checked,
   onToggle,
