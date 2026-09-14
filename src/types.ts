@@ -110,6 +110,16 @@ export interface EvidenceFile {
   type: string;
   uploadedAt: string;
   dataUrl?: string;
+  // === AMÉLIORATION AJOUTÉE (Retours visuels — refonte "Preuves & pièces
+  // jointes") === champs additifs, optionnels : un fichier déposé avant
+  // cette phase (ou par le lanceur d'alerte, qui n'a pas de compte interne)
+  // en reste simplement dépourvu — affiché honnêtement "—" dans le
+  // registre plutôt qu'une valeur inventée (brief §32). `uploadedBy` n'est
+  // renseigné que pour un dépôt réalisé par un membre du staff
+  // (InvestigationDesk.handleAddEvidenceFile) : jamais le nom du lanceur
+  // d'alerte, qui reste anonyme y compris ici.
+  description?: string;
+  uploadedBy?: string;
 }
 
 export interface InternalNote {

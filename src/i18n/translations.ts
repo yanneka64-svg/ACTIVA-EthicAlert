@@ -419,6 +419,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_export_excel: 'Export Données Formatées',
     btn_print_report: 'Imprimer / Exporter Rapport PDF',
     toggle_anonymize: 'Générer un rapport 100% anonymisé (Caviardage)',
+    // === AMÉLIORATION AJOUTÉE (Retours visuels — écran Rapports allégé) ===
+    // Bouton unique remplaçant les 2 boutons "Export CSV brut"/"Imprimer /
+    // Exporter Rapport PDF" — ouvre toujours la même modale déjà réelle
+    // (choix CSV/PDF), retirée uniquement en dur : la case "anonymiser"
+    // n'est plus modifiable (toujours activée, jamais un recul de
+    // confidentialité) et le format PDF n'a jamais changé de mécanisme
+    // (`window.print()`, inchangé).
+    report_btn_export: 'Exporter (PDF / CSV)',
     report_monthly_darc: 'Reporting Mensuel DARC',
     report_quarterly_board: 'Reporting Trimestriel Comité d’Audit & CA',
 
@@ -483,7 +491,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_col_corrective_short: 'Mesures correctives',
     reg_col_corrective_verified: 'vérifiée(s)',
     reg_closure_rate_by_country: 'Taux de clôture par pays',
-    reg_evidence_title: 'Registre des Preuves',
+    // === AMÉLIORATION AJOUTÉE (Retours visuels — refonte "Preuves & pièces
+    // jointes") === renommé sur demande explicite (était "Registre des
+    // Preuves").
+    reg_evidence_title: 'Preuves & pièces jointes',
     reg_evidence_subtitle: 'Toutes les pièces jointes et preuves versées aux dossiers, tous dossiers confondus.',
     reg_evidence_empty: 'Aucune preuve enregistrée pour le moment.',
     reg_comms_title: 'Registre des Communications',
@@ -843,7 +854,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // interne d'un dossier portant le même nom (ex. onglet "Tâches" d'une
     // fiche dossier), pour lever l'ambiguïté relevée par l'utilisateur.
     sidebar_tasks_registry: 'Toutes les tâches',
-    sidebar_evidence_registry: 'Toutes les preuves',
+    sidebar_evidence_registry: 'Preuves & pièces jointes',
     sidebar_comms_registry: 'Toutes les communications',
     // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
     // Un compte sans vision globale (ex. investigator) ne voit jamais
@@ -1301,6 +1312,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_export_excel: 'Formatted Data Export',
     btn_print_report: 'Print / Save PDF Report',
     toggle_anonymize: 'Generate 100% Anonymized Report (Redaction)',
+    report_btn_export: 'Export (PDF / CSV)',
     report_monthly_darc: 'DARC Monthly Report',
     report_quarterly_board: 'Audit Committee & Board Quarterly Report',
 
@@ -1356,7 +1368,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_col_corrective_short: 'Corrective measures',
     reg_col_corrective_verified: 'verified',
     reg_closure_rate_by_country: 'Closure rate by country',
-    reg_evidence_title: 'Evidence Registry',
+    reg_evidence_title: 'Evidence & Attachments',
     reg_evidence_subtitle: 'Every attachment and evidence file filed across all cases.',
     reg_evidence_empty: 'No evidence recorded yet.',
     reg_comms_title: 'Communications Registry',
@@ -1691,7 +1703,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_inv_in_progress: 'In Progress',
     sidebar_inv_pending: 'Pending',
     sidebar_tasks_registry: 'All Tasks',
-    sidebar_evidence_registry: 'All Evidence',
+    sidebar_evidence_registry: 'Evidence & Attachments',
     sidebar_comms_registry: 'All Communications',
     // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
     sidebar_my_tasks: 'My Tasks',
@@ -2141,6 +2153,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_export_excel: 'Exportar Dados Formatados',
     btn_print_report: 'Imprimir / Salvar Relatório PDF',
     toggle_anonymize: 'Gerar Relatório 100% Anonimizado',
+    report_btn_export: 'Exportar (PDF / CSV)',
     report_monthly_darc: 'Relatório Mensal DARC',
     report_quarterly_board: 'Relatório Trimestral Comitê de Auditoria & Conselho',
 
@@ -2196,7 +2209,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_col_corrective_short: 'Medidas corretivas',
     reg_col_corrective_verified: 'verificada(s)',
     reg_closure_rate_by_country: 'Taxa de encerramento por país',
-    reg_evidence_title: 'Registo de Provas',
+    reg_evidence_title: 'Provas & anexos',
     reg_evidence_subtitle: 'Todos os anexos e provas juntados aos casos, em todos os casos.',
     reg_evidence_empty: 'Nenhuma prova registada até o momento.',
     reg_comms_title: 'Registo de Comunicações',
@@ -2531,7 +2544,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_inv_in_progress: 'Em curso',
     sidebar_inv_pending: 'Em espera',
     sidebar_tasks_registry: 'Todas as tarefas',
-    sidebar_evidence_registry: 'Todas as provas',
+    sidebar_evidence_registry: 'Provas & anexos',
     sidebar_comms_registry: 'Todas as comunicações',
     // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
     sidebar_my_tasks: 'Minhas tarefas',

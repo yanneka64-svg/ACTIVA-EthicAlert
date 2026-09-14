@@ -1,22 +1,12 @@
 import React, { useState } from 'react';
 import {
   BarChart3,
-  Download,
-  Printer,
-  PieChart,
-  TrendingUp,
   ShieldCheck,
   Building2,
-  EyeOff,
   CheckCircle2,
-  Clock,
   FileSpreadsheet,
-  Calendar,
   Filter,
   X,
-  // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
-  Briefcase,
-  Settings2,
 } from 'lucide-react';
 import { Language, AlertRecord, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -125,9 +115,13 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     ? entities.filter((e) => activeUser.entities!.includes(e.id))
     : entities;
 
-  // Mode: 'realtime' | 'monthly_darc' | 'quarterly_board'
-  const [reportView, setReportView] = useState<'realtime' | 'monthly_darc' | 'quarterly_board'>('realtime');
-  const [anonymizeExport, setAnonymizeExport] = useState<boolean>(true);
+  // === AMÉLIORATION AJOUTÉE (Retours visuels — écran Rapports allégé) ===
+  // Le sélecteur "Format" (temps réel/mensuel/trimestriel) et la case à
+  // cocher "anonymiser" sont retirés de l'écran (voir plus bas) — l'export
+  // reste TOUJOURS anonymisé par défaut (jamais un recul de confidentialité
+  // silencieux) : `anonymizeExport` devient une constante, plus un état
+  // modifiable par l'utilisateur.
+  const anonymizeExport = true;
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
@@ -163,21 +157,6 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     setCategoryFilter('all');
     setStatusFilter('all');
   };
-
-  // === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
-  // Libellé du niveau d'agrégation actuel (brief §35 : Vue Groupe / Vue
-  // Pays / Vue Entité). N'annonce jamais "Groupe ACTIVA" à un compte dont
-  // le périmètre pays est restreint — même sans filtre pays/entité
-  // sélectionné, ses chiffres ne portent déjà que sur son propre
-  // périmètre (allAlerts, filtré via useVisibleAlerts ci-dessus).
-  const reportLevelLabel =
-    entityFilter !== 'all'
-      ? `Entité — ${entityFilter}`
-      : countryFilter !== 'all'
-      ? `Pays — ${countryFilter}`
-      : isCountryScoped
-      ? `Pays (périmètre) — ${visibleCountries.map((c) => c.name).join(', ')}`
-      : 'Groupe ACTIVA';
 
   // Core Statistics Calculations (CDC 3.1.4)
   const totalAlerts = alerts.length;
@@ -263,7 +242,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   const handlePrint = () => {
     storage.logAudit(
       'REPORT_GENERATED',
-      `Impression / Export PDF du rapport ${reportView} par ${activeUser.name}.`,
+      `Impression / Export PDF du rapport Statistiques & Tableaux de bord DARC par ${activeUser.name}.`,
       undefined,
       activeUser
     );
@@ -287,127 +266,22 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
             </p>
           </div>
 
-          {/* Action buttons: Export CSV, Print PDF, Anonymize switch */}
+          {/* === AMÉLIORATION AJOUTÉE (Retours visuels — écran Rapports
+              allégé) === bouton unique (PDF + CSV réunis, la case
+              "anonymiser" et le bouton "Imprimer" séparé retirés) — ouvre
+              toujours la même modale déjà réelle, qui propose le choix du
+              format. */}
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer">
-              <EyeOff className="w-3.5 h-3.5 text-slate-500" />
-              <input
-                type="checkbox"
-                checked={anonymizeExport}
-                onChange={(e) => setAnonymizeExport(e.target.checked)}
-                className="rounded text-blue-600 focus:ring-blue-500"
-              />
-              <span className="font-medium text-[11px]">{t.toggle_anonymize}</span>
-            </label>
-
-            {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des
-                données) === ouvre désormais la modale de configuration de
-                l'export (format + champs à inclure) plutôt que d'exporter
-                directement — la capacité d'export CSV réelle est
-                inchangée, simplement précédée d'un choix explicite. */}
             <button
-              id="btn-export-csv"
+              id="btn-export-report"
               onClick={() => setShowExportModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold shadow-xs transition"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>{t.btn_export_csv}</span>
-            </button>
-
-            <button
-              id="btn-print-report"
-              onClick={handlePrint}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold shadow-xs transition"
             >
-              <Printer className="w-4 h-4 text-amber-400" />
-              <span>{t.btn_print_report}</span>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <span>{t.report_btn_export}</span>
             </button>
           </div>
         </div>
-
-        {/* Report Profile Selector: Realtime, Monthly DARC, Quarterly Board (CDC 3.1.4) */}
-        <div className="flex items-center gap-2 mt-4 pt-1">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-2">Format :</span>
-          <button
-            onClick={() => setReportView('realtime')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-              reportView === 'realtime'
-                ? 'bg-blue-600 text-white shadow'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            Tableau de bord temps réel
-          </button>
-          <button
-            onClick={() => setReportView('monthly_darc')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-              reportView === 'monthly_darc'
-                ? 'bg-blue-600 text-white shadow'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            {t.report_monthly_darc}
-          </button>
-          <button
-            onClick={() => setReportView('quarterly_board')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-              reportView === 'quarterly_board'
-                ? 'bg-blue-600 text-white shadow'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            {t.report_quarterly_board}
-          </button>
-        </div>
-      </div>
-
-      {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
-          Grille de cartes façon maquette (Activité globale/Par pays/Par
-          entité/Par catégorie/SLA et délais/Rapport personnalisé). Choix
-          délibéré à signaler : cet écran n'a pas de moteur de génération de
-          rapport distinct par type — chaque carte réutilise donc les
-          capacités réelles déjà existantes plus bas sur ce même écran
-          (jamais un bouton fantôme, brief §32) : "Générer" fait défiler en
-          douceur jusqu'à la section détaillée correspondante déjà réelle
-          (répartition NOCA/catégorie/géographique, délai moyen), et
-          "Par entité"/"Rapport personnalisé" pointent vers la barre de
-          filtres existante (pays/entité/catégorie/statut/période) — la plus
-          proche équivalence réelle d'un rapport "à la carte", faute de
-          rupture par entité dédiée sur cet écran. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {(
-          [
-            { id: 'report-anchor-activity', icon: <TrendingUp className="w-4 h-4" />, title: t.report_card_activity, action: t.report_card_generate },
-            { id: 'report-anchor-geo', icon: <Building2 className="w-4 h-4" />, title: t.report_card_by_country, action: t.report_card_generate },
-            { id: 'report-anchor-custom', icon: <Briefcase className="w-4 h-4" />, title: t.report_card_by_entity, action: t.report_card_generate },
-            { id: 'report-anchor-category', icon: <PieChart className="w-4 h-4" />, title: t.report_card_by_category, action: t.report_card_generate },
-            { id: 'report-anchor-sla', icon: <Clock className="w-4 h-4" />, title: t.report_card_sla, action: t.report_card_generate },
-            { id: 'report-anchor-custom', icon: <Settings2 className="w-4 h-4" />, title: t.report_card_custom, action: t.report_card_configure },
-          ] as { id: string; icon: React.ReactNode; title: string; action: string }[]
-        ).map((card, i) => (
-          <button
-            key={`${card.id}-${i}`}
-            onClick={() => document.getElementById(card.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition text-left"
-          >
-            <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">{card.icon}</span>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-slate-900 truncate">{card.title}</div>
-              <span className="text-[11px] font-semibold text-blue-700">{card.action} →</span>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
-          Indicateur de niveau d'agrégation (brief §35 : Vue Groupe/Pays/Entité) —
-          purement informatif, dérivé des filtres pays/entité déjà existants
-          ci-dessous, qui restent le mécanisme réel de "descente" d'un
-          niveau à l'autre. */}
-      <div className="flex items-center gap-2">
-        <span className="px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold">
-          Vue : {reportLevelLabel}
-        </span>
       </div>
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — barre de filtres réels) === */}

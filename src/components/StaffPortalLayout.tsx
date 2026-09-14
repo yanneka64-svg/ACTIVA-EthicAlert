@@ -170,7 +170,15 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 
   const operatorItems: NavItem[] = [
     { key: 'op_dashboard', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' },
-    { key: 'portal', label: t.sidebar_all_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (Retours visuels — nettoyage sidebar
+    // Opérateur) === "Tous les dossiers" retiré sur demande explicite : les
+    // 4 écrans ci-dessous (Boîte de réception/À attribuer/En attente
+    // d'infos/Dossiers attribués) couvrent déjà tout le cycle de vie d'un
+    // dossier côté Opérateur — cet onglet générique faisait doublon.
+    // L'écran lui-même (`portal`) n'est pas supprimé : toujours atteignable
+    // par URL (/cases) et utilisé par les liens profonds vers un dossier
+    // précis (`navigateToCases`), inchangé pour l'espace général et pour
+    // toute recherche.
     { key: 'op_inbox', label: t.sidebar_op_inbox, icon: <Inbox className="w-4 h-4" />, group: '' },
     { key: 'op_assign', label: t.sidebar_op_assign, icon: <UserPlus className="w-4 h-4" />, group: '' },
     { key: 'op_pending_info', label: t.sidebar_op_pending, icon: <Clock3 className="w-4 h-4" />, group: '' },

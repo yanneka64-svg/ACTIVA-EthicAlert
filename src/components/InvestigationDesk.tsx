@@ -988,6 +988,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         type: file.type,
         uploadedAt: new Date().toISOString(),
         dataUrl: typeof reader.result === 'string' ? reader.result : undefined,
+        // === AMÉLIORATION AJOUTÉE (Retours visuels — refonte "Preuves &
+        // pièces jointes") === seul point réel de dépôt côté staff : trace
+        // qui a versé ce document, affiché tel quel dans le registre
+        // transverse (EvidenceRegistry.tsx).
+        uploadedBy: activeUser.name,
       };
       storage.saveAlert({ ...selectedAlert, evidences: [...selectedAlert.evidences, newEvidence], updatedAt: new Date().toISOString() });
     };
