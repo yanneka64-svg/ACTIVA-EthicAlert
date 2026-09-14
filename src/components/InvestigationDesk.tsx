@@ -40,6 +40,8 @@ import {
   ArrowUpCircle,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
   ChevronLeft,
+  // === AMÉLIORATION AJOUTÉE (Retours visuels — cartes d'info du dossier) ===
+  Hourglass,
 } from 'lucide-react';
 import {
   Language,
@@ -1667,50 +1669,81 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             </div>
           </div>
 
-          {/* Info row: plain row with icon-prefixed values (no card border), matching the mockup exactly */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
-            <div>
+          {/* === AMÉLIORATION AJOUTÉE (Retours visuels — cartes d'info du
+              dossier) === BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur
+              (capture de référence) : cette ligne d'info était une simple
+              rangée de texte sans carte ("matching the mockup exactly" d'un
+              choix antérieur, contredit par la nouvelle capture) — reprend
+              désormais le même motif carte (icône + libellé + valeur) que la
+              vignette "Score de risque" juste au-dessus. Même données, même
+              grille, seule la présentation change. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+            <div className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2">
+                <Tag className="w-4 h-4" />
+              </span>
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_category}</div>
-              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1 truncate">
-                <Tag className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                {selectedAlert.category}
-              </div>
+              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.category}>{selectedAlert.category}</div>
             </div>
-            <div>
+            <div className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2">
+                <Building2 className="w-4 h-4" />
+              </span>
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_entity}</div>
-              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1 truncate">
-                <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                {selectedAlert.concernedEntity}
-              </div>
+              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.concernedEntity}>{selectedAlert.concernedEntity}</div>
             </div>
-            <div>
+            <div className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2">
+                <Globe2 className="w-4 h-4" />
+              </span>
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_country}</div>
-              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1 truncate">
-                <Globe2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                {selectedAlert.country}
-              </div>
+              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.country}>{selectedAlert.country}</div>
             </div>
-            <div>
+            <div className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2">
+                <Calendar className="w-4 h-4" />
+              </span>
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_received}</div>
-              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <div className="font-bold text-slate-900 mt-0.5">
                 {new Date(selectedAlert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
               </div>
             </div>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_sla_due}</div>
-              <div className={`flex items-center gap-1.5 font-semibold mt-1 ${computeSlaStatus(selectedAlert) === 'overdue' ? 'text-rose-600' : 'text-slate-800'}`}>
-                <Calendar className={`w-3.5 h-3.5 shrink-0 ${computeSlaStatus(selectedAlert) === 'overdue' ? 'text-rose-500' : 'text-slate-400'}`} />
-                {selectedAlert.targetCompletionDate
-                  ? new Date(selectedAlert.targetCompletionDate).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')
-                  : '—'}
-                {computeSlaStatus(selectedAlert) === 'overdue' && <span>({t.case_info_late})</span>}
-              </div>
-            </div>
-            <div>
+            {(() => {
+              const slaStatus = computeSlaStatus(selectedAlert);
+              const tone = slaStatus === 'overdue' ? 'rose' : slaStatus === 'at_risk' ? 'amber' : 'blue';
+              const iconBoxClass = tone === 'rose' ? 'bg-rose-50 text-rose-600' : tone === 'amber' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-700';
+              const valueClass = tone === 'rose' ? 'text-rose-700' : tone === 'amber' ? 'text-amber-700' : 'text-slate-900';
+              // === AMÉLIORATION AJOUTÉE (Retours visuels) === délai restant
+              // réel (jamais fabriqué) : différence entre `targetCompletionDate`
+              // (déjà réel) et l'instant présent, en jours pleins.
+              const daysDelta = selectedAlert.targetCompletionDate
+                ? Math.ceil((new Date(selectedAlert.targetCompletionDate).getTime() - Date.now()) / (24 * 3600 * 1000))
+                : null;
+              return (
+                <div className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${iconBoxClass}`}>
+                    <Hourglass className="w-4 h-4" />
+                  </span>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_sla_due}</div>
+                  <div className={`font-bold mt-0.5 ${valueClass}`}>
+                    {selectedAlert.targetCompletionDate
+                      ? new Date(selectedAlert.targetCompletionDate).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')
+                      : '—'}
+                  </div>
+                  {daysDelta !== null && (
+                    <div className={`text-[11px] font-semibold mt-0.5 ${valueClass}`}>
+                      {daysDelta >= 0 ? `Dans ${daysDelta} jour${daysDelta === 1 ? '' : 's'}` : `${t.case_info_late} (${Math.abs(daysDelta)} j)`}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            <div className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2">
+                <UserCog className="w-4 h-4" />
+              </span>
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_investigator}</div>
-              <div className="flex items-center gap-1.5 font-semibold text-slate-800 mt-1 truncate">
-                <UserCog className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.assignedInvestigatorNames.join(', ')}>
                 {selectedAlert.assignedInvestigatorNames.length > 0 ? selectedAlert.assignedInvestigatorNames.join(', ') : t.case_info_unassigned}
               </div>
             </div>
