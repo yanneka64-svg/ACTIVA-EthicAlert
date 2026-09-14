@@ -75,6 +75,12 @@ import { evaluateEscalationCriteria, getGroupEscalationOwners } from '../domain/
 // regroupement en 5 paniers que le Tableau de bord (Phase 1), pour que les
 // onglets de filtre affichent exactement les mêmes catégories.
 import { AlertStatusBucket, getAlertStatusBucket, isRejectedBucket } from '../domain/alertStatusBuckets';
+// === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+// Mêmes fonctions réelles que le formulaire public (AlertSubmissionFlow.tsx)
+// pour l'évaluation de risque et la génération du code d'accès sécurisé —
+// jamais réimplémentées à la main pour cette modale.
+import { computeRiskEvaluation } from '../data/activaConfig';
+import { generateSalt, hashPassword, generateAccessPassword } from '../services/crypto';
 
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 // Petit composant partagé entre les deux groupes (compatibles / autorisés
@@ -357,6 +363,26 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [linkingUserId, setLinkingUserId] = useState('');
   const evidenceFileInputRef = useRef<HTMLInputElement>(null);
 
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+  // Modale courte à 3 étapes (Informations/Classification/Validation),
+  // réservée aux opérateurs (décision confirmée par l'utilisateur : pas de
+  // questionnaire de risque complet ici — le dossier créé reçoit un niveau
+  // par défaut NOCA 2, ajustable ensuite depuis l'onglet Allégations
+  // existant, exactement comme pour tout autre dossier). Réutilise le
+  // même mécanisme réel que le formulaire public
+  // (AlertSubmissionFlow.tsx) pour tout ce qui doit rester honnête :
+  // numéro de suivi, code d'accès salé/haché, évaluation de risque via la
+  // vraie fonction `computeRiskEvaluation` (jamais un objet RiskEvaluation
+  // inventé à la main), délai cible dérivé de la config SLA réelle.
+  const [showCreateCaseModal, setShowCreateCaseModal] = useState(false);
+  const [createCaseStep, setCreateCaseStep] = useState<1 | 2 | 3>(1);
+  const [newCaseObjet, setNewCaseObjet] = useState('');
+  const [newCaseCountry, setNewCaseCountry] = useState('');
+  const [newCaseEntity, setNewCaseEntity] = useState('');
+  const [newCaseCategory, setNewCaseCategory] = useState('');
+  const [newCaseSubCategory, setNewCaseSubCategory] = useState('');
+  const [isCreatingCase, setIsCreatingCase] = useState(false);
+
   // Subscribe to storage updates
   useEffect(() => {
     const unsub = storage.subscribe(() => {
@@ -368,6 +394,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const allUsers = storage.getUsers();
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
   const entities = storage.getEntities();
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+  const countries = storage.getCountries();
+  const categoriesConfig = storage.getCategories();
+  const newCaseEntityOptions = newCaseCountry ? entities.filter((e) => e.country === newCaseCountry) : entities;
+  const newCaseSubCategoryOptions = categoriesConfig.find((c) => c.name === newCaseCategory)?.subCategories ?? [];
   // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
   // Candidats à l'attribution d'un dossier : tout profil qui fait
   // réellement de l'investigation (permission `cases.edit`) — remplace la
@@ -633,6 +664,93 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setMeasureDesc('');
     setMeasureResp('');
     setShowAddMeasureModal(false);
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+  // Construit un AlertRecord complet et honnête à partir de la saisie
+  // courte de la modale — même mécanique que AlertSubmissionFlow.tsx
+  // (numéro de suivi, code d'accès salé/haché, délai cible dérivé de la
+  // config SLA réelle), avec un niveau de risque par défaut NOCA 2
+  // (impact financier/niveau hiérarchique/récidive/réputation = 2 sur 4
+  // chacun, via la vraie fonction `computeRiskEvaluation` — jamais un
+  // score inventé à la main), à affiner ensuite depuis l'onglet
+  // Allégations comme pour tout autre dossier.
+  const handleCreateCase = async () => {
+    if (!newCaseObjet.trim() || !newCaseCountry || !newCaseEntity || !newCaseCategory || !newCaseSubCategory) return;
+    setIsCreatingCase(true);
+
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const trackingNumber = `ACT-2026-${randomSuffix}`;
+    const generatedPassword = generateAccessPassword();
+    const accessCodeSalt = generateSalt();
+    const accessCodeHash = await hashPassword(generatedPassword, accessCodeSalt);
+
+    const slaConfig = storage.getSlaConfig();
+    const riskEvaluation = computeRiskEvaluation(2, 2, 2, 2, slaConfig);
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + slaConfig.noca2Days);
+
+    const newRecord: AlertRecord = {
+      id: 'alt-' + Date.now(),
+      trackingNumber,
+      accessCodeHash,
+      accessCodeSalt,
+      // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+      // 'direct' : dossier saisi directement par un opérateur (téléphone,
+      // rencontre en personne...), distinct de 'web' (formulaire public
+      // en ligne) et 'qr_code' — les 3 valeurs réelles du canal existant.
+      channel: 'direct',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      targetCompletionDate: targetDate.toISOString(),
+      confidentialityLevel: 'confidential',
+      whistleblower: { isAnonymous: true, declarantType: 'Employé' },
+      category: newCaseCategory,
+      subCategory: newCaseSubCategory,
+      detailedDescription: newCaseObjet.trim(),
+      incidentDates: t.create_case_dates_unspecified,
+      incidentLocation: newCaseEntity,
+      concernedEntity: newCaseEntity,
+      country: newCaseCountry,
+      riskEvaluation,
+      impactType: newCaseCategory,
+      involvedPersons: [],
+      witnesses: [],
+      evidences: [],
+      status: 'new',
+      assignedInvestigators: [],
+      assignedInvestigatorNames: [],
+      internalNotes: [],
+      messages: [
+        {
+          id: 'msg-init',
+          sender: 'admin',
+          senderDisplayName: `DARC (${activeUser.name})`,
+          content: `Dossier créé par ${activeUser.name} sous la référence ${trackingNumber}. Classification provisoire : ${riskEvaluation.nocaThreshold} (${riskEvaluation.expectedTreatment}).`,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      correctiveMeasures: [],
+    };
+
+    storage.saveAlert(newRecord);
+    storage.logAudit(
+      'ALERT_SUBMITTED',
+      `Nouveau dossier créé par un opérateur : ${trackingNumber} (${newRecord.category} - ${newRecord.concernedEntity}). Classification provisoire : ${riskEvaluation.nocaThreshold}.`,
+      { id: newRecord.id, trackingNumber: newRecord.trackingNumber },
+      activeUser
+    );
+
+    setIsCreatingCase(false);
+    setShowCreateCaseModal(false);
+    setCreateCaseStep(1);
+    setNewCaseObjet('');
+    setNewCaseCountry('');
+    setNewCaseEntity('');
+    setNewCaseCategory('');
+    setNewCaseSubCategory('');
+    setSelectedAlertId(newRecord.id);
+    setViewMode('detail');
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 6) === Task management, via the Phase 1
@@ -1138,14 +1256,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 </button>
               ))}
             </div>
-            {onCreateNewCase && (
-              <button
-                onClick={onCreateNewCase}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5" /> {t.db_new_case_button}
-              </button>
-            )}
+            {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau
+                dossier) === ouvre désormais la vraie modale de création
+                (voir plus bas) plutôt que de renvoyer vers le formulaire
+                public. `onCreateNewCase` reste une prop déclarée (câblée
+                par tous les appelants existants dans App.tsx) mais n'est
+                plus utilisée ici — conservée pour un éventuel appelant
+                futur qui préférerait rediriger plutôt qu'ouvrir la
+                modale. */}
+            <button
+              onClick={() => setShowCreateCaseModal(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" /> {t.db_new_case_button}
+            </button>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -3159,6 +3283,190 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+          Modale courte à 3 étapes façon maquette (Informations/
+          Classification/Validation) — visuels validés par l'utilisateur
+          avant intégration finale. */}
+      {showCreateCaseModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau
+              dossier) === un <div>, pas un <form> : avec 2 boutons qui
+              partagent la même position mais changent de `type`
+              (button → submit) selon l'étape, un <form> déclenchait une
+              soumission native imprévue au moment même où React réécrit
+              l'attribut `type` du bouton en place (juste avant l'action
+              par défaut du clic) — bug confirmé en test Playwright, corrigé
+              en gérant la validation "Suivant"/"Créer" entièrement par
+              handlers, sans jamais dépendre de la sémantique native d'un
+              formulaire. */}
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">{t.create_case_title}</h3>
+              {/* Step indicator */}
+              <div className="flex items-center gap-2 mt-2.5">
+                {([1, 2, 3] as const).map((step) => (
+                  <React.Fragment key={step}>
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        step === createCaseStep
+                          ? 'bg-blue-600 text-white'
+                          : step < createCaseStep
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-slate-100 text-slate-400'
+                      }`}
+                    >
+                      {step < createCaseStep ? <Check className="w-3 h-3" /> : step}
+                    </span>
+                    <span className={`text-[10px] font-semibold ${step === createCaseStep ? 'text-slate-800' : 'text-slate-400'}`}>
+                      {step === 1 ? t.create_case_step_info : step === 2 ? t.create_case_step_classification : t.create_case_step_validation}
+                    </span>
+                    {step < 3 && <span className="flex-1 h-px bg-slate-200" />}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+
+            {createCaseStep === 1 && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.create_case_objet} *</label>
+                  <textarea
+                    autoFocus
+                    rows={3}
+                    value={newCaseObjet}
+                    onChange={(e) => setNewCaseObjet(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">{t.create_case_country} *</label>
+                    <select
+                      value={newCaseCountry}
+                      onChange={(e) => {
+                        setNewCaseCountry(e.target.value);
+                        setNewCaseEntity('');
+                      }}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                      required
+                    >
+                      <option value="">—</option>
+                      {countries.map((c) => (
+                        <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">{t.create_case_entity} *</label>
+                    <select
+                      value={newCaseEntity}
+                      onChange={(e) => setNewCaseEntity(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                      required
+                    >
+                      <option value="">—</option>
+                      {newCaseEntityOptions.map((en) => (
+                        <option key={en.id} value={en.name}>{en.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {createCaseStep === 2 && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.create_case_category} *</label>
+                  <select
+                    value={newCaseCategory}
+                    onChange={(e) => {
+                      setNewCaseCategory(e.target.value);
+                      setNewCaseSubCategory('');
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                    required
+                  >
+                    <option value="">—</option>
+                    {categoriesConfig.map((c) => (
+                      <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.create_case_subcategory} *</label>
+                  <select
+                    value={newCaseSubCategory}
+                    onChange={(e) => setNewCaseSubCategory(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                    disabled={!newCaseCategory}
+                    required
+                  >
+                    <option value="">—</option>
+                    {newCaseSubCategoryOptions.map((sc) => (
+                      <option key={sc} value={sc}>{sc}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                  {t.create_case_default_risk_notice}
+                </p>
+              </div>
+            )}
+
+            {createCaseStep === 3 && (
+              <div className="space-y-2.5">
+                <div className="p-3.5 rounded-xl border border-slate-200 space-y-2">
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_objet}</span><span className="font-semibold text-slate-900 text-right max-w-[60%] truncate">{newCaseObjet}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_country}</span><span className="font-semibold text-slate-900">{newCaseCountry}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_entity}</span><span className="font-semibold text-slate-900">{newCaseEntity}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_category}</span><span className="font-semibold text-slate-900">{newCaseCategory}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_subcategory}</span><span className="font-semibold text-slate-900">{newCaseSubCategory}</span></div>
+                  <div className="flex justify-between pt-2 border-t border-slate-100"><span className="text-slate-500">{t.create_case_default_risk_label}</span><span className="font-bold text-amber-700">NOCA 2</span></div>
+                </div>
+                <p className="text-[11px] text-slate-500">{t.create_case_validation_notice}</p>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  if (createCaseStep === 1) setShowCreateCaseModal(false);
+                  else setCreateCaseStep((s) => (s - 1) as 1 | 2 | 3);
+                }}
+                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                {createCaseStep === 1 ? t.btn_cancel : t.create_case_back}
+              </button>
+              {createCaseStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (createCaseStep === 1 && (!newCaseObjet.trim() || !newCaseCountry || !newCaseEntity)) return;
+                    setCreateCaseStep((s) => (s + 1) as 1 | 2 | 3);
+                  }}
+                  disabled={createCaseStep === 1 && (!newCaseObjet.trim() || !newCaseCountry || !newCaseEntity)}
+                  className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold"
+                >
+                  {t.create_case_next}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleCreateCase()}
+                  disabled={isCreatingCase || !newCaseCategory || !newCaseSubCategory}
+                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold"
+                >
+                  {isCreatingCase ? t.create_case_creating : t.create_case_confirm}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

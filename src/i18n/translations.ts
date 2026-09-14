@@ -539,6 +539,24 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
     db_bucket_tous: 'Tous',
     db_new_case_button: 'Nouveau',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+    create_case_title: 'Nouveau dossier',
+    create_case_step_info: 'Informations',
+    create_case_step_classification: 'Classification',
+    create_case_step_validation: 'Validation',
+    create_case_objet: 'Objet du signalement',
+    create_case_country: 'Pays',
+    create_case_entity: 'Entité',
+    create_case_category: 'Catégorie',
+    create_case_subcategory: 'Sous-catégorie',
+    create_case_default_risk_notice: 'Ce dossier sera créé avec un niveau de risque provisoire (NOCA 2), ajustable ensuite depuis l’onglet Allégations du dossier.',
+    create_case_default_risk_label: 'Niveau de risque provisoire',
+    create_case_validation_notice: 'Vérifiez les informations avant de créer le dossier — un numéro de suivi et un code d’accès sécurisé seront générés automatiquement.',
+    create_case_back: 'Précédent',
+    create_case_next: 'Suivant',
+    create_case_creating: 'Création…',
+    create_case_confirm: 'Créer le dossier',
+    create_case_dates_unspecified: 'Non précisé (dossier créé directement)',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tâches',
@@ -1286,6 +1304,24 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
     db_bucket_tous: 'All',
     db_new_case_button: 'New',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+    create_case_title: 'New Case',
+    create_case_step_info: 'Information',
+    create_case_step_classification: 'Classification',
+    create_case_step_validation: 'Validation',
+    create_case_objet: 'Report Subject',
+    create_case_country: 'Country',
+    create_case_entity: 'Entity',
+    create_case_category: 'Category',
+    create_case_subcategory: 'Subcategory',
+    create_case_default_risk_notice: 'This case will be created with a provisional risk level (NOCA 2), adjustable afterwards from the case’s Allegations tab.',
+    create_case_default_risk_label: 'Provisional risk level',
+    create_case_validation_notice: 'Review the information before creating the case — a tracking number and secure access code will be generated automatically.',
+    create_case_back: 'Back',
+    create_case_next: 'Next',
+    create_case_creating: 'Creating…',
+    create_case_confirm: 'Create Case',
+    create_case_dates_unspecified: 'Unspecified (case created directly)',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tasks',
@@ -2028,6 +2064,24 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
     db_bucket_tous: 'Todos',
     db_new_case_button: 'Novo',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
+    create_case_title: 'Novo processo',
+    create_case_step_info: 'Informações',
+    create_case_step_classification: 'Classificação',
+    create_case_step_validation: 'Validação',
+    create_case_objet: 'Objeto do sinal',
+    create_case_country: 'País',
+    create_case_entity: 'Entidade',
+    create_case_category: 'Categoria',
+    create_case_subcategory: 'Subcategoria',
+    create_case_default_risk_notice: 'Este processo será criado com um nível de risco provisório (NOCA 2), ajustável depois a partir do separador Alegações do processo.',
+    create_case_default_risk_label: 'Nível de risco provisório',
+    create_case_validation_notice: 'Verifique as informações antes de criar o processo — um número de referência e um código de acesso seguro serão gerados automaticamente.',
+    create_case_back: 'Anterior',
+    create_case_next: 'Seguinte',
+    create_case_creating: 'A criar…',
+    create_case_confirm: 'Criar o processo',
+    create_case_dates_unspecified: 'Não especificado (processo criado diretamente)',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tarefas',
