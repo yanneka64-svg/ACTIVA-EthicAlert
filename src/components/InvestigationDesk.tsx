@@ -36,6 +36,8 @@ import {
   Link2,
   ClipboardList,
   Paperclip,
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  ArrowUpCircle,
 } from 'lucide-react';
 import {
   Language,
@@ -64,6 +66,8 @@ import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
+// === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+import { evaluateEscalationCriteria, getGroupEscalationOwners } from '../domain/escalationCriteria';
 
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 // Petit composant partagé entre les deux groupes (compatibles / autorisés
@@ -197,6 +201,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [reopenReason, setReopenReason] = useState<string>('');
+
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [escalateReason, setEscalateReason] = useState<string>('');
+  const [escalateOwnerId, setEscalateOwnerId] = useState<string>('');
 
   // Note & Message inputs
   const [internalNoteText, setInternalNoteText] = useState<string>('');
@@ -659,6 +668,23 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setReopenReason('');
   };
 
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  const handleEscalate = () => {
+    if (!selectedAlert || !escalateReason.trim() || !escalateOwnerId) return;
+    const criteriaMatched = evaluateEscalationCriteria(selectedAlert).map((c) => c.label);
+    const result = storage.escalateAlert(selectedAlert.id, escalateReason.trim(), criteriaMatched, escalateOwnerId, activeUser);
+    if (result.allowed) {
+      setShowEscalateModal(false);
+      setEscalateReason('');
+      setEscalateOwnerId('');
+    }
+    // En cas de refus (transition invalide), la modale reste ouverte —
+    // aucun message d'erreur dédié n'est encore affiché ici, comme pour les
+    // autres actions de ce fichier qui échouent silencieusement plutôt que
+    // de casser l'écran ; `result.reason` est disponible pour un futur
+    // affichage si besoin.
+  };
+
   // Archive Alert (CDC 3.1.3)
   const handleArchiveAlert = () => {
     if (!selectedAlert) return;
@@ -1016,6 +1042,30 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       >
                         <UserPlus className="w-3.5 h-3.5 text-blue-600" />
                         <span>{t.btn_assign_investigator}</span>
+                      </button>
+                    )}
+
+                    {/* === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+                        Escalade manuelle vers la DARC Groupe (brief §14/§44).
+                        Gardée par `cases.reassign` (comme l'attribution,
+                        l'escalade change la responsabilité du dossier) — un
+                        investigateur de base n'a pas cette permission, un
+                        senior_investigator/functional_admin/darc_compliance
+                        oui. N'apparaît que s'il existe au moins un compte
+                        Groupe éligible pour recevoir le dossier. */}
+                    {userCan(activeUser, 'cases.reassign') && getGroupEscalationOwners(allUsers).length > 0 && (
+                      <button
+                        id="btn-desk-escalate"
+                        onClick={() => {
+                          setEscalateReason('');
+                          setEscalateOwnerId(getGroupEscalationOwners(allUsers)[0]?.id ?? '');
+                          setShowEscalateModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <ArrowUpCircle className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Escalader vers la DARC Groupe</span>
                       </button>
                     )}
 
@@ -2149,6 +2199,81 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
               >
                 Enregistrer l'attribution
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+          MODAL: ESCALADE VERS LA DARC GROUPE */}
+      {showEscalateModal && selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">Escalader vers la DARC Groupe</h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                Dossier {selectedAlert.trackingNumber} ({selectedAlert.concernedEntity}) — le pays et l'entité d'origine ne sont pas modifiés, seul le propriétaire du dossier change.
+              </p>
+            </div>
+
+            {(() => {
+              const criteria = evaluateEscalationCriteria(selectedAlert);
+              return criteria.length > 0 ? (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 space-y-1">
+                  <div className="font-bold text-rose-800">Critères d'escalade détectés (suggestion, non bloquant) :</div>
+                  <ul className="list-disc list-inside text-rose-700 space-y-0.5">
+                    {criteria.map((c) => (
+                      <li key={c.key}>{c.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-slate-500 text-[11px] italic">
+                  Aucun critère automatique détecté — l'escalade reste possible à la discrétion de l'opérateur/enquêteur.
+                </p>
+              );
+            })()}
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Propriétaire Groupe *</label>
+              <select
+                value={escalateOwnerId}
+                onChange={(e) => setEscalateOwnerId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                required
+              >
+                {getGroupEscalationOwners(allUsers).map((u) => (
+                  <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Motif de l'escalade *</label>
+              <textarea
+                rows={3}
+                value={escalateReason}
+                onChange={(e) => setEscalateReason(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                placeholder="Justification de l'escalade vers la DARC Groupe..."
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setShowEscalateModal(false)}
+                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleEscalate}
+                disabled={!escalateReason.trim() || !escalateOwnerId}
+                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold"
+              >
+                Confirmer l'escalade
               </button>
             </div>
           </div>

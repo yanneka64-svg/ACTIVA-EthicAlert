@@ -307,6 +307,54 @@ class StorageService {
     return { allowed: true };
   }
 
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  /**
+   * Escalade un dossier vers la DARC Groupe (brief §14/§44) : transition
+   * `workflowStatus` → `escalated` (réutilise `checkTransition()`, refuse
+   * une escalade structurellement invalide sans lever d'exception), puis
+   * enregistre le motif et le nouveau "propriétaire" (`escalatedOwnerId`,
+   * un compte Groupe — voir `getGroupEscalationOwners()` dans
+   * domain/escalationCriteria.ts). Le pays/entité d'origine du dossier
+   * (country/concernedEntity/countryId/entityId) ne sont JAMAIS modifiés
+   * ici — seul le propriétaire change, conformément au brief. Une seule
+   * entrée d'audit `CASE_ESCALATED` (pas de double journalisation avec
+   * `transitionStatus`, dont la logique de transition est reprise ici
+   * directement plutôt qu'appelée en cascade).
+   */
+  public escalateAlert(
+    alertId: string,
+    reason: string,
+    criteriaMatched: string[],
+    ownerId: string,
+    actor: UserProfile
+  ): TransitionCheckResult {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return { allowed: false, reason: 'Dossier introuvable.' };
+
+    const fromStatus = alert.workflowStatus ?? deriveCaseStatus(alert);
+    const check = checkTransition(fromStatus, 'escalated');
+    if (!check.allowed) return check;
+
+    const owner = this.users.find((u) => u.id === ownerId);
+    alert.workflowStatus = 'escalated';
+    alert.status = syncLegacyStatus('escalated');
+    alert.escalatedAt = new Date().toISOString();
+    alert.escalatedBy = actor.id;
+    alert.escalatedReason = reason;
+    alert.escalatedOwnerId = ownerId;
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+    this.logAudit(
+      'CASE_ESCALATED',
+      `Dossier ${alert.trackingNumber} escaladé vers ${owner?.name ?? ownerId} (DARC Groupe). Motif : "${reason}".` +
+        (criteriaMatched.length > 0 ? ` Critères retenus : ${criteriaMatched.join(', ')}.` : ''),
+      { id: alert.id, trackingNumber: alert.trackingNumber },
+      actor
+    );
+    return { allowed: true };
+  }
+
   // --- Audit Logs API ---
   public getAuditLogs(): AuditLogEntry[] {
     return [...this.auditLogs].sort(

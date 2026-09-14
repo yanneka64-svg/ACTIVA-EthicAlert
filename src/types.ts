@@ -355,7 +355,9 @@ export interface AuditLogEntry {
     | 'CONFIG_UPDATED'
     | 'LEGAL_HOLD_TOGGLED'
     // === AMÉLIORATION AJOUTÉE : traçabilité des tentatives d'accès refusées (rate limiting) ===
-    | 'ACCESS_DENIED';
+    | 'ACCESS_DENIED'
+    // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+    | 'CASE_ESCALATED';
   details: string;
   timestamp: string;
   ipAddress?: string;

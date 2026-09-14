@@ -209,10 +209,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const slaOnTrack = visible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'on_track').length;
   const slaAtRisk = visible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'at_risk').length;
   const slaOverdue = visible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'overdue').length;
-  // "Escalated" has no dedicated legacy AlertStatus — approximated here as
-  // overdue cases still not reassigned/closed, i.e. the ones a real
-  // escalation policy would trigger on. Flagged rather than left unstated.
-  const slaEscalated = visible.filter((a) => computeSlaStatus(a) === 'overdue' && a.status !== 'closed' && a.status !== 'archived' && a.assignedInvestigators.length === 0).length;
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  // Remplace l'approximation précédente (dossiers en retard non réassignés,
+  // documentée comme telle) par un vrai comptage : `workflowStatus` passe
+  // désormais réellement à `'escalated'` via `storage.escalateAlert()`
+  // (Phase 3/5), ce qui n'existait pas avant cette phase.
+  const slaEscalated = visible.filter((a) => a.workflowStatus === 'escalated').length;
 
   // --- Investigation monitoring ---
   const activeInvestigations = visible.filter((a) => a.status === 'investigation').length;
