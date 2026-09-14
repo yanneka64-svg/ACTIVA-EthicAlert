@@ -366,6 +366,19 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // d'affichage (libellés).
   const baseVisibleAlerts = useVisibleAlerts(alerts, activeUser);
 
+  // === AMÉLIORATION AJOUTÉE (Phase 6 — routage indépendant) ===
+  // Ce compte a-t-il été exclu par le routage indépendant d'au moins un
+  // dossier (brief §47-68) ? Réutilise `independentRoutingExcludedUserIds`
+  // (déjà posé par storage.triggerIndependentRouting, Phase 4) plutôt que
+  // de redériver la liste des personnes mises en cause depuis ce composant
+  // — évite aussi de sous-compter un dossier déjà routé ailleurs (le champ
+  // est déjà calculé une fois pour toutes par le moteur de routage). Un
+  // simple booléen, jamais un nombre affiché : le bandeau ci-dessous ne
+  // révèle ni combien de dossiers, ni lesquels, ni pourquoi.
+  const hasConfidentialRoutingExclusion = alerts.some((a) =>
+    (a.independentRoutingExcludedUserIds ?? []).includes(activeUser.id)
+  );
+
   const visibleAlerts = baseVisibleAlerts.filter(alert => {
     // Status filter
     if (statusFilter !== 'all' && alert.status !== statusFilter) return false;
@@ -929,6 +942,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           </div>
         </div>
       </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 6 — routage indépendant) ===
+          Bandeau neutre : jamais de nombre, jamais de nom, jamais de motif —
+          uniquement une mention générique de l'existence du mécanisme, pour
+          ne révéler à aucun utilisateur exclu qu'un dossier précis le
+          concerne. Visible quel que soit viewMode (liste ou détail), sur
+          toutes les routes /operator/ et /investigator/ qui réutilisent
+          cet écran. */}
+      {hasConfidentialRoutingExclusion && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">
+          <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span>Certains signalements sont soumis à un routage confidentiel.</span>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-3 text-xs">
