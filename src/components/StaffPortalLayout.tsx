@@ -13,6 +13,7 @@ import {
   Settings,
   ChevronRight,
   HelpCircle,
+  ArrowLeft,
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   Globe2,
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
@@ -188,6 +189,7 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 
   const investigatorItems: NavItem[] = [
     { key: 'inv_dashboard', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' },
+    { key: 'inv_inbox', label: 'Boîte de réception', icon: <Inbox className="w-4 h-4" />, group: '' },
     { key: 'inv_my_cases', label: t.sidebar_inv_my_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' },
     { key: 'inv_to_process', label: t.sidebar_inv_to_process, icon: <ListChecks className="w-4 h-4" />, group: '' },
     { key: 'inv_in_progress', label: t.sidebar_inv_in_progress, icon: <Search className="w-4 h-4" />, group: '' },
@@ -271,32 +273,36 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
       <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
-        {/* === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
-            Le sélecteur pilote désormais réellement `selectedSpace`, qui
-            détermine la LISTE affichée en dessous (plus seulement une
-            navigation ponctuelle vers un tableau de bord). */}
-        {showSpaceSwitcher && (
-          <div className="p-2.5 border-b border-slate-100 space-y-1">
-            <div className="px-0.5 pb-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">Espaces</div>
-            <div className="flex flex-col gap-1">
-              {availableSpaces.map((space) => (
-                <button
-                  key={space}
-                  id={`space-switcher-${space}`}
-                  onClick={() => {
-                    setSelectedSpace(space);
-                    setCurrentTab(SPACE_DASHBOARD_TAB[space]);
-                  }}
-                  className={`text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition ${
-                    selectedSpace === space ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {SPACE_LABEL[space]}
-                </button>
-              ))}
-            </div>
+        {/* Navigation vers l'Accueil des espaces & repère de l'espace actif */}
+        <div className="p-3 border-b border-slate-100 bg-slate-50/70 space-y-2">
+          <button
+            id="sidebar-btn-home-spaces"
+            onClick={() => setCurrentTab('staff_home')}
+            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-blue-700 hover:bg-white border border-slate-200/80 hover:border-slate-300 transition shadow-2xs group"
+            title="Revenir au choix des espaces"
+          >
+            <span className="flex items-center gap-1.5">
+              <ArrowLeft className="w-3.5 h-3.5 text-slate-400 group-hover:-translate-x-0.5 group-hover:text-blue-600 transition" />
+              <span>Accueil espaces</span>
+            </span>
+            <span className="text-[10px] text-blue-600 group-hover:underline">Changer</span>
+          </button>
+          <div className="px-1 flex items-center justify-between">
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                selectedSpace === 'operator'
+                  ? 'bg-blue-100 text-blue-800'
+                  : selectedSpace === 'investigator'
+                  ? 'bg-teal-100 text-teal-800'
+                  : selectedSpace === 'admin'
+                  ? 'bg-purple-100 text-purple-800'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {SPACE_LABEL[selectedSpace] || 'Espace actif'}
+            </span>
           </div>
-        )}
+        </div>
 
         <nav className="flex-1 py-3 px-2.5">
           {navItems.map((item) => {
@@ -329,11 +335,18 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 
       {/* Mobile horizontal nav */}
       <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto px-4 pt-4 pb-1 -mb-2">
+        <button
+          onClick={() => setCurrentTab('staff_home')}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Espaces</span>
+        </button>
         {navItems.map((item) => renderNavButton(item, true))}
       </div>
 
-      {/* Content canvas — sa propre largeur maximale centrée */}
-      <div className="flex-1 min-w-0 w-full max-w-[1600px] mx-auto lg:px-6 xl:px-8 lg:py-6">{children}</div>
+      {/* Content canvas */}
+      <div className="flex-1 min-w-0 w-full">{children}</div>
     </div>
   );
 };

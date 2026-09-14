@@ -205,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               maquette détaillée de la fiche dossier montrant ce bloc). */}
           <div
             id="brand-logo"
-            onClick={() => setCurrentTab('home')}
+            onClick={() => setCurrentTab(isStaffContext ? 'staff_home' : 'home')}
             className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
           >
             <ActivaLogo className="h-10 shrink-0" />

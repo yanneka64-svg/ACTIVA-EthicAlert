@@ -29,6 +29,7 @@ export const TAB_TO_PATH: Record<string, string> = {
   contact: '/contact',
   firebase_lookup: '/lookup',
   login: '/login',
+  staff_home: '/staff',
   control_panel: '/dashboard',
   portal: '/cases',
   triage: '/cases/triage',
@@ -68,6 +69,7 @@ export const TAB_TO_PATH: Record<string, string> = {
   op_processed: '/operator/processed',
 
   inv_dashboard: '/investigator/dashboard',
+  inv_inbox: '/investigator/inbox',
   inv_my_cases: '/investigator/cases',
   inv_to_process: '/investigator/to-process',
   inv_in_progress: '/investigator/in-progress',

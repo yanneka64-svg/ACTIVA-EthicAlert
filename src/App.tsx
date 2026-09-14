@@ -36,6 +36,8 @@ import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
 // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
 import { AdvancedSearchView } from './components/AdvancedSearchView';
+import { StaffWelcomeHome } from './components/StaffWelcomeHome';
+import { InvestigatorDashboard } from './components/InvestigatorDashboard';
 import { ShieldOff } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE : correction post-fusion ===
 // Ces imports (routage par URL, garde-fous, pont RBAC, écran de connexion
@@ -91,8 +93,9 @@ const STAFF_TAB_KEYS = [
   // et n'étaient plus atteignables par aucun bouton de menu depuis la
   // Proposition B (voir StaffPortalLayout.tsx). Leurs anciennes URLs restent
   // fonctionnelles via un alias dans routing/routes.ts.
+  'staff_home',
   'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed',
-  'inv_dashboard', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending',
+  'inv_dashboard', 'inv_inbox', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending',
   'admin_audit', 'admin_reports', 'admin_organization',
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   'admin_governance',
@@ -208,7 +211,7 @@ function AppShell() {
     // public page needs to land somewhere real; the staff portal's own
     // sidebar (StaffPortalLayout) then covers every other screen.
     else if (user.role !== 'reporter' && !STAFF_TAB_KEYS.includes(currentTab)) {
-      setCurrentTab('portal');
+      goToTab('staff_home');
     }
   };
 
@@ -224,46 +227,8 @@ function AppShell() {
   const handleLogin = (user: UserProfile) => {
     handleUserChange(user);
     setIsStaffSessionActive(true);
-    // === AMÉLIORATION AJOUTÉE (Phase 7 — évolution multi-pays/multi-entité) ===
-    // Redirection selon le rôle plutôt que toujours vers le Centre de
-    // Pilotage (comportement précédent). Réutilise exactement les mêmes
-    // permissions que le sélecteur d'espace (StaffPortalLayout.tsx) :
-    // cases.assign → Opérateur, cases.edit → Enquêteur, configuration.manage
-    // → Administration. `user` (le compte qui vient de se connecter), pas
-    // `activeUser`/`isGlobalViewer` — ces derniers reflètent encore
-    // l'ancien profil tant que le state React n'a pas été mis à jour.
-    // Pour tout rôle sans aucun de ces 3 accès, la vision globale existante
-    // continue de donner accès au Centre de Pilotage comme avant
-    // (comportement inchangé pour consultation/executive). Les 2 seuls
-    // rôles qui n'avaient AUCUN de ces accès — security_admin et
-    // audit_committee — atterrissaient déjà, avant cette phase, sur un
-    // Centre de Pilotage inaccessible ("Accès restreint", vérifié en
-    // direct) : ils atterrissent désormais sur Rapports (`/reports`), le
-    // seul écran interne sans garde de permission, ce qui corrige leur
-    // expérience de connexion sans rien changer pour un rôle qui
-    // fonctionnait déjà.
-    // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === BUG
-    // PRÉEXISTANT CORRIGÉ : `cases.assign` seul ne suffit plus depuis que
-    // la matrice de permissions est éditable en administration — la vraie
-    // garde de `/operator/dashboard` (branche `op_dashboard` ci-dessous)
-    // est `isGlobalViewer`, une table séparée (GLOBAL_VISIBILITY_ROLES)
-    // que l'édition de `cases.assign` ne modifie jamais. Coïncidaient
-    // toujours avant cette amélioration (seuls functional_admin/
-    // darc_compliance avaient `cases.assign`, tous deux à vision globale) ;
-    // plus garanti maintenant qu'un admin peut accorder `cases.assign` à
-    // n'importe quel rôle. Même correctif que StaffPortalLayout.tsx
-    // (canSeeOperatorSpace) pour le sélecteur d'espace.
-    if (userCan(user, 'cases.assign') && isGlobalCaseViewer(user)) {
-      navigate(pathForTab('op_dashboard'));
-    } else if (userCan(user, 'cases.edit')) {
-      navigate(pathForTab('inv_dashboard'));
-    } else if (canManageConfiguration(user)) {
-      navigate(pathForTab('settings'));
-    } else if (isGlobalCaseViewer(user)) {
-      navigate(pathForTab('control_panel'));
-    } else {
-      navigate(pathForTab('reports'));
-    }
+    // Redirection directe vers la page d'accueil d'accueil des espaces collaborateur
+    navigate(pathForTab('staff_home'));
   };
 
   const handleLogout = () => {
@@ -340,22 +305,22 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} />;
+    if (currentTab === 'portal') return <InvestigationDesk key="portal" lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} />;
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
     // écran de détail, mêmes actions) avec un `initialFilter` préréglé
     // différent — pas une copie, un préréglage — exactement comme le
     // Centre de Pilotage le fait déjà pour ses propres cartes KPI.
-    if (currentTab === 'triage') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
+    if (currentTab === 'triage') return <InvestigationDesk key="triage" lang={lang} activeUser={activeUser} customTitle="Triage des alertes" customSubtitle="Nouveaux signalements reçus à classifier" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
     if (currentTab === 'assignment') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
-          <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ unassignedOnly: true }} />
+          <InvestigationDesk key="assignment" lang={lang} activeUser={activeUser} customTitle="Attribution des dossiers" customSubtitle="Dossiers non attribués à désigner à un enquêteur" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ unassignedOnly: true }} />
         </PermissionGuard>
       );
     }
-    if (currentTab === 'my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'investigations') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'investigation' }} />;
+    if (currentTab === 'my_cases') return <InvestigationDesk key="my_cases" lang={lang} activeUser={activeUser} customTitle="Mes dossiers" customSubtitle="Dossiers attribués à votre compte" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'investigations') return <InvestigationDesk key="investigations" lang={lang} activeUser={activeUser} customTitle="Dossiers en investigation" customSubtitle="Dossiers actuellement en cours d'instruction active" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'investigation' }} />;
     if (currentTab === 'tasks') return <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
@@ -437,30 +402,32 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'op_inbox') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
-    if (currentTab === 'op_pending_info') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'under_review' }} />;
+    if (currentTab === 'op_inbox') return <InvestigationDesk key="op_inbox" lang={lang} activeUser={activeUser} customTitle="Boîte de réception — Nouveaux signalements" customSubtitle="Dossiers entrants non qualifiés en attente de prise en charge" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
+    if (currentTab === 'op_pending_info') return <InvestigationDesk key="op_pending_info" lang={lang} activeUser={activeUser} customTitle="Dossiers en attente d'informations" customSubtitle="Signalements nécessitant des précisions du lanceur d'alerte ou de tiers" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'under_review' }} />;
     if (currentTab === 'op_assign') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
-          <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ unassignedOnly: true }} />
+          <InvestigationDesk key="op_assign" lang={lang} activeUser={activeUser} customTitle="Attribution des dossiers" customSubtitle="Signalements recevables à désigner à un enquêteur" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ unassignedOnly: true }} />
         </PermissionGuard>
       );
     }
-    if (currentTab === 'op_processed') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'closed' }} />;
-    // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
-    // morts) === `op_search`/`op_reports`/`op_communications` (Phase 6)
-    // supprimés d'ici : ils rendaient exactement `advanced_search`/
-    // `reports`/`communications` ci-dessous, sans aucune différence
-    // fonctionnelle, et n'étaient plus reliés à aucun bouton de menu depuis
-    // la Proposition B. Leurs anciennes URLs restent fonctionnelles
-    // (routing/routes.ts, LEGACY_PATH_ALIASES) et retombent directement sur
-    // ces mêmes branches partagées.
+    if (currentTab === 'op_processed') return <InvestigationDesk key="op_processed" lang={lang} activeUser={activeUser} customTitle="Dossiers traités et clôturés" customSubtitle="Historique des dossiers instruits et clos avec rapport final" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'closed' }} />;
 
-    if (currentTab === 'inv_dashboard') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'inv_my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'inv_to_process') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'new' }} />;
-    if (currentTab === 'inv_in_progress') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'investigation' }} />;
-    if (currentTab === 'inv_pending') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'under_review' }} />;
+    if (currentTab === 'inv_dashboard') {
+      return (
+        <InvestigatorDashboard
+          lang={lang}
+          activeUser={activeUser}
+          onNavigateTab={goToTab}
+          onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
+        />
+      );
+    }
+    if (currentTab === 'inv_inbox') return <InvestigationDesk key="inv_inbox" lang={lang} activeUser={activeUser} customTitle="Boîte de réception — Dossiers cotés" customSubtitle="Dossiers d'investigation assignés et cotés à votre profil" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'inv_my_cases') return <InvestigationDesk key="inv_my_cases" lang={lang} activeUser={activeUser} customTitle="Mes dossiers d'investigation" customSubtitle="Ensemble des dossiers assignés à votre profil d'enquêteur" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'inv_to_process') return <InvestigationDesk key="inv_to_process" lang={lang} activeUser={activeUser} customTitle="Mes dossiers à instruire" customSubtitle="Nouveaux dossiers cotés nécessitant l'ouverture de l'instruction" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'new' }} />;
+    if (currentTab === 'inv_in_progress') return <InvestigationDesk key="inv_in_progress" lang={lang} activeUser={activeUser} customTitle="Mes dossiers en cours d'investigation" customSubtitle="Dossiers en phase active de recueil de preuves et d'auditions" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'investigation' }} />;
+    if (currentTab === 'inv_pending') return <InvestigationDesk key="inv_pending" lang={lang} activeUser={activeUser} customTitle="Mes dossiers en attente d'éléments" customSubtitle="Dossiers suspendus en attente de compléments d'informations" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'under_review' }} />;
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
     // morts) === `inv_tasks`/`inv_evidence`/`inv_communications`/
     // `inv_reports`/`inv_search` (Phase 6) supprimés d'ici, même motif que
@@ -572,7 +539,30 @@ function AppShell() {
         {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) === */}
         {currentTab === 'login' && <StaffLoginView onLogin={handleLogin} />}
 
-        {isStaffTab && (
+        {/* Page d'accueil des espaces collaborateur (Accueil Opérateur / Enquêteur) */}
+        {currentTab === 'staff_home' && (
+          <AuthenticatedRoute isAuthenticated={isStaffSessionActive} onGoToLogin={() => goToTab('login')}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <StaffWelcomeHome
+                lang={lang}
+                activeUser={activeUser}
+                onSelectSpace={(space, targetTab) => {
+                  if (space === 'operator') {
+                    goToTab(targetTab || 'op_dashboard');
+                  } else if (space === 'investigator') {
+                    goToTab(targetTab || 'inv_dashboard');
+                  } else if (space === 'admin') {
+                    goToTab(targetTab || 'admin_organization');
+                  }
+                }}
+                onNavigateToTab={goToTab}
+                onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
+              />
+            </div>
+          </AuthenticatedRoute>
+        )}
+
+        {isStaffTab && currentTab !== 'staff_home' && (
           // === AMÉLIORATION AJOUTÉE (Phase 12.2/12.4) === tout l'espace
           // staff passe désormais par AuthenticatedRoute — une session non
           // connectée (après déconnexion) est renvoyée vers /login au lieu

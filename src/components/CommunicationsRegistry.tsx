@@ -108,7 +108,7 @@ export const CommunicationsRegistry: React.FC<CommunicationsRegistryProps> = ({ 
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
       <div>
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-blue-700" />

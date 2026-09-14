@@ -224,6 +224,9 @@ interface InvestigationDeskProps {
   // every case — it narrows the list to cases assigned to the *active* user
   // specifically, without touching the underlying visibility rule itself.
   initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean };
+  // Contextual header labels to match active navigation tabs (e.g. Boîte de réception, À attribuer, etc.)
+  customTitle?: string;
+  customSubtitle?: string;
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === bouton
   // "+ Nouveau" de la maquette — optionnel, additif (chaque appelant qui ne
   // le passe pas garde simplement le bouton masqué, comportement inchangé).
@@ -234,6 +237,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   lang,
   activeUser,
   initialFilter,
+  customTitle,
+  customSubtitle,
   onCreateNewCase,
 }) => {
   const t = TRANSLATIONS[lang];
@@ -263,7 +268,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [unassignedOnlyFilter, setUnassignedOnlyFilter] = useState<boolean>(!!initialFilter?.unassignedOnly);
   const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);
   // === AMÉLIORATION AJOUTÉE (Phase 9 — écran dédié "Mes Dossiers") ===
-  const [myCasesOnlyFilter] = useState<boolean>(!!initialFilter?.myCasesOnly);
+  const [myCasesOnlyFilter, setMyCasesOnlyFilter] = useState<boolean>(!!initialFilter?.myCasesOnly);
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === onglets
   // de filtre par panier de statut façon maquette — filtre plus large que
   // `statusFilter` (un panier regroupe plusieurs statuts réels). Initialisé
@@ -273,6 +278,26 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [bucketFilter, setBucketFilter] = useState<AlertStatusBucket | 'all'>(
     initialFilter?.status ? getAlertStatusBucket(initialFilter.status as AlertStatus) : 'all'
   );
+
+  // Synchronize state whenever initialFilter changes
+  useEffect(() => {
+    setStatusFilter(initialFilter?.status ?? 'all');
+    setUnassignedOnlyFilter(!!initialFilter?.unassignedOnly);
+    setOverdueOnlyFilter(!!initialFilter?.overdueOnly);
+    setMyCasesOnlyFilter(!!initialFilter?.myCasesOnly);
+    if (initialFilter?.status) {
+      setBucketFilter(getAlertStatusBucket(initialFilter.status as AlertStatus));
+    } else {
+      setBucketFilter('all');
+    }
+    if (initialFilter?.trackingNumber) {
+      setSearchQuery(initialFilter.trackingNumber);
+      setViewMode('detail');
+    } else {
+      setSearchQuery('');
+      setViewMode('list');
+    }
+  }, [initialFilter]);
   // Pagination façon maquette (10/page) — cet écran affichait jusqu'ici
   // l'intégralité de la liste sans découpage.
   const [currentPage, setCurrentPage] = useState(1);
@@ -1076,13 +1101,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             <div className="flex items-center gap-2 mb-1">
               <ShieldAlert className="w-5 h-5 text-blue-700" />
               <h2 className="text-xl font-bold text-slate-900">
-                {t.portal_title}
+                {customTitle ?? t.portal_title}
               </h2>
             </div>
             <p className="text-xs text-slate-600">
-              {isGlobalViewer 
+              {customSubtitle ?? (isGlobalViewer 
                 ? 'Vue Groupe ACTIVA complète (DARC & Point de Contact)' 
-                : `Vue Gestionnaire restreinte à vos dossiers attribués (${activeUser.name})`}
+                : `Vue Gestionnaire restreinte à vos dossiers attribués (${activeUser.name})`)}
             </p>
           </div>
 
@@ -1245,7 +1270,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               ).map(([bucket, label]) => (
                 <button
                   key={bucket}
-                  onClick={() => setBucketFilter(bucket)}
+                  onClick={() => {
+                    setBucketFilter(bucket);
+                    if (statusFilter !== 'all') {
+                      setStatusFilter('all');
+                    }
+                  }}
                   className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition border ${
                     bucketFilter === bucket
                       ? 'bg-[#0B2545] text-white border-[#0B2545]'

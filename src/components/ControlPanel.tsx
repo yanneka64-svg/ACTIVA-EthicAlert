@@ -418,7 +418,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   ];
 
   return (
-    <div className="max-w-[1500px] mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-5">
+    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
         <div className="flex items-center gap-3.5">
