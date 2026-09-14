@@ -778,7 +778,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_inbox: 'Boîte de réception',
     sidebar_op_assign: 'À attribuer',
     sidebar_op_pending: 'En attente d’infos',
-    sidebar_op_processed: 'Dossiers traités',
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === libellé et sens
+    // changés ("toutes les affaires attribuées", ex-"Dossiers traités"/
+    // statut Clôturé) — clé de code conservée pour ne pas toucher
+    // routing/routes.ts, App.tsx et StaffPortalLayout.tsx sans nécessité.
+    sidebar_op_processed: 'Dossiers attribués',
     sidebar_inv_my_cases: 'Mes dossiers',
     sidebar_inv_to_process: 'À traiter',
     sidebar_inv_in_progress: 'En cours',
@@ -1591,7 +1595,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_inbox: 'Inbox',
     sidebar_op_assign: 'To Assign',
     sidebar_op_pending: 'Pending Info',
-    sidebar_op_processed: 'Processed Cases',
+    sidebar_op_processed: 'Assigned Cases',
     sidebar_inv_my_cases: 'My Cases',
     sidebar_inv_to_process: 'To Process',
     sidebar_inv_in_progress: 'In Progress',
@@ -2393,7 +2397,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_inbox: 'Caixa de entrada',
     sidebar_op_assign: 'A atribuir',
     sidebar_op_pending: 'Aguardando informações',
-    sidebar_op_processed: 'Casos processados',
+    sidebar_op_processed: 'Casos atribuídos',
     sidebar_inv_my_cases: 'Meus casos',
     sidebar_inv_to_process: 'A processar',
     sidebar_inv_in_progress: 'Em curso',

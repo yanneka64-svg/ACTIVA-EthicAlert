@@ -234,11 +234,42 @@ interface InvestigationDeskProps {
   // global viewer (functional/system admin, auditor) who would otherwise see
   // every case — it narrows the list to cases assigned to the *active* user
   // specifically, without touching the underlying visibility rule itself.
-  initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean };
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — À attribuer / Dossiers
+  // attribués) === `excludeClosed` : "toutes les affaires nouvelles et en
+  // cours" (À attribuer) — exclut ce qui est déjà en mesures correctives ou
+  // clôturé/archivé, sans se limiter à un seul statut précis comme
+  // `status` le fait déjà pour les autres écrans. `assignedOnly` :
+  // "toutes les affaires attribuées" (Dossiers attribués, ex-"Dossiers
+  // traités") — inverse exact de `unassignedOnly`, déjà existant.
+  initialFilter?: {
+    status?: string;
+    unassignedOnly?: boolean;
+    assignedOnly?: boolean;
+    excludeClosed?: boolean;
+    overdueOnly?: boolean;
+    trackingNumber?: string;
+    myCasesOnly?: boolean;
+  };
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === bouton
   // "+ Nouveau" de la maquette — optionnel, additif (chaque appelant qui ne
   // le passe pas garde simplement le bouton masqué, comportement inchangé).
   onCreateNewCase?: () => void;
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === Le bandeau de
+  // métriques en haut de cet écran (Total/En cours/Prioritaires/Taux de
+  // clôture) a du sens sur un écran générique ("Tous les dossiers"), mais
+  // pas sur un écran déjà spécialisé (Boîte de réception, À attribuer,
+  // Dossiers attribués, En attente d'infos) où il fait doublon avec le
+  // vrai Tableau de bord — retiré uniquement pour ces appelants-là, jamais
+  // par défaut (chaque appelant qui ne passe pas ce prop garde le bandeau,
+  // comportement strictement inchangé).
+  hideTopBanner?: boolean;
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Boîte de réception) ===
+  // La Boîte de réception est désormais le seul point d'entrée des
+  // signalements publics ET permet l'échange avec le lanceur d'alerte :
+  // ouvrir un dossier depuis cet écran doit donc mener directement à la
+  // messagerie plutôt qu'à la synthèse — réutilise l'onglet "messages" déjà
+  // réel du dossier (même mécanisme que l'onglet Communications interne).
+  initialCaseTab?: 'overview' | 'messages';
 }
 
 export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
@@ -246,6 +277,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   activeUser,
   initialFilter,
   onCreateNewCase,
+  hideTopBanner = false,
+  initialCaseTab,
 }) => {
   const t = TRANSLATIONS[lang];
 
@@ -272,6 +305,9 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>(initialFilter?.trackingNumber ?? '');
   // === AMÉLIORATION AJOUTÉE (Phase 5) ===
   const [unassignedOnlyFilter, setUnassignedOnlyFilter] = useState<boolean>(!!initialFilter?.unassignedOnly);
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) ===
+  const [assignedOnlyFilter] = useState<boolean>(!!initialFilter?.assignedOnly);
+  const [excludeClosedFilter] = useState<boolean>(!!initialFilter?.excludeClosed);
   const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);
   // === AMÉLIORATION AJOUTÉE (Phase 9 — écran dédié "Mes Dossiers") ===
   const [myCasesOnlyFilter] = useState<boolean>(!!initialFilter?.myCasesOnly);
@@ -298,7 +334,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // "Rapport", en plus d'une synthèse — rien n'est supprimé, tout reste
   // accessible, juste réorganisé. 'triage' s'affiche sous le libellé
   // "Allégations" (contenu existant enrichi d'un résumé de la qualification).
-  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'persons' | 'evidence_tab' | 'report'>('overview');
+  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'persons' | 'evidence_tab' | 'report'>(initialCaseTab ?? 'overview');
 
   // === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon maquette) ===
   // Consolidates the action toolbar (Attribution/Priorité/Clôture/Réouverture/
@@ -461,6 +497,15 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
     // === AMÉLIORATION AJOUTÉE (Phase 5) === Control-Panel-driven filters
     if (unassignedOnlyFilter && alert.assignedInvestigators.length > 0) return false;
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Dossiers attribués) ===
+    // Inverse exact de `unassignedOnlyFilter` ci-dessus.
+    if (assignedOnlyFilter && alert.assignedInvestigators.length === 0) return false;
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — À attribuer) === "toutes
+    // les affaires nouvelles et en cours" : exclut ce qui est déjà en
+    // mesures correctives ou clôturé/archivé, sans se limiter à un seul
+    // statut précis (contrairement à `statusFilter`, toujours disponible en
+    // plus pour un affinage manuel).
+    if (excludeClosedFilter && (alert.status === 'corrective_action' || alert.status === 'closed' || alert.status === 'archived')) return false;
     if (overdueOnlyFilter && computeSlaStatus(alert) !== 'overdue') return false;
     // === AMÉLIORATION AJOUTÉE (Phase 9) === "Mes Dossiers" deep link
     if (myCasesOnlyFilter && !alert.assignedInvestigators.includes(activeUser.id)) return false;
@@ -1080,7 +1125,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
-      {/* Top Banner with Desk metrics */}
+      {/* === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === Bandeau de
+          métriques masqué sur les écrans déjà spécialisés (voir prop
+          `hideTopBanner` ci-dessus) — sans changer son contenu ni son
+          comportement pour les appelants qui le gardent (ex. "Tous les
+          dossiers"). */}
+      {!hideTopBanner && (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
@@ -1091,8 +1141,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </h2>
             </div>
             <p className="text-xs text-slate-600">
-              {isGlobalViewer 
-                ? 'Vue Groupe ACTIVA complète (DARC & Point de Contact)' 
+              {isGlobalViewer
+                ? 'Vue Groupe ACTIVA complète (DARC & Point de Contact)'
                 : `Vue Gestionnaire restreinte à vos dossiers attribués (${activeUser.name})`}
             </p>
           </div>
@@ -1135,6 +1185,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 6 — routage indépendant) ===
           Bandeau neutre : jamais de nombre, jamais de nom, jamais de motif —
