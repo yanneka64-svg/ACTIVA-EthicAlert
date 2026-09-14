@@ -2,14 +2,6 @@ import React from 'react';
 import {
   Search,
   ChevronDown,
-  Database,
-  Bell,
-  Clock3,
-  MessageSquare,
-  ListTodo,
-  RotateCcw,
-  Paperclip,
-  FileCheck2,
   Send,
   User,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
@@ -22,18 +14,15 @@ import {
 } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (Phase 27) === `QrCode` et `Lock` retirés : ils ne
 // servaient plus qu'aux icônes de l'en-tête public retirées cette phase.
-import { Language, UserProfile, UserRole, AppNotification } from '../types';
+// === AMÉLIORATION AJOUTÉE (Refonte en-tête — suppression de la cloche et
+// de l'accès Firebase) === `AppNotification` retiré : plus utilisé une
+// fois `NOTIFICATION_ICONS`/le centre de notifications retirés ci-dessous.
+import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-// === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
-import { generateNotifications } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
 import { ActivaLogo } from './ui';
-// === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === cet
-// import avait de nouveau été perdu par une fusion avec `main` (déjà
-// documenté une première fois plus haut dans l'historique du fichier) alors
-// que le code plus bas l'utilise toujours — voir `isGlobalViewer` ci-dessous.
-import { isGlobalCaseViewer, canManageConfiguration } from '../services/authz';
+import { canManageConfiguration } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) ===
 import { computeAvailableSpaces } from '../domain/staffSpaces';
@@ -96,21 +85,6 @@ interface NavbarProps {
   onLogout: () => void;
 }
 
-// A real, computed notification list (see services/statusMapping.ts) never
-// carries persistent read/unread state of its own — this component keeps a
-// per-session "dismissed" id set, exactly as documented at the source of
-// generateNotifications(). It resets on reload, which is an accepted
-// trade-off: there is no separate AppNotification collection in storage.ts.
-const NOTIFICATION_ICONS: Record<AppNotification['type'], React.ComponentType<{ className?: string }>> = {
-  new_message: MessageSquare,
-  sla_at_risk: Clock3,
-  sla_overdue: Clock3,
-  task_overdue: ListTodo,
-  case_reopened: RotateCcw,
-  evidence_added: Paperclip,
-  closure_requested: FileCheck2,
-};
-
 export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   setCurrentTab,
@@ -131,44 +105,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showLangDropdown, setShowLangDropdown] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
 
-  // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
-  const [showNotifDropdown, setShowNotifDropdown] = React.useState(false);
-  const [dismissedIds, setDismissedIds] = React.useState<Set<string>>(new Set());
-  // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) === onglet de
-  // filtre façon maquette ("Toutes"/"Tâches"). Pas d'onglet "Non lues" :
-  // toute notification affichée ici est par construction non lue (une
-  // notification "lue" est immédiatement retirée via `dismissedIds`, il
-  // n'existe pas de distinction lu/non-lu au sein de la liste affichée) —
-  // un tel onglet afficherait toujours exactement la même chose que
-  // "Toutes", donc rien de réellement filtrant (brief §32).
-  const [notifTab, setNotifTab] = React.useState<'all' | 'tasks'>('all');
-  const [notifRefresh, setNotifRefresh] = React.useState(0);
-  React.useEffect(() => {
-    const unsub = storage.subscribe(() => setNotifRefresh((n) => n + 1));
-    return unsub;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
   // Remplace l'ancienne comparaison à 3 rôles codée en dur par la vraie
   // permission `cases.read` + visibilité globale (src/services/authz.ts).
-  // `isStaffUser` (tout profil hors lanceur d'alerte) n'a plus besoin de
-  // dépendre d'`isGlobalViewer` : le nouveau modèle compte désormais 8
-  // rôles "collaborateur" distincts (contre 3 avant), donc `role !== 'reporter'`
-  // exprime directement l'intention.
-  const isGlobalViewer = isGlobalCaseViewer(activeUser);
   const isStaffUser = activeUser.role !== 'reporter';
-  // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
-  // `generateNotifications` prend désormais `activeUser` directement (au
-  // lieu de `activeUser.id`/`isGlobalViewer` séparés) — voir
-  // services/statusMapping.ts pour la justification complète.
-  const notifications = React.useMemo(
-    () =>
-      isStaffUser
-        ? generateNotifications(storage.getAlerts(), storage.getAuditLogs(), activeUser).filter((n) => !dismissedIds.has(n.id))
-        : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isStaffUser, isGlobalViewer, activeUser, dismissedIds, notifRefresh]
-  );
 
   const badge = getRoleBadge(activeUser.role);
 
@@ -308,108 +248,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 accessible directement via /login (Phase 12.4, StaffLoginView)
                 — aucune fonctionnalité n'est supprimée côté application,
                 seul ce raccourci discret dans l'en-tête disparaît. */}
-            {isStaffContext && (
-              <>
-                {/* Notification bell */}
-                <div className="relative">
-                  <button
-                    id="btn-notification-bell"
-                    onClick={() => setShowNotifDropdown(!showNotifDropdown)}
-                    className="relative p-2 rounded-lg bg-slate-100 hover:bg-slate-200 transition text-slate-600"
-                    title={t.notif_title}
-                  >
-                    <Bell className="w-4 h-4" />
-                    {notifications.length > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
-                        {notifications.length > 9 ? '9+' : notifications.length}
-                      </span>
-                    )}
-                  </button>
-
-                  {showNotifDropdown && (
-                    <div className="absolute right-0 mt-1 w-80 bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 z-50 text-xs max-h-96 flex flex-col">
-                      <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
-                        <p className="font-bold text-slate-700">{t.notif_title}</p>
-                        {notifications.length > 0 && (
-                          <button
-                            onClick={() => setDismissedIds(new Set([...dismissedIds, ...notifications.map((n) => n.id)]))}
-                            className="text-[10px] font-semibold text-blue-700 hover:underline"
-                          >
-                            {t.notif_mark_all_read}
-                          </button>
-                        )}
-                      </div>
-                      {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) === */}
-                      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-slate-100 shrink-0">
-                        {(['all', 'tasks'] as const).map((tab) => {
-                          const count = tab === 'all' ? notifications.length : notifications.filter((n) => n.type === 'task_overdue').length;
-                          return (
-                            <button
-                              key={tab}
-                              onClick={() => setNotifTab(tab)}
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition ${
-                                notifTab === tab ? 'bg-[#0B2545] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              }`}
-                            >
-                              {tab === 'all' ? t.notif_tab_all : t.notif_tab_tasks} ({count})
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="overflow-y-auto flex-1">
-                        {(() => {
-                          const filtered = notifTab === 'tasks' ? notifications.filter((n) => n.type === 'task_overdue') : notifications;
-                          if (filtered.length === 0) {
-                            return <div className="text-center py-8 text-slate-400 text-[11px]">{t.notif_empty}</div>;
-                          }
-                          return filtered.map((n) => {
-                            const Icon = NOTIFICATION_ICONS[n.type] ?? Bell;
-                            return (
-                              <button
-                                key={n.id}
-                                onClick={() => {
-                                  setDismissedIds(new Set([...dismissedIds, n.id]));
-                                  setShowNotifDropdown(false);
-                                  onNavigateToCase(n.trackingNumber);
-                                }}
-                                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 flex items-start gap-2.5"
-                              >
-                                <span
-                                  className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                                    n.type === 'sla_overdue' ? 'bg-rose-50 text-rose-600' : n.type === 'sla_at_risk' || n.type === 'task_overdue' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
-                                  }`}
-                                >
-                                  <Icon className="w-3.5 h-3.5" />
-                                </span>
-                                <span className="flex-1 min-w-0">
-                                  <span className="block text-slate-700 leading-snug">{n.message}</span>
-                                  <span className="block text-[10px] text-slate-400 mt-0.5">
-                                    {new Date(n.createdAt).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
-                                  </span>
-                                </span>
-                              </button>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Compact links to screens not covered by the sidebar (Reports/Audit/Settings/Executive/
-                    Control Panel already live in StaffPortalLayout's sidebar — see App.tsx) */}
-                <button
-                  id="nav-btn-firebase-lookup"
-                  onClick={() => setCurrentTab('firebase_lookup')}
-                  className={`hidden lg:flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold transition ${
-                    currentTab === 'firebase_lookup' ? 'bg-purple-50 text-purple-700' : 'text-slate-500 hover:bg-slate-100'
-                  }`}
-                  title={t.nav_firebase_lookup}
-                >
-                  <Database className="w-4 h-4" />
-                </button>
-              </>
-            )}
+            {/* === AMÉLIORATION AJOUTÉE (Refonte en-tête — suppression de la
+                cloche et de l'accès Firebase) === Les deux boutons qui
+                vivaient ici pour `isStaffContext` (cloche de notifications
+                + accès "Firebase" / recherche technique, `#nav-btn-firebase-
+                lookup`) sont retirés sur demande explicite. L'écran
+                `firebase_lookup` (CaseLookup.tsx) et le centre de
+                notifications restent dans le code — App.tsx route toujours
+                `firebase_lookup`, atteignable par son URL directe
+                (`/lookup`) — seuls ces deux raccourcis d'en-tête
+                disparaissent. */}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 27) === Icône QR Code retirée
                 de l'en-tête public sur demande explicite. */}
@@ -665,14 +513,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>{t.nav_portal}</span>
             {pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
           </button>
-          <button
-            onClick={() => setCurrentTab('firebase_lookup')}
-            className={`px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1 ${currentTab === 'firebase_lookup' ? 'bg-purple-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
-          >
-            <Database className="w-3.5 h-3.5" />
-          </button>
           {/* === AMÉLIORATION AJOUTÉE (Phase 27) === bouton QR retiré de la
               barre mobile aussi, par cohérence avec l'en-tête desktop. */}
+          {/* === AMÉLIORATION AJOUTÉE (Refonte en-tête — suppression de la
+              cloche et de l'accès Firebase) === bouton "Firebase" retiré ici
+              aussi, par cohérence avec l'en-tête desktop — écran toujours
+              atteignable via son URL directe (/lookup). */}
         </div>
       </div>
     </header>
