@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   UserX,
@@ -14,9 +14,6 @@ import {
   Shield,
   Users,
   Leaf,
-  Camera,
-  RotateCcw,
-  Upload,
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -39,64 +36,32 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  // === AMÉLIORATION AJOUTÉE (Phase 22, révisée Phase 25) ===
-  // La carte affichait une seule valeur à la fois, en boucle toutes les 5
-  // secondes. Sur nouvelle capture de référence montrant les 3 valeurs
-  // affichées ensemble en permanence, revient à un affichage statique des
-  // 3 lignes — la logique de rotation (état, minuteur) est retirée en
-  // conséquence, elle n'a plus d'usage.
-  const heroValues = [
+  // === AMÉLIORATION AJOUTÉE (Phase 22, révisée Phase 25, révisée à nouveau
+  // Phase 30) === La carte de valeurs et la bulle de citation étaient deux
+  // encarts statiques séparés (Phase 25). Sur nouvelle demande explicite
+  // (« je veux que les messages défilent »), ils sont fusionnés en un seul
+  // encart qui fait défiler les 3 valeurs puis la citation, un message à la
+  // fois, toutes les 4 secondes — la logique de rotation réapparaît donc
+  // volontairement ici (elle avait été retirée en Phase 25).
+  const heroMessages: { icon: React.ComponentType<{ className?: string }>; title: string; desc?: string }[] = [
     { icon: Shield, title: t.hero_value1_title, desc: t.hero_value1_desc },
     { icon: Users, title: t.hero_value2_title, desc: t.hero_value2_desc },
     { icon: Leaf, title: t.hero_value3_title, desc: t.hero_value3_desc },
+    { icon: Quote, title: t.hero_quote },
   ];
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [heroBg, setHeroBg] = useState<string>(() => {
-    return localStorage.getItem('activa_custom_hero_bg') || '/brand/activa-hq.jpg';
-  });
-  const [isCustomBg, setIsCustomBg] = useState<boolean>(() => {
-    return !!localStorage.getItem('activa_custom_hero_bg');
-  });
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-
-  const handleFile = (file: File) => {
-    if (!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (result) {
-        try {
-          localStorage.setItem('activa_custom_hero_bg', result);
-          setHeroBg(result);
-          setIsCustomBg(true);
-        } catch {
-          // If localStorage is full, still display in memory
-          setHeroBg(result);
-          setIsCustomBg(true);
-        }
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleResetBg = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    localStorage.removeItem('activa_custom_hero_bg');
-    setHeroBg('/brand/activa-hq.jpg');
-    setIsCustomBg(false);
-  };
+  const [heroMsgIndex, setHeroMsgIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHeroMsgIndex((i) => (i + 1) % heroMessages.length);
+    }, 4000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const activeHeroMessage = heroMessages[heroMsgIndex];
+  const ActiveHeroIcon = activeHeroMessage.icon;
 
   return (
-    <div className="space-y-12 pb-8">
+    <div className="space-y-8 pb-6">
       {/* === AMÉLIORATION AJOUTÉE (Phase 20 — hero plein cadre) ===
           Retour à une photo en arrière-plan sur toute la largeur du hero
           (au lieu de la colonne dédiée Phase 17), avec un léger voile bleu
@@ -104,49 +69,26 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           droit, le texte reste lisible côté gauche. QR code et lien "Comment
           ça marche ?" retirés d'ici (sur demande) ; le lien reste accessible
           depuis la section elle-même, plus bas sur la page. */}
-      {/* Hero container with image drop support */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        className={`relative overflow-hidden border-b border-slate-200 min-h-[440px] sm:min-h-[540px] flex items-center transition-all ${
-          isDragging ? 'ring-4 ring-blue-500 ring-inset bg-blue-50/20' : ''
-        }`}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files && e.target.files[0]) {
-              handleFile(e.target.files[0]);
-            }
-          }}
-        />
-
+      {/* === AMÉLIORATION AJOUTÉE (Phase 28 — trop d'espace vide signalé) ===
+          Hauteur minimale réduite (540px → 460px en desktop) : le contenu du
+          hero laissait un grand vide sous la note "signalement anonyme"
+          avant le bord inférieur du bandeau photo. */}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 32) === La fonctionnalité de
+          téléversement/glisser-déposer d'une photo de fond personnalisée
+          (introduite par un commit poussé directement sur `main`, hors de
+          cette session — voir Phase 29) est retirée sur demande explicite
+          (« supprime le bouton changer de photos ») : bouton, bouton de
+          réinitialisation, zone de dépôt et état associé disparaissent ;
+          l'image du hero redevient fixe comme sur toutes les maquettes de
+          référence fournies depuis la Phase 17. */}
+      <div className="relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center">
         <img
-          src={heroBg}
+          src="/brand/activa-hq.jpg"
           alt="Siège du Groupe ACTIVA"
           className="absolute inset-0 w-full h-full object-cover object-right sm:object-[88%_center]"
-          referrerPolicy="no-referrer"
         />
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
         <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/35 to-transparent pointer-events-none" />
-
-        {isDragging && (
-          <div className="absolute inset-0 bg-blue-600/20 backdrop-blur-xs flex items-center justify-center z-30 pointer-events-none">
-            <div className="bg-white px-6 py-4 rounded-2xl shadow-xl border border-blue-200 flex items-center gap-3">
-              <Upload className="w-6 h-6 text-blue-600 animate-bounce" />
-              <span className="text-sm font-bold text-slate-800">
-                Déposez votre photo ici pour l'appliquer en fond d'écran
-              </span>
-            </div>
-          </div>
-        )}
 
         <div className="relative z-10 max-w-xl p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)] space-y-5">
           <span className="block text-xs font-bold tracking-wider text-blue-700 uppercase">
@@ -192,65 +134,45 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </p>
         </div>
 
-        {/* === AMÉLIORATION AJOUTÉE (Phase 25 — fidélité à la capture
-            fournie) === Carte de valeurs statique : les 3 lignes
-            (Intégrité/Transparence/Confiance) affichées ensemble en
-            permanence, séparées par un fin trait, au lieu d'une rotation. */}
-        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4 space-y-3">
-          {heroValues.map((v, i) => {
-            const Icon = v.icon;
-            return (
-              <div key={i} className={`flex items-center gap-3 ${i > 0 ? 'pt-3 border-t border-slate-100' : ''}`}>
-                <span className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                  <Icon className="w-4 h-4" />
-                </span>
-                <div>
-                  <div className="font-bold text-slate-900 text-sm">{v.title}</div>
-                  <div className="text-xs text-slate-500">{v.desc}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* === AMÉLIORATION AJOUTÉE (Phase 25) === bulle de citation avec
-            fond opaque bleu marine à nouveau (remplace le fond transparent
-            de la Phase 20, sur nouvelle capture de référence), avec le
-            petit trait décoratif sous le texte comme sur la capture. */}
-        <div className="hidden sm:flex flex-col absolute right-8 bottom-8 z-10 max-w-xs bg-[#0B2545]/95 text-white text-xs rounded-xl px-4 py-3 shadow-lg">
-          <div className="flex items-start gap-2">
-            <Quote className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-            <span className="leading-relaxed">{t.hero_quote}</span>
+        {/* === AMÉLIORATION AJOUTÉE (Phase 30 — messages défilants, fond
+            beaucoup plus transparent) === Remplace les deux encarts opaques
+            de la Phase 25 (carte de valeurs + bulle de citation) par un seul
+            encart qui fait défiler les 4 messages (3 valeurs + citation),
+            sur fond nettement plus transparent (bleu marine à 30% d'opacité
+            + flou, au lieu de blanc/marine à 95%) pour laisser mieux
+            transparaître la photo derrière. `key={heroMsgIndex}` redéclenche
+            le fondu à chaque changement de message (voir .activa-fade-in
+            dans index.css). */}
+        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-[#0B2545]/30 backdrop-blur-md rounded-2xl shadow-lg border border-white/25 p-4">
+          <div key={heroMsgIndex} className="flex items-start gap-3 activa-fade-in min-h-[2.75rem]">
+            <span className="w-9 h-9 rounded-full bg-white/20 text-amber-300 flex items-center justify-center shrink-0">
+              <ActiveHeroIcon className="w-4 h-4" />
+            </span>
+            <div>
+              <div className="font-bold text-white text-sm leading-snug drop-shadow-sm">{activeHeroMessage.title}</div>
+              {activeHeroMessage.desc && (
+                <div className="text-xs text-white/85">{activeHeroMessage.desc}</div>
+              )}
+            </div>
           </div>
-          <div className="w-8 h-px bg-white/30 mt-2 ml-6" />
-        </div>
-
-        {/* Bouton discret pour changer la photo de fond ou glisser-déposer */}
-        <div className="absolute left-6 bottom-3 sm:bottom-4 z-10 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/85 hover:bg-white text-slate-700 hover:text-blue-700 text-xs font-semibold backdrop-blur-sm border border-slate-200/80 shadow-xs transition cursor-pointer"
-            title="Sélectionnez votre fichier image ou glissez-le directement ici"
-          >
-            <Camera className="w-3.5 h-3.5 text-blue-600" />
-            <span>Changer la photo de fond</span>
-          </button>
-          {isCustomBg && (
-            <button
-              type="button"
-              onClick={handleResetBg}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/85 hover:bg-white text-slate-500 hover:text-red-600 text-xs font-semibold backdrop-blur-sm border border-slate-200/80 shadow-xs transition cursor-pointer"
-              title="Réinitialiser la photo"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Réinitialiser</span>
-            </button>
-          )}
+          {/* Puces de progression, un point par message */}
+          <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-white/20">
+            {heroMessages.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1 rounded-full transition-all duration-300 ${
+                  i === heroMsgIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/40'
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="space-y-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* === AMÉLIORATION AJOUTÉE (Phase 28) === space-y-12 → space-y-8 :
+          resserre l'écart entre le bandeau de confiance et "Comment ça
+          marche ?", jugé trop vide sur la capture de référence. */}
+      <div className="space-y-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* === AMÉLIORATION AJOUTÉE (Phase 25 — fidélité à la capture
           fournie) === Retour à une carte à bordure/ombre (Phase 17), icône
           rond plein (fond bleu, glyphe blanc) à gauche du texte plutôt

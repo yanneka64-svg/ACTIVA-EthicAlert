@@ -103,28 +103,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_track_existing: 'Suivre mon signalement',
     btn_view_policy: 'Consulter la Charte Éthique',
 
-    // Contact page
-    contact_title: 'Nous contacter',
-    contact_subtitle: 'Vous pouvez nous contacter via les canaux ci-dessous pour signaler une préoccupation ou poser une question.',
-    contact_whatsapp_title: 'WhatsApp Business',
-    contact_whatsapp_availability: 'Disponible 24/7',
-    contact_whatsapp_number: '00237 687 45 45 45',
-    contact_whatsapp_btn: 'Ouvrir WhatsApp',
-    contact_whatsapp_feature_1: 'Message automatique d’accueil',
-    contact_whatsapp_feature_2: 'Échange écrit et confidentiel',
-    contact_whatsapp_feature_3: 'Pièces jointes possibles (photos, documents, etc.)',
-    contact_whatsapp_feature_4: 'Disponible 24/7',
-    contact_email_title: 'Adresse e-mail dédiée',
-    contact_email_subtitle: 'Canal recommandé pour l’écrit',
-    contact_email_address: 'activa.whistleblowing@group-activa.com',
-    contact_email_btn: 'Envoyer un e-mail',
-    contact_email_info_1: 'Ce canal est recommandé pour les déclarations écrites et permet de joindre des documents (photos, fichiers, etc.).',
-    contact_email_info_2: 'Vous recevrez un accusé de réception automatique.',
-    contact_email_info_3: 'Les échanges sont traités de manière confidentielle.',
-    contact_confidentiality_title: 'Votre confidentialité est notre priorité',
-    contact_confidentiality_desc: 'Quel que soit le canal choisi, vos informations sont traitées de manière sécurisée et confidentielle.',
-    contact_copied: 'Copié dans le presse-papiers !',
-    
+    // === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === un
+    // second jeu de clés « Contact page » avait été réintroduit ici par une
+    // fusion avec `main` (doublon quasi intégral des clés `contact_*` déjà
+    // ajoutées Phase 27 plus bas dans ce bloc, jamais utilisées par
+    // ContactView.tsx) — provoquait une erreur de compilation (TS1117,
+    // propriétés en double dans le littéral d'objet). Retiré ; voir les
+    // clés `contact_*` existantes, conservées, juste avant `process_label`.
+
     // Alert form steps
     step_1_identity: '1. Confidentialité & Identité',
     step_2_facts: '2. Faits & Catégorie',
@@ -247,7 +233,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // Tracking
     track_title: 'Suivi confidentiel de votre signalement',
-    track_subtitle: 'Consultez l’avancement des investigations et dialoguez avec les enquêteurs en toute sécurité.',
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — refonte du portail de suivi,
+    // maquette de référence) === texte aligné mot pour mot sur la capture.
+    track_subtitle: 'Consultez l’avancement de votre dossier et échangez en toute sécurité avec l’équipe d’investigation.',
     // === AMÉLIORATION AJOUTÉE (Phase 3 — onglets du portail de suivi) ===
     track_tab_overview: 'Vue d’ensemble',
     track_tab_messages: 'Messages',
@@ -260,12 +248,70 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     status_label: 'Statut du dossier',
     badge_anonymous: 'Dossier Anonyme',
     badge_identified: 'Dossier Identifié',
-    
+
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — refonte du portail de suivi,
+    // fidèle aux 4 captures de référence fournies : écran de connexion,
+    // vue d'ensemble du dossier, messagerie, pièces jointes + modal de
+    // complément) ===
+    track_label_case_number: 'Numéro de dossier',
+    track_label_password: 'Mot de passe associé',
+    track_placeholder_case_number: 'Ex. ACT-2026-0418',
+    track_placeholder_password: 'Votre mot de passe confidentiel',
+    track_divider_or: 'ou',
+    track_switch_to_new_alert: 'Vous souhaitez plutôt déposer un nouveau signalement ?',
+    track_login_help: 'Votre code d’accès et votre mot de passe sont personnels et confidentiels. En cas d’oubli, il n’est pas possible de les récupérer.',
+    track_confidentiality_tip1: 'Accès sécurisé et chiffré',
+    track_confidentiality_tip2: 'Échanges anonymisés',
+    track_confidentiality_tip3: 'Aucune information personnelle requise',
+    track_back: 'Retour',
+    track_complete_declaration: 'Compléter la déclaration',
+    track_logout: 'Déconnexion',
+    track_progress_label: 'Avancement de votre dossier',
+    track_step1: 'Enregistré & Reçu',
+    track_step2: 'Analyse DARC',
+    track_step3: 'Investigation',
+    track_step4: 'Clôturé & Mesures prises',
+    track_field_case_number: 'Numéro de dossier',
+    track_field_entity: 'Entité concernée',
+    track_field_category: 'Catégorie',
+    track_field_dates: 'Date des faits',
+    track_field_location: 'Lieu constaté',
+    track_field_description: 'Description des faits',
+    track_general_info_title: 'Informations générales',
+    track_confidential_note_title: 'Confidentiel',
+    track_confidential_note_desc: 'Seules les personnes habilitées au sein de la Direction d’Audit, des Risques et de la Conformité ont accès à ce dossier.',
+    track_id_identified: 'Identifié',
+    track_id_anonymous: 'Anonyme',
+    msg_box_subtitle: 'Vos échanges sont anonymisés et protégés.',
+    track_message_input_helper: 'Vous pouvez joindre des fichiers depuis l’onglet « Pièces jointes ».',
+    track_docs_upload_title: 'Ajouter des pièces jointes',
+    track_docs_upload_hint: 'Glissez-déposez vos fichiers ici ou cliquez pour parcourir',
+    track_docs_upload_formats: 'Formats acceptés : PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, MP4 (max 10 Mo)',
+    track_docs_metadata_warning: 'Les documents peuvent contenir des métadonnées pouvant révéler votre identité. Veuillez les anonymiser si nécessaire.',
+    track_supplement_title: 'Apporter un complément d’information',
+    track_supplement_desc: 'Ce texte sera annexé à votre dossier officiel et notifié immédiatement aux auditeurs.',
+    track_supplement_label: 'Détail du complément',
+    track_supplement_placeholder: 'Précisez un nouveau fait, une nouvelle date, un montant rectifié ou le nom d’un autre témoin...',
+    track_supplement_warning: 'Évitez d’inclure des informations permettant de vous identifier si vous avez choisi le mode anonyme.',
+    track_supplement_submit: 'Valider et transmettre',
+    // === AMÉLIORATION AJOUTÉE (Phase 34 — nouvelle maquette du portail de
+    // suivi : panneau photo sur la connexion, navigation latérale, historique
+    // en frise chronologique) ===
+    track_login_tagline: 'Un environnement plus éthique, plus sûr pour tous.',
+    track_login_photo_note: 'Un canal sécurisé, anonyme et indépendant.',
+    track_docs_subtitle: 'Ajoutez des documents pour appuyer votre signalement.',
+    track_updates_title: 'Historique du dossier',
+    track_updates_subtitle: 'Suivez toutes les étapes et actions réalisées sur votre signalement.',
+    track_you_label: 'Vous',
+    track_field_status: 'Statut',
+
     // Messaging
-    msg_box_title: 'Messagerie anonyme sécurisée avec les enquêteurs',
+    // === AMÉLIORATION AJOUTÉE (Phase 33) === titre raccourci + sous-titre
+    // séparé, conforme à la capture (bandeau vert avec les deux lignes).
+    msg_box_title: 'Messagerie sécurisée et chiffrée',
     msg_placeholder: 'Écrivez un message ou apportez un complément d’information...',
     btn_send_msg: 'Envoyer',
-    
+
     // Statuses
     status_new: 'Nouveau / Reçu',
     status_under_review: 'En cours d’analyse préliminaire',
@@ -749,27 +795,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_track_existing: 'Track a report',
     btn_view_policy: 'View Ethics Charter',
 
-    // Contact page
-    contact_title: 'Contact Us',
-    contact_subtitle: 'You can contact us through the channels below to report a concern or ask a question.',
-    contact_whatsapp_title: 'WhatsApp Business',
-    contact_whatsapp_availability: 'Available 24/7',
-    contact_whatsapp_number: '00237 687 45 45 45',
-    contact_whatsapp_btn: 'Open WhatsApp',
-    contact_whatsapp_feature_1: 'Automated greeting message',
-    contact_whatsapp_feature_2: 'Confidential written exchange',
-    contact_whatsapp_feature_3: 'Attachments supported (photos, documents, etc.)',
-    contact_whatsapp_feature_4: 'Available 24/7',
-    contact_email_title: 'Dedicated Email Address',
-    contact_email_subtitle: 'Recommended channel for written reports',
-    contact_email_address: 'activa.whistleblowing@group-activa.com',
-    contact_email_btn: 'Send an email',
-    contact_email_info_1: 'This channel is recommended for written statements and allows attaching documents (photos, files, etc.).',
-    contact_email_info_2: 'You will receive an automatic acknowledgement of receipt.',
-    contact_email_info_3: 'All exchanges are handled confidentially.',
-    contact_confidentiality_title: 'Your confidentiality is our priority',
-    contact_confidentiality_desc: 'Regardless of the channel chosen, your information is processed securely and confidentially.',
-    contact_copied: 'Copied to clipboard!',
+    // === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === doublon
+    // des clés `contact_*` retiré (voir le même commentaire dans le bloc fr).
 
     step_1_identity: '1. Confidentiality & Identity',
     step_2_facts: '2. Facts & Category',
@@ -885,7 +912,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_go_to_tracking: 'Go to Tracking Area',
 
     track_title: 'Confidential Report Tracking',
-    track_subtitle: 'View investigation progress and exchange securely with auditors.',
+    track_subtitle: 'Review the progress of your case and exchange securely with the investigation team.',
     // === AMÉLIORATION AJOUTÉE (Phase 3 — tracking portal tabs) ===
     track_tab_overview: 'Overview',
     track_tab_messages: 'Messages',
@@ -899,7 +926,60 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     badge_anonymous: 'Anonymous Report',
     badge_identified: 'Identified Report',
 
-    msg_box_title: 'Encrypted communication channel with investigators',
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — tracking portal redesign,
+    // reference mockup) ===
+    track_label_case_number: 'Case number',
+    track_label_password: 'Associated password',
+    track_placeholder_case_number: 'E.g. ACT-2026-0418',
+    track_placeholder_password: 'Your confidential password',
+    track_divider_or: 'or',
+    track_switch_to_new_alert: 'Would you rather submit a new report?',
+    track_login_help: 'Your access code and password are personal and confidential. If lost, they cannot be recovered.',
+    track_confidentiality_tip1: 'Secure, encrypted access',
+    track_confidentiality_tip2: 'Anonymized exchanges',
+    track_confidentiality_tip3: 'No personal information required',
+    track_back: 'Back',
+    track_complete_declaration: 'Complete the statement',
+    track_logout: 'Log out',
+    track_progress_label: 'Case progress',
+    track_step1: 'Recorded & Received',
+    track_step2: 'DARC Review',
+    track_step3: 'Investigation',
+    track_step4: 'Closed & Measures Taken',
+    track_field_case_number: 'Case number',
+    track_field_entity: 'Concerned entity',
+    track_field_category: 'Category',
+    track_field_dates: 'Date of facts',
+    track_field_location: 'Location',
+    track_field_description: 'Description of facts',
+    track_general_info_title: 'General information',
+    track_confidential_note_title: 'Confidential',
+    track_confidential_note_desc: 'Only authorized members of the Audit, Risk and Compliance Department have access to this case.',
+    track_id_identified: 'Identified',
+    track_id_anonymous: 'Anonymous',
+    msg_box_subtitle: 'Your exchanges are anonymized and protected.',
+    track_message_input_helper: 'You can attach files from the "Documents" tab.',
+    track_docs_upload_title: 'Add attachments',
+    track_docs_upload_hint: 'Drag and drop your files here or click to browse',
+    track_docs_upload_formats: 'Accepted formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, MP4 (max 10MB)',
+    track_docs_metadata_warning: 'Documents may contain metadata that could reveal your identity. Please anonymize them if needed.',
+    track_supplement_title: 'Add additional information',
+    track_supplement_desc: 'This text will be appended to your official case file and notified immediately to the auditors.',
+    track_supplement_label: 'Details of the addition',
+    track_supplement_placeholder: 'Specify a new fact, a new date, a corrected amount, or the name of another witness...',
+    track_supplement_warning: 'Avoid including information that could identify you if you chose the anonymous mode.',
+    track_supplement_submit: 'Submit',
+    // === AMÉLIORATION AJOUTÉE (Phase 34 — tracking portal redesign: login
+    // photo panel, sidebar navigation, timeline-style history) ===
+    track_login_tagline: 'A more ethical, safer environment for everyone.',
+    track_login_photo_note: 'A secure, anonymous, independent channel.',
+    track_docs_subtitle: 'Add documents to support your report.',
+    track_updates_title: 'Case history',
+    track_updates_subtitle: 'Follow every step and action taken on your report.',
+    track_you_label: 'You',
+    track_field_status: 'Status',
+
+    msg_box_title: 'Secure, encrypted messaging',
     msg_placeholder: 'Write a message or provide additional evidence...',
     btn_send_msg: 'Send Message',
 
@@ -1374,27 +1454,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_track_existing: 'Acompanhar uma denúncia',
     btn_view_policy: 'Consultar Carta de Ética',
 
-    // Contact page
-    contact_title: 'Contacte-nos',
-    contact_subtitle: 'Pode contactar-nos através dos canais abaixo para reportar uma preocupação ou colocar uma questão.',
-    contact_whatsapp_title: 'WhatsApp Business',
-    contact_whatsapp_availability: 'Disponível 24/7',
-    contact_whatsapp_number: '00237 687 45 45 45',
-    contact_whatsapp_btn: 'Abrir WhatsApp',
-    contact_whatsapp_feature_1: 'Mensagem automática de boas-vindas',
-    contact_whatsapp_feature_2: 'Comunicação escrita e confidencial',
-    contact_whatsapp_feature_3: 'Anexos permitidos (fotos, documentos, etc.)',
-    contact_whatsapp_feature_4: 'Disponível 24/7',
-    contact_email_title: 'Endereço de e-mail dedicado',
-    contact_email_subtitle: 'Canal recomendado para mensagens escritas',
-    contact_email_address: 'activa.whistleblowing@group-activa.com',
-    contact_email_btn: 'Enviar um e-mail',
-    contact_email_info_1: 'Este canal é recomendado para declarações escritas e permite anexar documentos (fotos, ficheiros, etc.).',
-    contact_email_info_2: 'Receberá uma confirmação automática de receção.',
-    contact_email_info_3: 'Todas as comunicações são tratadas de forma confidencial.',
-    contact_confidentiality_title: 'A sua confidencialidade é a nossa prioridade',
-    contact_confidentiality_desc: 'Independentemente do canal escolhido, as suas informações são processadas de forma segura e confidencial.',
-    contact_copied: 'Copiado para a área de transferência!',
+    // === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === doublon
+    // des clés `contact_*` retiré (voir le même commentaire dans le bloc fr).
 
     step_1_identity: '1. Confidencialidade & Identidade',
     step_2_facts: '2. Fatos & Categoria',
@@ -1510,7 +1571,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_go_to_tracking: 'Ir para Área de Acompanhamento',
 
     track_title: 'Acompanhamento Confidencial da sua Denúncia',
-    track_subtitle: 'Consulte o andamento das investigações e converse com os investigadores.',
+    track_subtitle: 'Consulte o andamento do seu processo e converse com segurança com a equipa de investigação.',
     // === AMÉLIORATION AJOUTÉE (Phase 3 — abas do portal de acompanhamento) ===
     track_tab_overview: 'Visão geral',
     track_tab_messages: 'Mensagens',
@@ -1524,7 +1585,61 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     badge_anonymous: 'Processo Anônimo',
     badge_identified: 'Processo Identificado',
 
-    msg_box_title: 'Canal seguro de mensagens com os investigadores',
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — reformulação do portal de
+    // acompanhamento, maquete de referência) ===
+    track_label_case_number: 'Número de processo',
+    track_label_password: 'Senha associada',
+    track_placeholder_case_number: 'Ex. ACT-2026-0418',
+    track_placeholder_password: 'A sua senha confidencial',
+    track_divider_or: 'ou',
+    track_switch_to_new_alert: 'Prefere antes apresentar uma nova denúncia?',
+    track_login_help: 'O seu código de acesso e a sua senha são pessoais e confidenciais. Em caso de esquecimento, não é possível recuperá-los.',
+    track_confidentiality_tip1: 'Acesso seguro e encriptado',
+    track_confidentiality_tip2: 'Trocas anonimizadas',
+    track_confidentiality_tip3: 'Nenhuma informação pessoal exigida',
+    track_back: 'Voltar',
+    track_complete_declaration: 'Completar a declaração',
+    track_logout: 'Terminar sessão',
+    track_progress_label: 'Andamento do seu processo',
+    track_step1: 'Registado & Recebido',
+    track_step2: 'Análise DARC',
+    track_step3: 'Investigação',
+    track_step4: 'Encerrado & Medidas Tomadas',
+    track_field_case_number: 'Número de processo',
+    track_field_entity: 'Entidade envolvida',
+    track_field_category: 'Categoria',
+    track_field_dates: 'Data dos fatos',
+    track_field_location: 'Local constatado',
+    track_field_description: 'Descrição dos fatos',
+    track_general_info_title: 'Informações gerais',
+    track_confidential_note_title: 'Confidencial',
+    track_confidential_note_desc: 'Apenas as pessoas habilitadas na Direção de Auditoria, Riscos e Conformidade têm acesso a este processo.',
+    track_id_identified: 'Identificado',
+    track_id_anonymous: 'Anônimo',
+    msg_box_subtitle: 'As suas trocas são anonimizadas e protegidas.',
+    track_message_input_helper: 'Pode anexar ficheiros a partir do separador « Documentos ».',
+    track_docs_upload_title: 'Adicionar anexos',
+    track_docs_upload_hint: 'Arraste e solte os seus ficheiros aqui ou clique para procurar',
+    track_docs_upload_formats: 'Formatos aceites: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, MP4 (máx 10 Mo)',
+    track_docs_metadata_warning: 'Os documentos podem conter metadados que revelem a sua identidade. Anonimize-os se necessário.',
+    track_supplement_title: 'Fornecer uma informação complementar',
+    track_supplement_desc: 'Este texto será anexado ao seu processo oficial e notificado imediatamente aos auditores.',
+    track_supplement_label: 'Detalhe do complemento',
+    track_supplement_placeholder: 'Especifique um novo fato, uma nova data, um montante corrigido ou o nome de outra testemunha...',
+    track_supplement_warning: 'Evite incluir informações que permitam identificá-lo se escolheu o modo anônimo.',
+    track_supplement_submit: 'Validar e transmitir',
+    // === AMÉLIORATION AJOUTÉE (Phase 34 — nova maquete do portal de
+    // acompanhamento: painel de foto na conexão, navegação lateral,
+    // histórico em linha do tempo) ===
+    track_login_tagline: 'Um ambiente mais ético e mais seguro para todos.',
+    track_login_photo_note: 'Um canal seguro, anônimo e independente.',
+    track_docs_subtitle: 'Adicione documentos para apoiar a sua denúncia.',
+    track_updates_title: 'Histórico do processo',
+    track_updates_subtitle: 'Acompanhe todas as etapas e ações realizadas na sua denúncia.',
+    track_you_label: 'Você',
+    track_field_status: 'Status',
+
+    msg_box_title: 'Mensagens seguras e encriptadas',
     msg_placeholder: 'Escreva uma mensagem ou envie informações complementares...',
     btn_send_msg: 'Enviar',
 
