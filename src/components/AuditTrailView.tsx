@@ -119,12 +119,20 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
             <option value="ALERT_ACCESSED">Consultation de dossier</option>
             <option value="ACCESS_DENIED">Accès refusé (échec authentification)</option>
             <option value="INVESTIGATOR_ASSIGNED">Attribution de gestionnaire</option>
+            {/* === AMÉLIORATION AJOUTÉE (Phase 9 — évolution multi-pays/multi-entité) === */}
+            <option value="CASE_ESCALATED">Escalade vers la DARC Groupe</option>
+            <option value="STATUS_CHANGED">Changement de statut</option>
             <option value="PRIORITY_MODIFIED">Modification de priorité</option>
             <option value="INTERNAL_NOTE_ADDED">Note interne ajoutée</option>
+            {/* === AMÉLIORATION AJOUTÉE (Phase 9 — évolution multi-pays/multi-entité) === */}
+            <option value="MESSAGE_SENT">Message envoyé au lanceur d'alerte</option>
             <option value="CORRECTIVE_MEASURE_ADDED">Mesure corrective</option>
             <option value="ALERT_CLOSED">Clôture de dossier</option>
             <option value="ALERT_REOPENED">Réouverture de dossier</option>
+            {/* === AMÉLIORATION AJOUTÉE (Phase 9 — évolution multi-pays/multi-entité) === */}
+            <option value="ALERT_ARCHIVED">Archivage légal</option>
             <option value="REPORT_GENERATED">Export de rapport</option>
+            <option value="CONFIG_UPDATED">Configuration mise à jour</option>
           </select>
         </div>
       </div>
