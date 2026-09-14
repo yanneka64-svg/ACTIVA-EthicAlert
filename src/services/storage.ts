@@ -5,6 +5,8 @@ import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 import { CaseStatus } from '../domain/caseTypes';
 import { checkTransition, TransitionCheckResult } from '../domain/workflow';
 import { deriveCaseStatus, syncLegacyStatus } from './statusMapping';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+import { getConflictedUserIds, resolveIndependentAuthority } from '../domain/independentRouting';
 
 const STORAGE_KEYS = {
   ALERTS: 'activa_ethicalert_records_v1',
@@ -403,6 +405,97 @@ class StorageService {
       actor
     );
     return { allowed: true };
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+  /**
+   * Déclenche le routage indépendant d'un dossier (brief §47-68) : exclut
+   * automatiquement de l'accès tout compte mis en cause/témoin lié
+   * (domain/independentRouting.ts, getConflictedUserIds) et route vers
+   * l'autorité indépendante de niveau hiérarchique supérieur
+   * (resolveIndependentAuthority), ou marque le dossier comme nécessitant
+   * une intervention manuelle si aucune autorité n'est disponible.
+   *
+   * Appelée dès qu'un `linkedUserId` est défini sur une personne
+   * impliquée/témoin (InvestigationDesk.tsx, Phase 2). Ne passe
+   * délibérément PAS par `checkTransition()`/`workflowStatus='escalated'` :
+   * le routage indépendant doit pouvoir se déclencher depuis n'importe
+   * quel stade du cycle de vie, pas seulement depuis `investigation` comme
+   * `ALLOWED_TRANSITIONS` l'exige pour `'escalated'` — et réutiliser le
+   * libellé "Escalade vers la DARC Groupe" pour ceci induirait en erreur
+   * dans la Piste d'Audit. Réutilise en revanche
+   * escalatedAt/By/Reason/OwnerId (déjà existants) pour enregistrer "routé
+   * vers qui et pourquoi", plutôt que d'ajouter des champs dupliqués.
+   *
+   * Deux événements d'audit séquentiels (même principe que le §59 du
+   * brief) : INDEPENDENT_ROUTING_TRIGGERED d'abord (l'exclusion),
+   * puis INVESTIGATOR_ASSIGNED (nouvelle autorité trouvée) ou
+   * NO_INDEPENDENT_AUTHORITY_FOUND (aucune autorité disponible).
+   *
+   * Les détails journalisés ne révèlent jamais l'identité de la personne
+   * exclue ni le contenu du dossier (uniquement des comptes et un nombre),
+   * conformément au principe de routage confidentiel du brief.
+   */
+  public triggerIndependentRouting(alertId: string, actor: UserProfile): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return;
+
+    const conflictedIds = getConflictedUserIds(alert);
+    if (conflictedIds.length === 0) return; // rien à router (aucun linkedUserId sur ce dossier)
+
+    const previousAssigned = alert.assignedInvestigators.length;
+    alert.assignedInvestigators = alert.assignedInvestigators.filter((id) => !conflictedIds.includes(id));
+    alert.assignedInvestigatorNames = alert.assignedInvestigators
+      .map((id) => this.users.find((u) => u.id === id)?.name)
+      .filter((n): n is string => !!n);
+    alert.independentRoutingExcludedUserIds = conflictedIds;
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+
+    const removedFromAssignment = previousAssigned - alert.assignedInvestigators.length;
+    this.logAudit(
+      'INDEPENDENT_ROUTING_TRIGGERED',
+      `Routage indépendant déclenché sur ${alert.trackingNumber} : ${conflictedIds.length} compte(s) exclu(s) de l'accès au dossier` +
+        (removedFromAssignment > 0 ? ` (dont ${removedFromAssignment} retiré(s) des enquêteurs assignés)` : '') +
+        '.',
+      { id: alert.id, trackingNumber: alert.trackingNumber },
+      actor
+    );
+
+    const resolution = resolveIndependentAuthority(alert, this.users, this.hierarchyLevels);
+    if (resolution.found) {
+      const owner = resolution.candidates[0];
+      if (!alert.assignedInvestigators.includes(owner.id)) {
+        alert.assignedInvestigators = [...alert.assignedInvestigators, owner.id];
+        alert.assignedInvestigatorNames = [...alert.assignedInvestigatorNames, owner.name];
+      }
+      alert.independentRoutingUnresolved = false;
+      alert.escalatedAt = new Date().toISOString();
+      alert.escalatedBy = actor.id;
+      alert.escalatedReason = 'Routage indépendant : exclusion automatique d’une personne mise en cause de ce dossier.';
+      alert.escalatedOwnerId = owner.id;
+      alert.updatedAt = new Date().toISOString();
+      this.persistAlerts();
+      this.notify();
+      this.logAudit(
+        'INVESTIGATOR_ASSIGNED',
+        `Dossier ${alert.trackingNumber} routé vers ${owner.name} (${owner.roleTitle}), autorité indépendante de niveau hiérarchique supérieur (périmètre ${resolution.scopeMatch === 'local' ? 'local' : 'Groupe'}).`,
+        { id: alert.id, trackingNumber: alert.trackingNumber },
+        actor
+      );
+    } else {
+      alert.independentRoutingUnresolved = true;
+      alert.updatedAt = new Date().toISOString();
+      this.persistAlerts();
+      this.notify();
+      this.logAudit(
+        'NO_INDEPENDENT_AUTHORITY_FOUND',
+        `Aucune autorité indépendante disponible pour ${alert.trackingNumber} après exclusion automatique — intervention manuelle requise.`,
+        { id: alert.id, trackingNumber: alert.trackingNumber },
+        actor
+      );
+    }
   }
 
   // --- Audit Logs API ---

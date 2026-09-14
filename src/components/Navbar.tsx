@@ -109,13 +109,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   // exprime directement l'intention.
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
   const isStaffUser = activeUser.role !== 'reporter';
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+  // `generateNotifications` prend désormais `activeUser` directement (au
+  // lieu de `activeUser.id`/`isGlobalViewer` séparés) — voir
+  // services/statusMapping.ts pour la justification complète.
   const notifications = React.useMemo(
     () =>
       isStaffUser
-        ? generateNotifications(storage.getAlerts(), storage.getAuditLogs(), activeUser.id, isGlobalViewer).filter((n) => !dismissedIds.has(n.id))
+        ? generateNotifications(storage.getAlerts(), storage.getAuditLogs(), activeUser).filter((n) => !dismissedIds.has(n.id))
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isStaffUser, isGlobalViewer, activeUser.id, dismissedIds, notifRefresh]
+    [isStaffUser, isGlobalViewer, activeUser, dismissedIds, notifRefresh]
   );
 
   // === AMÉLIORATION AJOUTÉE (Phase 12.3) === étendu de 5 à 10 rôles ; les

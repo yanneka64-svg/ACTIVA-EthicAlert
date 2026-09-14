@@ -8,7 +8,7 @@
  * surchargé par cas de test.
  */
 import { describe, expect, it } from 'vitest';
-import { AlertRecord, UserProfile } from '../types';
+import { AlertRecord, InvolvedPerson, UserProfile, Witness } from '../types';
 import { computeVisibleAlerts } from './useVisibleAlerts';
 
 function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
@@ -143,6 +143,36 @@ describe('computeVisibleAlerts — sensitivity ceiling', () => {
       [alert],
       makeUser({ role: 'investigator', sensitivityClearance: 'highly_confidential' })
     );
+    expect(result.map((a) => a.id)).toEqual(['alt-1']);
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+describe('computeVisibleAlerts — routage indépendant (§49)', () => {
+  const accusedPerson: InvolvedPerson = { id: 'per-1', name: 'Confidentiel', position: 'x', hierarchyRole: 'Cadre', linkedUserId: 'u-1' };
+  const linkedWitness: Witness = { id: 'wit-1', name: 'Témoin', position: 'x', hierarchyRole: 'Employé', linkedUserId: 'u-1' };
+
+  it('hides a case entirely from the account linked as the accused, even though assigned', () => {
+    const alert = makeAlert({ involvedPersons: [accusedPerson], assignedInvestigators: ['u-1'] });
+    const result = computeVisibleAlerts([alert], makeUser({ id: 'u-1' }));
+    expect(result).toEqual([]);
+  });
+
+  it('hides a case from the accused even for a global-visibility role', () => {
+    const alert = makeAlert({ involvedPersons: [accusedPerson] });
+    const result = computeVisibleAlerts([alert], makeUser({ id: 'u-1', role: 'functional_admin', countries: [], entities: [] }));
+    expect(result).toEqual([]);
+  });
+
+  it('does NOT hide a case from a linked witness — only the accused loses visibility', () => {
+    const alert = makeAlert({ witnesses: [linkedWitness], assignedInvestigators: ['u-1'] });
+    const result = computeVisibleAlerts([alert], makeUser({ id: 'u-1' }));
+    expect(result.map((a) => a.id)).toEqual(['alt-1']);
+  });
+
+  it('does not affect visibility for an unrelated account', () => {
+    const alert = makeAlert({ involvedPersons: [accusedPerson], assignedInvestigators: ['u-2'] });
+    const result = computeVisibleAlerts([alert], makeUser({ id: 'u-2' }));
     expect(result.map((a) => a.id)).toEqual(['alt-1']);
   });
 });

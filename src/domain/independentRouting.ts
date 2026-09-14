@@ -26,35 +26,13 @@ import { HierarchyLevels } from '../data/activaConfig';
 import { userCan, canSeeAlertConfidentiality } from '../services/authz';
 import { roleHasPermission } from './permissions';
 import { scopeMatchFor } from './assignmentEngine';
-
-/**
- * Comptes réels rattachés aux PERSONNES MISES EN CAUSE de ce dossier
- * (InvolvedPerson.linkedUserId). Ce sont ces comptes-là, et uniquement
- * ceux-là, qui perdent tout accès au dossier (§49) — un témoin lié
- * n'est JAMAIS exclu de la visibilité, voir getConflictedUserIds
- * ci-dessous pour la distinction.
- */
-export function getImplicatedUserIds(alert: Pick<AlertRecord, 'involvedPersons'>): string[] {
-  const ids = alert.involvedPersons
-    .map((p) => p.linkedUserId)
-    .filter((id): id is string => !!id);
-  return Array.from(new Set(ids));
-}
-
-/**
- * Comptes qui ne peuvent pas devenir la nouvelle autorité de ce dossier :
- * les personnes mises en cause ci-dessus, PLUS les témoins liés (un témoin
- * lié est un facteur de conflit pour une CIBLE de routage — on ne route
- * pas un dossier vers l'un de ses propres témoins — mais n'est pas exclu
- * de la visibilité du dossier lui-même, qu'il continue de voir s'il y a
- * accès par ailleurs).
- */
-export function getConflictedUserIds(alert: Pick<AlertRecord, 'involvedPersons' | 'witnesses'>): string[] {
-  const witnessIds = alert.witnesses
-    .map((w) => w.linkedUserId)
-    .filter((id): id is string => !!id);
-  return Array.from(new Set([...getImplicatedUserIds(alert), ...witnessIds]));
-}
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+// Déplacées dans leur propre module (domain/routingConflicts.ts) pour que
+// assignmentEngine.ts puisse les réutiliser sans créer d'import circulaire
+// avec ce fichier (qui importe déjà scopeMatchFor DEPUIS assignmentEngine.ts) —
+// ré-exportées ici pour ne rien changer à l'API déjà utilisée (Phase 3).
+import { getImplicatedUserIds, getConflictedUserIds } from './routingConflicts';
+export { getImplicatedUserIds, getConflictedUserIds };
 
 // === AMÉLIORATION AJOUTÉE (Phase 3 — routage indépendant) ===
 // Un rôle est éligible comme CIBLE de routage s'il peut réellement traiter

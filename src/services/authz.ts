@@ -26,6 +26,12 @@ import {
   isConfidentialityAllowed,
   isConfidentialityAllowedForClearance,
 } from '../domain/permissions';
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+// Depuis domain/routingConflicts.ts, pas domain/independentRouting.ts : ce
+// dernier importe domain/assignmentEngine.ts, qui importe lui-même ce
+// fichier (authz.ts) pour canSeeAlertConfidentiality/userCan — un import
+// direct vers independentRouting.ts créerait donc un cycle à 3 modules.
+import { getImplicatedUserIds } from '../domain/routingConflicts';
 
 export function userCan(user: UserProfile, permission: Permission): boolean {
   return roleHasPermission(user.role, permission);
@@ -99,4 +105,28 @@ export function isInScope(user: UserProfile, alert: Pick<AlertRecord, 'countryId
   const countryOk = countries.length === 0 || !alert.countryId || countries.includes(alert.countryId);
   const entityOk = entities.length === 0 || !alert.entityId || entities.includes(alert.entityId);
   return countryOk && entityOk;
+}
+
+// === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+/**
+ * Ce compte est-il la PERSONNE MISE EN CAUSE (InvolvedPerson.linkedUserId)
+ * de ce dossier ? Brief §49 : "un utilisateur ne doit JAMAIS pouvoir
+ * recevoir, consulter, trier, modifier, attribuer ou traiter un
+ * signalement dans lequel il est lui-même mis en cause" — appliqué en
+ * premier dans `useVisibleAlerts` (avant assignation/périmètre/
+ * confidentialité), donc AUCUN rôle, pas même une vision Groupe, ne
+ * contourne cette exclusion.
+ *
+ * Utilise volontairement `getImplicatedUserIds` (personnes mises en cause
+ * uniquement), PAS `getConflictedUserIds` (qui inclut aussi les témoins
+ * liés) : un témoin lié n'est exclu que de la candidature comme nouvelle
+ * autorité de CE dossier (domain/independentRouting.ts,
+ * resolveIndependentAuthority) et de la liste des enquêteurs assignés
+ * (storage.triggerIndependentRouting), mais conserve, comme tout autre
+ * collaborateur, sa visibilité normale sur le dossier s'il y a accès par
+ * ailleurs (vision Groupe ou assignation) — seule la personne effectivement
+ * mise en cause perd tout accès.
+ */
+export function isImplicated(user: UserProfile, alert: AlertRecord): boolean {
+  return getImplicatedUserIds(alert).includes(user.id);
 }

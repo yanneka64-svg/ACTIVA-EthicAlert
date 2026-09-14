@@ -669,6 +669,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       };
       storage.saveAlert({ ...selectedAlert, witnesses: [...selectedAlert.witnesses, entry], updatedAt: new Date().toISOString() });
     }
+    // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+    // Un rattachement défini dès la création déclenche immédiatement le
+    // routage indépendant (storage.triggerIndependentRouting, Phase 4).
+    if (personLinkedUserId) {
+      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+    }
     setAddPersonKind(null);
     setPersonNameInput('');
     setPersonPositionInput('');
@@ -679,11 +685,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
   // Rattache (ou modifie le rattachement) d'une personne/témoin déjà
-  // enregistré·e à un compte réel de la plateforme. Le déclenchement du
-  // routage indépendant lui-même (storage.triggerIndependentRouting) est
-  // câblé en Phase 4, une fois le moteur de résolution d'autorité écrit
-  // (domain/independentRouting.ts, Phase 3) — cette phase ne fait que
-  // persister le rattachement.
+  // enregistré·e à un compte réel de la plateforme. Dès que le
+  // rattachement résultant est défini (nouveau lien ou changement de
+  // compte lié), déclenche le routage indépendant (Phase 4) — voir
+  // storage.triggerIndependentRouting ci-dessous.
   const handleLinkPerson = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAlert || !linkingPerson) return;
@@ -698,6 +703,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         w.id === linkingPerson.id ? { ...w, linkedUserId: resolvedUserId } : w
       );
       storage.saveAlert({ ...selectedAlert, witnesses, updatedAt: new Date().toISOString() });
+    }
+    // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
+    if (resolvedUserId) {
+      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
     }
     setLinkingPerson(null);
     setLinkingUserId('');
