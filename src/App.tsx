@@ -114,6 +114,8 @@ const STAFF_TAB_KEYS = [
   'advanced_search',
   // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
   'admin_workflow',
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===
+  'admin_entities', 'admin_categories', 'admin_database',
 ];
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
@@ -539,6 +541,33 @@ function AppShell() {
       return (
         <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Gouvernance">
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="governance" />
+        </PermissionGuard>
+      );
+    }
+    // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === 3 nouvelles
+    // entrées de barre latérale pour des sections déjà réelles
+    // (AdminConfigView les rendait déjà, uniquement via sa rangée d'onglets
+    // interne retirée) — même garde, même composant, seul l'onglet de
+    // départ diffère, exactement le motif déjà suivi par admin_organization/
+    // admin_governance/admin_workflow ci-dessus.
+    if (currentTab === 'admin_entities') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Entités du Groupe">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="entities" />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'admin_categories') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Catégories d'alerte">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="categories" />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'admin_database') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Base de données">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="database" />
         </PermissionGuard>
       );
     }

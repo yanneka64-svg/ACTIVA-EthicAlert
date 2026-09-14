@@ -28,6 +28,13 @@ import {
   ListChecks,
   // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des investigations) ===
   BarChart3,
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === icônes pour les
+  // 3 sections jusqu'ici seulement atteignables via la rangée d'onglets
+  // interne d'AdminConfigView (Matrice & SLA réutilise déjà `Settings`,
+  // importé plus haut), désormais aussi présentes en barre latérale.
+  Building2,
+  Tag,
+  Database,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -77,7 +84,7 @@ interface StaffPortalLayoutProps {
   children: React.ReactNode;
 }
 
-const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow'];
+const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow', 'admin_entities', 'admin_categories', 'admin_database'];
 
 // Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
 // "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à
@@ -195,13 +202,39 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     ...toolsItems.map((i) => ({ ...i, group: t.sidebar_group_tools })),
   ];
 
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===
+  // BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : l'écran
+  // "Configuration Système" (AdminConfigView) se pilotait jusqu'ici par
+  // DEUX navigations en parallèle — cette barre latérale (6 entrées) ET une
+  // rangée de 9 onglets répétée en haut de son propre contenu (désormais
+  // retirée, voir AdminConfigView.tsx), qui était la SEULE à donner accès à
+  // "Matrice & SLA", "Entités", "Catégories" et "Base de données". Ces 4
+  // entrées rejoignent ici les 6 déjà présentes (aucune renommée, aucune
+  // retirée) — les 9 sections réelles sont désormais toutes atteignables
+  // d'un seul endroit, dans l'ordre logique de l'ancienne rangée d'onglets.
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — retours visuels sur
+  // capture de référence) === Ordre et libellés alignés sur la référence
+  // fournie (Organisation, Catégories, Workflow, Utilisateurs, Rôles &
+  // Permissions, Paramètres système) ; "Entités", "Gouvernance" et "Base de
+  // données" (hors de la capture, mais bien réels — RI Phase 1-7 pour la
+  // Gouvernance notamment) restent toutes atteignables, insérées près de la
+  // section à laquelle elles se rattachent le plus. "admin_config" (ancienne
+  // entrée "Matrice des risques & SLA") est retirée d'ici : elle pointait
+  // vers exactement le même écran que "settings" (les deux sans onglet de
+  // départ ⇒ 'matrix' par défaut, voir App.tsx) — garder les deux aurait
+  // recréé le doublon de navigation qu'on vient de corriger. "settings"
+  // (déjà la bonne route) porte donc directement le libellé "Paramètres
+  // système" de la référence.
   const adminItems: NavItem[] = [
-    { key: 'admin_organization', label: 'Organisation (Pays)', icon: <Globe2 className="w-4 h-4" />, group: '' },
-    { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, group: '' },
+    { key: 'admin_organization', label: 'Organisation', icon: <Globe2 className="w-4 h-4" />, group: '' },
+    { key: 'admin_entities', label: 'Entités du Groupe', icon: <Building2 className="w-4 h-4" />, group: '' },
+    { key: 'admin_categories', label: 'Catégories', icon: <Tag className="w-4 h-4" />, group: '' },
     { key: 'admin_workflow', label: 'Workflows & Statuts', icon: <GitBranch className="w-4 h-4" />, group: '' },
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
-    { key: 'settings', label: t.sidebar_admin_settings, icon: <Settings className="w-4 h-4" />, group: '' },
+    { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, group: '' },
+    { key: 'admin_database', label: 'Base de données', icon: <Database className="w-4 h-4" />, group: '' },
+    { key: 'settings', label: 'Paramètres système', icon: <Settings className="w-4 h-4" />, group: '' },
   ];
 
   const generalItems: NavItem[] = [
@@ -280,6 +313,22 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
             contenu du menu lui-même, seul ce bloc de sélection disparaît.
             Pour changer d'espace après coup, voir le lien "Changer
             d'espace" du menu Profil (Navbar.tsx). */}
+        {/* === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — retours
+            visuels sur capture de référence) === Bloc titre "Administration"
+            en tête de la barre latérale, propre à l'espace Admin (fidèle à
+            la référence) — purement visuel, ne change ni `navItems` ni la
+            navigation elle-même. */}
+        {selectedSpace === 'admin' && (
+          <div className="flex items-center gap-2.5 px-3.5 pt-4 pb-1">
+            <span className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 shrink-0">
+              <Settings className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-extrabold text-slate-900 text-sm leading-tight">Administration</p>
+              <p className="text-[10px] text-slate-500 leading-snug">Paramètres, utilisateurs et configuration</p>
+            </div>
+          </div>
+        )}
         <nav className="flex-1 py-3 px-2.5">
           {navItems.map((item) => {
             const showGroupHeader = !!item.group && item.group !== lastGroup;
