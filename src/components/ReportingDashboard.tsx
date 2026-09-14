@@ -29,6 +29,60 @@ interface ReportingDashboardProps {
   activeUser: UserProfile;
 }
 
+// === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
+// "Champs à inclure" façon maquette : chaque groupe correspond à une ou
+// plusieurs colonnes réelles déjà présentes dans l'export CSV existant
+// (jamais une donnée fabriquée) — voir `handleExportCSV`, qui ne construit
+// désormais que les colonnes dont le groupe est coché. L'identité du
+// déclarant reste régie par la case "Générer un rapport 100% anonymisé"
+// déjà existante, séparée de cette liste (elle a déjà son propre
+// contrôle).
+type ExportFieldGroupKey = 'general' | 'status_dates' | 'geo' | 'persons' | 'corrective';
+interface ExportFieldGroup {
+  key: ExportFieldGroupKey;
+  label: string;
+  columns: { header: string; value: (a: AlertRecord) => string | number }[];
+}
+const EXPORT_FIELD_GROUPS: ExportFieldGroup[] = [
+  {
+    key: 'general',
+    label: 'Informations générales',
+    columns: [
+      { header: 'Reference', value: (a) => a.trackingNumber },
+      { header: 'Categorie', value: (a) => `"${a.category}"` },
+      { header: 'Sous_Categorie', value: (a) => `"${a.subCategory}"` },
+    ],
+  },
+  {
+    key: 'status_dates',
+    label: 'Statut et dates',
+    columns: [
+      { header: 'Date_Depot', value: (a) => a.createdAt.split('T')[0] },
+      { header: 'Statut', value: (a) => a.status },
+      { header: 'Criticite_NOCA', value: (a) => a.riskEvaluation.nocaThreshold },
+      { header: 'Priorite', value: (a) => a.riskEvaluation.priority },
+    ],
+  },
+  {
+    key: 'geo',
+    label: 'Pays / Entité',
+    columns: [
+      { header: 'Pays', value: (a) => `"${a.country}"` },
+      { header: 'Entite', value: (a) => `"${a.concernedEntity}"` },
+    ],
+  },
+  {
+    key: 'persons',
+    label: 'Personnes impliquées',
+    columns: [{ header: 'Personnes_Impliquees_Nb', value: (a) => a.involvedPersons.length }],
+  },
+  {
+    key: 'corrective',
+    label: 'Mesures correctives',
+    columns: [{ header: 'Mesures_Correctives_Nb', value: (a) => a.correctiveMeasures.length }],
+  },
+];
+
 export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   lang,
   activeUser,
@@ -74,6 +128,10 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   // Mode: 'realtime' | 'monthly_darc' | 'quarterly_board'
   const [reportView, setReportView] = useState<'realtime' | 'monthly_darc' | 'quarterly_board'>('realtime');
   const [anonymizeExport, setAnonymizeExport] = useState<boolean>(true);
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  const [exportFields, setExportFields] = useState<Set<ExportFieldGroupKey>>(new Set(EXPORT_FIELD_GROUPS.map((g) => g.key)));
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — filtres réels période/pays/entité/catégorie/statut) ===
   // Real filters applied to the same live storage.getAlerts() data — every
@@ -167,38 +225,21 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         )
       : 0;
 
-  // Export CSV
-  const handleExportCSV = () => {
-    const headers = [
-      'Reference',
-      'Date_Depot',
-      'Pays',
-      'Entite',
-      'Categorie',
-      'Sous_Categorie',
-      'Criticite_NOCA',
-      'Priorite',
-      'Statut',
-      'Declarant_Mode',
-      'Declarant_Identite',
-      'Mesures_Correctives_Nb'
-    ];
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
+  // Colonnes construites dynamiquement à partir des groupes cochés dans la
+  // modale (EXPORT_FIELD_GROUPS ci-dessus) — Declarant_Mode/Declarant_Identite
+  // restent toujours inclus, régis par la case "anonymiser" déjà existante,
+  // séparée de la liste "Champs à inclure".
+  const handleExportCSV = (fields: Set<ExportFieldGroupKey> = exportFields) => {
+    const activeGroups = EXPORT_FIELD_GROUPS.filter((g) => fields.has(g.key));
+    const headers = [...activeGroups.flatMap((g) => g.columns.map((c) => c.header)), 'Declarant_Mode', 'Declarant_Identite'];
 
-    const rows = alerts.map(a => [
-      a.trackingNumber,
-      a.createdAt.split('T')[0],
-      `"${a.country}"`,
-      `"${a.concernedEntity}"`,
-      `"${a.category}"`,
-      `"${a.subCategory}"`,
-      a.riskEvaluation.nocaThreshold,
-      a.riskEvaluation.priority,
-      a.status,
+    const rows = alerts.map((a) => [
+      ...activeGroups.flatMap((g) => g.columns.map((c) => c.value(a))),
       a.whistleblower.isAnonymous ? 'Anonyme' : 'Identifie',
-      anonymizeExport 
-        ? '[CAVIARDE / ANONYMISE]' 
+      anonymizeExport
+        ? '[CAVIARDE / ANONYMISE]'
         : (a.whistleblower.isAnonymous ? 'Anonyme' : `"${a.whistleblower.fullName || ''}"`),
-      a.correctiveMeasures.length
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -212,7 +253,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
 
     storage.logAudit(
       'REPORT_GENERATED',
-      `Génération d'un export CSV des données d'alertes (${anonymizeExport ? 'Anonymisé' : 'Complet'}) par ${activeUser.name}.`,
+      `Génération d'un export CSV des données d'alertes (${anonymizeExport ? 'Anonymisé' : 'Complet'}, champs : ${activeGroups.map((g) => g.label).join(', ') || 'aucun'}) par ${activeUser.name}.`,
       undefined,
       activeUser
     );
@@ -259,9 +300,14 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
               <span className="font-medium text-[11px]">{t.toggle_anonymize}</span>
             </label>
 
+            {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des
+                données) === ouvre désormais la modale de configuration de
+                l'export (format + champs à inclure) plutôt que d'exporter
+                directement — la capacité d'export CSV réelle est
+                inchangée, simplement précédée d'un choix explicite. */}
             <button
               id="btn-export-csv"
-              onClick={handleExportCSV}
+              onClick={() => setShowExportModal(true)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold shadow-xs transition"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
@@ -626,6 +672,82 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des
+          données) === Choix délibéré à signaler : seuls CSV et PDF sont de
+          vraies capacités d'export de cet écran (`handleExportCSV`/
+          `handlePrint`, déjà réelles) — pas de format "Excel" natif
+          distinct (aucun générateur .xlsx dans l'app) : le format CSV est
+          donc explicitement labellisé "compatible Excel" plutôt que de
+          fabriquer un troisième format qui n'existerait pas réellement
+          (brief §32). */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <h3 className="text-sm font-bold text-slate-900">{t.export_modal_title}</h3>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_format}</label>
+              <div className="flex gap-1.5">
+                {(['csv', 'pdf'] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    type="button"
+                    onClick={() => setExportFormat(fmt)}
+                    className={`flex-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border transition ${
+                      exportFormat === fmt ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                    }`}
+                  >
+                    {fmt === 'csv' ? t.export_modal_format_csv : t.export_modal_format_pdf}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {exportFormat === 'csv' && (
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_fields}</label>
+                <div className="space-y-1.5">
+                  {EXPORT_FIELD_GROUPS.map((g) => (
+                    <label key={g.key} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={exportFields.has(g.key)}
+                        onChange={(e) => {
+                          const next = new Set(exportFields);
+                          if (e.target.checked) next.add(g.key);
+                          else next.delete(g.key);
+                          setExportFields(next);
+                        }}
+                        className="rounded text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-slate-700">{g.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button type="button" onClick={() => setShowExportModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
+                {t.btn_cancel}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (exportFormat === 'csv') handleExportCSV(exportFields);
+                  else handlePrint();
+                  setShowExportModal(false);
+                }}
+                disabled={exportFormat === 'csv' && exportFields.size === 0}
+                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold"
+              >
+                {t.export_modal_export}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
