@@ -33,6 +33,8 @@ import {
   ListChecks,
   HelpCircle,
   FolderCheck,
+  FolderOpen,
+  Clock,
   Search,
   RotateCcw,
   UserPlus,
@@ -61,7 +63,18 @@ import type { DataTableColumn, KpiTone } from './ui';
 // pour cette seule raison, aucun autre changement).
 import { AssignCandidateRow } from './InvestigationDesk';
 
-export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned';
+// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace Enquêteur) ===
+// 3 nouveaux modes purement additifs : `my_cases`/`to_process`/`in_progress`
+// remplacent le rendu InvestigationDesk+initialFilter des écrans Enquêteur
+// `inv_my_cases`/`inv_to_process`/`inv_in_progress` (mêmes règles de
+// périmètre qu'avant — `useVisibleAlerts` limite déjà un enquêteur non
+// global à ses propres dossiers, donc aucune notion d'attribution n'a de
+// sens ici : pas de case à cocher, pas de bouton Attribuer). L'écran
+// Enquêteur "En attente" (`inv_pending`) réutilise directement le mode
+// `pending_info` existant (règle et action "Relancer" identiques), avec ses
+// libellés surchargés via `titleOverride`/`subtitleOverride`/`emptyOverride`
+// ci-dessous plutôt qu'un 5e mode dupliqué.
+export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'my_cases' | 'to_process' | 'in_progress';
 
 interface OperatorCaseDeskProps {
   lang: Language;
@@ -69,6 +82,14 @@ interface OperatorCaseDeskProps {
   mode: OperatorDeskMode;
   /** Navigue vers la fiche dossier complète (mécanisme déjà réel — /cases/:trackingNumber). */
   onOpenCase: (trackingNumber: string) => void;
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
+  // Enquêteur) === surcharges optionnelles du titre/sous-titre/état vide —
+  // permet de réutiliser un mode existant (ex. `pending_info`) sous un
+  // libellé différent (ex. "En attente" côté Enquêteur, clé
+  // `sidebar_inv_pending` déjà réelle) sans dupliquer sa logique.
+  titleOverride?: string;
+  subtitleOverride?: string;
+  emptyOverride?: string;
 }
 
 const CHANNEL_LABELS: Record<AlertRecord['channel'], string> = { web: 'Web', qr_code: 'QR Code', direct: 'Dépôt direct' };
@@ -99,12 +120,29 @@ function ConfidentialityBadge({ level }: { level?: ConfidentialityLevel }) {
   );
 }
 
+// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace Enquêteur) ===
+// `rowAction` dit quelle action de ligne/groupée cet écran propose :
+// 'assign'/'reassign' (gardées en plus par `cases.assign`, voir `canAssign`
+// plus bas), 'followup' (relance — aucune permission dédiée, comme la
+// messagerie déjà réelle d'InvestigationDesk), ou 'none' (les 3 écrans
+// Enquêteur "de travail" — aucune notion d'attribution n'a de sens sur son
+// propre périmètre déjà filtré par `useVisibleAlerts`) : ni case à cocher,
+// ni colonne d'action, ni barre d'actions groupées.
+type RowAction = 'assign' | 'reassign' | 'followup' | 'none';
+
 interface ModeConfig {
   icon: React.ComponentType<{ className?: string }>;
-  titleKey: 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed';
-  subtitleKey: 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle';
-  emptyKey: 'ocd_empty_inbox' | 'ocd_empty_to_assign' | 'ocd_empty_pending_info' | 'ocd_empty_assigned';
+  titleKey:
+    | 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed'
+    | 'sidebar_inv_my_cases' | 'sidebar_inv_to_process' | 'sidebar_inv_in_progress';
+  subtitleKey:
+    | 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle'
+    | 'ocd_my_cases_subtitle' | 'ocd_to_process_subtitle' | 'ocd_in_progress_subtitle';
+  emptyKey:
+    | 'ocd_empty_inbox' | 'ocd_empty_to_assign' | 'ocd_empty_pending_info' | 'ocd_empty_assigned'
+    | 'ocd_empty_my_cases' | 'ocd_empty_to_process' | 'ocd_empty_in_progress';
   predicate: (a: AlertRecord) => boolean;
+  rowAction: RowAction;
 }
 
 const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
@@ -114,6 +152,7 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
     subtitleKey: 'ocd_inbox_subtitle',
     emptyKey: 'ocd_empty_inbox',
     predicate: (a) => a.status === 'new',
+    rowAction: 'assign',
   },
   // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === "toutes les affaires
   // nouvelles et en cours" — même règle que l'ancien `excludeClosed`.
@@ -123,6 +162,7 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
     subtitleKey: 'ocd_to_assign_subtitle',
     emptyKey: 'ocd_empty_to_assign',
     predicate: (a) => a.status !== 'corrective_action' && a.status !== 'closed' && a.status !== 'archived',
+    rowAction: 'assign',
   },
   pending_info: {
     icon: HelpCircle,
@@ -130,6 +170,7 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
     subtitleKey: 'ocd_pending_info_subtitle',
     emptyKey: 'ocd_empty_pending_info',
     predicate: (a) => a.status === 'under_review',
+    rowAction: 'followup',
   },
   // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === inverse exact de
   // "non attribués" — même règle que l'ancien `assignedOnly`.
@@ -139,13 +180,59 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
     subtitleKey: 'ocd_assigned_subtitle',
     emptyKey: 'ocd_empty_assigned',
     predicate: (a) => a.assignedInvestigators.length > 0,
+    rowAction: 'reassign',
+  },
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
+  // Enquêteur) === 3 modes ci-dessous : mêmes règles exactes que les
+  // anciens `initialFilter` d'App.tsx (`myCasesOnly`/`excludeClosed`/
+  // `status`) — mais `myCasesOnly` lui-même n'a plus besoin d'être recalculé
+  // ici : `useVisibleAlerts` restreint déjà un compte non global-viewer à
+  // ses seuls dossiers assignés, donc le prédicat n'a besoin d'exprimer que
+  // la nuance de statut propre à chaque écran.
+  my_cases: {
+    icon: FolderOpen,
+    titleKey: 'sidebar_inv_my_cases',
+    subtitleKey: 'ocd_my_cases_subtitle',
+    emptyKey: 'ocd_empty_my_cases',
+    predicate: () => true,
+    rowAction: 'none',
+  },
+  to_process: {
+    icon: ListChecks,
+    titleKey: 'sidebar_inv_to_process',
+    subtitleKey: 'ocd_to_process_subtitle',
+    emptyKey: 'ocd_empty_to_process',
+    predicate: (a) => a.status !== 'corrective_action' && a.status !== 'closed' && a.status !== 'archived',
+    rowAction: 'none',
+  },
+  in_progress: {
+    icon: Clock,
+    titleKey: 'sidebar_inv_in_progress',
+    subtitleKey: 'ocd_in_progress_subtitle',
+    emptyKey: 'ocd_empty_in_progress',
+    predicate: (a) => a.status === 'investigation',
+    rowAction: 'none',
   },
 };
 
-export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, activeUser, mode, onOpenCase }) => {
+export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, activeUser, mode, onOpenCase, titleOverride, subtitleOverride, emptyOverride }) => {
   const t = TRANSLATIONS[lang];
   const cfg = MODE_CONFIG[mode];
   const dateLocale = lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR';
+  const displayTitle = titleOverride ?? t[cfg.titleKey];
+  const displaySubtitle = subtitleOverride ?? t[cfg.subtitleKey];
+  const displayEmpty = emptyOverride ?? t[cfg.emptyKey];
+  // === AMÉLIORATION AJOUTÉE (Fix — gate Attribuer/Réattribuer par la
+  // permission cases.assign) === même garde que le bouton "Attribuer"
+  // d'InvestigationDesk (`userCan(activeUser, 'cases.assign')`,
+  // InvestigationDesk.tsx ligne ~1533) — jusqu'ici absente de ce nouvel
+  // écran, qui affichait Attribuer/Réattribuer à quiconque pouvait
+  // simplement atteindre la page. `senior_investigator` a `cases.reassign`
+  // mais délibérément pas `cases.assign` (domain/permissions.ts) : seuls
+  // `functional_admin`/`darc_compliance`/`system_admin`(*) voient ce
+  // bouton — cohérent avec le fait que `/operator/assign` est déjà gardé
+  // par `PermissionGuard allowed={isGlobalViewer}` au niveau App.tsx.
+  const canAssign = userCan(activeUser, 'cases.assign');
 
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
   React.useEffect(() => {
@@ -249,11 +336,32 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: waitingLongCount, label: 'En attente > 7 jours', tone: 'orange' },
           { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
         ]
-      : [
+      : mode === 'assigned'
+      ? [
           { value: modeAlerts.length, label: 'Total attribués', tone: 'blue' },
           { value: inProgressCount, label: 'En cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
           { value: closedCount, label: 'Clôturés', tone: 'emerald' },
+        ]
+      : mode === 'my_cases'
+      ? [
+          { value: modeAlerts.length, label: 'Total mes dossiers', tone: 'blue' },
+          { value: inProgressCount, label: 'En cours', tone: 'indigo' },
+          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+        ]
+      : mode === 'to_process'
+      ? [
+          { value: modeAlerts.length, label: 'Total à traiter', tone: 'blue' },
+          { value: modeAlerts.filter((a) => a.status === 'under_review').length, label: "En attente d’infos", tone: 'purple' },
+          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+        ]
+      : [
+          { value: modeAlerts.length, label: 'Total en cours', tone: 'indigo' },
+          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
+          { value: waitingLongCount, label: 'Sans mise à jour > 7 jours', tone: 'orange' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
         ];
 
   // Sélection multiple
@@ -450,11 +558,11 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
     </div>
   );
 
-  const bulkBar = selectedIds.size > 0 && (
+  const bulkBar = cfg.rowAction !== 'none' && selectedIds.size > 0 && (
     <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-xs">
       <span className="font-semibold text-blue-900">{selectedIds.size} dossier(s) sélectionné(s)</span>
       <div className="flex items-center gap-2">
-        {(mode === 'inbox' || mode === 'to_assign') && (
+        {cfg.rowAction === 'assign' && canAssign && (
           <button
             onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white font-bold hover:bg-[#123a63]"
@@ -462,7 +570,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             <UserPlus className="w-3.5 h-3.5" /> Attribuer
           </button>
         )}
-        {mode === 'assigned' && (
+        {cfg.rowAction === 'reassign' && canAssign && (
           <button
             onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white font-bold hover:bg-[#123a63]"
@@ -470,7 +578,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             <UserCog className="w-3.5 h-3.5" /> Réattribuer
           </button>
         )}
-        {mode === 'pending_info' && (
+        {cfg.rowAction === 'followup' && (
           <button
             onClick={() => { setFollowupTargetIds(Array.from(selectedIds)); setFollowupText(''); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white font-bold hover:bg-[#123a63]"
@@ -485,23 +593,37 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
     </div>
   );
 
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === une action de ligne
+  // n'a de sens que si l'écran en propose une ET (pour attribuer/réattribuer)
+  // que le compte a réellement la permission `cases.assign` — sinon ni la
+  // case à cocher ni la colonne d'action ne sont affichées (rien à faire
+  // avec une sélection sans action possible).
+  const canActOnRows = cfg.rowAction === 'followup' || ((cfg.rowAction === 'assign' || cfg.rowAction === 'reassign') && canAssign);
+
   // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === colonnes communes
-  // aux 3 écrans en tableau (À attribuer / En attente d'infos / Dossiers
-  // attribués) — la Boîte de réception a sa propre liste + panneau plus bas.
+  // aux écrans en tableau (À attribuer / En attente d'infos / Dossiers
+  // attribués / Mes dossiers / À traiter / En cours) — la Boîte de
+  // réception a sa propre liste + panneau plus bas. `select`/`action` sont
+  // omises quand l'écran n'a réellement aucune action à proposer
+  // (`canActOnRows`), voir `rowAction` ci-dessus.
   const columns: DataTableColumn<AlertRecord>[] = [
-    {
-      key: 'select',
-      header: '',
-      render: (a) => (
-        <input
-          type="checkbox"
-          checked={selectedIds.has(a.id)}
-          onClick={(e) => e.stopPropagation()}
-          onChange={() => toggleSelect(a.id)}
-          className="rounded text-blue-600 focus:ring-blue-500"
-        />
-      ),
-    },
+    ...(canActOnRows
+      ? [
+          {
+            key: 'select',
+            header: '',
+            render: (a: AlertRecord) => (
+              <input
+                type="checkbox"
+                checked={selectedIds.has(a.id)}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                onChange={() => toggleSelect(a.id)}
+                className="rounded text-blue-600 focus:ring-blue-500"
+              />
+            ),
+          },
+        ]
+      : []),
     {
       key: 'id',
       header: 'N° Dossier',
@@ -552,33 +674,37 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       render: (a) => new Date(a.createdAt).toLocaleDateString(dateLocale),
       hideOnMobile: true,
     },
-    {
-      key: 'action',
-      header: '',
-      render: (a) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (mode === 'pending_info') {
-              setFollowupTargetIds([a.id]);
-              setFollowupText('');
-            } else {
-              setAssignTargetIds([a.id]);
-              setAssignSelectedInvestigatorIds(a.assignedInvestigators);
-            }
-          }}
-          className="flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 whitespace-nowrap"
-        >
-          {mode === 'pending_info' ? (
-            <><Send className="w-3 h-3" /> Relancer</>
-          ) : mode === 'assigned' ? (
-            <><UserCog className="w-3 h-3" /> Réattribuer</>
-          ) : (
-            <><UserPlus className="w-3 h-3" /> Attribuer</>
-          )}
-        </button>
-      ),
-    },
+    ...(canActOnRows
+      ? [
+          {
+            key: 'action',
+            header: '',
+            render: (a: AlertRecord) => (
+              <button
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  if (cfg.rowAction === 'followup') {
+                    setFollowupTargetIds([a.id]);
+                    setFollowupText('');
+                  } else {
+                    setAssignTargetIds([a.id]);
+                    setAssignSelectedInvestigatorIds(a.assignedInvestigators);
+                  }
+                }}
+                className="flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 whitespace-nowrap"
+              >
+                {cfg.rowAction === 'followup' ? (
+                  <><Send className="w-3 h-3" /> Relancer</>
+                ) : cfg.rowAction === 'reassign' ? (
+                  <><UserCog className="w-3 h-3" /> Réattribuer</>
+                ) : (
+                  <><UserPlus className="w-3 h-3" /> Attribuer</>
+                )}
+              </button>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -586,9 +712,9 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       <div>
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
           <Icon className="w-5 h-5 text-blue-700" />
-          {t[cfg.titleKey]}
+          {displayTitle}
         </h2>
-        <p className="text-xs text-slate-600 mt-1">{t[cfg.subtitleKey]}</p>
+        <p className="text-xs text-slate-600 mt-1">{displaySubtitle}</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -611,12 +737,12 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
               <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
-                <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} className="rounded text-blue-600" />
+                {canActOnRows && <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} className="rounded text-blue-600" />}
                 {filteredAlerts.length} signalement(s)
               </label>
             </div>
             {filteredAlerts.length === 0 ? (
-              <div className="p-4"><EmptyState title={t[cfg.emptyKey]} /></div>
+              <div className="p-4"><EmptyState title={displayEmpty} /></div>
             ) : (
               <div className="divide-y divide-slate-100 max-h-[70vh] overflow-y-auto">
                 {filteredAlerts.map((a) => (
@@ -625,13 +751,15 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                     onClick={() => setPanelAlertId(a.id)}
                     className={`w-full text-left p-3.5 flex items-start gap-2.5 hover:bg-slate-50 transition ${panelAlertId === a.id ? 'bg-blue-50' : ''}`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(a.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={() => toggleSelect(a.id)}
-                      className="mt-1 rounded text-blue-600 shrink-0"
-                    />
+                    {canActOnRows && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(a.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => toggleSelect(a.id)}
+                        className="mt-1 rounded text-blue-600 shrink-0"
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-mono font-bold text-[#0B2545] text-xs">{a.trackingNumber}</span>
@@ -678,12 +806,14 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                   <span className="text-[11px] text-slate-500">
                     {panelAlert.assignedInvestigatorNames.length > 0 ? `Attribué à : ${panelAlert.assignedInvestigatorNames.join(', ')}` : 'Non attribué'}
                   </span>
-                  <button
-                    onClick={() => { setAssignTargetIds([panelAlert.id]); setAssignSelectedInvestigatorIds(panelAlert.assignedInvestigators); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white text-xs font-bold hover:bg-[#123a63]"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" /> Attribuer
-                  </button>
+                  {canAssign && (
+                    <button
+                      onClick={() => { setAssignTargetIds([panelAlert.id]); setAssignSelectedInvestigatorIds(panelAlert.assignedInvestigators); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white text-xs font-bold hover:bg-[#123a63]"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" /> Attribuer
+                    </button>
+                  )}
                 </div>
 
                 <div className="border-t border-slate-100 pt-3">
@@ -714,18 +844,20 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <div className="flex items-center gap-2 mb-3 text-xs">
-            <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
-              <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} className="rounded text-blue-600" />
-              Tout sélectionner
-            </label>
-          </div>
+          {canActOnRows && (
+            <div className="flex items-center gap-2 mb-3 text-xs">
+              <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
+                <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} className="rounded text-blue-600" />
+                Tout sélectionner
+              </label>
+            </div>
+          )}
           <DataTable
             columns={columns}
             rows={filteredAlerts}
             getRowKey={(a) => a.id}
             onRowClick={(a) => onOpenCase(a.trackingNumber)}
-            emptyTitle={t[cfg.emptyKey]}
+            emptyTitle={displayEmpty}
           />
         </div>
       )}

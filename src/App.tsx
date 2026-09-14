@@ -490,10 +490,19 @@ function AppShell() {
     // Tableau de bord Opérateur (ControlPanel) — hors périmètre de cette
     // refonte, qui ne concernait que les 4 écrans nommés explicitement.
     if (currentTab === 'inv_dashboard') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'inv_my_cases') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} hideTopBanner />;
-    if (currentTab === 'inv_to_process') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, excludeClosed: true }} hideTopBanner />;
-    if (currentTab === 'inv_in_progress') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'investigation' }} hideTopBanner />;
-    if (currentTab === 'inv_pending') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'under_review' }} hideTopBanner />;
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
+    // Enquêteur) === même remplacement par `OperatorCaseDesk` que côté
+    // Opérateur (voir plus haut) — `myCasesOnly` n'a plus besoin d'être
+    // passé explicitement : `useVisibleAlerts` restreint déjà un compte non
+    // global-viewer à ses seuls dossiers assignés (mécanisme strictement
+    // inchangé), donc les nouveaux modes `my_cases`/`to_process`/
+    // `in_progress` n'ont besoin d'exprimer que la nuance de statut propre à
+    // chaque écran. "En attente" réutilise le mode `pending_info` existant
+    // (même règle, même action "Relancer"), avec son libellé propre.
+    if (currentTab === 'inv_my_cases') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="my_cases" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'inv_to_process') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="to_process" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'inv_in_progress') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="in_progress" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'inv_pending') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" titleOverride={t.sidebar_inv_pending} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
     // morts) === `inv_tasks`/`inv_evidence`/`inv_communications`/
     // `inv_reports`/`inv_search` (Phase 6) supprimés d'ici, même motif que
