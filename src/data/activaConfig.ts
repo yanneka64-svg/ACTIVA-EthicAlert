@@ -35,7 +35,17 @@ export const DEFAULT_SLA_CONFIG: SlaConfig = {
   noca4Days: 2,
 };
 
-export const ACTIVA_COUNTRIES = [
+// === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+// Type nommé, même motif que EntityDef/CategoryDef ci-dessous — jusqu'ici
+// ACTIVA_COUNTRIES n'avait qu'un type inféré. Purement déclaratif : ne
+// change ni la forme ni les valeurs du tableau existant.
+export interface CountryDef {
+  code: string;
+  name: string;
+  flag: string;
+}
+
+export const ACTIVA_COUNTRIES: CountryDef[] = [
   { code: 'CM', name: 'Cameroun', flag: '🇨🇲' },
   { code: 'CD', name: 'RD Congo', flag: '🇨🇩' },
   { code: 'GN', name: 'Guinée', flag: '🇬🇳' },

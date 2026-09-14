@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { ACTIVA_COUNTRIES, EntityDef, CategoryDef } from '../data/activaConfig';
+import { EntityDef, CategoryDef, CountryDef } from '../data/activaConfig';
 import { storage } from '../services/storage';
 import {
   isFirebaseConfigured,
@@ -44,7 +44,8 @@ interface AdminConfigViewProps {
   // composant, seulement avec un onglet de départ différent — aucun onglet
   // n'est retiré, le sélecteur d'onglets complet reste toujours visible et
   // navigable, exactement comme avant.
-  initialTab?: 'matrix' | 'entities' | 'categories' | 'users' | 'roles' | 'database';
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database';
 }
 
 export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
@@ -54,7 +55,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'categories' | 'users' | 'roles' | 'database'>(initialTab ?? 'matrix');
+  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database'>(initialTab ?? 'matrix');
   const [saveBanner, setSaveBanner] = useState('');
 
   // Firebase connection state
@@ -77,6 +78,13 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   // of this file already uses, no dedicated storage.subscribe needed).
   const entities = storage.getEntities();
   const categoriesConfig = storage.getCategories();
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  // Remplace l'import statique ACTIVA_COUNTRIES (utilisé ci-dessous dans
+  // les listes déroulantes pays des formulaires Entité/Compte) par la
+  // copie réelle, persistée, éditable — même motif que entities/
+  // categoriesConfig ci-dessus. Un pays ajouté depuis le nouvel onglet
+  // "Pays" apparaît donc immédiatement dans ces listes.
+  const countries = storage.getCountries();
 
   // --- SLA config state (Phase 7 — configuration SLA éditable) ---
   // Seeded once from storage on first mount, like the Firebase config
@@ -99,6 +107,16 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const [entityCountry, setEntityCountry] = useState('');
   const [entityFlag, setEntityFlag] = useState('');
   const [deleteEntityConfirmId, setDeleteEntityConfirmId] = useState<string | null>(null);
+
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  // --- Countries CRUD state --- même motif que les Entités ci-dessus.
+  const [showCountryModal, setShowCountryModal] = useState(false);
+  const [editingCountryCode, setEditingCountryCode] = useState<string | null>(null);
+  const [countryCode, setCountryCode] = useState('');
+  const [countryName, setCountryName] = useState('');
+  const [countryFlag, setCountryFlag] = useState('');
+  const [deleteCountryConfirmCode, setDeleteCountryConfirmCode] = useState<string | null>(null);
+  const [deleteCountryError, setDeleteCountryError] = useState<string>('');
 
   // --- Categories CRUD state ---
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -158,6 +176,50 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     storage.deleteEntity(ent.id, activeUser);
     setDeleteEntityConfirmId(null);
     flashBanner(`Entité "${ent.name}" supprimée.`);
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  // --- Countries handlers ---
+  const resetCountryForm = () => {
+    setEditingCountryCode(null);
+    setCountryCode('');
+    setCountryName('');
+    setCountryFlag('');
+  };
+  const openAddCountry = () => { resetCountryForm(); setShowCountryModal(true); };
+  const openEditCountry = (c: CountryDef) => {
+    setEditingCountryCode(c.code);
+    setCountryCode(c.code);
+    setCountryName(c.name);
+    setCountryFlag(c.flag);
+    setShowCountryModal(true);
+  };
+  const handleSaveCountry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!countryName.trim() || !countryCode.trim()) return;
+    if (editingCountryCode) {
+      storage.updateCountry(editingCountryCode, { name: countryName.trim(), flag: countryFlag.trim() || '🏳️' }, activeUser);
+      flashBanner(`Pays "${countryName.trim()}" mis à jour.`);
+    } else {
+      const code = countryCode.trim().toUpperCase().slice(0, 4);
+      if (countries.some((c) => c.code === code)) {
+        alert(`Le code pays "${code}" est déjà utilisé.`);
+        return;
+      }
+      storage.addCountry({ code, name: countryName.trim(), flag: countryFlag.trim() || '🏳️' }, activeUser);
+      flashBanner(`Pays "${countryName.trim()}" ajouté.`);
+    }
+    setShowCountryModal(false);
+  };
+  const handleDeleteCountry = (c: CountryDef) => {
+    const result = storage.deleteCountry(c.code, activeUser);
+    setDeleteCountryConfirmCode(null);
+    if (result.allowed) {
+      setDeleteCountryError('');
+      flashBanner(`Pays "${c.name}" supprimé.`);
+    } else {
+      setDeleteCountryError(result.reason ?? 'Suppression refusée.');
+    }
   };
 
   // --- Categories handlers ---
@@ -482,6 +544,15 @@ service cloud.firestore {
           >
             Entités du Groupe (16 filiales / 10 pays)
           </button>
+          {/* === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) === */}
+          <button
+            onClick={() => setConfigTab('organization')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              configTab === 'organization' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Pays ({countries.length})
+          </button>
           <button
             onClick={() => setConfigTab('categories')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
@@ -715,6 +786,79 @@ service cloud.firestore {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+          ORGANIZATION TAB (pays) — même motif CRUD que l'onglet Entités
+          ci-dessus, un niveau au-dessus dans la hiérarchie ACTIVA GROUP →
+          Pays → Entité → Utilisateurs (brief §2). Un pays supprimé alors
+          qu'une entité y est encore rattachée est refusé — voir
+          storage.deleteCountry(). Validation frontend uniquement (comme
+          partout ailleurs dans cet écran) : signalé, pas contourné. */}
+      {configTab === 'organization' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
+          <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Pays du Groupe ACTIVA ({countries.length} pays)
+              </h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                Niveau organisationnel structurant : chaque entité (onglet précédent) est rattachée à l'un de ces pays.
+              </p>
+            </div>
+            <button
+              onClick={openAddCountry}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" /> Ajouter un pays
+            </button>
+          </div>
+
+          {deleteCountryError && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 font-semibold flex items-start gap-2">
+              <span>{deleteCountryError}</span>
+              <button onClick={() => setDeleteCountryError('')} className="ml-auto text-rose-500 hover:text-rose-700 shrink-0">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {countries.length === 0 ? (
+            <p className="text-slate-400 text-center py-8">Aucun pays configuré.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {countries.map((c) => {
+                const entityCount = entities.filter((e) => e.country === c.name).length;
+                return (
+                  <div key={c.code} className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-900 flex items-center gap-1.5 truncate">
+                        <span>{c.flag}</span>
+                        <span className="truncate">{c.name}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500">{c.code} · {entityCount} entité(s)</div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => openEditCountry(c)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Modifier">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      {deleteCountryConfirmCode === c.code ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleDeleteCountry(c)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">Confirmer</button>
+                          <button onClick={() => setDeleteCountryConfirmCode(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">Annuler</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setDeleteCountryConfirmCode(c.code)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title="Supprimer">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1165,7 +1309,7 @@ service cloud.firestore {
                 <label className="block font-semibold text-slate-700 mb-1">Pays *</label>
                 <select value={entityCountry} onChange={(e) => setEntityCountry(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white" required>
                   <option value="">Sélectionner un pays</option>
-                  {ACTIVA_COUNTRIES.map((c) => (
+                  {countries.map((c) => (
                     <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
                   ))}
                 </select>
@@ -1178,6 +1322,52 @@ service cloud.firestore {
                 <button type="button" onClick={() => setShowEntityModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
                 <button type="submit" className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold">
                   {editingEntityId ? 'Enregistrer' : 'Ajouter'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+          MODAL: ADD/EDIT COUNTRY */}
+      {showCountryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">
+                {editingCountryCode ? 'Modifier le pays' : 'Ajouter un pays'}
+              </h3>
+            </div>
+            <form onSubmit={handleSaveCountry} className="space-y-3">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Code pays (ISO, 2-4 lettres) *</label>
+                <input
+                  type="text"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value.toUpperCase())}
+                  placeholder="Ex : SN"
+                  maxLength={4}
+                  disabled={!!editingCountryCode}
+                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg disabled:bg-slate-100 disabled:text-slate-500"
+                  required
+                />
+                {editingCountryCode && (
+                  <p className="text-[10px] text-slate-400 mt-1">Le code n'est pas modifiable après création (utilisé comme identifiant stable).</p>
+                )}
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nom du pays *</label>
+                <input type="text" value={countryName} onChange={(e) => setCountryName(e.target.value)} placeholder="Ex : Sénégal" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Emoji drapeau (optionnel)</label>
+                <input type="text" value={countryFlag} onChange={(e) => setCountryFlag(e.target.value)} placeholder="🇸🇳" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" maxLength={8} />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => setShowCountryModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold">
+                  {editingCountryCode ? 'Enregistrer' : 'Ajouter'}
                 </button>
               </div>
             </form>
@@ -1269,7 +1459,7 @@ service cloud.firestore {
                   <label className="block font-semibold text-slate-700 mb-1">Pays</label>
                   <select value={userCountry} onChange={(e) => setUserCountry(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
                     <option value="">Groupe ACTIVA</option>
-                    {ACTIVA_COUNTRIES.map((c) => (
+                    {countries.map((c) => (
                       <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
                     ))}
                   </select>

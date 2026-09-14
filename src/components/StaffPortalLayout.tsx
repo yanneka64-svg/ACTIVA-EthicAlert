@@ -14,6 +14,8 @@ import {
   Settings,
   ChevronRight,
   HelpCircle,
+  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+  Globe2,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -83,7 +85,7 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   const showSpaceSwitcher = spaceCount >= 2;
   const isOperatorTabActive = currentTab.startsWith('op_');
   const isInvestigatorTabActive = currentTab.startsWith('inv_');
-  const isAdminTabActive = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports'].includes(currentTab);
+  const isAdminTabActive = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization'].includes(currentTab);
 
   const navItems: Array<{ key: string; label: string; icon: React.ReactNode; visible: boolean; group: string }> = [
     { key: 'control_panel', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel, group: '' },
@@ -99,6 +101,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'reports', label: t.sidebar_reports_dashboards, icon: <LayoutGrid className="w-4 h-4" />, visible: true, group: t.sidebar_group_reports },
     { key: 'reports', label: t.sidebar_reports_exports, icon: <Package className="w-4 h-4" />, visible: true, group: t.sidebar_group_reports },
 
+    // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+    { key: 'admin_organization', label: 'Organisation (Pays)', icon: <Globe2 className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
     { key: 'settings', label: t.sidebar_admin_settings, icon: <Settings className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },

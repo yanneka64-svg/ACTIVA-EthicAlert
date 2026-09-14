@@ -83,7 +83,7 @@ const STAFF_TAB_KEYS = [
   // === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
   'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed', 'op_search', 'op_reports', 'op_communications',
   'inv_dashboard', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending', 'inv_tasks', 'inv_evidence', 'inv_communications', 'inv_reports', 'inv_search',
-  'admin_audit', 'admin_reports',
+  'admin_audit', 'admin_reports', 'admin_organization',
 ];
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
@@ -443,6 +443,14 @@ function AppShell() {
       return (
         <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Rapports système">
           <ReportingDashboard lang={lang} activeUser={activeUser} />
+        </PermissionGuard>
+      );
+    }
+    // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
+    if (currentTab === 'admin_organization') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Organisation">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="organization" />
         </PermissionGuard>
       );
     }
