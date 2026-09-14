@@ -16,9 +16,14 @@ import { AlertRecord, UserProfile } from '../types';
 import { canSeeAlertConfidentiality, userCan } from '../services/authz';
 import { WorkloadRow } from './workloadCalc';
 
-type ScopeMatch = 'local' | 'global' | 'mismatch';
+export type ScopeMatch = 'local' | 'global' | 'mismatch';
 
-function scopeMatchFor(user: UserProfile, alert: Pick<AlertRecord, 'countryId' | 'entityId'>): ScopeMatch {
+// === AMÉLIORATION AJOUTÉE (Phase 3 — routage indépendant) ===
+// Exportée (auparavant privée à ce module) pour que
+// domain/independentRouting.ts réutilise exactement la même logique de
+// périmètre local/Groupe plutôt que de la redériver — aucun changement de
+// comportement ici, uniquement la visibilité du symbole.
+export function scopeMatchFor(user: UserProfile, alert: Pick<AlertRecord, 'countryId' | 'entityId'>): ScopeMatch {
   const countries = user.countries ?? [];
   const entities = user.entities ?? [];
   if (countries.length === 0 && entities.length === 0) return 'global';
