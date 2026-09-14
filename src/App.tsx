@@ -45,7 +45,7 @@ import { ShieldOff } from 'lucide-react';
 // Restaurés ici, sans rien changer au reste de la restructuration visuelle.
 import { resolveRoute, pathForTab } from './routing/routes';
 import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
-import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from './services/authz';
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from './services/authz';
 import { StaffLoginView } from './components/StaffLoginView';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
@@ -208,7 +208,35 @@ function AppShell() {
   const handleLogin = (user: UserProfile) => {
     handleUserChange(user);
     setIsStaffSessionActive(true);
-    navigate(pathForTab('control_panel'));
+    // === AMÉLIORATION AJOUTÉE (Phase 7 — évolution multi-pays/multi-entité) ===
+    // Redirection selon le rôle plutôt que toujours vers le Centre de
+    // Pilotage (comportement précédent). Réutilise exactement les mêmes
+    // permissions que le sélecteur d'espace (StaffPortalLayout.tsx) :
+    // cases.assign → Opérateur, cases.edit → Enquêteur, configuration.manage
+    // → Administration. `user` (le compte qui vient de se connecter), pas
+    // `activeUser`/`isGlobalViewer` — ces derniers reflètent encore
+    // l'ancien profil tant que le state React n'a pas été mis à jour.
+    // Pour tout rôle sans aucun de ces 3 accès, la vision globale existante
+    // continue de donner accès au Centre de Pilotage comme avant
+    // (comportement inchangé pour consultation/executive). Les 2 seuls
+    // rôles qui n'avaient AUCUN de ces accès — security_admin et
+    // audit_committee — atterrissaient déjà, avant cette phase, sur un
+    // Centre de Pilotage inaccessible ("Accès restreint", vérifié en
+    // direct) : ils atterrissent désormais sur Rapports (`/reports`), le
+    // seul écran interne sans garde de permission, ce qui corrige leur
+    // expérience de connexion sans rien changer pour un rôle qui
+    // fonctionnait déjà.
+    if (userCan(user, 'cases.assign')) {
+      navigate(pathForTab('op_dashboard'));
+    } else if (userCan(user, 'cases.edit')) {
+      navigate(pathForTab('inv_dashboard'));
+    } else if (canManageConfiguration(user)) {
+      navigate(pathForTab('settings'));
+    } else if (isGlobalCaseViewer(user)) {
+      navigate(pathForTab('control_panel'));
+    } else {
+      navigate(pathForTab('reports'));
+    }
   };
 
   const handleLogout = () => {
