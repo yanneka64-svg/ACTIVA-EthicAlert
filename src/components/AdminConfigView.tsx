@@ -622,11 +622,11 @@ service cloud.firestore {
             <div className="flex items-center gap-2 mb-1">
               <Settings className="w-5 h-5 text-blue-700" />
               <h2 className="text-xl font-bold text-slate-900">
-                {t.nav_settings} (CDC 3.2.4)
+                {t.nav_settings}
               </h2>
             </div>
             <p className="text-xs text-slate-600">
-              Paramétrage global de la plateforme réservé à l'Administrateur Système ATS & DARC.
+              Paramétrage global de la plateforme réservé à l'Administrateur Système.
             </p>
           </div>
 
@@ -678,7 +678,7 @@ service cloud.firestore {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6 text-xs">
           <div className="border-b border-slate-100 pb-3">
             <h3 className="text-sm font-bold text-slate-900">
-              Barème officiel de la Matrice des Risques (Annexe 9)
+              Barème officiel de la Matrice des Risques
             </h3>
             <p className="text-slate-500 text-[11px] mt-0.5">
               Évaluation pondérée sur 4 axes conduisant aux seuils NOCA 1, NOCA 2, NOCA 3 et NOCA 4.
