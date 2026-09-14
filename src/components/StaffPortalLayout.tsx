@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   FolderOpen,
   Search,
-  ListTodo,
   Paperclip,
   MessageSquare,
   Wrench,
@@ -13,7 +12,6 @@ import {
   Settings,
   ChevronRight,
   HelpCircle,
-  ArrowLeft,
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   Globe2,
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
@@ -28,11 +26,17 @@ import {
   Clock3,
   CheckCircle2,
   ListChecks,
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des investigations) ===
+  BarChart3,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, canManageConfiguration, userCan } from '../services/authz';
+import { isGlobalCaseViewer } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+// barre latérale) === logique de disponibilité des espaces désormais
+// partagée avec StaffSpaceHome.tsx et App.tsx (voir domain/staffSpaces.ts).
+import { SpaceKey, computeAvailableSpaces } from '../domain/staffSpaces';
 
 /**
  * === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
@@ -73,10 +77,7 @@ interface StaffPortalLayoutProps {
   children: React.ReactNode;
 }
 
-// === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
-type SpaceKey = 'operator' | 'investigator' | 'admin' | 'general';
-
-const ADMIN_TABS = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow'];
+const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow'];
 
 // Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
 // "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à
@@ -105,34 +106,16 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // inutilisés), qui expriment la même intention via de vraies permissions
   // plutôt qu'une liste de rôles codée en dur.
   const canSeeControlPanel = isGlobalCaseViewer(activeUser);
-  const canSeeAdmin = canManageConfiguration(activeUser);
 
-  // === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
-  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === BUG
-  // PRÉEXISTANT CORRIGÉ : `cases.assign` seul ne suffit plus à garantir
-  // l'accès à /operator/dashboard depuis que la matrice de permissions est
-  // éditable en administration — la vraie garde de cette route (App.tsx,
-  // onglet `op_dashboard`) est `isGlobalViewer`, une table séparée que cet
-  // onglet n'a jamais mise à jour. Corrigé en alignant cette condition sur
-  // la garde réelle de la route, exactement comme `canSeeControlPanel`.
-  const canSeeOperatorSpace = userCan(activeUser, 'cases.assign') && canSeeControlPanel;
-  const canSeeInvestigatorSpace = userCan(activeUser, 'cases.edit');
-
-  // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
-  // Espaces réellement disponibles pour ce compte, dans un ordre de
-  // priorité stable. Un compte qui ne relève d'aucun des 3 (ex.
-  // consultation/executive/audit_committee/security_admin — lecture
-  // globale sans attribution ni investigation ni administration) reçoit un
-  // espace "general" de repli : Tableau de bord + Tous les dossiers +
-  // Outils, soit exactement l'ancienne liste plate, débarrassée de ses
-  // doublons.
-  const availableSpaces: SpaceKey[] = [
-    ...(canSeeOperatorSpace ? (['operator'] as const) : []),
-    ...(canSeeInvestigatorSpace ? (['investigator'] as const) : []),
-    ...(canSeeAdmin ? (['admin'] as const) : []),
-  ];
+  // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+  // barre latérale) === le calcul de "quels espaces ce compte peut-il
+  // voir" vit désormais dans domain/staffSpaces.ts (réutilisé par
+  // StaffSpaceHome.tsx et App.tsx) — plus de duplication locale. Un compte
+  // qui ne relève d'aucun des 3 (ex. consultation/executive/audit_committee/
+  // security_admin) reçoit toujours un espace "general" de repli : Tableau
+  // de bord + Tous les dossiers + Outils, exactement comme avant.
+  const availableSpaces: SpaceKey[] = computeAvailableSpaces(activeUser);
   const defaultSpace: SpaceKey = availableSpaces[0] ?? 'general';
-  const showSpaceSwitcher = availableSpaces.length >= 2;
 
   const [selectedSpace, setSelectedSpace] = useState<SpaceKey>(() => spaceOfTab(currentTab) ?? defaultSpace);
 
@@ -170,10 +153,18 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // functional_admin, garde "Toutes les X" même depuis l'espace Enquêteur).
   const toolsItems: Array<Omit<NavItem, 'group'>> = [
     { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" /> },
-    { key: 'tasks', label: canSeeControlPanel ? t.sidebar_tasks_registry : t.sidebar_my_tasks, icon: <ListTodo className="w-4 h-4" /> },
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des
+    // investigations) === libellé unique (plus de distinction Mes/Toutes
+    // les tâches) : cet écran n'est plus un registre à plat des tâches
+    // mais un tableau de bord de suivi par dossier — le périmètre réel
+    // (tous les dossiers pour un compte à vision globale, seulement les
+    // siens sinon) reste géré par useVisibleAlerts comme partout ailleurs,
+    // sans que le nom de l'écran ait besoin de le préciser.
+    { key: 'tasks', label: t.reg_investigations_title, icon: <BarChart3 className="w-4 h-4" /> },
     { key: 'evidence', label: canSeeControlPanel ? t.sidebar_evidence_registry : t.sidebar_my_evidence, icon: <Paperclip className="w-4 h-4" /> },
     { key: 'communications', label: canSeeControlPanel ? t.sidebar_comms_registry : t.sidebar_my_comms, icon: <MessageSquare className="w-4 h-4" /> },
-    { key: 'corrective_actions', label: t.sidebar_corrective_measures, icon: <Wrench className="w-4 h-4" /> },
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des recommandations) ===
+    { key: 'corrective_actions', label: t.reg_recommendations_title, icon: <Wrench className="w-4 h-4" /> },
     { key: 'reports', label: t.sidebar_reports_exports, icon: <LayoutGrid className="w-4 h-4" /> },
   ];
 
@@ -189,7 +180,6 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 
   const investigatorItems: NavItem[] = [
     { key: 'inv_dashboard', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' },
-    { key: 'inv_inbox', label: 'Boîte de réception', icon: <Inbox className="w-4 h-4" />, group: '' },
     { key: 'inv_my_cases', label: t.sidebar_inv_my_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' },
     { key: 'inv_to_process', label: t.sidebar_inv_to_process, icon: <ListChecks className="w-4 h-4" />, group: '' },
     { key: 'inv_in_progress', label: t.sidebar_inv_in_progress, icon: <Search className="w-4 h-4" />, group: '' },
@@ -220,19 +210,6 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   };
   const navItems = itemsBySpace[selectedSpace];
 
-  const SPACE_LABEL: Record<SpaceKey, string> = {
-    operator: 'Espace Opérateur',
-    investigator: 'Espace Enquêteur',
-    admin: 'Administration',
-    general: '',
-  };
-  const SPACE_DASHBOARD_TAB: Record<SpaceKey, string> = {
-    operator: 'op_dashboard',
-    investigator: 'inv_dashboard',
-    admin: 'settings',
-    general: canSeeControlPanel ? 'control_panel' : 'portal',
-  };
-
   let lastGroup: string | null = null;
 
   const renderNavButton = (item: NavItem, mobile = false) => {
@@ -260,11 +237,21 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
           active ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
         }`}
       >
-        <span className="flex items-center gap-2.5">
+        {/* === AMÉLIORATION AJOUTÉE (Correction bug — la liste change de
+            position au clic) === BUG PRÉEXISTANT CORRIGÉ, signalé par
+            l'utilisateur sur "Toutes les communications" : sans
+            `whitespace-nowrap`, le libellé le plus long du menu passait sur 2
+            lignes une fois actif (le `<ChevronRight>` ci-dessous, affiché
+            uniquement à l'état actif, réduit la largeur dispo pour le
+            texte) — le bouton devenait alors plus haut, poussant tous les
+            éléments suivants vers le bas. `truncate` + `min-w-0` sur le
+            libellé garantit une hauteur strictement identique, actif ou
+            non, pour tous les éléments du menu. */}
+        <span className="flex items-center gap-2.5 min-w-0">
           <span className={active ? 'text-blue-600' : 'text-slate-400'}>{item.icon}</span>
-          <span>{item.label}</span>
+          <span className="truncate">{item.label}</span>
         </span>
-        {active && <ChevronRight className="w-3.5 h-3.5 text-blue-500" />}
+        {active && <ChevronRight className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
       </button>
     );
   };
@@ -273,37 +260,18 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
       <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
-        {/* Navigation vers l'Accueil des espaces & repère de l'espace actif */}
-        <div className="p-3 border-b border-slate-100 bg-slate-50/70 space-y-2">
-          <button
-            id="sidebar-btn-home-spaces"
-            onClick={() => setCurrentTab('staff_home')}
-            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-blue-700 hover:bg-white border border-slate-200/80 hover:border-slate-300 transition shadow-2xs group"
-            title="Revenir au choix des espaces"
-          >
-            <span className="flex items-center gap-1.5">
-              <ArrowLeft className="w-3.5 h-3.5 text-slate-400 group-hover:-translate-x-0.5 group-hover:text-blue-600 transition" />
-              <span>Accueil espaces</span>
-            </span>
-            <span className="text-[10px] text-blue-600 group-hover:underline">Changer</span>
-          </button>
-          <div className="px-1 flex items-center justify-between">
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                selectedSpace === 'operator'
-                  ? 'bg-blue-100 text-blue-800'
-                  : selectedSpace === 'investigator'
-                  ? 'bg-teal-100 text-teal-800'
-                  : selectedSpace === 'admin'
-                  ? 'bg-purple-100 text-purple-800'
-                  : 'bg-slate-200 text-slate-700'
-              }`}
-            >
-              {SPACE_LABEL[selectedSpace] || 'Espace actif'}
-            </span>
-          </div>
-        </div>
-
+        {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
+            sélecteur en barre latérale) === Le petit bloc "ESPACES" qui
+            vivait ici (2-3 boutons empilés en haut de la sidebar) est
+            retiré, sur demande explicite de l'utilisateur : le choix
+            d'espace se fait désormais une seule fois, sur une vraie page
+            d'accueil dédiée (StaffSpaceHome.tsx) juste après connexion,
+            pas en permanence dans la barre latérale. `selectedSpace`
+            (calculé ci-dessus depuis `currentTab`) continue de déterminer
+            la LISTE de menu affichée ci-dessous — rien ne change côté
+            contenu du menu lui-même, seul ce bloc de sélection disparaît.
+            Pour changer d'espace après coup, voir le lien "Changer
+            d'espace" du menu Profil (Navbar.tsx). */}
         <nav className="flex-1 py-3 px-2.5">
           {navItems.map((item) => {
             const showGroupHeader = !!item.group && item.group !== lastGroup;
@@ -335,18 +303,11 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 
       {/* Mobile horizontal nav */}
       <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto px-4 pt-4 pb-1 -mb-2">
-        <button
-          onClick={() => setCurrentTab('staff_home')}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Espaces</span>
-        </button>
         {navItems.map((item) => renderNavButton(item, true))}
       </div>
 
-      {/* Content canvas */}
-      <div className="flex-1 min-w-0 w-full">{children}</div>
+      {/* Content canvas — sa propre largeur maximale centrée */}
+      <div className="flex-1 min-w-0 w-full max-w-[1600px] mx-auto lg:px-6 xl:px-8 lg:py-6">{children}</div>
     </div>
   );
 };

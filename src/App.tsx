@@ -26,6 +26,9 @@ import { AdminConfigView } from './components/AdminConfigView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
 import { CaseLookup } from './components/CaseLookup';
+// === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+// barre latérale) ===
+import { StaffSpaceHome } from './components/StaffSpaceHome';
 // === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructurée façon maquette) ===
 // 4 écrans transverses réels (Tâches / Preuves / Communications / Actions
 // correctives), agrégeant des données déjà existantes sur `AlertRecord` —
@@ -36,8 +39,6 @@ import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
 // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
 import { AdvancedSearchView } from './components/AdvancedSearchView';
-import { StaffWelcomeHome } from './components/StaffWelcomeHome';
-import { InvestigatorDashboard } from './components/InvestigatorDashboard';
 import { ShieldOff } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE : correction post-fusion ===
 // Ces imports (routage par URL, garde-fous, pont RBAC, écran de connexion
@@ -49,7 +50,7 @@ import { ShieldOff } from 'lucide-react';
 // Restaurés ici, sans rien changer au reste de la restructuration visuelle.
 import { resolveRoute, pathForTab } from './routing/routes';
 import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
-import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from './services/authz';
+import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration } from './services/authz';
 import { StaffLoginView } from './components/StaffLoginView';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
@@ -66,6 +67,9 @@ import { StaffLoginView } from './components/StaffLoginView';
 // ne puissent jamais diverger désormais que la barre latérale compte ~15
 // entrées au lieu de 6.
 const STAFF_TAB_KEYS = [
+  // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+  // barre latérale) ===
+  'space_home',
   'control_panel',
   'portal',
   'triage',
@@ -93,9 +97,8 @@ const STAFF_TAB_KEYS = [
   // et n'étaient plus atteignables par aucun bouton de menu depuis la
   // Proposition B (voir StaffPortalLayout.tsx). Leurs anciennes URLs restent
   // fonctionnelles via un alias dans routing/routes.ts.
-  'staff_home',
   'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed',
-  'inv_dashboard', 'inv_inbox', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending',
+  'inv_dashboard', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending',
   'admin_audit', 'admin_reports', 'admin_organization',
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   'admin_governance',
@@ -211,7 +214,7 @@ function AppShell() {
     // public page needs to land somewhere real; the staff portal's own
     // sidebar (StaffPortalLayout) then covers every other screen.
     else if (user.role !== 'reporter' && !STAFF_TAB_KEYS.includes(currentTab)) {
-      goToTab('staff_home');
+      setCurrentTab('portal');
     }
   };
 
@@ -224,11 +227,20 @@ function AppShell() {
     setIsStaffSessionActive(true);
   };
 
+  // === AMÉLIORATION AJOUTÉE (Accueil des espaces — étendu à tous les
+  // profils) === Toute connexion atterrit désormais sur l'accueil des
+  // espaces (`/espace`, StaffSpaceHome.tsx) — y compris un compte à un seul
+  // espace réel ou à aucun des 3 (repli "vision globale"), qui n'y voyait
+  // pas cet écran avant cette phase. La redirection par rôle (Opérateur →
+  // `op_dashboard`, Enquêteur → `inv_dashboard`, Administration →
+  // `settings`, repli vision globale → `control_panel`/`reports`) n'a pas
+  // disparu : elle vit désormais dans StaffSpaceHome.tsx (via
+  // domain/staffSpaces.ts, réutilisé plutôt que dupliqué), déclenchée par
+  // le clic sur la carte correspondante plutôt qu'automatiquement ici.
   const handleLogin = (user: UserProfile) => {
     handleUserChange(user);
     setIsStaffSessionActive(true);
-    // Redirection directe vers la page d'accueil d'accueil des espaces collaborateur
-    navigate(pathForTab('staff_home'));
+    navigate(pathForTab('space_home'));
   };
 
   const handleLogout = () => {
@@ -305,22 +317,40 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'portal') return <InvestigationDesk key="portal" lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} />;
+    // === AMÉLIORATION AJOUTÉE (Correction bug — filtres de dossiers figés) ===
+    // BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : "Boîte de
+    // réception"/"À attribuer"/"En attente d'infos"/"Dossiers traités"
+    // affichaient tous le même contenu que "Tous les dossiers". Cause
+    // racine : toutes ces branches rendent le MÊME type de composant
+    // (`InvestigationDesk`) à la MÊME position de l'arbre — React ne le
+    // démonte donc jamais en changeant d'onglet, il se contente de
+    // re-rendre avec de nouvelles props. Or `InvestigationDesk` lit
+    // `initialFilter` uniquement dans des `useState(...)` d'initialisation
+    // (jamais resynchronisés par la suite, voir son commentaire d'origine
+    // qui supposait à tort un remontage à chaque onglet) : le filtre reste
+    // donc figé sur la toute première valeur vue, quel que soit l'onglet
+    // cliqué ensuite. Corrigé en donnant à chaque rendu une vraie clé React
+    // distincte (`key`) : `portal` varie avec le filtre effectif lui-même
+    // (un lien profond vers un AUTRE dossier peut changer sans que l'onglet
+    // ne change), les autres varient simplement avec `currentTab` puisque
+    // leur filtre associé est fixe pour cet onglet. Aucune logique interne
+    // d'InvestigationDesk n'est modifiée — seul le remontage est corrigé.
+    if (currentTab === 'portal') return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} />;
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
     // écran de détail, mêmes actions) avec un `initialFilter` préréglé
     // différent — pas une copie, un préréglage — exactement comme le
     // Centre de Pilotage le fait déjà pour ses propres cartes KPI.
-    if (currentTab === 'triage') return <InvestigationDesk key="triage" lang={lang} activeUser={activeUser} customTitle="Triage des alertes" customSubtitle="Nouveaux signalements reçus à classifier" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
+    if (currentTab === 'triage') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
     if (currentTab === 'assignment') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
-          <InvestigationDesk key="assignment" lang={lang} activeUser={activeUser} customTitle="Attribution des dossiers" customSubtitle="Dossiers non attribués à désigner à un enquêteur" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ unassignedOnly: true }} />
+          <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ unassignedOnly: true }} />
         </PermissionGuard>
       );
     }
-    if (currentTab === 'my_cases') return <InvestigationDesk key="my_cases" lang={lang} activeUser={activeUser} customTitle="Mes dossiers" customSubtitle="Dossiers attribués à votre compte" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'investigations') return <InvestigationDesk key="investigations" lang={lang} activeUser={activeUser} customTitle="Dossiers en investigation" customSubtitle="Dossiers actuellement en cours d'instruction active" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'investigation' }} />;
+    if (currentTab === 'my_cases') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'investigations') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'investigation' }} />;
     if (currentTab === 'tasks') return <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
@@ -402,32 +432,63 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'op_inbox') return <InvestigationDesk key="op_inbox" lang={lang} activeUser={activeUser} customTitle="Boîte de réception — Nouveaux signalements" customSubtitle="Dossiers entrants non qualifiés en attente de prise en charge" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
-    if (currentTab === 'op_pending_info') return <InvestigationDesk key="op_pending_info" lang={lang} activeUser={activeUser} customTitle="Dossiers en attente d'informations" customSubtitle="Signalements nécessitant des précisions du lanceur d'alerte ou de tiers" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'under_review' }} />;
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) ===
+    // 4 écrans redéfinis sur retour utilisateur détaillé (captures +
+    // description écran par écran) :
+    // - Boîte de réception : seul point d'entrée des signalements
+    //   publics, ouvre directement sur la messagerie avec le lanceur
+    //   d'alerte (`initialCaseTab="messages"`) plutôt que la synthèse.
+    // - À attribuer : "toutes les affaires nouvelles et en cours"
+    //   (`excludeClosed`), plus large que le seul filtre "non attribués"
+    //   d'avant — qui reste disponible en case à cocher manuelle dans
+    //   l'écran lui-même, inchangée.
+    // - Dossiers attribués (ex-"Dossiers traités") : "toutes les affaires
+    //   attribuées" (`assignedOnly`), plus la même notion que "Clôturé".
+    // - En attente d'infos : filtre déjà exact, inchangé.
+    // Bandeau de métriques retiré des 4 (`hideTopBanner`) — il fait
+    // doublon avec le vrai Tableau de bord Opérateur ci-dessus.
+    if (currentTab === 'op_inbox') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} hideTopBanner initialCaseTab="messages" />;
+    if (currentTab === 'op_pending_info') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'under_review' }} hideTopBanner />;
     if (currentTab === 'op_assign') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
-          <InvestigationDesk key="op_assign" lang={lang} activeUser={activeUser} customTitle="Attribution des dossiers" customSubtitle="Signalements recevables à désigner à un enquêteur" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ unassignedOnly: true }} />
+          <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ excludeClosed: true }} hideTopBanner />
         </PermissionGuard>
       );
     }
-    if (currentTab === 'op_processed') return <InvestigationDesk key="op_processed" lang={lang} activeUser={activeUser} customTitle="Dossiers traités et clôturés" customSubtitle="Historique des dossiers instruits et clos avec rapport final" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'closed' }} />;
+    if (currentTab === 'op_processed') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ assignedOnly: true }} hideTopBanner />;
+    // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
+    // morts) === `op_search`/`op_reports`/`op_communications` (Phase 6)
+    // supprimés d'ici : ils rendaient exactement `advanced_search`/
+    // `reports`/`communications` ci-dessous, sans aucune différence
+    // fonctionnelle, et n'étaient plus reliés à aucun bouton de menu depuis
+    // la Proposition B. Leurs anciennes URLs restent fonctionnelles
+    // (routing/routes.ts, LEGACY_PATH_ALIASES) et retombent directement sur
+    // ces mêmes branches partagées.
 
-    if (currentTab === 'inv_dashboard') {
-      return (
-        <InvestigatorDashboard
-          lang={lang}
-          activeUser={activeUser}
-          onNavigateTab={goToTab}
-          onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
-        />
-      );
-    }
-    if (currentTab === 'inv_inbox') return <InvestigationDesk key="inv_inbox" lang={lang} activeUser={activeUser} customTitle="Boîte de réception — Dossiers cotés" customSubtitle="Dossiers d'investigation assignés et cotés à votre profil" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'inv_my_cases') return <InvestigationDesk key="inv_my_cases" lang={lang} activeUser={activeUser} customTitle="Mes dossiers d'investigation" customSubtitle="Ensemble des dossiers assignés à votre profil d'enquêteur" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'inv_to_process') return <InvestigationDesk key="inv_to_process" lang={lang} activeUser={activeUser} customTitle="Mes dossiers à instruire" customSubtitle="Nouveaux dossiers cotés nécessitant l'ouverture de l'instruction" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'new' }} />;
-    if (currentTab === 'inv_in_progress') return <InvestigationDesk key="inv_in_progress" lang={lang} activeUser={activeUser} customTitle="Mes dossiers en cours d'investigation" customSubtitle="Dossiers en phase active de recueil de preuves et d'auditions" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'investigation' }} />;
-    if (currentTab === 'inv_pending') return <InvestigationDesk key="inv_pending" lang={lang} activeUser={activeUser} customTitle="Mes dossiers en attente d'éléments" customSubtitle="Dossiers suspendus en attente de compléments d'informations" onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'under_review' }} />;
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — miroir Espace
+    // Enquêteur) === Même redéfinition que côté Opérateur, appliquée à
+    // l'équivalent Enquêteur de chaque écran (toujours restreint à
+    // `myCasesOnly` — un enquêteur ne voit jamais que ses propres
+    // dossiers, mécanisme inchangé) :
+    // - "À traiter" (inv_to_process) capte désormais "mes affaires
+    //   nouvelles et en cours" (`excludeClosed`), pas seulement les
+    //   nouvelles — même principe que "À attribuer" côté Opérateur.
+    // - "Mes dossiers" (inv_my_cases) était déjà l'équivalent exact de
+    //   "Dossiers attribués" (aucun enquêteur ne voit un dossier non
+    //   attribué) — filtre inchangé, bandeau retiré.
+    // - "En attente" (inv_pending) : filtre déjà exact, bandeau retiré.
+    // - "En cours" (inv_in_progress) : reste un raccourci plus étroit que
+    //   "À traiter" (même principe que "En attente d'infos" à côté
+    //   d'"À attribuer" côté Opérateur) — filtre inchangé, bandeau retiré.
+    // Tableau de bord (inv_dashboard) conserve son bandeau, comme le vrai
+    // Tableau de bord Opérateur (ControlPanel) — hors périmètre de cette
+    // refonte, qui ne concernait que les 4 écrans nommés explicitement.
+    if (currentTab === 'inv_dashboard') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'inv_my_cases') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} hideTopBanner />;
+    if (currentTab === 'inv_to_process') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, excludeClosed: true }} hideTopBanner />;
+    if (currentTab === 'inv_in_progress') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'investigation' }} hideTopBanner />;
+    if (currentTab === 'inv_pending') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'under_review' }} hideTopBanner />;
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
     // morts) === `inv_tasks`/`inv_evidence`/`inv_communications`/
     // `inv_reports`/`inv_search` (Phase 6) supprimés d'ici, même motif que
@@ -539,30 +600,19 @@ function AppShell() {
         {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) === */}
         {currentTab === 'login' && <StaffLoginView onLogin={handleLogin} />}
 
-        {/* Page d'accueil des espaces collaborateur (Accueil Opérateur / Enquêteur) */}
-        {currentTab === 'staff_home' && (
+        {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
+            sélecteur en barre latérale) === Rendue à part, HORS de
+            StaffPortalLayout (donc sans sidebar) — même traitement que
+            /login ou /track juste au-dessus : un vrai plein-écran d'accueil,
+            pas un écran de plus dans le menu latéral. Toujours protégée par
+            AuthenticatedRoute comme le reste de l'espace staff. */}
+        {currentTab === 'space_home' && (
           <AuthenticatedRoute isAuthenticated={isStaffSessionActive} onGoToLogin={() => goToTab('login')}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <StaffWelcomeHome
-                lang={lang}
-                activeUser={activeUser}
-                onSelectSpace={(space, targetTab) => {
-                  if (space === 'operator') {
-                    goToTab(targetTab || 'op_dashboard');
-                  } else if (space === 'investigator') {
-                    goToTab(targetTab || 'inv_dashboard');
-                  } else if (space === 'admin') {
-                    goToTab(targetTab || 'admin_organization');
-                  }
-                }}
-                onNavigateToTab={goToTab}
-                onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
-              />
-            </div>
+            <StaffSpaceHome lang={lang} activeUser={activeUser} setCurrentTab={goToTab} />
           </AuthenticatedRoute>
         )}
 
-        {isStaffTab && currentTab !== 'staff_home' && (
+        {isStaffTab && currentTab !== 'space_home' && (
           // === AMÉLIORATION AJOUTÉE (Phase 12.2/12.4) === tout l'espace
           // staff passe désormais par AuthenticatedRoute — une session non
           // connectée (après déconnexion) est renvoyée vers /login au lieu

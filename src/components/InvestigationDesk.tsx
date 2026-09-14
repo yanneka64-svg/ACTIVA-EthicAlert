@@ -206,10 +206,21 @@ interface InvestigationDeskProps {
   // Lets a caller (the Control Panel's KPI cards / quick actions) land here
   // pre-filtered, per the brief's "Dashboard KPIs must link to filtered
   // case lists" requirement (§61). Read once at mount via the useState
-  // initializers below — consistent with how this screen already resets
-  // on every tab switch (App.tsx unmounts/remounts it, it is never kept
-  // alive across tabs), so a fresh `initialFilter` is picked up correctly
-  // every time the user navigates in from the Control Panel.
+  // initializers below.
+  // === AMÉLIORATION AJOUTÉE (Correction bug — filtres de dossiers figés) ===
+  // BUG PRÉEXISTANT CORRIGÉ : le commentaire ci-dessus supposait à tort que
+  // ce composant était démonté/remonté par App.tsx à chaque changement
+  // d'onglet — faux dès que deux onglets rendent ce même composant à la
+  // même position de l'arbre (ex. "Boîte de réception" puis "Dossiers
+  // traités") : React se contente alors de re-rendre avec de nouvelles
+  // props, sans jamais réexécuter ces initialiseurs `useState`, donc le
+  // filtre reste figé sur la toute première valeur vue. Chaque appelant
+  // (App.tsx) doit désormais passer une `key` React qui change avec
+  // `currentTab` (et avec le filtre effectif pour l'écran "Dossiers", qui
+  // peut changer de dossier ciblé sans changer d'onglet) pour garantir un
+  // vrai remontage — c'est cette clé, pas une hypothèse sur App.tsx, qui
+  // fait maintenant que `initialFilter` est repris correctement à chaque
+  // navigation.
   // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel deep-link) ===
   // `trackingNumber` lets a caller (a specific case row in the Control
   // Panel's "Requires Immediate Attention" / "Most Urgent Cases" / "Recent
@@ -223,23 +234,51 @@ interface InvestigationDeskProps {
   // global viewer (functional/system admin, auditor) who would otherwise see
   // every case — it narrows the list to cases assigned to the *active* user
   // specifically, without touching the underlying visibility rule itself.
-  initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean };
-  // Contextual header labels to match active navigation tabs (e.g. Boîte de réception, À attribuer, etc.)
-  customTitle?: string;
-  customSubtitle?: string;
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — À attribuer / Dossiers
+  // attribués) === `excludeClosed` : "toutes les affaires nouvelles et en
+  // cours" (À attribuer) — exclut ce qui est déjà en mesures correctives ou
+  // clôturé/archivé, sans se limiter à un seul statut précis comme
+  // `status` le fait déjà pour les autres écrans. `assignedOnly` :
+  // "toutes les affaires attribuées" (Dossiers attribués, ex-"Dossiers
+  // traités") — inverse exact de `unassignedOnly`, déjà existant.
+  initialFilter?: {
+    status?: string;
+    unassignedOnly?: boolean;
+    assignedOnly?: boolean;
+    excludeClosed?: boolean;
+    overdueOnly?: boolean;
+    trackingNumber?: string;
+    myCasesOnly?: boolean;
+  };
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === bouton
   // "+ Nouveau" de la maquette — optionnel, additif (chaque appelant qui ne
   // le passe pas garde simplement le bouton masqué, comportement inchangé).
   onCreateNewCase?: () => void;
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === Le bandeau de
+  // métriques en haut de cet écran (Total/En cours/Prioritaires/Taux de
+  // clôture) a du sens sur un écran générique ("Tous les dossiers"), mais
+  // pas sur un écran déjà spécialisé (Boîte de réception, À attribuer,
+  // Dossiers attribués, En attente d'infos) où il fait doublon avec le
+  // vrai Tableau de bord — retiré uniquement pour ces appelants-là, jamais
+  // par défaut (chaque appelant qui ne passe pas ce prop garde le bandeau,
+  // comportement strictement inchangé).
+  hideTopBanner?: boolean;
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Boîte de réception) ===
+  // La Boîte de réception est désormais le seul point d'entrée des
+  // signalements publics ET permet l'échange avec le lanceur d'alerte :
+  // ouvrir un dossier depuis cet écran doit donc mener directement à la
+  // messagerie plutôt qu'à la synthèse — réutilise l'onglet "messages" déjà
+  // réel du dossier (même mécanisme que l'onglet Communications interne).
+  initialCaseTab?: 'overview' | 'messages';
 }
 
 export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   lang,
   activeUser,
   initialFilter,
-  customTitle,
-  customSubtitle,
   onCreateNewCase,
+  hideTopBanner = false,
+  initialCaseTab,
 }) => {
   const t = TRANSLATIONS[lang];
 
@@ -266,9 +305,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>(initialFilter?.trackingNumber ?? '');
   // === AMÉLIORATION AJOUTÉE (Phase 5) ===
   const [unassignedOnlyFilter, setUnassignedOnlyFilter] = useState<boolean>(!!initialFilter?.unassignedOnly);
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) ===
+  const [assignedOnlyFilter] = useState<boolean>(!!initialFilter?.assignedOnly);
+  const [excludeClosedFilter] = useState<boolean>(!!initialFilter?.excludeClosed);
   const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);
   // === AMÉLIORATION AJOUTÉE (Phase 9 — écran dédié "Mes Dossiers") ===
-  const [myCasesOnlyFilter, setMyCasesOnlyFilter] = useState<boolean>(!!initialFilter?.myCasesOnly);
+  const [myCasesOnlyFilter] = useState<boolean>(!!initialFilter?.myCasesOnly);
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === onglets
   // de filtre par panier de statut façon maquette — filtre plus large que
   // `statusFilter` (un panier regroupe plusieurs statuts réels). Initialisé
@@ -278,26 +320,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [bucketFilter, setBucketFilter] = useState<AlertStatusBucket | 'all'>(
     initialFilter?.status ? getAlertStatusBucket(initialFilter.status as AlertStatus) : 'all'
   );
-
-  // Synchronize state whenever initialFilter changes
-  useEffect(() => {
-    setStatusFilter(initialFilter?.status ?? 'all');
-    setUnassignedOnlyFilter(!!initialFilter?.unassignedOnly);
-    setOverdueOnlyFilter(!!initialFilter?.overdueOnly);
-    setMyCasesOnlyFilter(!!initialFilter?.myCasesOnly);
-    if (initialFilter?.status) {
-      setBucketFilter(getAlertStatusBucket(initialFilter.status as AlertStatus));
-    } else {
-      setBucketFilter('all');
-    }
-    if (initialFilter?.trackingNumber) {
-      setSearchQuery(initialFilter.trackingNumber);
-      setViewMode('detail');
-    } else {
-      setSearchQuery('');
-      setViewMode('list');
-    }
-  }, [initialFilter]);
   // Pagination façon maquette (10/page) — cet écran affichait jusqu'ici
   // l'intégralité de la liste sans découpage.
   const [currentPage, setCurrentPage] = useState(1);
@@ -312,7 +334,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // "Rapport", en plus d'une synthèse — rien n'est supprimé, tout reste
   // accessible, juste réorganisé. 'triage' s'affiche sous le libellé
   // "Allégations" (contenu existant enrichi d'un résumé de la qualification).
-  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'persons' | 'evidence_tab' | 'report'>('overview');
+  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'persons' | 'evidence_tab' | 'report'>(initialCaseTab ?? 'overview');
 
   // === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon maquette) ===
   // Consolidates the action toolbar (Attribution/Priorité/Clôture/Réouverture/
@@ -475,6 +497,15 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
     // === AMÉLIORATION AJOUTÉE (Phase 5) === Control-Panel-driven filters
     if (unassignedOnlyFilter && alert.assignedInvestigators.length > 0) return false;
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Dossiers attribués) ===
+    // Inverse exact de `unassignedOnlyFilter` ci-dessus.
+    if (assignedOnlyFilter && alert.assignedInvestigators.length === 0) return false;
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — À attribuer) === "toutes
+    // les affaires nouvelles et en cours" : exclut ce qui est déjà en
+    // mesures correctives ou clôturé/archivé, sans se limiter à un seul
+    // statut précis (contrairement à `statusFilter`, toujours disponible en
+    // plus pour un affinage manuel).
+    if (excludeClosedFilter && (alert.status === 'corrective_action' || alert.status === 'closed' || alert.status === 'archived')) return false;
     if (overdueOnlyFilter && computeSlaStatus(alert) !== 'overdue') return false;
     // === AMÉLIORATION AJOUTÉE (Phase 9) === "Mes Dossiers" deep link
     if (myCasesOnlyFilter && !alert.assignedInvestigators.includes(activeUser.id)) return false;
@@ -659,15 +690,22 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     e.preventDefault();
     if (!measureTitle.trim() || !selectedAlert) return;
 
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des
+    // recommandations) === `closedAt` renseignée uniquement si la mesure
+    // est créée directement au statut "Vérifiée" — aucun autre point du
+    // code ne change le statut d'une mesure existante aujourd'hui, donc
+    // c'est le seul moment où cette transition peut réellement survenir.
+    const now = new Date().toISOString();
     const newMeasure: CorrectiveMeasure = {
       id: 'cm-' + Date.now(),
       title: measureTitle.trim(),
       description: measureDesc.trim(),
       responsiblePerson: measureResp.trim() || 'Direction Concernée',
-      dueDate: measureDueDate || new Date().toISOString().split('T')[0],
+      dueDate: measureDueDate || now.split('T')[0],
       status: measureStatus,
       documentedBy: activeUser.name,
-      documentedAt: new Date().toISOString(),
+      documentedAt: now,
+      closedAt: measureStatus === 'verified' ? now : undefined,
     };
 
     const updatedAlert: AlertRecord = {
@@ -1094,20 +1132,25 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
-      {/* Top Banner with Desk metrics */}
+      {/* === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === Bandeau de
+          métriques masqué sur les écrans déjà spécialisés (voir prop
+          `hideTopBanner` ci-dessus) — sans changer son contenu ni son
+          comportement pour les appelants qui le gardent (ex. "Tous les
+          dossiers"). */}
+      {!hideTopBanner && (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <ShieldAlert className="w-5 h-5 text-blue-700" />
               <h2 className="text-xl font-bold text-slate-900">
-                {customTitle ?? t.portal_title}
+                {t.portal_title}
               </h2>
             </div>
             <p className="text-xs text-slate-600">
-              {customSubtitle ?? (isGlobalViewer 
-                ? 'Vue Groupe ACTIVA complète (DARC & Point de Contact)' 
-                : `Vue Gestionnaire restreinte à vos dossiers attribués (${activeUser.name})`)}
+              {isGlobalViewer
+                ? 'Vue Groupe ACTIVA complète (DARC & Point de Contact)'
+                : `Vue Gestionnaire restreinte à vos dossiers attribués (${activeUser.name})`}
             </p>
           </div>
 
@@ -1149,6 +1192,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 6 — routage indépendant) ===
           Bandeau neutre : jamais de nombre, jamais de nom, jamais de motif —
@@ -1270,12 +1314,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               ).map(([bucket, label]) => (
                 <button
                   key={bucket}
-                  onClick={() => {
-                    setBucketFilter(bucket);
-                    if (statusFilter !== 'all') {
-                      setStatusFilter('all');
-                    }
-                  }}
+                  onClick={() => setBucketFilter(bucket)}
                   className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition border ${
                     bucketFilter === bucket
                       ? 'bg-[#0B2545] text-white border-[#0B2545]'
