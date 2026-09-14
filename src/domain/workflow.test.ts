@@ -10,10 +10,17 @@
  * these should also mean docs/WORKFLOW.md needs updating, not the other
  * way around.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { Allegation, CorrectiveAction } from './caseTypes';
-import { checkTransition, deriveOverallFinding, isStructurallyValidTransition } from './workflow';
+import { Allegation, CaseStatus, CorrectiveAction } from './caseTypes';
+import {
+  checkTransition,
+  deriveOverallFinding,
+  isStructurallyValidTransition,
+  ALLOWED_TRANSITIONS,
+  setWorkflowTransitions,
+  getWorkflowTransitions,
+} from './workflow';
 
 function allegation(overrides: Partial<Allegation> = {}): Allegation {
   return {
@@ -47,6 +54,33 @@ function correctiveAction(overrides: Partial<CorrectiveAction> = {}): Corrective
     ...overrides,
   };
 }
+
+// === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+// Toujours revenir à la table par défaut après chaque test — l'état
+// mutable de workflow.ts est un module-level singleton partagé par tous
+// les tests de ce fichier (même worker), même principe que
+// authz.test.ts pour domain/permissionOverrides.ts.
+afterEach(() => {
+  setWorkflowTransitions(ALLOWED_TRANSITIONS);
+});
+
+describe('setWorkflowTransitions / getWorkflowTransitions — editable overlay', () => {
+  it('getWorkflowTransitions reflects the default table until something is pushed', () => {
+    expect(getWorkflowTransitions()).toEqual(ALLOWED_TRANSITIONS);
+  });
+
+  it('isStructurallyValidTransition reflects a pushed override immediately', () => {
+    expect(isStructurallyValidTransition('new', 'investigation')).toBe(false);
+    const next: Record<CaseStatus, CaseStatus[]> = { ...ALLOWED_TRANSITIONS, new: [...ALLOWED_TRANSITIONS.new, 'investigation'] };
+    setWorkflowTransitions(next);
+    expect(isStructurallyValidTransition('new', 'investigation')).toBe(true);
+  });
+
+  it('still refuses a same-status transition regardless of the overlay content', () => {
+    setWorkflowTransitions({ ...ALLOWED_TRANSITIONS, investigation: ['investigation'] });
+    expect(isStructurallyValidTransition('investigation', 'investigation')).toBe(false);
+  });
+});
 
 describe('isStructurallyValidTransition', () => {
   it('allows every transition listed in the adjacency table', () => {

@@ -20,6 +20,8 @@ import {
   Network,
   // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
   SlidersHorizontal,
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  GitBranch,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -105,7 +107,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   const isOperatorTabActive = currentTab.startsWith('op_');
   const isInvestigatorTabActive = currentTab.startsWith('inv_');
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === 'admin_governance' ajouté
-  const isAdminTabActive = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance'].includes(currentTab);
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === 'admin_workflow' ajouté
+  const isAdminTabActive = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow'].includes(currentTab);
 
   const navItems: Array<{ key: string; label: string; icon: React.ReactNode; visible: boolean; group: string }> = [
     { key: 'control_panel', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel, group: '' },
@@ -132,6 +135,10 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     // dur, même précédent que "Organisation (Pays)" ci-dessus (Phase 8) —
     // pas de nouvelle clé i18n pour un libellé admin-only.
     { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
+    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === libellé
+    // en dur, même précédent que "Organisation (Pays)"/"Gouvernance"
+    // ci-dessus — pas de nouvelle clé i18n pour un libellé admin-only.
+    { key: 'admin_workflow', label: 'Workflows & Statuts', icon: <GitBranch className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
     { key: 'settings', label: t.sidebar_admin_settings, icon: <Settings className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },

@@ -17,6 +17,8 @@ import {
   X,
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   Network,
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  GitBranch,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -33,9 +35,11 @@ import {
 // Read-only: this screen only imports and displays this real, already-
 // existing data — src/domain/permissions.ts itself is never modified.
 import { Permission } from '../domain/permissions';
-import { RoleId } from '../domain/caseTypes';
+import { RoleId, CaseStatus } from '../domain/caseTypes';
 // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
 import { getRoutingMatrixView } from '../domain/independentRouting';
+// === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+import { CASE_STATUS_LABELS } from '../domain/workflow';
 
 interface AdminConfigViewProps {
   lang: Language;
@@ -50,7 +54,8 @@ interface AdminConfigViewProps {
   // navigable, exactement comme avant.
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === 'governance'
-  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance';
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === 'workflow'
+  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow';
 }
 
 export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
@@ -60,7 +65,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance'>(initialTab ?? 'matrix');
+  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow'>(initialTab ?? 'matrix');
   const [saveBanner, setSaveBanner] = useState('');
 
   // Firebase connection state
@@ -157,6 +162,37 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
       }
     }
     flashBanner(changedCount > 0 ? `Permissions mises à jour pour ${changedCount} rôle(s).` : 'Aucune modification à enregistrer.');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  // --- Workflow transitions state --- même motif seed-then-edit-then-save
+  // que rolePermissionsDraft ci-dessus : une copie locale éditée par cases
+  // à cocher (colonnes = statuts CIBLES accessibles depuis la ligne =
+  // statut SOURCE), sauvegardée uniquement pour les statuts dont la liste
+  // a changé.
+  const [workflowTransitionsDraft, setWorkflowTransitionsDraft] = useState<Record<CaseStatus, CaseStatus[]>>(storage.getWorkflowTransitions());
+  const toggleWorkflowTransitionDraft = (status: CaseStatus, target: CaseStatus) => {
+    if (status === target) return; // une transition vers soi-même n'a jamais de sens (isStructurallyValidTransition la refuse de toute façon)
+    setWorkflowTransitionsDraft((prev) => {
+      const current = prev[status] ?? [];
+      const next = current.includes(target) ? current.filter((s) => s !== target) : [...current, target];
+      return { ...prev, [status]: next };
+    });
+  };
+  const handleSaveWorkflowTransitions = (e: React.FormEvent) => {
+    e.preventDefault();
+    const saved = storage.getWorkflowTransitions();
+    let changedCount = 0;
+    for (const status of ALL_CASE_STATUSES) {
+      const before = [...(saved[status] ?? [])].sort();
+      const after = [...(workflowTransitionsDraft[status] ?? [])].sort();
+      const unchanged = before.length === after.length && before.every((s, i) => s === after[i]);
+      if (!unchanged) {
+        storage.updateWorkflowTransitions(status, workflowTransitionsDraft[status], activeUser);
+        changedCount += 1;
+      }
+    }
+    flashBanner(changedCount > 0 ? `Transitions mises à jour pour ${changedCount} statut(s).` : 'Aucune modification à enregistrer.');
   };
 
   // --- Entities CRUD state ---
@@ -493,6 +529,15 @@ service cloud.firestore {
   // d'affichage : il énumère TOUTES les valeurs possibles, y compris
   // celles qu'aucun compte de démonstration n'utilise encore.
   const ALL_ROLE_IDS: RoleId[] = ['reporter', 'investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation', 'system_admin', 'security_admin', 'audit_committee', 'executive'];
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  // Les 14 valeurs de CaseStatus (domain/caseTypes.ts), dans l'ordre du
+  // pipeline décrit par CASE_STATUS_LABELS/domain/workflow.ts (NEW → ... →
+  // ARCHIVED, puis les 2 statuts annexes DUPLICATE/OUT_OF_SCOPE).
+  const ALL_CASE_STATUSES: CaseStatus[] = [
+    'new', 'triage', 'under_review', 'assigned', 'investigation', 'pending_information',
+    'escalated', 'conclusion_pending', 'functional_review', 'closed', 'reopened', 'archived',
+    'duplicate', 'out_of_scope',
+  ];
   const ROLE_ID_LABELS: Record<RoleId, string> = {
     reporter: 'Lanceur d’alerte',
     investigator: 'Investigateur',
@@ -648,6 +693,16 @@ service cloud.firestore {
           >
             <Network className="w-3.5 h-3.5" />
             <span>Gouvernance (Routage indépendant)</span>
+          </button>
+          {/* === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === */}
+          <button
+            onClick={() => setConfigTab('workflow')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+              configTab === 'workflow' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            <span>Workflows & Statuts</span>
           </button>
           <button
             onClick={() => setConfigTab('database')}
@@ -1226,6 +1281,81 @@ service cloud.firestore {
             </div>
           </div>
         </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+          WORKFLOW TAB — matrice d'adjacence des 14 statuts CaseStatus
+          (domain/caseTypes.ts), jusqu'ici codée en dur dans
+          domain/workflow.ts (ALLOWED_TRANSITIONS) sans aucun écran pour
+          l'éditer. Même mécanique que la matrice Rôles & Permissions
+          ci-dessus : cases à cocher réelles, sauvegarde uniquement des
+          lignes modifiées, effet immédiat sur checkTransition() via
+          domain/workflow.ts (setWorkflowTransitions). */}
+      {configTab === 'workflow' && (
+        <form onSubmit={handleSaveWorkflowTransitions} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
+          <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <GitBranch className="w-4 h-4 text-blue-700" />
+                Workflows & Statuts — Transitions autorisées
+              </h3>
+              <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
+                Chaque ligne est un statut de DÉPART, chaque colonne cochée un statut D'ARRIVÉE autorisé depuis cette
+                ligne. Cochez ou décochez une case puis "Enregistrer" — le changement s'applique immédiatement à
+                toute l'application (storage.transitionStatus / escalateAlert). Cette table ne gouverne que la
+                structure du parcours : les conditions métier de clôture (allégations documentées, mesures
+                correctives soldées, visa de revue fonctionnelle) restent toujours appliquées par ailleurs et ne
+                peuvent pas être contournées d'ici.
+              </p>
+            </div>
+            <button
+              type="submit"
+              className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
+            >
+              Enregistrer les transitions
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-[11px]">
+              <thead>
+                <tr>
+                  <th className="p-2 text-left sticky left-0 bg-white z-10">Depuis \ Vers</th>
+                  {ALL_CASE_STATUSES.map((s) => (
+                    <th key={s} className="p-2 text-center font-bold text-slate-700 whitespace-nowrap">
+                      {CASE_STATUS_LABELS[s].fr}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ALL_CASE_STATUSES.map((source) => (
+                  <tr key={source} className="border-b border-slate-100">
+                    <td className="p-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 bg-white">
+                      {CASE_STATUS_LABELS[source].fr}
+                    </td>
+                    {ALL_CASE_STATUSES.map((target) => {
+                      const isSelf = source === target;
+                      const checked = !isSelf && (workflowTransitionsDraft[source] ?? []).includes(target);
+                      return (
+                        <td key={target} className="p-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={isSelf}
+                            onChange={() => toggleWorkflowTransitionDraft(source, target)}
+                            title={isSelf ? 'Un statut ne transite jamais vers lui-même' : undefined}
+                            className={`accent-blue-600 w-3.5 h-3.5 ${isSelf ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </form>
       )}
 
       {/* 5. DATABASE & FIREBASE PERSISTENCE TAB */}

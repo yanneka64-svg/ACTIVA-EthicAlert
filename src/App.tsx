@@ -90,6 +90,8 @@ const STAFF_TAB_KEYS = [
   'admin_governance',
   // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
   'advanced_search',
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  'admin_workflow',
 ];
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
@@ -486,6 +488,14 @@ function AppShell() {
       return (
         <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Gouvernance">
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="governance" />
+        </PermissionGuard>
+      );
+    }
+    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+    if (currentTab === 'admin_workflow') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Workflows & Statuts">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="workflow" />
         </PermissionGuard>
       );
     }

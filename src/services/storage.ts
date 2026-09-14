@@ -3,7 +3,7 @@ import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALE
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
 import { CaseStatus } from '../domain/caseTypes';
-import { checkTransition, TransitionCheckResult } from '../domain/workflow';
+import { checkTransition, TransitionCheckResult, ALLOWED_TRANSITIONS, setWorkflowTransitions } from '../domain/workflow';
 import { deriveCaseStatus, syncLegacyStatus } from './statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
 import { getConflictedUserIds, resolveIndependentAuthority } from '../domain/independentRouting';
@@ -28,6 +28,8 @@ const STORAGE_KEYS = {
   HIERARCHY_LEVELS: 'activa_ethicalert_hierarchy_levels_v1',
   // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
   ROLE_PERMISSIONS: 'activa_ethicalert_role_permissions_v1',
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  WORKFLOW_TRANSITIONS: 'activa_ethicalert_workflow_transitions_v1',
 };
 
 // Event dispatched when data changes
@@ -64,6 +66,15 @@ class StorageService {
   // changement, pour qu'authz.userCan() (donc toute l'application) reflète
   // immédiatement une édition en administration.
   private rolePermissions: Record<UserRole, Permission[]> = ROLE_PERMISSIONS;
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  // Copie mutable, persistée, de la table ALLOWED_TRANSITIONS
+  // (domain/workflow.ts) — même motif seed-then-mutate que rolePermissions
+  // ci-dessus. `ALLOWED_TRANSITIONS` reste la table PAR DÉFAUT, utilisée
+  // telle quelle par domain/workflow.test.ts. Poussée dans
+  // domain/workflow.ts (setWorkflowTransitions) à chaque changement, pour
+  // que checkTransition() — donc storage.transitionStatus()/escalateAlert()
+  // — reflète immédiatement une édition en administration.
+  private workflowTransitions: Record<CaseStatus, CaseStatus[]> = ALLOWED_TRANSITIONS;
 
   constructor() {
     this.init();
@@ -154,6 +165,15 @@ class StorageService {
         this.rolePermissions = { ...ROLE_PERMISSIONS };
         this.persistRolePermissions();
       }
+
+      // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+      const storedWorkflowTransitions = localStorage.getItem(STORAGE_KEYS.WORKFLOW_TRANSITIONS);
+      if (storedWorkflowTransitions) {
+        this.workflowTransitions = { ...ALLOWED_TRANSITIONS, ...JSON.parse(storedWorkflowTransitions) };
+      } else {
+        this.workflowTransitions = { ...ALLOWED_TRANSITIONS };
+        this.persistWorkflowTransitions();
+      }
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
       this.alerts = [...INITIAL_ALERTS];
@@ -169,6 +189,8 @@ class StorageService {
       this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
       // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
       this.rolePermissions = { ...ROLE_PERMISSIONS };
+      // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+      this.workflowTransitions = { ...ALLOWED_TRANSITIONS };
     }
     // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
     // Pousse l'état courant (chargé, seedé, ou de repli) vers le pont
@@ -176,6 +198,9 @@ class StorageService {
     // deux chemins — sans cet appel, authz.userCan() continuerait de lire
     // silencieusement la table par défaut malgré une édition persistée.
     setRolePermissionOverrides(this.rolePermissions);
+    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === même
+    // raisonnement, vers domain/workflow.ts.
+    setWorkflowTransitions(this.workflowTransitions);
   }
 
   private notify() {
@@ -258,6 +283,15 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(this.rolePermissions));
     } catch (e) {
       console.error('Failed to persist role permissions', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  private persistWorkflowTransitions() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.WORKFLOW_TRANSITIONS, JSON.stringify(this.workflowTransitions));
+    } catch (e) {
+      console.error('Failed to persist workflow transitions', e);
     }
   }
 
@@ -833,6 +867,41 @@ class StorageService {
     );
   }
 
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  // --- Workflow transitions API --- rend éditable en administration
+  // (AdminConfigView.tsx, onglet "Workflows & Statuts") la table de
+  // transitions jusqu'ici codée en dur dans domain/workflow.ts, jamais
+  // exposée dans aucun écran. `ALLOWED_TRANSITIONS` reste la table PAR
+  // DÉFAUT, jamais modifiée. Réservée en écriture à system_admin (même
+  // garde `configuration.manage` que toutes les autres tables de
+  // configuration ci-dessus).
+  public getWorkflowTransitions(): Record<CaseStatus, CaseStatus[]> {
+    return { ...this.workflowTransitions };
+  }
+
+  /**
+   * Remplace la liste COMPLÈTE des statuts cibles accessibles DEPUIS un
+   * statut (pas une fusion partielle) — même convention que
+   * updateRolePermissions ci-dessus : l'écran d'administration soumet
+   * toujours l'état complet des cases cochées pour la ligne éditée.
+   */
+  public updateWorkflowTransitions(status: CaseStatus, targets: CaseStatus[], actor: UserProfile): void {
+    this.workflowTransitions = { ...this.workflowTransitions, [status]: [...targets] };
+    this.persistWorkflowTransitions();
+    // Pousse immédiatement vers domain/workflow.ts — sans cet appel,
+    // checkTransition() (donc storage.transitionStatus()/escalateAlert())
+    // continuerait de servir l'ancienne table jusqu'au prochain
+    // rechargement complet.
+    setWorkflowTransitions(this.workflowTransitions);
+    this.notify();
+    this.logAudit(
+      'CONFIG_UPDATED',
+      `Transitions autorisées depuis le statut "${status}" mises à jour par ${actor.name}.`,
+      undefined,
+      actor
+    );
+  }
+
   // --- Draft auto-save for whistleblowers ---
   public getDraft(): any {
     try {
@@ -886,6 +955,9 @@ class StorageService {
     // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
     this.rolePermissions = { ...ROLE_PERMISSIONS };
     setRolePermissionOverrides(this.rolePermissions);
+    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+    this.workflowTransitions = { ...ALLOWED_TRANSITIONS };
+    setWorkflowTransitions(this.workflowTransitions);
     this.persistAlerts();
     this.persistAuditLogs();
     this.persistUsers();
@@ -895,6 +967,7 @@ class StorageService {
     this.persistSlaConfig();
     this.persistHierarchyLevels();
     this.persistRolePermissions();
+    this.persistWorkflowTransitions();
     this.clearDraft();
     this.notify();
   }

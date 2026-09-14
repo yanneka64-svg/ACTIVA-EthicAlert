@@ -93,6 +93,8 @@ export const TAB_TO_PATH: Record<string, string> = {
   // (Phase 6) gardent leurs propres URLs, déjà existantes, également
   // reliées au nouvel écran AdvancedSearchView.tsx (App.tsx).
   advanced_search: '/search/advanced',
+  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
+  admin_workflow: '/admin/workflow',
 };
 
 const PATH_TO_TAB: Record<string, string> = Object.fromEntries(
