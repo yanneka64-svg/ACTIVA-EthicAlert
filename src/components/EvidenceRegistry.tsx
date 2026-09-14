@@ -11,10 +11,12 @@
  * Sur retour utilisateur détaillé (capture de référence) : cet écran est
  * entièrement repensé — table riche (Nom du fichier/Référence du dossier/
  * Description/Source/Ajouté par/Date d'ajout/Taille/Actions), filtres par
- * dossier/personne/période, pagination, et 2 panneaux latéraux (Bonnes
- * pratiques, Espace de stockage). Les anciens onglets de filtre par type de
- * fichier (Documents/Images/Autres) sont retirés — remplacés par les
- * filtres ci-dessus, demandés explicitement.
+ * dossier/personne/période, pagination. Les anciens onglets de filtre par
+ * type de fichier (Documents/Images/Autres) sont retirés — remplacés par
+ * les filtres ci-dessus, demandés explicitement. Les panneaux latéraux
+ * "Bonnes pratiques"/"Espace de stockage" d'un premier passage ont ensuite
+ * été retirés à leur tour, sur retour utilisateur suivant (2ᵉ capture de
+ * référence) — le tableau reprend toute la largeur.
  *
  * Convention i18n : comme `AdvancedSearchView.tsx`/`OperatorCaseDesk.tsx`
  * (même précédent déjà établi dans ce code pour ce type d'écran) : seuls le
@@ -35,7 +37,7 @@
  * jamais fantômes, pour les preuves de démonstration qui n'en ont pas.
  */
 import React, { useEffect, useState } from 'react';
-import { Paperclip, FileText, Image as ImageIcon, File as FileIcon, Search, Download, Eye, ExternalLink, ShieldCheck, HardDrive } from 'lucide-react';
+import { Paperclip, FileText, Image as ImageIcon, File as FileIcon, Search, Download, Eye, ExternalLink } from 'lucide-react';
 import { Language, AlertRecord, UserProfile, EvidenceFile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
@@ -81,14 +83,6 @@ function iconOfBucket(bucket: EvidenceBucket) {
   if (bucket === 'documents') return <FileText className="w-4 h-4 text-blue-500 shrink-0" />;
   return <FileIcon className="w-4 h-4 text-slate-400 shrink-0" />;
 }
-
-// === AMÉLIORATION AJOUTÉE (Retours visuels — refonte "Preuves & pièces
-// jointes") === capacité de référence purement illustrative (cette
-// application n'a pas de backend de stockage réel — brief §32 / plan de
-// session) : la CONSOMMATION affichée (somme réelle de `evidence.size`) est
-// honnête, seul le plafond "500 Mo" est une valeur de repère fixe, comme un
-// objectif de politique (ex. le délai SLA cible), pas une mesure d'infra.
-const STORAGE_CAP_MO = 500;
 
 // Filtre "Date d'ajout" par fenêtre glissante — même motif que le filtre
 // période déjà réel de ReportingDashboard.tsx.
@@ -260,13 +254,6 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
     },
   ];
 
-  // === AMÉLIORATION AJOUTÉE (Retours visuels — refonte "Preuves & pièces
-  // jointes") === somme réelle des tailles de TOUTES les preuves visibles
-  // (pas seulement la page/le filtre courant) — voir STORAGE_CAP_MO.
-  const totalBytes = allRows.reduce((sum, r) => sum + r.evidence.size, 0);
-  const usedMo = totalBytes / (1024 * 1024);
-  const usedPct = Math.min(100, Math.round((usedMo / STORAGE_CAP_MO) * 100));
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
       <div>
@@ -277,8 +264,11 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
         <p className="text-xs text-slate-600 mt-1">{t.reg_evidence_subtitle}</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div className="lg:col-span-3 space-y-4 min-w-0">
+      {/* === AMÉLIORATION AJOUTÉE (Retours visuels — capture de référence)
+          === panneaux "Bonnes pratiques"/"Espace de stockage" retirés sur
+          demande explicite — la grille à 2 colonnes qui leur faisait de la
+          place disparaît avec eux, le tableau reprend toute la largeur. */}
+      <div className="space-y-4">
           {/* === AMÉLIORATION AJOUTÉE (Retours visuels) === filtres dossier/personne/date */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[180px]">
@@ -352,36 +342,6 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
               </div>
             </div>
           )}
-        </div>
-
-        {/* === AMÉLIORATION AJOUTÉE (Retours visuels) === panneaux latéraux */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <h3 className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-2.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              Bonnes pratiques
-            </h3>
-            <ul className="space-y-2 text-[11px] text-slate-600 list-disc list-inside">
-              <li>Importez uniquement des documents pertinents et nécessaires à l’enquête.</li>
-              <li>Veillez à respecter la confidentialité des informations sensibles.</li>
-              <li>Privilégiez des noms de fichiers clairs et descriptifs.</li>
-            </ul>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <h3 className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-2.5">
-              <HardDrive className="w-4 h-4 text-blue-700" />
-              Espace de stockage
-            </h3>
-            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-              <div className={`h-1.5 rounded-full ${usedPct >= 90 ? 'bg-rose-500' : 'bg-blue-600'}`} style={{ width: `${usedPct}%` }} />
-            </div>
-            <div className="flex items-center justify-between mt-2 text-[11px] text-slate-500">
-              <span>{usedMo.toFixed(1)} Mo utilisés sur {STORAGE_CAP_MO} Mo</span>
-              <span className="font-bold text-slate-700">{usedPct}%</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

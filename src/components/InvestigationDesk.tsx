@@ -1146,8 +1146,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           métriques masqué sur les écrans déjà spécialisés (voir prop
           `hideTopBanner` ci-dessus) — sans changer son contenu ni son
           comportement pour les appelants qui le gardent (ex. "Tous les
-          dossiers"). */}
-      {!hideTopBanner && (
+          dossiers").
+          === AMÉLIORATION AJOUTÉE (Retours visuels — fiche dossier sans
+          bandeau ni barre de filtres) === BUG PRÉEXISTANT CORRIGÉ,
+          signalé par l'utilisateur (capture de référence) : ce bandeau
+          s'affichait aussi en mode détail (`viewMode === 'detail'`, ex. un
+          lien profond `/cases/:trackingNumber` depuis "Dossiers
+          attribués") alors qu'il n'a de sens qu'au-dessus d'une LISTE.
+          Ajout de `viewMode === 'list'` à la condition — comportement
+          inchangé en liste, bandeau désormais absent en détail, quel que
+          soit l'écran d'où l'on arrive. */}
+      {!hideTopBanner && viewMode === 'list' && (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
@@ -1218,7 +1227,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         </div>
       )}
 
-      {/* Filter bar */}
+      {/* === AMÉLIORATION AJOUTÉE (Retours visuels — fiche dossier sans
+          bandeau ni barre de filtres) === même correction que le bandeau
+          ci-dessus (BUG PRÉEXISTANT CORRIGÉ) : cette barre de filtres n'a de
+          sens qu'au-dessus d'une LISTE — elle s'affichait aussi en mode
+          détail. */}
+      {viewMode === 'list' && (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-3 text-xs">
         <div className="flex-1 min-w-[200px] relative">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -1297,6 +1311,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           </button>
         )}
       </div>
+      )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 6 — liste et détail séparés) ===
           A real dedicated list screen and a real dedicated full-width detail
