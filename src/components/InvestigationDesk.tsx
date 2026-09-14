@@ -107,6 +107,85 @@ function AssignCandidateRow({
   );
 }
 
+// === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+// Petit composant partagé entre la modale "+ Ajouter" et la modale "Lier à
+// un compte" — évite de dupliquer deux fois le même <select> de
+// rattachement d'une personne impliquée/témoin à un compte réel de la
+// plateforme (InvolvedPerson.linkedUserId / Witness.linkedUserId,
+// types.ts Phase 1). Dès qu'un rattachement est défini, le routage
+// indépendant (domain/independentRouting.ts, Phase 3-4) exclura
+// automatiquement ce compte de l'accès au dossier.
+function LinkedAccountSelect({
+  users,
+  value,
+  onChange,
+}: {
+  users: UserProfile[];
+  value: string;
+  onChange: (userId: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white"
+    >
+      <option value="">Aucun (personne externe)</option>
+      {users.map((u) => (
+        <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
+      ))}
+    </select>
+  );
+}
+
+// === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+// Ligne Personne impliquée/Témoin, partagée entre le résumé de l'onglet
+// Vue d'ensemble et l'onglet Personnes dédié — ces deux rendus affichaient
+// jusqu'ici un balisage identique dupliqué. Ajoute l'indicateur "Compte
+// lié" et l'affordance "Lier à un compte" sans changer le rendu existant
+// (avatar/nom/fonction/niveau hiérarchique) ; `dense` reproduit fidèlement
+// les deux légères différences de taille qui existaient déjà entre les
+// deux contextes (résumé compact vs. onglet dédié).
+function PersonRow({
+  person,
+  users,
+  dense,
+  onLinkClick,
+}: {
+  person: InvolvedPerson | Witness;
+  users: UserProfile[];
+  dense: boolean;
+  onLinkClick: () => void;
+}) {
+  const linkedUser = person.linkedUserId ? users.find((u) => u.id === person.linkedUserId) : undefined;
+  return (
+    <div className={`flex items-center gap-2.5 ${dense ? 'p-2' : 'p-2.5'} bg-slate-50 rounded-lg border border-slate-100`}>
+      <span className={`${dense ? 'w-8 h-8 text-[11px]' : 'w-9 h-9 text-xs'} rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0`}>
+        {(person.name || '??').slice(0, 2).toUpperCase()}
+      </span>
+      <div className="min-w-0 flex-1">
+        <span className="font-bold text-slate-900 block truncate">{person.name || 'Confidentiel'}</span>
+        <div className="text-[11px] text-slate-500 truncate">{person.position} • {person.hierarchyRole}</div>
+        {linkedUser && (
+          <div className="text-[10px] text-emerald-700 font-semibold truncate flex items-center gap-1 mt-0.5">
+            <Link2 className="w-3 h-3" />
+            Compte lié : {linkedUser.name}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onLinkClick}
+        title="Lier à un compte"
+        className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-blue-700 hover:bg-blue-50"
+      >
+        <Link2 className="w-3.5 h-3.5" />
+      </button>
+      <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+    </div>
+  );
+}
+
 interface InvestigationDeskProps {
   lang: Language;
   activeUser: UserProfile;
@@ -240,6 +319,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [personNameInput, setPersonNameInput] = useState('');
   const [personPositionInput, setPersonPositionInput] = useState('');
   const [personHierarchyInput, setPersonHierarchyInput] = useState<InvolvedPerson['hierarchyRole']>('Employé');
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+  // Rattachement (facultatif) de la personne en cours de création à un
+  // compte réel de la plateforme.
+  const [personLinkedUserId, setPersonLinkedUserId] = useState('');
+  // Édition du rattachement d'une personne/témoin déjà enregistré·e — aucun
+  // handleEditPerson générique n'existait avant cette phase (seul
+  // handleAddPerson, pour la création), d'où un état dédié plutôt que de
+  // réutiliser addPersonKind (formulaire de création différent : nom/
+  // fonction/niveau hiérarchique).
+  const [linkingPerson, setLinkingPerson] = useState<{ kind: 'subject' | 'witness'; id: string; currentName: string } | null>(null);
+  const [linkingUserId, setLinkingUserId] = useState('');
   const evidenceFileInputRef = useRef<HTMLInputElement>(null);
 
   // Subscribe to storage updates
@@ -564,6 +654,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         name: personNameInput.trim(),
         position: personPositionInput.trim(),
         hierarchyRole: personHierarchyInput,
+        // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+        linkedUserId: personLinkedUserId || undefined,
       };
       storage.saveAlert({ ...selectedAlert, involvedPersons: [...selectedAlert.involvedPersons, entry], updatedAt: new Date().toISOString() });
     } else {
@@ -572,6 +664,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         name: personNameInput.trim(),
         position: personPositionInput.trim(),
         hierarchyRole: personHierarchyInput,
+        // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+        linkedUserId: personLinkedUserId || undefined,
       };
       storage.saveAlert({ ...selectedAlert, witnesses: [...selectedAlert.witnesses, entry], updatedAt: new Date().toISOString() });
     }
@@ -579,6 +673,34 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setPersonNameInput('');
     setPersonPositionInput('');
     setPersonHierarchyInput('Employé');
+    // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+    setPersonLinkedUserId('');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
+  // Rattache (ou modifie le rattachement) d'une personne/témoin déjà
+  // enregistré·e à un compte réel de la plateforme. Le déclenchement du
+  // routage indépendant lui-même (storage.triggerIndependentRouting) est
+  // câblé en Phase 4, une fois le moteur de résolution d'autorité écrit
+  // (domain/independentRouting.ts, Phase 3) — cette phase ne fait que
+  // persister le rattachement.
+  const handleLinkPerson = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAlert || !linkingPerson) return;
+    const resolvedUserId = linkingUserId || undefined;
+    if (linkingPerson.kind === 'subject') {
+      const involvedPersons = selectedAlert.involvedPersons.map((p) =>
+        p.id === linkingPerson.id ? { ...p, linkedUserId: resolvedUserId } : p
+      );
+      storage.saveAlert({ ...selectedAlert, involvedPersons, updatedAt: new Date().toISOString() });
+    } else {
+      const witnesses = selectedAlert.witnesses.map((w) =>
+        w.id === linkingPerson.id ? { ...w, linkedUserId: resolvedUserId } : w
+      );
+      storage.saveAlert({ ...selectedAlert, witnesses, updatedAt: new Date().toISOString() });
+    }
+    setLinkingPerson(null);
+    setLinkingUserId('');
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 11) === "+ Ajouter" sur Preuves & pièces jointes.
@@ -1388,16 +1510,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                         ) : (
                           <div className="space-y-1.5">
                             {list.map((p) => (
-                              <div key={p.id} className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-lg border border-slate-100">
-                                <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                                  {(p.name || '??').slice(0, 2).toUpperCase()}
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                  <span className="font-bold text-slate-900 block truncate">{p.name || 'Confidentiel'}</span>
-                                  <div className="text-[11px] text-slate-500 truncate">{p.position} • {p.hierarchyRole}</div>
-                                </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                              </div>
+                              <PersonRow
+                                key={p.id}
+                                person={p}
+                                users={allUsers}
+                                dense
+                                onLinkClick={() => { setLinkingPerson({ kind, id: p.id, currentName: p.name }); setLinkingUserId(p.linkedUserId ?? ''); }}
+                              />
                             ))}
                           </div>
                         )}
@@ -1476,9 +1595,33 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     <option value="Sous-Directeur">Sous-Directeur</option>
                     <option value="Directeur+">Directeur+</option>
                   </select>
+                  {/* === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) === */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Rattachement à un compte (facultatif)</label>
+                    <LinkedAccountSelect users={allUsers} value={personLinkedUserId} onChange={setPersonLinkedUserId} />
+                  </div>
                   <div className="flex justify-end gap-2 pt-2">
                     <button type="button" onClick={() => setAddPersonKind(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
                     <button type="submit" disabled={!personNameInput.trim()} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold">{t.case_btn_add}</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) === Modale "Lier à un compte" pour une personne/témoin déjà enregistré·e */}
+            {linkingPerson && (
+              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                <form onSubmit={handleLinkPerson} className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-3 text-xs">
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Lier « {linkingPerson.currentName || 'Confidentiel'} » à un compte
+                  </h3>
+                  <p className="text-slate-500">
+                    Si vous reconnaissez cette personne comme un collaborateur de la plateforme, rattachez-la à son compte réel. Le routage indépendant l'exclura alors automatiquement de l'accès à ce dossier.
+                  </p>
+                  <LinkedAccountSelect users={allUsers} value={linkingUserId} onChange={setLinkingUserId} />
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={() => setLinkingPerson(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+                    <button type="submit" className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">Enregistrer</button>
                   </div>
                 </form>
               </div>
@@ -1510,16 +1653,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       ) : (
                         <div className="space-y-1.5">
                           {list.map((p) => (
-                            <div key={p.id} className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-                              <span className="w-9 h-9 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0 text-xs">
-                                {(p.name || '??').slice(0, 2).toUpperCase()}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <span className="font-bold text-slate-900 block truncate">{p.name || 'Confidentiel'}</span>
-                                <div className="text-[11px] text-slate-500 truncate">{p.position} • {p.hierarchyRole}</div>
-                              </div>
-                              <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                            </div>
+                            <PersonRow
+                              key={p.id}
+                              person={p}
+                              users={allUsers}
+                              dense={false}
+                              onLinkClick={() => { setLinkingPerson({ kind, id: p.id, currentName: p.name }); setLinkingUserId(p.linkedUserId ?? ''); }}
+                            />
                           ))}
                         </div>
                       )}
