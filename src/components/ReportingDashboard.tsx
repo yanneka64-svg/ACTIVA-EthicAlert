@@ -14,6 +14,9 @@ import {
   Calendar,
   Filter,
   X,
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
+  Briefcase,
+  Settings2,
 } from 'lucide-react';
 import { Language, AlertRecord, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -312,6 +315,44 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         </div>
       </div>
 
+      {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
+          Grille de cartes façon maquette (Activité globale/Par pays/Par
+          entité/Par catégorie/SLA et délais/Rapport personnalisé). Choix
+          délibéré à signaler : cet écran n'a pas de moteur de génération de
+          rapport distinct par type — chaque carte réutilise donc les
+          capacités réelles déjà existantes plus bas sur ce même écran
+          (jamais un bouton fantôme, brief §32) : "Générer" fait défiler en
+          douceur jusqu'à la section détaillée correspondante déjà réelle
+          (répartition NOCA/catégorie/géographique, délai moyen), et
+          "Par entité"/"Rapport personnalisé" pointent vers la barre de
+          filtres existante (pays/entité/catégorie/statut/période) — la plus
+          proche équivalence réelle d'un rapport "à la carte", faute de
+          rupture par entité dédiée sur cet écran. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {(
+          [
+            { id: 'report-anchor-activity', icon: <TrendingUp className="w-4 h-4" />, title: t.report_card_activity, action: t.report_card_generate },
+            { id: 'report-anchor-geo', icon: <Building2 className="w-4 h-4" />, title: t.report_card_by_country, action: t.report_card_generate },
+            { id: 'report-anchor-custom', icon: <Briefcase className="w-4 h-4" />, title: t.report_card_by_entity, action: t.report_card_generate },
+            { id: 'report-anchor-category', icon: <PieChart className="w-4 h-4" />, title: t.report_card_by_category, action: t.report_card_generate },
+            { id: 'report-anchor-sla', icon: <Clock className="w-4 h-4" />, title: t.report_card_sla, action: t.report_card_generate },
+            { id: 'report-anchor-custom', icon: <Settings2 className="w-4 h-4" />, title: t.report_card_custom, action: t.report_card_configure },
+          ] as { id: string; icon: React.ReactNode; title: string; action: string }[]
+        ).map((card, i) => (
+          <button
+            key={`${card.id}-${i}`}
+            onClick={() => document.getElementById(card.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition text-left"
+          >
+            <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">{card.icon}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-900 truncate">{card.title}</div>
+              <span className="text-[11px] font-semibold text-blue-700">{card.action} →</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
       {/* === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
           Indicateur de niveau d'agrégation (brief §35 : Vue Groupe/Pays/Entité) —
           purement informatif, dérivé des filtres pays/entité déjà existants
@@ -324,7 +365,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
       </div>
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — barre de filtres réels) === */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-2">
+      <div id="report-anchor-custom" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-2">
         <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wide mr-1">
           <Filter className="w-3.5 h-3.5" /> {t.report_filters_label}
         </span>
@@ -377,7 +418,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
       </div>
 
       {/* KPI Highlight Cards (CDC 3.1.4 Required Metrics) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+      <div id="report-anchor-activity" className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
             Total des alertes reçues
@@ -400,7 +441,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <div id="report-anchor-sla" className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
             Délai moyen de traitement
           </div>
@@ -492,7 +533,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         </div>
 
         {/* 2. Breakdown by Category (CDC 2.0 Périmètre) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <div id="report-anchor-category" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
               Répartition par catégorie de manquement (CDC 2.0)
@@ -522,7 +563,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         </div>
 
         {/* 3. Geographic Breakdown across 10 Countries (CDC 1.0) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <div id="report-anchor-geo" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
               <Building2 className="w-4 h-4 text-blue-700" />

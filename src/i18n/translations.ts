@@ -354,6 +354,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     
     // Reports
     reporting_title: 'Statistiques & Tableaux de bord DARC',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
+    report_card_activity: 'Activité globale',
+    report_card_by_country: 'Par pays',
+    report_card_by_entity: 'Par entité',
+    report_card_by_category: 'Par catégorie',
+    report_card_sla: 'SLA et délais',
+    report_card_custom: 'Rapport personnalisé',
+    report_card_generate: 'Générer',
+    report_card_configure: 'Configurer',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — filtres réels des rapports) ===
     report_filters_label: 'Filtres',
     report_filter_period_all: 'Toute période',
@@ -1056,6 +1065,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_add_measure: '+ Document corrective measure',
 
     reporting_title: 'DARC Analytics & Dashboards',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
+    report_card_activity: 'Overall activity',
+    report_card_by_country: 'By country',
+    report_card_by_entity: 'By entity',
+    report_card_by_category: 'By category',
+    report_card_sla: 'SLA & turnaround',
+    report_card_custom: 'Custom report',
+    report_card_generate: 'Generate',
+    report_card_configure: 'Configure',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — real report filters) ===
     report_filters_label: 'Filters',
     report_filter_period_all: 'All time',
@@ -1750,6 +1768,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_add_measure: '+ Registrar medida corretiva',
 
     reporting_title: 'Estatísticas & Painéis DARC',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
+    report_card_activity: 'Atividade global',
+    report_card_by_country: 'Por país',
+    report_card_by_entity: 'Por entidade',
+    report_card_by_category: 'Por categoria',
+    report_card_sla: 'SLA e prazos',
+    report_card_custom: 'Relatório personalizado',
+    report_card_generate: 'Gerar',
+    report_card_configure: 'Configurar',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — filtros reais dos relatórios) ===
     report_filters_label: 'Filtros',
     report_filter_period_all: 'Todo o período',
