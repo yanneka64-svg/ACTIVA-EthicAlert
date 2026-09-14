@@ -630,27 +630,38 @@ function AppShell() {
   };
 
   const isStaffTab = STAFF_TAB_KEYS.includes(currentTab);
+  // === AMÉLIORATION AJOUTÉE (page de connexion plein cadre, sur maquette
+  // fournie) === La nouvelle page de connexion (photo du siège + sélecteur
+  // de profil à gauche, formulaire à droite) est pensée en plein écran,
+  // sans le chrome habituel de l'app — Navbar et pied de page seraient
+  // hors-propos ici (son propre sélecteur FR remplace celui de la Navbar
+  // pour cet écran précis). Ne touche à rien d'autre : chaque autre écran
+  // (y compris /welcome et le reste de l'espace staff) garde son chrome
+  // exactement comme avant.
+  const isFullBleedLoginScreen = currentTab === 'login';
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       {/* Top Main Navigation */}
-      <Navbar
-        currentTab={currentTab}
-        setCurrentTab={goToTab}
-        lang={lang}
-        setLang={setLang}
-        activeUser={activeUser}
-        setActiveUser={handleUserChangeAndAuthenticate}
-        onOpenQrModal={() => setShowQrModal(true)}
-        pendingAlertsCount={pendingAlertsCount}
-        onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
-        isStaffContext={isStaffTab || currentTab === 'firebase_lookup'}
-        isStaffSessionActive={isStaffSessionActive}
-        onLogout={handleLogout}
-      />
+      {!isFullBleedLoginScreen && (
+        <Navbar
+          currentTab={currentTab}
+          setCurrentTab={goToTab}
+          lang={lang}
+          setLang={setLang}
+          activeUser={activeUser}
+          setActiveUser={handleUserChangeAndAuthenticate}
+          onOpenQrModal={() => setShowQrModal(true)}
+          pendingAlertsCount={pendingAlertsCount}
+          onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
+          isStaffContext={isStaffTab || currentTab === 'firebase_lookup'}
+          isStaffSessionActive={isStaffSessionActive}
+          onLogout={handleLogout}
+        />
+      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 pb-16">
+      <main className={isFullBleedLoginScreen ? 'flex-1' : 'flex-1 pb-16'}>
         {currentTab === 'home' && (
           <WhistleblowerHome
             lang={lang}
@@ -687,7 +698,7 @@ function AppShell() {
         )}
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) === */}
-        {currentTab === 'login' && <StaffLoginView onLogin={handleLogin} />}
+        {currentTab === 'login' && <StaffLoginView lang={lang} setLang={setLang} onLogin={handleLogin} />}
 
         {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
             sélecteur en barre latérale) === Rendue à part, HORS de
@@ -733,17 +744,19 @@ function AppShell() {
       {/* === AMÉLIORATION AJOUTÉE (Phase 13) === Pied de page bleu marine,
           conforme à la nouvelle maquette d'accueil (au lieu du pied clair
           précédent). */}
-      <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          {/* === AMÉLIORATION AJOUTÉE (Phase 20) === logo retiré du pied de page sur demande explicite (ajouté Phase 17). */}
-          <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
-          <div className="flex items-center gap-4">
-            <button className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
-            <button className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>
-            <button className="hover:text-white hover:underline">{t.footer_contact}</button>
+      {!isFullBleedLoginScreen && (
+        <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* === AMÉLIORATION AJOUTÉE (Phase 20) === logo retiré du pied de page sur demande explicite (ajouté Phase 17). */}
+            <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
+            <div className="flex items-center gap-4">
+              <button className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
+              <button className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>
+              <button className="hover:text-white hover:underline">{t.footer_contact}</button>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* QR Code Modal */}
       <QrCodeModal
