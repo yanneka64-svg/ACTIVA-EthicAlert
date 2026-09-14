@@ -242,34 +242,27 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'settings', label: 'Paramètres système', icon: <Settings className="w-4 h-4" />, group: '' },
   ];
 
-  // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) === BUG
-  // PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur (captures de référence) :
-  // le repli "general" (comptes sans espace Opérateur/Enquêteur/Admin —
-  // Consultation, Comité d'Audit, Exécutif...) proposait jusqu'ici EXACTEMENT
-  // le même menu à tous ces comptes, quelles que soient leurs habilitations
-  // réelles (domain/permissions.ts) : un compte Comité d'Audit (uniquement
-  // `reports.read`/`audit.read`) s'y voyait proposer "Dossiers", "Preuves",
-  // "Communications"... des écrans pour lesquels il n'a aucun droit de
-  // lecture. Chaque entrée est désormais filtrée par la permission réelle
-  // qui la couvre — un compte Consultation (cases.read/evidence.read/
-  // communications.read/reports.read) garde tout ce qu'il avait déjà (rien
-  // ne lui est retiré) ; un compte Comité d'Audit (reports.read/audit.read
-  // seulement) ne voit plus que "Rapports" et la nouvelle entrée "Piste
-  // d'Audit" ci-dessous — 2 entrées au lieu de 8, chacune réellement
-  // exploitable.
-  // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe — retours
-  // visuels sur capture de référence) === Liste à plat (jamais de
-  // regroupement "OUTILS" ici, sur retour explicite), libellés courts
-  // propres à cet espace (jamais un renommage des clés i18n partagées
-  // `sidebar_all_cases`/`sidebar_evidence_registry`/`sidebar_comms_registry`,
-  // toujours utilisées telles quelles côté Opérateur/Enquêteur — seulement
-  // un intitulé alternatif local à `generalItems`). "Suivi des
+  // === AMÉLIORATION AJOUTÉE (Espace Consultation — Audit interne &
+  // externe) === UN SEUL espace de repli général (comptes sans Opérateur/
+  // Enquêteur/Admin — Consultation, Comité d'Audit, Exécutif, Admin
+  // Sécurité), pas deux — sur retour explicite de l'utilisateur ("Auditeur
+  // externe et interne c'est la même chose, pas besoin de faire deux
+  // interfaces"). Consultation et Comité d'Audit ont désormais exactement
+  // les mêmes permissions (domain/permissions.ts) et voient donc
+  // exactement le même menu ci-dessous, calculé une seule fois à partir de
+  // la permission réelle de chaque entrée — jamais une liste dupliquée par
+  // rôle. Liste à plat (jamais de regroupement "OUTILS" ici, fidèle à la
+  // capture de référence), libellés courts propres à cet espace (jamais un
+  // renommage des clés i18n partagées `sidebar_all_cases`/
+  // `sidebar_evidence_registry`/`sidebar_comms_registry`, toujours
+  // utilisées telles quelles côté Opérateur/Enquêteur — seulement un
+  // intitulé alternatif local à `generalItems`). "Suivi des
   // investigations"/"Suivi des recommandations" (tableaux de bord orientés
   // traitement actif d'un dossier) ne figurent volontairement pas dans
-  // cette liste courte : un compte Consultation garde un accès réel à ces
-  // 2 écrans par URL directe (`/investigation`, `/investigation/corrective-
-  // actions`), rien n'est retiré — seule la barre latérale se resserre sur
-  // les 6 entrées de la référence.
+  // cette liste courte : toujours un accès réel à ces 2 écrans par URL
+  // directe (`/investigation`, `/investigation/corrective-actions`), rien
+  // n'est retiré — seule la barre latérale se resserre sur les 6 entrées
+  // de la référence.
   const GENERAL_TOOLS: Array<{ key: string; label: string; icon: React.ReactNode; permission: Permission }> = [
     { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" />, permission: 'cases.read' },
     { key: 'evidence', label: 'Preuves', icon: <Paperclip className="w-4 h-4" />, permission: 'evidence.read' },
