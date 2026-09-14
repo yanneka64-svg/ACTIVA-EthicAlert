@@ -46,6 +46,8 @@ import {
   Bell,
   CalendarRange,
   ShieldAlert,
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
+  CheckCircle2,
 } from 'lucide-react';
 import { AlertRecord, Language, PriorityLevel, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -57,8 +59,11 @@ import { isGlobalCaseViewer, userCan } from '../services/authz';
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 import { ACTIVE_STATUSES, computeWorkload, WorkloadRow } from '../domain/workloadCalc';
-import { KpiCard, DataTable, EmptyState, StatusBadge, MiniLineChart, MiniDonutChart, MiniBarChart } from './ui';
-import type { DataTableColumn, TrendPoint, DonutSlice, BarDatum } from './ui';
+// === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) === regroupement
+// en 5 paniers de statut, partagé avec l'écran Dossiers (voir le fichier).
+import { AlertStatusBucket, getAlertStatusBucket } from '../domain/alertStatusBuckets';
+import { KpiCard, DataTable, EmptyState, StatusBadge, MiniLineChart, MiniDonutChart, MiniBarChart, MiniHBarList } from './ui';
+import type { DataTableColumn, TrendPoint, DonutSlice, BarDatum, HBarDatum } from './ui';
 
 interface CasesFilter {
   status?: string;
@@ -268,6 +273,59 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     .slice(0, 8)
     .map(([label, value], i) => ({ label, value, color: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length] }));
 
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
+  // Regroupement des dossiers visibles en 5 paniers façon maquette (voir
+  // domain/alertStatusBuckets.ts, réutilisé identiquement par l'écran
+  // Dossiers). "rejetes" reste à 0 par construction — aucune valeur réelle
+  // d'AlertStatus n'y correspond aujourd'hui (voir le commentaire du
+  // fichier partagé, brief §32 — jamais de compteur fabriqué).
+  const bucketCounts: Record<AlertStatusBucket, number> = { a_traiter: 0, en_cours: 0, en_attente: 0, clotures: 0, rejetes: 0 };
+  visible.forEach((a) => {
+    bucketCounts[getAlertStatusBucket(a.status)] += 1;
+  });
+  // Delta période précédente par panier — même fenêtre glissante que
+  // `totalDeltaPct` ci-dessus, généralisée plutôt que dupliquée 4 fois.
+  const countInBucketWindow = (bucket: AlertStatusBucket, start: Date, end: Date) =>
+    visible.filter((a) => getAlertStatusBucket(a.status) === bucket && inWindow(a.createdAt, start, end)).length;
+  const bucketDeltaPct = (bucket: AlertStatusBucket): number => {
+    const curr = countInBucketWindow(bucket, periodStart, periodEnd);
+    const prev = countInBucketWindow(bucket, prevStart, prevEnd);
+    return prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100);
+  };
+
+  // "Évolution des signalements" — vue fixe façon maquette (pas de
+  // sélecteur de période), volontairement distincte de la "Tendance des
+  // alertes" interactive (7j/30j/12m) de la section existante plus bas —
+  // évite un doublon strictement identique sur le même écran.
+  const mockupTrendData = buildTrend(visible, '7d', lang);
+
+  // "Répartition par statut" — mêmes 5 paniers que les cartes KPI ci-dessus.
+  const BUCKET_COLORS: Record<AlertStatusBucket, string> = {
+    a_traiter: '#2563eb',
+    en_cours: '#0ea5e9',
+    en_attente: '#f59e0b',
+    clotures: '#10b981',
+    rejetes: '#94a3b8',
+  };
+  const BUCKET_ORDER: AlertStatusBucket[] = ['en_cours', 'en_attente', 'clotures', 'rejetes', 'a_traiter'];
+  const statusBucketData: DonutSlice[] = BUCKET_ORDER.map((b) => ({
+    label: t[`db_bucket_${b}` as keyof typeof t] as string,
+    value: bucketCounts[b],
+    color: BUCKET_COLORS[b],
+  }));
+
+  // "Top 5 pays" / "Top 5 catégories" — le second réutilise directement
+  // `categoryData` (déjà calculé ci-dessus pour le donut "Alertes par
+  // catégorie" existant plus bas), simplement tronqué à 5 plutôt que
+  // recalculé une seconde fois.
+  const countryCounts = new Map<string, number>();
+  visible.forEach((a) => countryCounts.set(a.country, (countryCounts.get(a.country) || 0) + 1));
+  const topCountries: HBarDatum[] = Array.from(countryCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([label, value]) => ({ label, value, color: '#2563eb' }));
+  const topCategories: HBarDatum[] = categoryData.slice(0, 5).map((d) => ({ label: d.label, value: d.value, color: d.color }));
+
   const priorityBarData: BarDatum[] = [
     { label: t.priority_faible, value: lowCount, color: '#94a3b8' },
     { label: t.priority_elevee, value: highCount, color: '#f59e0b' },
@@ -425,6 +483,115 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
             </button>
           </div>
         </div>
+      </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
+          Reproduction fidèle de la maquette de référence : 4 cartes KPI
+          simples, tendance fixe, répartition par statut en 5 paniers,
+          Top 5 pays et Top 5 catégories. Tout le contenu existant plus bas
+          (barre d'actions, 6 cartes KPI détaillées, SLA, charge de travail,
+          activité récente, alertes récentes, actions rapides...) reste
+          affiché tel quel sous le séparateur "Indicateurs avancés DARC" —
+          rien n'est supprimé (choix confirmé par l'utilisateur avant cette
+          phase). */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard
+          value={totalCount}
+          label={t.db_kpi_total_label}
+          tone="neutral"
+          icon={<Inbox className="w-3.5 h-3.5" />}
+          onClick={() => onNavigateToCases()}
+          sub={
+            <span className={totalDeltaPct >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+              {totalDeltaPct >= 0 ? '↑' : '↓'} {Math.abs(totalDeltaPct)}%
+            </span>
+          }
+        />
+        <KpiCard
+          value={bucketCounts.en_cours}
+          label={t.db_bucket_en_cours}
+          tone="blue"
+          icon={<Search className="w-3.5 h-3.5" />}
+          onClick={() => onNavigateToCases({ status: 'investigation' })}
+          sub={
+            <span className={bucketDeltaPct('en_cours') >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+              {bucketDeltaPct('en_cours') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('en_cours'))}%
+            </span>
+          }
+        />
+        <KpiCard
+          value={bucketCounts.en_attente}
+          label={t.db_bucket_en_attente}
+          tone="amber"
+          icon={<Clock3 className="w-3.5 h-3.5" />}
+          onClick={() => onNavigateToCases({ status: 'corrective_action' })}
+          sub={
+            <span className={bucketDeltaPct('en_attente') >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+              {bucketDeltaPct('en_attente') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('en_attente'))}%
+            </span>
+          }
+        />
+        <KpiCard
+          value={bucketCounts.clotures}
+          label={t.db_bucket_clotures}
+          tone="emerald"
+          icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+          onClick={() => onNavigateToCases({ status: 'closed' })}
+          sub={
+            <span className={bucketDeltaPct('clotures') >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+              {bucketDeltaPct('clotures') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('clotures'))}%
+            </span>
+          }
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-3">
+            <TrendingUp className="w-4 h-4 text-blue-700" />
+            {t.db_section_evolution}
+          </h3>
+          <MiniLineChart data={mockupTrendData} color="#f97316" />
+        </section>
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-3">
+            <Activity className="w-4 h-4 text-blue-700" />
+            {t.db_section_repartition_statut}
+          </h3>
+          {totalCount === 0 ? (
+            <EmptyState title={t.cp_empty_recent_alerts} />
+          ) : (
+            <div className="flex items-center gap-4">
+              <MiniDonutChart data={statusBucketData} centerValue={totalCount} centerLabel={t.db_kpi_total_label} />
+              <ul className="space-y-1.5 min-w-0 flex-1">
+                {statusBucketData.map((d, i) => (
+                  <li key={i} className="flex items-center gap-1.5 text-[11px] text-slate-600 min-w-0">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                    <span className="truncate flex-1">{d.label}</span>
+                    <span className="font-bold text-slate-800 shrink-0">{d.value}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+          <h3 className="text-xs font-bold text-slate-900 mb-3">{t.db_section_top_pays}</h3>
+          {topCountries.length === 0 ? <EmptyState title={t.cp_empty_recent_alerts} /> : <MiniHBarList data={topCountries} />}
+        </section>
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+          <h3 className="text-xs font-bold text-slate-900 mb-3">{t.db_section_top_categories}</h3>
+          {topCategories.length === 0 ? <EmptyState title={t.cp_empty_recent_alerts} /> : <MiniHBarList data={topCategories} />}
+        </section>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="h-px flex-1 bg-slate-200" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t.db_advanced_section_title}</span>
+        <span className="h-px flex-1 bg-slate-200" />
       </div>
 
       {/* Action bar */}

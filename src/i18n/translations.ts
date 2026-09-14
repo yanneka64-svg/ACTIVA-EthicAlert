@@ -489,6 +489,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_qa_review_closure: 'Examiner les clôtures',
     cp_qa_view_reports: 'Voir les rapports',
 
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
+    // maquette Tableau de bord) === regroupement en 5 paniers de statut
+    // (voir domain/alertStatusBuckets.ts), réutilisé aussi par l'écran
+    // Dossiers (onglets de filtre).
+    db_bucket_a_traiter: 'À traiter',
+    db_bucket_en_cours: 'En cours',
+    db_bucket_en_attente: 'En attente',
+    db_bucket_clotures: 'Clôturés',
+    db_bucket_rejetes: 'Rejetés',
+    db_section_evolution: 'Évolution des signalements',
+    db_section_repartition_statut: 'Répartition par statut',
+    db_section_top_pays: 'Top 5 pays',
+    db_section_top_categories: 'Top 5 catégories',
+    db_advanced_section_title: 'Indicateurs avancés DARC',
+    db_kpi_total_label: 'Total signalements',
+
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tâches',
     tab_timeline: 'Chronologie',
@@ -1156,6 +1172,20 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_qa_review_closure: 'Review Closure',
     cp_qa_view_reports: 'View Reports',
 
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
+    // maquette Tableau de bord) ===
+    db_bucket_a_traiter: 'To process',
+    db_bucket_en_cours: 'In progress',
+    db_bucket_en_attente: 'Pending',
+    db_bucket_clotures: 'Closed',
+    db_bucket_rejetes: 'Rejected',
+    db_section_evolution: 'Reports Trend',
+    db_section_repartition_statut: 'Breakdown by Status',
+    db_section_top_pays: 'Top 5 Countries',
+    db_section_top_categories: 'Top 5 Categories',
+    db_advanced_section_title: 'Advanced DARC Indicators',
+    db_kpi_total_label: 'Total Reports',
+
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tasks',
     tab_timeline: 'Timeline',
@@ -1822,6 +1852,20 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_qa_view_overdue: 'Ver Casos Atrasados',
     cp_qa_review_closure: 'Analisar Encerramentos',
     cp_qa_view_reports: 'Ver Relatórios',
+
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
+    // maquette Tableau de bord) ===
+    db_bucket_a_traiter: 'A tratar',
+    db_bucket_en_cours: 'Em curso',
+    db_bucket_en_attente: 'Em espera',
+    db_bucket_clotures: 'Encerrados',
+    db_bucket_rejetes: 'Rejeitados',
+    db_section_evolution: 'Evolução dos sinais',
+    db_section_repartition_statut: 'Distribuição por estatuto',
+    db_section_top_pays: 'Top 5 países',
+    db_section_top_categories: 'Top 5 categorias',
+    db_advanced_section_title: 'Indicadores avançados DARC',
+    db_kpi_total_label: 'Total de sinais',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tarefas',
