@@ -49,6 +49,9 @@ import { storage } from '../services/storage';
 // désormais le mot de passe lui-même (voir plus bas) ; hashPassword/generateSalt
 // continuent de le saler et le hacher exactement comme avant.
 import { generateSalt, hashPassword, generateAccessPassword } from '../services/crypto';
+// === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
+import { isGlobalCaseViewer } from '../services/authz';
+import { notifyNewAlertToOperators } from '../services/emailNotify';
 
 interface AlertSubmissionFlowProps {
   lang: Language;
@@ -476,6 +479,15 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
         country: newRecord.country,
       }
     );
+
+    // === AMÉLIORATION AJOUTÉE (Notifications e-mail) === Boîte de
+    // réception : notifie chaque compte Opérateur (vision globale — ce
+    // sont eux qui voient la Boîte de réception) qu'un nouveau signalement
+    // attend le tri. Best-effort, ne bloque jamais la suite de la
+    // soumission (déjà enregistrée juste au-dessus) — chaque tentative est
+    // journalisée dans l'Audit Trail par emailNotify.ts lui-même.
+    const operators = storage.getUsers().filter(isGlobalCaseViewer);
+    notifyNewAlertToOperators(operators, { id: newRecord.id, trackingNumber: newRecord.trackingNumber });
 
     // Clear draft
     storage.clearDraft();

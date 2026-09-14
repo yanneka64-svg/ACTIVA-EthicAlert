@@ -51,6 +51,8 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { userCan } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
+import { notifyAssignmentToInvestigators } from '../services/emailNotify';
 import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
 import { computeSlaStatus } from '../services/statusMapping';
@@ -430,6 +432,19 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         { id: alert.id, trackingNumber: alert.trackingNumber },
         activeUser
       );
+
+      // === AMÉLIORATION AJOUTÉE (Notifications e-mail) === notifie
+      // uniquement les enquêteurs NOUVELLEMENT attribués sur CE dossier
+      // (la liste d'attribution est la même pour toute la sélection
+      // groupée, mais "nouveau" se juge dossier par dossier, contre son
+      // propre `assignedInvestigators` d'avant mutation).
+      const previouslyAssigned = new Set(alert.assignedInvestigators);
+      const newlyAssignedUsers = investigatorUsers.filter(
+        (u) => assignSelectedInvestigatorIds.includes(u.id) && !previouslyAssigned.has(u.id)
+      );
+      if (newlyAssignedUsers.length > 0) {
+        notifyAssignmentToInvestigators(newlyAssignedUsers, { id: alert.id, trackingNumber: alert.trackingNumber }, activeUser);
+      }
     });
     setAssignTargetIds(null);
     setAssignSelectedInvestigatorIds([]);
@@ -515,57 +530,13 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       </select>
       {/* === AMÉLIORATION AJOUTÉE (Retours visuels — filtres allégés) ===
           Nature/Criticité/Sévérité/Urgence/Canal/Sensibilité retirés sur
-          demande explicite pour les écrans "de travail" (À attribuer/En
-          attente d'infos/Dossiers attribués, et leurs équivalents
-          Enquêteur) — Recherche + Pays + Entité suffisent. La Boîte de
-          réception (image 2 de référence, jamais visée par cette demande)
-          garde le jeu complet : c'est le seul écran où trier par nature/
-          criticité/urgence avant attribution a été explicitement demandé.
-          Ces filtres restent des critères réels (`AdvancedSearchCriteria`,
-          domain/advancedSearch.ts) : rien n'est supprimé côté logique,
-          seuls ces contrôles disparaissent de l'écran pour les modes
-          concernés — un compte revenant sur la Boîte de réception les
-          retrouve intacts. */}
-      {mode === 'inbox' && (
-        <>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
-            <option value="all">Toutes natures</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.name}>{c.name}</option>
-            ))}
-          </select>
-          <select value={nocaFilter} onChange={(e) => setNocaFilter(e.target.value as 'all' | NocaThreshold)} className={selectClass}>
-            <option value="all">Toutes criticités</option>
-            {NOCA_OPTIONS.map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-          <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value as 'all' | SeverityLevel)} className={selectClass}>
-            <option value="all">Toutes sévérités</option>
-            {(Object.keys(SEVERITY_LABELS) as SeverityLevel[]).map((s) => (
-              <option key={s} value={s}>{SEVERITY_LABELS[s]}</option>
-            ))}
-          </select>
-          <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value as 'all' | PriorityLevel)} className={selectClass}>
-            <option value="all">Toutes urgences</option>
-            {(Object.keys(URGENCY_LABELS) as PriorityLevel[]).map((p) => (
-              <option key={p} value={p}>{URGENCY_LABELS[p]}</option>
-            ))}
-          </select>
-          <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value as 'all' | AlertRecord['channel'])} className={selectClass}>
-            <option value="all">Tous canaux</option>
-            {(Object.keys(CHANNEL_LABELS) as AlertRecord['channel'][]).map((c) => (
-              <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
-            ))}
-          </select>
-          <select value={confidentialityFilter} onChange={(e) => setConfidentialityFilter(e.target.value as 'all' | ConfidentialityLevel)} className={selectClass}>
-            <option value="all">Toutes sensibilités</option>
-            {(Object.keys(CONFIDENTIALITY_LABELS) as ConfidentialityLevel[]).map((c) => (
-              <option key={c} value={c}>{CONFIDENTIALITY_LABELS[c]}</option>
-            ))}
-          </select>
-        </>
-      )}
+          demande explicite de TOUS les écrans, y compris la Boîte de
+          réception (précisé sur retour utilisateur suivant — un premier
+          passage l'en avait exclue) : ne reste que Recherche + Pays +
+          Entité, partout. Ces filtres restent des critères réels
+          (`AdvancedSearchCriteria`, domain/advancedSearch.ts) : rien n'est
+          supprimé côté logique, seuls ces contrôles disparaissent de
+          l'écran. */}
       {hasActiveFilters && (
         <button onClick={resetFilters} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs font-semibold">
           <RotateCcw className="w-3.5 h-3.5" />
@@ -873,7 +844,15 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             columns={columns}
             rows={filteredAlerts}
             getRowKey={(a) => a.id}
-            onRowClick={(a) => onOpenCase(a.trackingNumber)}
+            // === AMÉLIORATION AJOUTÉE (Retours visuels — clic de ligne) ===
+            // BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : sur "À
+            // attribuer" (`rowAction === 'assign'`), cliquer une ligne ne
+            // doit RIEN ouvrir — seul le bouton "Attribuer" (colonne
+            // dédiée, déjà réel) doit ouvrir la modale d'attribution.
+            // "Dossiers attribués"/"En attente d'infos" (reassign/followup)
+            // gardent le clic de ligne → fiche dossier complète, demandé
+            // explicitement pour "Dossiers attribués" et vérifié en direct.
+            onRowClick={cfg.rowAction === 'assign' ? undefined : (a) => onOpenCase(a.trackingNumber)}
             emptyTitle={displayEmpty}
           />
         </div>
