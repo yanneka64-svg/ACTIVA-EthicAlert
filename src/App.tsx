@@ -34,6 +34,8 @@ import { TasksRegistry } from './components/TasksRegistry';
 import { EvidenceRegistry } from './components/EvidenceRegistry';
 import { CommunicationsRegistry } from './components/CommunicationsRegistry';
 import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
+// === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+import { AdvancedSearchView } from './components/AdvancedSearchView';
 import { ShieldOff } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE : correction post-fusion ===
 // Ces imports (routage par URL, garde-fous, pont RBAC, écran de connexion
@@ -86,6 +88,8 @@ const STAFF_TAB_KEYS = [
   'admin_audit', 'admin_reports', 'admin_organization',
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   'admin_governance',
+  // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+  'advanced_search',
 ];
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
@@ -430,7 +434,10 @@ function AppShell() {
       );
     }
     if (currentTab === 'op_processed') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'closed' }} />;
-    if (currentTab === 'op_search') return <InvestigationDesk lang={lang} activeUser={activeUser} />;
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === réouvrait
+    // simplement l'écran Dossiers (barre de recherche mot-clé existante) —
+    // pointe désormais vers le vrai formulaire multicritère.
+    if (currentTab === 'op_search') return <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'op_reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
     if (currentTab === 'op_communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
 
@@ -443,7 +450,14 @@ function AppShell() {
     if (currentTab === 'inv_evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'inv_communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'inv_reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
-    if (currentTab === 'inv_search') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true }} />;
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === même correctif
+    // que op_search ci-dessus.
+    if (currentTab === 'inv_search') return <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === nouvelle
+    // entrée de barre latérale partagée (pas propre à un espace) — même
+    // écran que op_search/inv_search ci-dessus, useVisibleAlerts limite
+    // déjà correctement le périmètre pour n'importe quel rôle.
+    if (currentTab === 'advanced_search') return <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
 
     if (currentTab === 'admin_audit') {
       return (

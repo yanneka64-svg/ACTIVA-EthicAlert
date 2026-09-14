@@ -87,6 +87,12 @@ export const TAB_TO_PATH: Record<string, string> = {
   admin_organization: '/admin/organization',
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   admin_governance: '/admin/governance',
+  // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+  // Nouvelle entrée de barre latérale, partagée (pas spécifique à un
+  // espace) — voir StaffPortalLayout.tsx. `op_search`/`inv_search`
+  // (Phase 6) gardent leurs propres URLs, déjà existantes, également
+  // reliées au nouvel écran AdvancedSearchView.tsx (App.tsx).
+  advanced_search: '/search/advanced',
 };
 
 const PATH_TO_TAB: Record<string, string> = Object.fromEntries(

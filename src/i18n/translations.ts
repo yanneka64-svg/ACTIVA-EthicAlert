@@ -419,6 +419,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     nav_corrective_actions: 'Actions Correctives',
     nav_admin_users: 'Utilisateurs & Rôles',
     nav_admin_config: 'Configuration',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    nav_search_advanced: 'Recherche avancée',
     btn_open_case: 'Ouvrir le dossier',
     reg_tasks_title: 'Registre des Tâches',
     reg_tasks_subtitle: 'Toutes les tâches d’investigation, tous dossiers confondus, avec échéance et responsable.',
@@ -429,6 +431,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_comms_title: 'Registre des Communications',
     reg_comms_subtitle: 'Tous les échanges avec les lanceurs d’alerte, tous dossiers confondus.',
     reg_comms_empty: 'Aucune communication enregistrée pour le moment.',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    search_advanced_title: 'Recherche avancée',
+    search_advanced_subtitle: 'Recherchez par mot-clé, pays, entité, catégorie, statut, criticité, sévérité, sensibilité, canal ou période — parmi les dossiers que vous êtes habilité à voir.',
+    search_advanced_empty: 'Aucun dossier ne correspond à votre périmètre pour le moment.',
+    search_advanced_empty_filtered: 'Aucun dossier ne correspond à ces critères.',
     reg_corrective_title: 'Registre des Actions Correctives',
     reg_corrective_subtitle: 'Toutes les mesures correctives documentées, tous dossiers confondus.',
     reg_corrective_empty: 'Aucune action corrective enregistrée pour le moment.',
@@ -1079,6 +1086,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     nav_corrective_actions: 'Corrective Actions',
     nav_admin_users: 'Users & Roles',
     nav_admin_config: 'Configuration',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    nav_search_advanced: 'Advanced Search',
     btn_open_case: 'Open case',
     reg_tasks_title: 'Task Registry',
     reg_tasks_subtitle: 'Every investigation task across all cases, with due date and owner.',
@@ -1089,6 +1098,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_comms_title: 'Communications Registry',
     reg_comms_subtitle: 'Every exchange with reporters, across all cases.',
     reg_comms_empty: 'No communication recorded yet.',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    search_advanced_title: 'Advanced Search',
+    search_advanced_subtitle: 'Search by keyword, country, entity, category, status, criticality, severity, sensitivity, channel or date — across the cases you are cleared to see.',
+    search_advanced_empty: 'No case in your scope yet.',
+    search_advanced_empty_filtered: 'No case matches these criteria.',
     reg_corrective_title: 'Corrective Actions Registry',
     reg_corrective_subtitle: 'Every documented corrective measure across all cases.',
     reg_corrective_empty: 'No corrective action recorded yet.',
@@ -1739,6 +1753,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     nav_corrective_actions: 'Ações Corretivas',
     nav_admin_users: 'Usuários & Papéis',
     nav_admin_config: 'Configuração',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    nav_search_advanced: 'Pesquisa avançada',
     btn_open_case: 'Abrir o caso',
     reg_tasks_title: 'Registo de Tarefas',
     reg_tasks_subtitle: 'Todas as tarefas de investigação, em todos os casos, com prazo e responsável.',
@@ -1749,6 +1765,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_comms_title: 'Registo de Comunicações',
     reg_comms_subtitle: 'Todas as trocas com os denunciantes, em todos os casos.',
     reg_comms_empty: 'Nenhuma comunicação registada até o momento.',
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+    search_advanced_title: 'Pesquisa avançada',
+    search_advanced_subtitle: 'Pesquise por palavra-chave, país, entidade, categoria, estado, criticidade, gravidade, sensibilidade, canal ou período — entre os casos que está autorizado a ver.',
+    search_advanced_empty: 'Nenhum caso no seu âmbito por enquanto.',
+    search_advanced_empty_filtered: 'Nenhum caso corresponde a estes critérios.',
     reg_corrective_title: 'Registo de Ações Corretivas',
     reg_corrective_subtitle: 'Todas as medidas corretivas documentadas, em todos os casos.',
     reg_corrective_empty: 'Nenhuma ação corretiva registada até o momento.',

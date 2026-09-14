@@ -18,6 +18,8 @@ import {
   Globe2,
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   Network,
+  // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -113,6 +115,11 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'tasks', label: t.nav_tasks, icon: <ListTodo className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
     { key: 'evidence', label: t.sidebar_evidence, icon: <Paperclip className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
     { key: 'communications', label: t.nav_communications, icon: <MessageSquare className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === entrée
+    // partagée (pas propre à un espace) — jusqu'ici op_search/inv_search
+    // (Phase 6) n'avaient aucun point d'entrée dans cette barre latérale,
+    // uniquement accessibles en tapant leur URL directement.
+    { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
 
     { key: 'corrective_actions', label: t.sidebar_corrective_measures, icon: <Wrench className="w-4 h-4" />, visible: true, group: t.sidebar_group_compliance },
 
