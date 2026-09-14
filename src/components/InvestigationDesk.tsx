@@ -2195,6 +2195,21 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 path. */}
             {activeCaseTab === 'triage' && (
               <div className="p-6 space-y-5 max-h-[640px] overflow-y-auto text-xs">
+                {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
+                    "Récit de l'allégation" + bouton "Réattribuer" façon
+                    maquette — réutilise la modale d'attribution déjà
+                    existante (Actions > Assigner), jamais une seconde
+                    modale dupliquée. */}
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">{t.allegation_narrative_title}</h3>
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700 transition"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" /> {t.allegation_reassign}
+                  </button>
+                </div>
+
                 {/* === AMÉLIORATION AJOUTÉE (Phase 11) === résumé de la
                     qualification (catégorie/sous-catégorie/description),
                     pour que l'onglet "Allégations" présente d'abord ce que
@@ -2208,6 +2223,58 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   <p className="pt-2 border-t border-slate-100 leading-relaxed text-slate-700 whitespace-pre-wrap">
                     {selectedAlert.detailedDescription}
                   </p>
+                </div>
+
+                {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
+                    "Éléments clés" / "Classification" façon maquette —
+                    chaque champ réutilise une donnée réelle déjà existante
+                    sur AlertRecord (jamais une valeur fabriquée) ; "—"
+                    quand la donnée est absente (ex. dossier créé avant
+                    qu'un champ optionnel n'existe). Pas de ligne
+                    "Mots-clés" : aucun champ de ce type n'existe sur
+                    AlertRecord aujourd'hui — ajoutée uniquement si un vrai
+                    champ voit le jour, plutôt que d'inventer des tags
+                    (brief §32). */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5">
+                    <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-100">
+                      {t.allegation_key_elements}
+                    </div>
+                    {[
+                      [t.allegation_type, selectedAlert.customViolationType || selectedAlert.subCategory],
+                      [t.allegation_estimated_amount, selectedAlert.estimatedImpactValue || '—'],
+                      [t.allegation_period, selectedAlert.incidentDates || '—'],
+                      [t.allegation_location, selectedAlert.incidentLocation || '—'],
+                      [t.allegation_persons_cited, String(selectedAlert.involvedPersons.length)],
+                      [t.allegation_entities_concerned, selectedAlert.concernedEntity],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between gap-2">
+                        <span className="text-slate-500">{label}</span>
+                        <span className="font-semibold text-slate-900 text-right truncate max-w-[55%]">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5">
+                    <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-100">
+                      {t.allegation_classification}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-500">{t.allegation_noca}</span>
+                      <span className="font-semibold text-slate-900">{selectedAlert.riskEvaluation.nocaThreshold}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-500">{t.allegation_severity}</span>
+                      <span className="font-semibold text-slate-900">
+                        {selectedAlert.severity ? t[`severity_${selectedAlert.severity}` as keyof typeof t] ?? selectedAlert.severity : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-500">{t.allegation_sensitivity}</span>
+                      <span className="font-semibold text-slate-900">
+                        {t[`confidentiality_${selectedAlert.confidentialityLevel ?? 'restricted'}` as keyof typeof t] ?? (selectedAlert.confidentialityLevel ?? 'restricted')}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
