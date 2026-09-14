@@ -29,6 +29,9 @@ export const TAB_TO_PATH: Record<string, string> = {
   contact: '/contact',
   firebase_lookup: '/lookup',
   login: '/login',
+  // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+  // barre latérale) ===
+  space_home: '/espace',
   control_panel: '/dashboard',
   portal: '/cases',
   triage: '/cases/triage',

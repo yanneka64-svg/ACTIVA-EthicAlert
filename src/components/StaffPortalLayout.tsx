@@ -31,7 +31,11 @@ import {
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, canManageConfiguration, userCan } from '../services/authz';
+import { isGlobalCaseViewer } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+// barre latérale) === logique de disponibilité des espaces désormais
+// partagée avec StaffSpaceHome.tsx et App.tsx (voir domain/staffSpaces.ts).
+import { SpaceKey, computeAvailableSpaces } from '../domain/staffSpaces';
 
 /**
  * === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
@@ -72,10 +76,7 @@ interface StaffPortalLayoutProps {
   children: React.ReactNode;
 }
 
-// === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
-type SpaceKey = 'operator' | 'investigator' | 'admin' | 'general';
-
-const ADMIN_TABS = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow'];
+const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow'];
 
 // Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
 // "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à
@@ -104,34 +105,16 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // inutilisés), qui expriment la même intention via de vraies permissions
   // plutôt qu'une liste de rôles codée en dur.
   const canSeeControlPanel = isGlobalCaseViewer(activeUser);
-  const canSeeAdmin = canManageConfiguration(activeUser);
 
-  // === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
-  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === BUG
-  // PRÉEXISTANT CORRIGÉ : `cases.assign` seul ne suffit plus à garantir
-  // l'accès à /operator/dashboard depuis que la matrice de permissions est
-  // éditable en administration — la vraie garde de cette route (App.tsx,
-  // onglet `op_dashboard`) est `isGlobalViewer`, une table séparée que cet
-  // onglet n'a jamais mise à jour. Corrigé en alignant cette condition sur
-  // la garde réelle de la route, exactement comme `canSeeControlPanel`.
-  const canSeeOperatorSpace = userCan(activeUser, 'cases.assign') && canSeeControlPanel;
-  const canSeeInvestigatorSpace = userCan(activeUser, 'cases.edit');
-
-  // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
-  // Espaces réellement disponibles pour ce compte, dans un ordre de
-  // priorité stable. Un compte qui ne relève d'aucun des 3 (ex.
-  // consultation/executive/audit_committee/security_admin — lecture
-  // globale sans attribution ni investigation ni administration) reçoit un
-  // espace "general" de repli : Tableau de bord + Tous les dossiers +
-  // Outils, soit exactement l'ancienne liste plate, débarrassée de ses
-  // doublons.
-  const availableSpaces: SpaceKey[] = [
-    ...(canSeeOperatorSpace ? (['operator'] as const) : []),
-    ...(canSeeInvestigatorSpace ? (['investigator'] as const) : []),
-    ...(canSeeAdmin ? (['admin'] as const) : []),
-  ];
+  // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+  // barre latérale) === le calcul de "quels espaces ce compte peut-il
+  // voir" vit désormais dans domain/staffSpaces.ts (réutilisé par
+  // StaffSpaceHome.tsx et App.tsx) — plus de duplication locale. Un compte
+  // qui ne relève d'aucun des 3 (ex. consultation/executive/audit_committee/
+  // security_admin) reçoit toujours un espace "general" de repli : Tableau
+  // de bord + Tous les dossiers + Outils, exactement comme avant.
+  const availableSpaces: SpaceKey[] = computeAvailableSpaces(activeUser);
   const defaultSpace: SpaceKey = availableSpaces[0] ?? 'general';
-  const showSpaceSwitcher = availableSpaces.length >= 2;
 
   const [selectedSpace, setSelectedSpace] = useState<SpaceKey>(() => spaceOfTab(currentTab) ?? defaultSpace);
 
@@ -218,19 +201,6 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   };
   const navItems = itemsBySpace[selectedSpace];
 
-  const SPACE_LABEL: Record<SpaceKey, string> = {
-    operator: 'Espace Opérateur',
-    investigator: 'Espace Enquêteur',
-    admin: 'Administration',
-    general: '',
-  };
-  const SPACE_DASHBOARD_TAB: Record<SpaceKey, string> = {
-    operator: 'op_dashboard',
-    investigator: 'inv_dashboard',
-    admin: 'settings',
-    general: canSeeControlPanel ? 'control_panel' : 'portal',
-  };
-
   let lastGroup: string | null = null;
 
   const renderNavButton = (item: NavItem, mobile = false) => {
@@ -281,33 +251,18 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
       <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
-        {/* === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
-            Le sélecteur pilote désormais réellement `selectedSpace`, qui
-            détermine la LISTE affichée en dessous (plus seulement une
-            navigation ponctuelle vers un tableau de bord). */}
-        {showSpaceSwitcher && (
-          <div className="p-2.5 border-b border-slate-100 space-y-1">
-            <div className="px-0.5 pb-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">Espaces</div>
-            <div className="flex flex-col gap-1">
-              {availableSpaces.map((space) => (
-                <button
-                  key={space}
-                  id={`space-switcher-${space}`}
-                  onClick={() => {
-                    setSelectedSpace(space);
-                    setCurrentTab(SPACE_DASHBOARD_TAB[space]);
-                  }}
-                  className={`text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition ${
-                    selectedSpace === space ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {SPACE_LABEL[space]}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
+        {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
+            sélecteur en barre latérale) === Le petit bloc "ESPACES" qui
+            vivait ici (2-3 boutons empilés en haut de la sidebar) est
+            retiré, sur demande explicite de l'utilisateur : le choix
+            d'espace se fait désormais une seule fois, sur une vraie page
+            d'accueil dédiée (StaffSpaceHome.tsx) juste après connexion,
+            pas en permanence dans la barre latérale. `selectedSpace`
+            (calculé ci-dessus depuis `currentTab`) continue de déterminer
+            la LISTE de menu affichée ci-dessous — rien ne change côté
+            contenu du menu lui-même, seul ce bloc de sélection disparaît.
+            Pour changer d'espace après coup, voir le lien "Changer
+            d'espace" du menu Profil (Navbar.tsx). */}
         <nav className="flex-1 py-3 px-2.5">
           {navItems.map((item) => {
             const showGroupHeader = !!item.group && item.group !== lastGroup;

@@ -299,6 +299,19 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // en frise chronologique) ===
     track_login_tagline: 'Un environnement plus éthique, plus sûr pour tous.',
     track_login_photo_note: 'Un canal sécurisé, anonyme et indépendant.',
+    // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
+    space_home_tagline: 'Un seul portail, un espace pour chaque mission.',
+    space_home_photo_note: 'Vos accès sont strictement limités à votre rôle et à votre périmètre.',
+    space_home_hello: 'Bonjour',
+    space_home_subtitle: 'Bienvenue dans votre espace ACTIVA EthicAlert — choisissez où reprendre votre travail.',
+    space_home_operator_title: 'Espace Opérateur',
+    space_home_operator_desc: 'Réception, attribution et suivi de l’ensemble des signalements.',
+    space_home_operator_stat: '{n} nouveau(x) signalement(s)',
+    space_home_investigator_title: 'Espace Enquêteur',
+    space_home_investigator_desc: 'Vos dossiers assignés, de la réception à la clôture.',
+    space_home_investigator_stat: '{n} dossier(s) à traiter',
+    space_home_admin_title: 'Administration',
+    space_home_admin_desc: 'Comptes, rôles, configuration et gouvernance de la plateforme.',
     track_docs_subtitle: 'Ajoutez des documents pour appuyer votre signalement.',
     track_updates_title: 'Historique du dossier',
     track_updates_subtitle: 'Suivez toutes les étapes et actions réalisées sur votre signalement.',
@@ -413,6 +426,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
     profile_menu_settings: 'Paramètres',
     profile_menu_help: 'Aide & support',
+    // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
+    profile_menu_change_space: 'Changer d’espace',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Centre de Pilotage',
@@ -1109,6 +1124,19 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // photo panel, sidebar navigation, timeline-style history) ===
     track_login_tagline: 'A more ethical, safer environment for everyone.',
     track_login_photo_note: 'A secure, anonymous, independent channel.',
+    // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
+    space_home_tagline: 'One portal, one space for each mission.',
+    space_home_photo_note: 'Your access is strictly limited to your role and your scope.',
+    space_home_hello: 'Hello',
+    space_home_subtitle: 'Welcome to your ACTIVA EthicAlert workspace — choose where to pick up your work.',
+    space_home_operator_title: 'Operator Space',
+    space_home_operator_desc: 'Intake, assignment and tracking of all reports.',
+    space_home_operator_stat: '{n} new report(s)',
+    space_home_investigator_title: 'Investigator Space',
+    space_home_investigator_desc: 'Your assigned cases, from intake to closure.',
+    space_home_investigator_stat: '{n} case(s) to process',
+    space_home_admin_title: 'Administration',
+    space_home_admin_desc: 'Accounts, roles, configuration and platform governance.',
     track_docs_subtitle: 'Add documents to support your report.',
     track_updates_title: 'Case history',
     track_updates_subtitle: 'Follow every step and action taken on your report.',
@@ -1214,6 +1242,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
     profile_menu_settings: 'Settings',
     profile_menu_help: 'Help & Support',
+    // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
+    profile_menu_change_space: 'Switch space',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Control Panel',
@@ -1887,6 +1917,19 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // histórico em linha do tempo) ===
     track_login_tagline: 'Um ambiente mais ético e mais seguro para todos.',
     track_login_photo_note: 'Um canal seguro, anônimo e independente.',
+    // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
+    space_home_tagline: 'Um portal único, um espaço para cada missão.',
+    space_home_photo_note: 'Seu acesso é estritamente limitado à sua função e ao seu escopo.',
+    space_home_hello: 'Olá',
+    space_home_subtitle: 'Bem-vindo(a) ao seu espaço ACTIVA EthicAlert — escolha onde retomar seu trabalho.',
+    space_home_operator_title: 'Espaço Operador',
+    space_home_operator_desc: 'Recepção, atribuição e acompanhamento de todas as denúncias.',
+    space_home_operator_stat: '{n} nova(s) denúncia(s)',
+    space_home_investigator_title: 'Espaço Investigador',
+    space_home_investigator_desc: 'Seus casos atribuídos, da recepção ao encerramento.',
+    space_home_investigator_stat: '{n} caso(s) a tratar',
+    space_home_admin_title: 'Administração',
+    space_home_admin_desc: 'Contas, funções, configuração e governança da plataforma.',
     track_docs_subtitle: 'Adicione documentos para apoiar a sua denúncia.',
     track_updates_title: 'Histórico do processo',
     track_updates_subtitle: 'Acompanhe todas as etapas e ações realizadas na sua denúncia.',
@@ -1992,6 +2035,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
     profile_menu_settings: 'Definições',
     profile_menu_help: 'Ajuda & suporte',
+    // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
+    profile_menu_change_space: 'Mudar de espaço',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
     nav_control_panel: 'Centro de Controle',

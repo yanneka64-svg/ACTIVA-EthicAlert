@@ -1,0 +1,49 @@
+// === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+// barre latérale) ===
+//
+// Petit module partagé qui centralise "quels espaces (Opérateur/Enquêteur/
+// Administration) un compte peut-il voir ?" — jusqu'ici cette logique
+// n'existait qu'à un seul endroit (StaffPortalLayout.tsx, pour construire
+// son sélecteur en barre latérale). La nouvelle page d'accueil des espaces
+// (StaffSpaceHome.tsx) et la redirection post-connexion (App.tsx) ont
+// besoin exactement du même calcul : plutôt que de le dupliquer à 3
+// endroits (risque réel de désynchronisation, ex. un compte verrait un
+// espace dans un menu mais pas dans l'autre), il est extrait ici une seule
+// fois. Comportement strictement identique à avant — aucune règle
+// d'habilitation n'est modifiée, seulement déplacée.
+import { UserProfile } from '../types';
+import { isGlobalCaseViewer, canManageConfiguration, userCan } from '../services/authz';
+
+export type SpaceKey = 'operator' | 'investigator' | 'admin' | 'general';
+
+// === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === BUG
+// PRÉEXISTANT CORRIGÉ (déjà documenté dans StaffPortalLayout.tsx avant
+// cette extraction) : `cases.assign` seul ne suffit plus à garantir l'accès
+// à l'espace Opérateur depuis que la matrice de permissions est éditable en
+// administration — la vraie garde de `/operator/dashboard` (App.tsx) est
+// `isGlobalViewer`, une table séparée. Alignée ici sur la garde réelle.
+export function canSeeOperatorSpace(user: UserProfile): boolean {
+  return userCan(user, 'cases.assign') && isGlobalCaseViewer(user);
+}
+export function canSeeInvestigatorSpace(user: UserProfile): boolean {
+  return userCan(user, 'cases.edit');
+}
+export function canSeeAdminSpace(user: UserProfile): boolean {
+  return canManageConfiguration(user);
+}
+
+/** Espaces réellement disponibles pour ce compte, dans un ordre de priorité stable. */
+export function computeAvailableSpaces(user: UserProfile): SpaceKey[] {
+  return [
+    ...(canSeeOperatorSpace(user) ? (['operator'] as const) : []),
+    ...(canSeeInvestigatorSpace(user) ? (['investigator'] as const) : []),
+    ...(canSeeAdminSpace(user) ? (['admin'] as const) : []),
+  ];
+}
+
+/** Onglet "tableau de bord" de chacun des 3 espaces réels (pas `general`, qui dépend du repli propre à chaque appelant). */
+export const SPACE_DASHBOARD_TAB: Record<'operator' | 'investigator' | 'admin', string> = {
+  operator: 'op_dashboard',
+  investigator: 'inv_dashboard',
+  admin: 'settings',
+};

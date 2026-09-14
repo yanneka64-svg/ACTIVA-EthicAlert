@@ -16,6 +16,9 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+  // barre latérale) ===
+  ArrowLeftRight,
 } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (Phase 27) === `QrCode` et `Lock` retirés : ils ne
 // servaient plus qu'aux icônes de l'en-tête public retirées cette phase.
@@ -31,6 +34,39 @@ import { ActivaLogo } from './ui';
 // documenté une première fois plus haut dans l'historique du fichier) alors
 // que le code plus bas l'utilise toujours — voir `isGlobalViewer` ci-dessous.
 import { isGlobalCaseViewer, canManageConfiguration } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+// barre latérale) ===
+import { computeAvailableSpaces } from '../domain/staffSpaces';
+
+// === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+// barre latérale) === Extraite en fonction de module (comportement et
+// libellés strictement inchangés — simple déplacement hors du composant)
+// pour que StaffSpaceHome.tsx puisse réutiliser exactement le même libellé
+// de rôle que la barre supérieure, sans dupliquer ce switch.
+export const getRoleBadge = (role: UserRole) => {
+  switch (role) {
+    case 'functional_admin':
+      return { label: 'Admin Fonctionnel / DARC', color: 'bg-amber-50 text-amber-800 border-amber-200' };
+    case 'investigator':
+      return { label: 'Investigateur DARC', color: 'bg-blue-50 text-blue-800 border-blue-200' };
+    case 'senior_investigator':
+      return { label: 'Investigateur Senior DARC', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+    case 'darc_compliance':
+      return { label: 'Conformité DARC', color: 'bg-teal-50 text-teal-800 border-teal-200' };
+    case 'system_admin':
+      return { label: 'Admin Système', color: 'bg-purple-50 text-purple-800 border-purple-200' };
+    case 'security_admin':
+      return { label: 'Admin Sécurité', color: 'bg-rose-50 text-rose-800 border-rose-200' };
+    case 'consultation':
+      return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+    case 'audit_committee':
+      return { label: 'Comité d’Audit', color: 'bg-cyan-50 text-cyan-800 border-cyan-200' };
+    case 'executive':
+      return { label: 'Direction / Exécutif', color: 'bg-slate-800 text-white border-slate-700' };
+    case 'reporter':
+      return { label: 'Lanceur d’alerte', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
+  }
+};
 
 interface NavbarProps {
   currentTab: string;
@@ -133,42 +169,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isStaffUser, isGlobalViewer, activeUser, dismissedIds, notifRefresh]
   );
-
-  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === étendu de 5 à 10 rôles ; les
-  // 5 libellés/couleurs déjà en production restent strictement identiques
-  // (`functional_admin`/`investigator`/`system_admin`/`reporter` gardent
-  // leur rendu exact — `reporter` est le nouveau nom de l'ancien
-  // `whistleblower`, `consultation` celui de l'ancien `auditor`), les 5
-  // nouveaux suivent la même convention visuelle.
-  // === AMÉLIORATION AJOUTÉE : correction post-fusion === ce switch avait
-  // été réécrit sur les 5 anciens rôles (`auditor`/`whistleblower`) lors de
-  // la fusion avec la refonte visuelle (Phase 13), ce qui ne compile plus
-  // contre le modèle RBAC à 10 rôles — restauré ici avec les couleurs déjà
-  // choisies pour ce nouveau style d'en-tête (fonds `-50`/`-800`).
-  const getRoleBadge = (role: UserRole) => {
-    switch (role) {
-      case 'functional_admin':
-        return { label: 'Admin Fonctionnel / DARC', color: 'bg-amber-50 text-amber-800 border-amber-200' };
-      case 'investigator':
-        return { label: 'Investigateur DARC', color: 'bg-blue-50 text-blue-800 border-blue-200' };
-      case 'senior_investigator':
-        return { label: 'Investigateur Senior DARC', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
-      case 'darc_compliance':
-        return { label: 'Conformité DARC', color: 'bg-teal-50 text-teal-800 border-teal-200' };
-      case 'system_admin':
-        return { label: 'Admin Système', color: 'bg-purple-50 text-purple-800 border-purple-200' };
-      case 'security_admin':
-        return { label: 'Admin Sécurité', color: 'bg-rose-50 text-rose-800 border-rose-200' };
-      case 'consultation':
-        return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-700 border-slate-200' };
-      case 'audit_committee':
-        return { label: 'Comité d’Audit', color: 'bg-cyan-50 text-cyan-800 border-cyan-200' };
-      case 'executive':
-        return { label: 'Direction / Exécutif', color: 'bg-slate-800 text-white border-slate-700' };
-      case 'reporter':
-        return { label: 'Lanceur d’alerte', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
-    }
-  };
 
   const badge = getRoleBadge(activeUser.role);
 
@@ -564,6 +564,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <HelpCircle className="w-3.5 h-3.5 text-slate-400" /> {t.profile_menu_help}
                   </button>
+                  {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace
+                      le sélecteur en barre latérale) === Remplace le petit
+                      bloc "ESPACES" qui vivait en permanence en haut de la
+                      barre latérale (StaffPortalLayout.tsx) : le choix se
+                      fait désormais une fois, sur une page d'accueil dédiée
+                      (StaffSpaceHome.tsx) juste après connexion ; ce lien,
+                      réservé aux comptes à 2 espaces ou plus, permet d'y
+                      revenir à tout moment sans se déconnecter. */}
+                  {isStaffUser && computeAvailableSpaces(activeUser).length >= 2 && (
+                    <button
+                      onClick={() => setCurrentTab('space_home')}
+                      className="w-full flex items-center gap-2 text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium border-b border-slate-100"
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5 text-slate-400" /> {t.profile_menu_change_space}
+                    </button>
+                  )}
 
                   <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">
                     <p className="font-semibold text-slate-600">{t.switch_role}</p>

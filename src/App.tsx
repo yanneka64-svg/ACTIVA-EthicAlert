@@ -26,6 +26,10 @@ import { AdminConfigView } from './components/AdminConfigView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
 import { CaseLookup } from './components/CaseLookup';
+// === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+// barre latérale) ===
+import { StaffSpaceHome } from './components/StaffSpaceHome';
+import { computeAvailableSpaces } from './domain/staffSpaces';
 // === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructurée façon maquette) ===
 // 4 écrans transverses réels (Tâches / Preuves / Communications / Actions
 // correctives), agrégeant des données déjà existantes sur `AlertRecord` —
@@ -64,6 +68,9 @@ import { StaffLoginView } from './components/StaffLoginView';
 // ne puissent jamais diverger désormais que la barre latérale compte ~15
 // entrées au lieu de 6.
 const STAFF_TAB_KEYS = [
+  // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
+  // barre latérale) ===
+  'space_home',
   'control_panel',
   'portal',
   'triage',
@@ -253,7 +260,18 @@ function AppShell() {
     // plus garanti maintenant qu'un admin peut accorder `cases.assign` à
     // n'importe quel rôle. Même correctif que StaffPortalLayout.tsx
     // (canSeeOperatorSpace) pour le sélecteur d'espace.
-    if (userCan(user, 'cases.assign') && isGlobalCaseViewer(user)) {
+    //
+    // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur
+    // en barre latérale) === Un compte à 2 espaces ou plus (ex. B. Y. Ekani,
+    // Opérateur + Enquêteur) atterrit désormais sur une vraie page d'accueil
+    // dédiée au choix d'espace, plutôt que directement dans l'un des deux
+    // sans étape de choix explicite. Un compte à un seul espace réel — ou à
+    // aucun des 3 (repli "vision globale" existant, inchangé) — continue
+    // d'atterrir directement dans son interface, exactement comme avant :
+    // cet accueil n'a de sens que s'il y a un vrai choix à faire.
+    if (computeAvailableSpaces(user).length >= 2) {
+      navigate(pathForTab('space_home'));
+    } else if (userCan(user, 'cases.assign') && isGlobalCaseViewer(user)) {
       navigate(pathForTab('op_dashboard'));
     } else if (userCan(user, 'cases.edit')) {
       navigate(pathForTab('inv_dashboard'));
@@ -590,7 +608,19 @@ function AppShell() {
         {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) === */}
         {currentTab === 'login' && <StaffLoginView onLogin={handleLogin} />}
 
-        {isStaffTab && (
+        {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
+            sélecteur en barre latérale) === Rendue à part, HORS de
+            StaffPortalLayout (donc sans sidebar) — même traitement que
+            /login ou /track juste au-dessus : un vrai plein-écran d'accueil,
+            pas un écran de plus dans le menu latéral. Toujours protégée par
+            AuthenticatedRoute comme le reste de l'espace staff. */}
+        {currentTab === 'space_home' && (
+          <AuthenticatedRoute isAuthenticated={isStaffSessionActive} onGoToLogin={() => goToTab('login')}>
+            <StaffSpaceHome lang={lang} activeUser={activeUser} setCurrentTab={goToTab} />
+          </AuthenticatedRoute>
+        )}
+
+        {isStaffTab && currentTab !== 'space_home' && (
           // === AMÉLIORATION AJOUTÉE (Phase 12.2/12.4) === tout l'espace
           // staff passe désormais par AuthenticatedRoute — une session non
           // connectée (après déconnexion) est renvoyée vers /login au lieu
