@@ -10,7 +10,8 @@
  * `computeRiskEvaluation()` in `data/activaConfig.ts` already computes a
  * derived value from raw inputs.
  */
-import { AlertRecord, AppNotification, AuditLogEntry, EnterpriseWorkflowStatus, SlaStatus } from '../types';
+import { AlertRecord, AlertStatus, AppNotification, AuditLogEntry, EnterpriseWorkflowStatus, SlaStatus } from '../types';
+import { CaseStatus } from '../domain/caseTypes';
 
 /** Legacy AlertStatus -> the richer enterprise lifecycle the Control Panel/workspace UI uses. */
 export function mapToEnterpriseStatus(alert: AlertRecord): EnterpriseWorkflowStatus {
@@ -31,6 +32,61 @@ export function mapToEnterpriseStatus(alert: AlertRecord): EnterpriseWorkflowSta
       return 'ARCHIVED';
     default:
       return 'NEW';
+  }
+}
+
+// === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
+/**
+ * Statut CaseStatus (14 valeurs, domain/workflow.ts) de départ pour un
+ * dossier qui n'a encore jamais transité par le nouveau chemin
+ * (`AlertRecord.workflowStatus` absent) — sert de `from` à
+ * `checkTransition()` dans `storage.transitionStatus()`. Réutilise très
+ * exactement `mapToEnterpriseStatus()` ci-dessus : les valeurs
+ * d'`EnterpriseWorkflowStatus` (NEW/TRIAGE/ASSIGNED/INVESTIGATION/
+ * CONCLUSION_PENDING/CLOSED/REOPENED/ARCHIVED) sont, par construction, un
+ * sous-ensemble en majuscules des valeurs de `CaseStatus` — aucune
+ * nouvelle table de correspondance à maintenir séparément.
+ */
+export function deriveCaseStatus(alert: AlertRecord): CaseStatus {
+  return mapToEnterpriseStatus(alert).toLowerCase() as CaseStatus;
+}
+
+/**
+ * Direction inverse : une fois un dossier passé par
+ * `storage.transitionStatus()`, quel `AlertStatus` (7 valeurs) legacy lui
+ * attribuer pour que tout écran existant qui lit encore `alert.status`
+ * (badges, filtres, KPIs) continue de se comporter correctement ? `CaseStatus`
+ * distingue plus d'étapes que `AlertStatus` n'en connaît (ex :
+ * pending_information/escalated/functional_review n'ont pas d'équivalent
+ * direct) — ces valeurs sont ramenées au bucket legacy actif le plus
+ * proche (`investigation` ou `corrective_action`) plutôt que de casser une
+ * égalité stricte inexistante.
+ */
+export function syncLegacyStatus(status: CaseStatus): AlertStatus {
+  switch (status) {
+    case 'new':
+    case 'assigned':
+      return 'new';
+    case 'triage':
+    case 'under_review':
+      return 'under_review';
+    case 'investigation':
+    case 'pending_information':
+    case 'escalated':
+      return 'investigation';
+    case 'conclusion_pending':
+    case 'functional_review':
+      return 'corrective_action';
+    case 'closed':
+    case 'duplicate':
+    case 'out_of_scope':
+      return 'closed';
+    case 'reopened':
+      return 'reopened';
+    case 'archived':
+      return 'archived';
+    default:
+      return 'new';
   }
 }
 

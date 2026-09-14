@@ -1,6 +1,10 @@
 import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile } from '../types';
 import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, EntityDef, CategoryDef, SlaConfig, DEFAULT_SLA_CONFIG } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
+// === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
+import { CaseStatus } from '../domain/caseTypes';
+import { checkTransition, TransitionCheckResult } from '../domain/workflow';
+import { deriveCaseStatus, syncLegacyStatus } from './statusMapping';
 
 const STORAGE_KEYS = {
   ALERTS: 'activa_ethicalert_records_v1',
@@ -250,6 +254,57 @@ class StorageService {
       { id: alert.id, trackingNumber: alert.trackingNumber },
       actor
     );
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
+  /**
+   * Seul point d'entrée pour faire progresser un dossier dans la machine à
+   * états riche (`CaseStatus`, domain/workflow.ts) — réutilise
+   * `checkTransition()` telle quelle plutôt que de réinventer une
+   * validation de transition. Refuse (ne lève jamais d'exception) une
+   * transition invalide, exactement comme chaque autre mutation de ce
+   * fichier persiste puis notifie puis journalise. Synchronise en
+   * permanence `AlertRecord.status` (legacy, 7 valeurs) via
+   * `syncLegacyStatus()` pour que tout écran existant qui lit encore ce
+   * champ continue de fonctionner sans changement.
+   *
+   * LIMITE CONNUE (documentée, pas contournée en douce) : le contrôle de
+   * clôture de `checkTransition()` (`to === 'closed'`) exige des
+   * `Allegation[]` documentées — une notion du modèle `domain/caseTypes.ts`
+   * qu'`AlertRecord` ne porte pas (un signalement local a une seule
+   * catégorie/sous-catégorie, pas des allégations distinctes). Sans
+   * surcharge explicite de `context`, cette méthode refusera donc toute
+   * transition vers `closed`. Le flux de clôture existant
+   * (InvestigationDesk.tsx, sa propre checklist sur les champs réels
+   * d'AlertRecord) reste inchangé et n'utilise pas cette méthode — cette
+   * limite ne concerne qu'un futur usage de `transitionStatus` pour
+   * clôturer, pas le comportement actuel de l'application.
+   */
+  public transitionStatus(
+    alertId: string,
+    toStatus: CaseStatus,
+    actor: UserProfile,
+    reason?: string
+  ): TransitionCheckResult {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return { allowed: false, reason: 'Dossier introuvable.' };
+
+    const fromStatus = alert.workflowStatus ?? deriveCaseStatus(alert);
+    const check = checkTransition(fromStatus, toStatus);
+    if (!check.allowed) return check;
+
+    alert.workflowStatus = toStatus;
+    alert.status = syncLegacyStatus(toStatus);
+    alert.updatedAt = new Date().toISOString();
+    this.persistAlerts();
+    this.notify();
+    this.logAudit(
+      'STATUS_CHANGED',
+      `Statut du dossier ${alert.trackingNumber} : ${fromStatus} → ${toStatus}${reason ? ` (${reason})` : ''}.`,
+      { id: alert.id, trackingNumber: alert.trackingNumber },
+      actor
+    );
+    return { allowed: true };
   }
 
   // --- Audit Logs API ---

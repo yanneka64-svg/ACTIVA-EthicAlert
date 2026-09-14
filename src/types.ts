@@ -9,7 +9,7 @@
 // `src/services/authz.ts`, qui s'appuie sur `src/domain/permissions.ts`
 // (roleHasPermission / can) au lieu de comparaisons de rôle codées en dur
 // éparpillées dans chaque écran.
-import { RoleId, ConfidentialityLevel } from './domain/caseTypes';
+import { RoleId, ConfidentialityLevel, CaseStatus } from './domain/caseTypes';
 
 export type Language = 'fr' | 'en' | 'pt';
 
@@ -203,6 +203,16 @@ export interface AlertRecord {
 
   // Investigation & Management
   status: AlertStatus;
+  // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
+  // Nouveau statut "riche" (14 valeurs, domain/caseTypes.ts CaseStatus),
+  // réutilisant la machine à états déjà testée de domain/workflow.ts,
+  // maintenu en permanence synchronisé avec `status` ci-dessus (jamais une
+  // seconde source de vérité indépendante) via
+  // storage.transitionStatus()/services/statusMapping.ts. `status` reste
+  // le champ que tout écran existant continue de lire sans changement.
+  // Optionnel : absent tant qu'aucune transition n'est passée par le
+  // nouveau chemin.
+  workflowStatus?: CaseStatus;
   assignedInvestigators: string[]; // Investigator IDs
   assignedInvestigatorNames: string[];
   closureSummary?: string;
