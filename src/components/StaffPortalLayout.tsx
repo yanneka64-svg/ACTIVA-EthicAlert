@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   FolderOpen,
@@ -8,7 +8,6 @@ import {
   MessageSquare,
   Wrench,
   LayoutGrid,
-  Package,
   Users,
   ShieldCheck,
   Settings,
@@ -22,26 +21,47 @@ import {
   SlidersHorizontal,
   // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
   GitBranch,
+  // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
+  Inbox,
+  UserPlus,
+  Clock3,
+  CheckCircle2,
+  ListChecks,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from '../services/authz';
+import { isGlobalCaseViewer, canManageConfiguration, userCan } from '../services/authz';
 
 /**
- * === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la maquette) ===
+ * === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
  *
- * Barre latérale entièrement reconstruite pour correspondre exactement à la
- * maquette de référence (image 1) : 1 item autonome ("Tableau de bord"),
- * puis 4 groupes ("GESTION DES DOSSIERS" / "CONFORMITÉ" / "RAPPORTS" /
- * "ADMINISTRATION") avec exactement les items qui y figurent, plus le
- * bloc d'aide "Besoin d'aide ?" en bas. Chaque item pointe vers un écran
- * réel déjà existant (voir App.tsx `renderStaffContent`) — rien n'est
- * supprimé côté code, seule la liste de raccourcis affichée ici est
- * désormais celle de la maquette (les anciens raccourcis Triage/
- * Attribution/Mes Dossiers/Vue Exécutive/Piste d'Audit restent de vrais
- * écrans fonctionnels, simplement non listés ici car absents de la
- * maquette de référence).
+ * Refonte demandée par l'utilisateur ("on a du mal à s'y retrouver") après
+ * un audit du menu existant (voir l'artefact de diagnostic partagé avant
+ * cette phase). Trois problèmes concrets corrigés ici :
+ *
+ * 1. Le sélecteur "Espace" (Opérateur/Enquêteur/Administration) ne faisait
+ *    jusqu'ici que naviguer UNE FOIS vers un tableau de bord — la liste de
+ *    menu en dessous ne changeait jamais selon l'espace actif. 8 écrans
+ *    réels et déjà fonctionnels (op_inbox/op_assign/op_pending_info/
+ *    op_processed/inv_to_process/inv_in_progress/inv_pending/
+ *    inv_my_cases, voir App.tsx) n'avaient donc AUCUN bouton de menu nulle
+ *    part. Le sélecteur pilote désormais réellement la liste affichée.
+ * 2. "Investigations" (doublon exact de "Dossiers" — même écran, seul le
+ *    filtre initial différait) est retiré : son filtre existe déjà comme
+ *    onglet "En cours" sur l'écran Dossiers depuis le repère visuel
+ *    (InvestigationDesk.tsx). "Tableaux de bord"/"Rapports" (deux boutons
+ *    vers le MÊME écran) sont fusionnés en une seule entrée "Rapports".
+ * 3. "Tâches"/"Preuves & Pièces jointes"/"Communications" sont renommés
+ *    pour ne plus porter EXACTEMENT le même nom que l'onglet interne d'un
+ *    dossier (qui, lui, n'affiche que les données de CE dossier) — voir
+ *    `sidebar_tasks_registry`/`sidebar_evidence_registry`/
+ *    `sidebar_comms_registry` (i18n/translations.ts).
+ *
+ * Aucun écran n'est supprimé côté code — seuls des raccourcis de menu
+ * apparaissent, disparaissent de tel ou tel espace, ou changent de libellé.
+ * Tous les écrans déjà démontrés au repère visuel restent atteignables par
+ * URL comme avant.
  */
 
 interface StaffPortalLayoutProps {
@@ -50,6 +70,22 @@ interface StaffPortalLayoutProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
   children: React.ReactNode;
+}
+
+// === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
+type SpaceKey = 'operator' | 'investigator' | 'admin' | 'general';
+
+const ADMIN_TABS = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow'];
+
+// Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
+// "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à
+// aucun espace en particulier, pour ne JAMAIS faire changer l'espace
+// visuellement sélectionné quand on clique dessus (voir l'effet plus bas).
+function spaceOfTab(tab: string): SpaceKey | null {
+  if (tab.startsWith('op_')) return 'operator';
+  if (tab.startsWith('inv_')) return 'investigator';
+  if (ADMIN_TABS.includes(tab)) return 'admin';
+  return null;
 }
 
 export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
@@ -71,88 +107,122 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   const canSeeAdmin = canManageConfiguration(activeUser);
 
   // === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
-  // Un compte peut relever de plusieurs "espaces" à la fois (ex :
-  // functional_admin a à la fois `cases.assign` — Opérateur — et
-  // `cases.edit` — Enquêteur). Réutilise exactement les mêmes permissions
-  // déjà appliquées ailleurs (bouton "Assigner" d'InvestigationDesk pour
-  // Opérateur, `investigatorUsers`/candidats d'attribution pour Enquêteur,
-  // `canSeeAdmin` ci-dessus pour Admin) plutôt que d'inventer un nouveau
-  // critère. Choix délibéré pour cette phase : n'AJOUTE qu'un sélecteur
-  // d'espace au-dessus de la barre latérale existante, qui reste
-  // entièrement inchangée pour tout le monde (y compris les rôles
-  // consultation/executive/audit_committee/security_admin, qui ne relèvent
-  // d'aucun des 3 espaces mais gardent leur accès actuel aux écrans
-  // existants) — une restructuration complète de la barre latérale en 3
-  // silos stricts est repoussée à une phase ultérieure nécessitant une
-  // vérification plus large par rôle.
   // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === BUG
   // PRÉEXISTANT CORRIGÉ : `cases.assign` seul ne suffit plus à garantir
   // l'accès à /operator/dashboard depuis que la matrice de permissions est
-  // éditable en administration (system_admin peut désormais accorder
-  // `cases.assign` à n'importe quel rôle, ex. `investigator`) — la vraie
-  // garde de cette route (App.tsx, onglet `op_dashboard`) est
-  // `isGlobalViewer`/`isGlobalCaseViewer`, une table SÉPARÉE
-  // (GLOBAL_VISIBILITY_ROLES) que cet onglet n'a jamais mise à jour.
-  // Jusqu'ici les deux coïncidaient toujours par construction (seuls
-  // functional_admin/darc_compliance avaient `cases.assign`, et les deux
-  // sont aussi à vision globale) ; ce n'est plus garanti. Vérifié en
-  // direct : accorder `cases.assign` à `investigator` faisait apparaître
-  // "Espace Opérateur" dans ce sélecteur puis un "Accès restreint" au
-  // clic. Corrigé en alignant cette condition sur la garde réelle de la
-  // route, exactement comme `canSeeControlPanel` ci-dessus.
+  // éditable en administration — la vraie garde de cette route (App.tsx,
+  // onglet `op_dashboard`) est `isGlobalViewer`, une table séparée que cet
+  // onglet n'a jamais mise à jour. Corrigé en alignant cette condition sur
+  // la garde réelle de la route, exactement comme `canSeeControlPanel`.
   const canSeeOperatorSpace = userCan(activeUser, 'cases.assign') && canSeeControlPanel;
   const canSeeInvestigatorSpace = userCan(activeUser, 'cases.edit');
-  const spaceCount = [canSeeOperatorSpace, canSeeInvestigatorSpace, canSeeAdmin].filter(Boolean).length;
-  const showSpaceSwitcher = spaceCount >= 2;
-  const isOperatorTabActive = currentTab.startsWith('op_');
-  const isInvestigatorTabActive = currentTab.startsWith('inv_');
-  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === 'admin_governance' ajouté
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === 'admin_workflow' ajouté
-  const isAdminTabActive = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow'].includes(currentTab);
 
-  const navItems: Array<{ key: string; label: string; icon: React.ReactNode; visible: boolean; group: string }> = [
-    { key: 'control_panel', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel, group: '' },
-
-    { key: 'portal', label: t.sidebar_dossiers, icon: <FolderOpen className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
-    { key: 'investigations', label: t.nav_investigations, icon: <Search className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
-    { key: 'tasks', label: t.nav_tasks, icon: <ListTodo className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
-    { key: 'evidence', label: t.sidebar_evidence, icon: <Paperclip className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
-    { key: 'communications', label: t.nav_communications, icon: <MessageSquare className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
-    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === entrée
-    // partagée (pas propre à un espace) — jusqu'ici op_search/inv_search
-    // (Phase 6) n'avaient aucun point d'entrée dans cette barre latérale,
-    // uniquement accessibles en tapant leur URL directement.
-    { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" />, visible: true, group: t.sidebar_group_dossiers },
-
-    { key: 'corrective_actions', label: t.sidebar_corrective_measures, icon: <Wrench className="w-4 h-4" />, visible: true, group: t.sidebar_group_compliance },
-
-    { key: 'reports', label: t.sidebar_reports_dashboards, icon: <LayoutGrid className="w-4 h-4" />, visible: true, group: t.sidebar_group_reports },
-    { key: 'reports', label: t.sidebar_reports_exports, icon: <Package className="w-4 h-4" />, visible: true, group: t.sidebar_group_reports },
-
-    // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
-    { key: 'admin_organization', label: 'Organisation (Pays)', icon: <Globe2 className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
-    // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === libellé en
-    // dur, même précédent que "Organisation (Pays)" ci-dessus (Phase 8) —
-    // pas de nouvelle clé i18n pour un libellé admin-only.
-    { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
-    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === libellé
-    // en dur, même précédent que "Organisation (Pays)"/"Gouvernance"
-    // ci-dessus — pas de nouvelle clé i18n pour un libellé admin-only.
-    { key: 'admin_workflow', label: 'Workflows & Statuts', icon: <GitBranch className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
-    { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
-    { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
-    { key: 'settings', label: t.sidebar_admin_settings, icon: <Settings className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
+  // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
+  // Espaces réellement disponibles pour ce compte, dans un ordre de
+  // priorité stable. Un compte qui ne relève d'aucun des 3 (ex.
+  // consultation/executive/audit_committee/security_admin — lecture
+  // globale sans attribution ni investigation ni administration) reçoit un
+  // espace "general" de repli : Tableau de bord + Tous les dossiers +
+  // Outils, soit exactement l'ancienne liste plate, débarrassée de ses
+  // doublons.
+  const availableSpaces: SpaceKey[] = [
+    ...(canSeeOperatorSpace ? (['operator'] as const) : []),
+    ...(canSeeInvestigatorSpace ? (['investigator'] as const) : []),
+    ...(canSeeAdmin ? (['admin'] as const) : []),
   ];
-  // Écrans existants non repris dans cette liste (car absents de la
-  // maquette de référence) mais toujours fonctionnels dans le code :
-  // 'triage' / 'assignment' / 'my_cases' (des préréglages de filtre sur ce
-  // même écran "Dossiers", déjà accessibles via sa barre de filtres),
-  // 'executive' (Vue Exécutive) et 'audit' (Piste d'Audit).
+  const defaultSpace: SpaceKey = availableSpaces[0] ?? 'general';
+  const showSpaceSwitcher = availableSpaces.length >= 2;
 
-  const visibleNavItems = navItems.filter((i) => i.visible);
+  const [selectedSpace, setSelectedSpace] = useState<SpaceKey>(() => spaceOfTab(currentTab) ?? defaultSpace);
+
+  // Garde l'espace affiché synchronisé avec la navigation réelle : cliquer
+  // un onglet propre à un espace (op_*/inv_*/admin_*) — y compris via un
+  // lien profond, une notification, ou le bouton retour du navigateur —
+  // fait basculer visuellement le sélecteur sur cet espace. Cliquer un
+  // onglet PARTAGÉ (Dossiers, Recherche avancée, un registre, Rapports...)
+  // laisse l'espace actuellement sélectionné inchangé, pour que ces écrans
+  // restent entourés du même menu contextuel qu'avant le clic.
+  useEffect(() => {
+    const derived = spaceOfTab(currentTab);
+    if (derived && derived !== selectedSpace) setSelectedSpace(derived);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTab]);
+
+  type NavItem = { key: string; label: string; icon: React.ReactNode; group: string };
+
+  // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
+  // Groupe "Outils" — écrans transverses, communs aux espaces Opérateur,
+  // Enquêteur et au repli général (jamais dans l'espace Administration :
+  // un compte admin-only, ex. system_admin, n'a de toute façon aucun accès
+  // réel aux dossiers — brief section 30 — ces raccourcis y étaient déjà
+  // des impasses avant cette phase, pas une fonctionnalité perdue).
+  const toolsItems: Array<Omit<NavItem, 'group'>> = [
+    { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" /> },
+    { key: 'tasks', label: t.sidebar_tasks_registry, icon: <ListTodo className="w-4 h-4" /> },
+    { key: 'evidence', label: t.sidebar_evidence_registry, icon: <Paperclip className="w-4 h-4" /> },
+    { key: 'communications', label: t.sidebar_comms_registry, icon: <MessageSquare className="w-4 h-4" /> },
+    { key: 'corrective_actions', label: t.sidebar_corrective_measures, icon: <Wrench className="w-4 h-4" /> },
+    { key: 'reports', label: t.sidebar_reports_exports, icon: <LayoutGrid className="w-4 h-4" /> },
+  ];
+
+  const operatorItems: NavItem[] = [
+    { key: 'op_dashboard', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' },
+    { key: 'portal', label: t.sidebar_all_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' },
+    { key: 'op_inbox', label: t.sidebar_op_inbox, icon: <Inbox className="w-4 h-4" />, group: '' },
+    { key: 'op_assign', label: t.sidebar_op_assign, icon: <UserPlus className="w-4 h-4" />, group: '' },
+    { key: 'op_pending_info', label: t.sidebar_op_pending, icon: <Clock3 className="w-4 h-4" />, group: '' },
+    { key: 'op_processed', label: t.sidebar_op_processed, icon: <CheckCircle2 className="w-4 h-4" />, group: '' },
+    ...toolsItems.map((i) => ({ ...i, group: t.sidebar_group_tools })),
+  ];
+
+  const investigatorItems: NavItem[] = [
+    { key: 'inv_dashboard', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' },
+    { key: 'inv_my_cases', label: t.sidebar_inv_my_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' },
+    { key: 'inv_to_process', label: t.sidebar_inv_to_process, icon: <ListChecks className="w-4 h-4" />, group: '' },
+    { key: 'inv_in_progress', label: t.sidebar_inv_in_progress, icon: <Search className="w-4 h-4" />, group: '' },
+    { key: 'inv_pending', label: t.sidebar_inv_pending, icon: <Clock3 className="w-4 h-4" />, group: '' },
+    ...toolsItems.map((i) => ({ ...i, group: t.sidebar_group_tools })),
+  ];
+
+  const adminItems: NavItem[] = [
+    { key: 'admin_organization', label: 'Organisation (Pays)', icon: <Globe2 className="w-4 h-4" />, group: '' },
+    { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, group: '' },
+    { key: 'admin_workflow', label: 'Workflows & Statuts', icon: <GitBranch className="w-4 h-4" />, group: '' },
+    { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
+    { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
+    { key: 'settings', label: t.sidebar_admin_settings, icon: <Settings className="w-4 h-4" />, group: '' },
+  ];
+
+  const generalItems: NavItem[] = [
+    ...(canSeeControlPanel ? [{ key: 'control_panel', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' }] : []),
+    { key: 'portal', label: t.sidebar_all_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' },
+    ...toolsItems.map((i) => ({ ...i, group: t.sidebar_group_tools })),
+  ];
+
+  const itemsBySpace: Record<SpaceKey, NavItem[]> = {
+    operator: operatorItems,
+    investigator: investigatorItems,
+    admin: adminItems,
+    general: generalItems,
+  };
+  const navItems = itemsBySpace[selectedSpace];
+
+  const SPACE_LABEL: Record<SpaceKey, string> = {
+    operator: 'Espace Opérateur',
+    investigator: 'Espace Enquêteur',
+    admin: 'Administration',
+    general: '',
+  };
+  const SPACE_DASHBOARD_TAB: Record<SpaceKey, string> = {
+    operator: 'op_dashboard',
+    investigator: 'inv_dashboard',
+    admin: 'settings',
+    general: canSeeControlPanel ? 'control_panel' : 'portal',
+  };
+
   let lastGroup: string | null = null;
 
-  const renderNavButton = (item: (typeof navItems)[number], mobile = false) => {
+  const renderNavButton = (item: NavItem, mobile = false) => {
     const active = currentTab === item.key;
     if (mobile) {
       return (
@@ -190,54 +260,35 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
       <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
-        {/* === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
-            Sélecteur d'espace — additif, visible uniquement pour un compte
-            relevant de 2 espaces ou plus (ex : functional_admin, à la fois
-            Opérateur et Enquêteur). N'affecte en rien la navigation
-            existante en dessous. */}
+        {/* === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
+            Le sélecteur pilote désormais réellement `selectedSpace`, qui
+            détermine la LISTE affichée en dessous (plus seulement une
+            navigation ponctuelle vers un tableau de bord). */}
         {showSpaceSwitcher && (
           <div className="p-2.5 border-b border-slate-100 space-y-1">
             <div className="px-0.5 pb-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">Espaces</div>
             <div className="flex flex-col gap-1">
-              {canSeeOperatorSpace && (
+              {availableSpaces.map((space) => (
                 <button
-                  id="space-switcher-operator"
-                  onClick={() => setCurrentTab('op_dashboard')}
+                  key={space}
+                  id={`space-switcher-${space}`}
+                  onClick={() => {
+                    setSelectedSpace(space);
+                    setCurrentTab(SPACE_DASHBOARD_TAB[space]);
+                  }}
                   className={`text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition ${
-                    isOperatorTabActive ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    selectedSpace === space ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  Espace Opérateur
+                  {SPACE_LABEL[space]}
                 </button>
-              )}
-              {canSeeInvestigatorSpace && (
-                <button
-                  id="space-switcher-investigator"
-                  onClick={() => setCurrentTab('inv_dashboard')}
-                  className={`text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition ${
-                    isInvestigatorTabActive ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Espace Enquêteur
-                </button>
-              )}
-              {canSeeAdmin && (
-                <button
-                  id="space-switcher-admin"
-                  onClick={() => setCurrentTab('settings')}
-                  className={`text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition ${
-                    isAdminTabActive ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Administration
-                </button>
-              )}
+              ))}
             </div>
           </div>
         )}
 
         <nav className="flex-1 py-3 px-2.5">
-          {visibleNavItems.map((item) => {
+          {navItems.map((item) => {
             const showGroupHeader = !!item.group && item.group !== lastGroup;
             lastGroup = item.group;
             return (
@@ -267,7 +318,7 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 
       {/* Mobile horizontal nav */}
       <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto px-4 pt-4 pb-1 -mb-2">
-        {visibleNavItems.map((item) => renderNavButton(item, true))}
+        {navItems.map((item) => renderNavButton(item, true))}
       </div>
 
       {/* Content canvas — sa propre largeur maximale centrée */}
