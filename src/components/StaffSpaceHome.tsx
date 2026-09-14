@@ -83,32 +83,48 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
-        {/* Photo panel — même photo/dégradé que l'écran de connexion du suivi de signalement (AlertTrackingView.tsx) */}
-        <div className="relative hidden lg:flex flex-col justify-end p-8 min-h-[520px] text-white overflow-hidden">
+        {/* Photo panel — nouvelle photo moderne du siège ACTIVA avec message d'accueil enrichi et suppression des anciens textes */}
+        <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[560px] text-white overflow-hidden">
           <img
-            src="/brand/activa-hq.jpg"
-            alt="Siège du Groupe ACTIVA"
+            src="/brand/activa-headquarters-modern.jpg"
+            alt="Siège moderne du Groupe ACTIVA"
             className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/90 via-[#0B2545]/55 to-[#0B2545]/15" />
-          <div className="relative z-10 space-y-5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-white/15 border border-white/25 backdrop-blur-sm">
-              <ShieldCheck className="w-3.5 h-3.5" /> {t.space_home_badge}
-            </span>
-            <div>
-              <p className="text-2xl font-bold leading-snug">{t.space_home_hello}, {activeUser.name}</p>
-              <p className="text-sm font-semibold text-white/90 mt-1">{t.space_home_tagline}</p>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/95 via-[#0B2545]/70 to-[#0B2545]/35" />
+          <div className="relative z-10 space-y-4">
+            <div className="space-y-1.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/20 border border-white/30 backdrop-blur-sm text-blue-100">
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-300" /> Dispositif d’Alerte Éthique & Déontologie
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight pt-2">
+                {activeUser.id === 'usr-functional-admin' || activeUser.name.includes('Ekani')
+                  ? 'Bonjour M. B. Y. Ekani (Point de Contact)'
+                  : `Bonjour ${activeUser.name}`}
+              </h2>
+              <p className="text-lg font-semibold text-blue-200">
+                Bienvenue à votre espace
+              </p>
             </div>
-            <div className="w-10 h-px bg-white/40" />
-            <p className="text-xs text-white/80 leading-relaxed max-w-sm">{t.space_home_body}</p>
-            <div className="flex items-center gap-5 pt-1">
+
+            <div className="w-14 h-0.5 bg-blue-400/70" />
+
+            <div className="text-xs sm:text-sm text-slate-100/90 leading-relaxed space-y-2.5">
+              <p>
+                Votre mission au cœur du dispositif d’alerte éthique garantit l’intégrité, la conformité et la confiance au sein de l’ensemble des entités du Groupe ACTIVA.
+              </p>
+              <p>
+                Cet environnement confidentiel et sécurisé vous confère les outils nécessaires pour veiller au traitement impartial, rigoureux et diligent des signalements, dans le respect absolu de la protection des personnes et de la traçabilité des procédures.
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-white/20 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-white/90 shrink-0" />
-                <span className="text-[11px] font-semibold text-white/90">{t.space_home_confidentiality}</span>
+                <ShieldCheck className="w-4 h-4 text-blue-300 shrink-0" />
+                <span className="text-[11px] font-semibold text-white/90">Confidentialité garantie</span>
               </div>
               <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-white/90 shrink-0" />
-                <span className="text-[11px] font-semibold text-white/90">{t.space_home_traceability}</span>
+                <History className="w-4 h-4 text-blue-300 shrink-0" />
+                <span className="text-[11px] font-semibold text-white/90">Traçabilité probante</span>
               </div>
             </div>
           </div>
@@ -117,14 +133,20 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
         {/* Content panel */}
         <div id="staff-space-home-panel" className="bg-white p-6 sm:p-10 flex flex-col justify-center">
           <div className="text-center mb-6">
-            <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600 text-white mx-auto mb-3">
+            <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600 text-white mx-auto mb-3 shadow-sm">
               <User className="w-6 h-6" />
             </span>
             <h1 className="text-xl font-bold text-slate-900">
-              {isSingle ? t.space_home_title_single : t.space_home_title_plural}
+              {isSingle
+                ? (spaces[0] === 'investigator' ? 'Espace Enquêteur' : t.space_home_title_single)
+                : t.space_home_title_plural}
             </h1>
             <p className="text-xs text-slate-600 mt-2 max-w-sm mx-auto">
-              {isSingle ? t.space_home_subtitle_single : t.space_home_subtitle_plural}
+              {isSingle
+                ? (spaces[0] === 'investigator'
+                    ? 'Accédez directement à vos dossiers d’enquête assignés et à vos outils d’instruction.'
+                    : t.space_home_subtitle_single)
+                : t.space_home_subtitle_plural}
             </p>
           </div>
 
