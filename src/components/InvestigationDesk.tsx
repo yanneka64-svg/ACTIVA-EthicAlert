@@ -61,6 +61,8 @@ import {
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
+import { notifyAssignmentToInvestigators } from '../services/emailNotify';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
 import type { DataTableColumn } from './ui';
 import { computeSlaStatus } from '../services/statusMapping';
@@ -604,6 +606,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
       activeUser
     );
+
+    // === AMÉLIORATION AJOUTÉE (Notifications e-mail) === notifie
+    // uniquement les enquêteurs NOUVELLEMENT attribués (jamais ceux déjà
+    // attribués avant ce changement, pour ne pas les renotifier à chaque
+    // modification mineure de l'attribution).
+    const previouslyAssigned = new Set(selectedAlert.assignedInvestigators);
+    const newlyAssignedUsers = investigatorUsers.filter(
+      (u) => selectedInvestigatorIds.includes(u.id) && !previouslyAssigned.has(u.id)
+    );
+    if (newlyAssignedUsers.length > 0) {
+      notifyAssignmentToInvestigators(newlyAssignedUsers, { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber }, activeUser);
+    }
 
     setShowAssignModal(false);
   };

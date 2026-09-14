@@ -404,7 +404,12 @@ export interface AuditLogEntry {
     | 'CASE_ESCALATED'
     // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
     | 'INDEPENDENT_ROUTING_TRIGGERED'
-    | 'NO_INDEPENDENT_AUTHORITY_FOUND';
+    | 'NO_INDEPENDENT_AUTHORITY_FOUND'
+    // === AMÉLIORATION AJOUTÉE (Notifications e-mail) === traçabilité
+    // honnête de chaque tentative d'envoi (voir services/emailNotify.ts) —
+    // jamais un seul type "envoyé" qui masquerait un échec réel.
+    | 'EMAIL_NOTIFICATION_SENT'
+    | 'EMAIL_NOTIFICATION_FAILED';
   details: string;
   timestamp: string;
   ipAddress?: string;

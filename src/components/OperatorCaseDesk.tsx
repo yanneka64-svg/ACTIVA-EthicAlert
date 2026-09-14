@@ -51,6 +51,8 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { userCan } from '../services/authz';
+// === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
+import { notifyAssignmentToInvestigators } from '../services/emailNotify';
 import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
 import { computeSlaStatus } from '../services/statusMapping';
@@ -430,6 +432,19 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         { id: alert.id, trackingNumber: alert.trackingNumber },
         activeUser
       );
+
+      // === AMÉLIORATION AJOUTÉE (Notifications e-mail) === notifie
+      // uniquement les enquêteurs NOUVELLEMENT attribués sur CE dossier
+      // (la liste d'attribution est la même pour toute la sélection
+      // groupée, mais "nouveau" se juge dossier par dossier, contre son
+      // propre `assignedInvestigators` d'avant mutation).
+      const previouslyAssigned = new Set(alert.assignedInvestigators);
+      const newlyAssignedUsers = investigatorUsers.filter(
+        (u) => assignSelectedInvestigatorIds.includes(u.id) && !previouslyAssigned.has(u.id)
+      );
+      if (newlyAssignedUsers.length > 0) {
+        notifyAssignmentToInvestigators(newlyAssignedUsers, { id: alert.id, trackingNumber: alert.trackingNumber }, activeUser);
+      }
     });
     setAssignTargetIds(null);
     setAssignSelectedInvestigatorIds([]);
