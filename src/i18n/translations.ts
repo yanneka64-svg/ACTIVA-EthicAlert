@@ -504,6 +504,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     db_section_top_categories: 'Top 5 catégories',
     db_advanced_section_title: 'Indicateurs avancés DARC',
     db_kpi_total_label: 'Total signalements',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+    db_bucket_tous: 'Tous',
+    db_new_case_button: 'Nouveau',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tâches',
@@ -1185,6 +1188,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     db_section_top_categories: 'Top 5 Categories',
     db_advanced_section_title: 'Advanced DARC Indicators',
     db_kpi_total_label: 'Total Reports',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+    db_bucket_tous: 'All',
+    db_new_case_button: 'New',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tasks',
@@ -1866,6 +1872,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     db_section_top_categories: 'Top 5 categorias',
     db_advanced_section_title: 'Indicadores avançados DARC',
     db_kpi_total_label: 'Total de sinais',
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+    db_bucket_tous: 'Todos',
+    db_new_case_button: 'Novo',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tarefas',

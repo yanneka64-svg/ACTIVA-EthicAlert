@@ -332,22 +332,22 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={effectiveCaseFilter} />;
+    if (currentTab === 'portal') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} />;
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
     // écran de détail, mêmes actions) avec un `initialFilter` préréglé
     // différent — pas une copie, un préréglage — exactement comme le
     // Centre de Pilotage le fait déjà pour ses propres cartes KPI.
-    if (currentTab === 'triage') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'new' }} />;
+    if (currentTab === 'triage') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
     if (currentTab === 'assignment') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
-          <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ unassignedOnly: true }} />
+          <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ unassignedOnly: true }} />
         </PermissionGuard>
       );
     }
-    if (currentTab === 'my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'investigations') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'investigation' }} />;
+    if (currentTab === 'my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'investigations') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'investigation' }} />;
     if (currentTab === 'tasks') return <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
@@ -426,16 +426,16 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'op_inbox') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'new' }} />;
-    if (currentTab === 'op_pending_info') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'under_review' }} />;
+    if (currentTab === 'op_inbox') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
+    if (currentTab === 'op_pending_info') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'under_review' }} />;
     if (currentTab === 'op_assign') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
-          <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ unassignedOnly: true }} />
+          <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ unassignedOnly: true }} />
         </PermissionGuard>
       );
     }
-    if (currentTab === 'op_processed') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ status: 'closed' }} />;
+    if (currentTab === 'op_processed') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'closed' }} />;
     // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === réouvrait
     // simplement l'écran Dossiers (barre de recherche mot-clé existante) —
     // pointe désormais vers le vrai formulaire multicritère.
@@ -443,11 +443,11 @@ function AppShell() {
     if (currentTab === 'op_reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
     if (currentTab === 'op_communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
 
-    if (currentTab === 'inv_dashboard') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'inv_my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'inv_to_process') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true, status: 'new' }} />;
-    if (currentTab === 'inv_in_progress') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true, status: 'investigation' }} />;
-    if (currentTab === 'inv_pending') return <InvestigationDesk lang={lang} activeUser={activeUser} initialFilter={{ myCasesOnly: true, status: 'under_review' }} />;
+    if (currentTab === 'inv_dashboard') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'inv_my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
+    if (currentTab === 'inv_to_process') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'new' }} />;
+    if (currentTab === 'inv_in_progress') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'investigation' }} />;
+    if (currentTab === 'inv_pending') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'under_review' }} />;
     if (currentTab === 'inv_tasks') return <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'inv_evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     if (currentTab === 'inv_communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;

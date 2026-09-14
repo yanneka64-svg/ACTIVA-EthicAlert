@@ -38,6 +38,8 @@ import {
   Paperclip,
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   ArrowUpCircle,
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+  ChevronLeft,
 } from 'lucide-react';
 import {
   Language,
@@ -57,7 +59,8 @@ import {
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor } from './ui';
+import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
+import type { DataTableColumn } from './ui';
 import { computeSlaStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { isGlobalCaseViewer, userCan } from '../services/authz';
@@ -68,6 +71,10 @@ import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngi
 import { computeWorkload } from '../domain/workloadCalc';
 // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
 import { evaluateEscalationCriteria, getGroupEscalationOwners } from '../domain/escalationCriteria';
+// === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === même
+// regroupement en 5 paniers que le Tableau de bord (Phase 1), pour que les
+// onglets de filtre affichent exactement les mêmes catégories.
+import { AlertStatusBucket, getAlertStatusBucket, isRejectedBucket } from '../domain/alertStatusBuckets';
 
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 // Petit composant partagé entre les deux groupes (compatibles / autorisés
@@ -211,12 +218,17 @@ interface InvestigationDeskProps {
   // every case — it narrows the list to cases assigned to the *active* user
   // specifically, without touching the underlying visibility rule itself.
   initialFilter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean };
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === bouton
+  // "+ Nouveau" de la maquette — optionnel, additif (chaque appelant qui ne
+  // le passe pas garde simplement le bouton masqué, comportement inchangé).
+  onCreateNewCase?: () => void;
 }
 
 export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   lang,
   activeUser,
   initialFilter,
+  onCreateNewCase,
 }) => {
   const t = TRANSLATIONS[lang];
 
@@ -246,6 +258,19 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [overdueOnlyFilter, setOverdueOnlyFilter] = useState<boolean>(!!initialFilter?.overdueOnly);
   // === AMÉLIORATION AJOUTÉE (Phase 9 — écran dédié "Mes Dossiers") ===
   const [myCasesOnlyFilter] = useState<boolean>(!!initialFilter?.myCasesOnly);
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === onglets
+  // de filtre par panier de statut façon maquette — filtre plus large que
+  // `statusFilter` (un panier regroupe plusieurs statuts réels). Initialisé
+  // sur le panier du statut éventuellement précisé par `initialFilter`, pour
+  // que l'onglet correspondant apparaisse déjà actif sur un deep link
+  // existant (ex. depuis le Tableau de bord).
+  const [bucketFilter, setBucketFilter] = useState<AlertStatusBucket | 'all'>(
+    initialFilter?.status ? getAlertStatusBucket(initialFilter.status as AlertStatus) : 'all'
+  );
+  // Pagination façon maquette (10/page) — cet écran affichait jusqu'ici
+  // l'intégralité de la liste sans découpage.
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // Selected case active tab
   // === AMÉLIORATION AJOUTÉE (Phase 11 — 9 onglets exacts de la maquette) ===
@@ -379,10 +404,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     (a.independentRoutingExcludedUserIds ?? []).includes(activeUser.id)
   );
 
-  const visibleAlerts = baseVisibleAlerts.filter(alert => {
-    // Status filter
-    if (statusFilter !== 'all' && alert.status !== statusFilter) return false;
-
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+  // Filtres "hors statut" calculés séparément (entité/NOCA/non-attribués/
+  // en retard/mes dossiers/recherche) — même logique qu'avant, simplement
+  // isolée pour que les compteurs des onglets de statut ci-dessous
+  // (bucketTabCounts) reflètent ces filtres en direct sans dupliquer cette
+  // logique une seconde fois.
+  const preStatusFilteredAlerts = baseVisibleAlerts.filter(alert => {
     // Entity filter
     if (entityFilter !== 'all' && alert.concernedEntity !== entityFilter) return false;
 
@@ -407,6 +435,42 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
     return true;
   });
+
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+  // Compteurs des onglets de filtre par panier (façon maquette : Tous/À
+  // traiter/En cours/En attente/Clôturés/Rejetés) — "rejetes" reste
+  // honnêtement à 0 aujourd'hui (voir domain/alertStatusBuckets.ts).
+  const bucketTabCounts: Record<AlertStatusBucket | 'all', number> = {
+    all: preStatusFilteredAlerts.length,
+    a_traiter: preStatusFilteredAlerts.filter((a) => getAlertStatusBucket(a.status) === 'a_traiter').length,
+    en_cours: preStatusFilteredAlerts.filter((a) => getAlertStatusBucket(a.status) === 'en_cours').length,
+    en_attente: preStatusFilteredAlerts.filter((a) => getAlertStatusBucket(a.status) === 'en_attente').length,
+    clotures: preStatusFilteredAlerts.filter((a) => getAlertStatusBucket(a.status) === 'clotures').length,
+    rejetes: preStatusFilteredAlerts.filter((a) => isRejectedBucket(a.status)).length,
+  };
+
+  const visibleAlerts = preStatusFilteredAlerts.filter(alert => {
+    // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+    // Onglet de panier (large, façon maquette) — se combine sans conflit
+    // avec `statusFilter` (plus précis, toujours utilisé par les deep links
+    // existants type `{ status: 'new' }`) : un panier est toujours un
+    // sur-ensemble d'un statut précis, donc les deux peuvent s'appliquer
+    // ensemble sans jamais se contredire.
+    if (bucketFilter !== 'all' && getAlertStatusBucket(alert.status) !== bucketFilter) return false;
+    // Status filter
+    if (statusFilter !== 'all' && alert.status !== statusFilter) return false;
+    return true;
+  });
+
+  // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+  // Pagination façon maquette (10 dossiers/page) — la page revient à 1 dès
+  // qu'un filtre change, pour ne jamais rester bloqué sur une page devenue
+  // vide.
+  const totalPages = Math.max(1, Math.ceil(visibleAlerts.length / PAGE_SIZE));
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, entityFilter, nocaFilter, bucketFilter, searchQuery, unassignedOnlyFilter, overdueOnlyFilter]);
+  const pagedAlerts = visibleAlerts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Currently active selected alert
   // Only auto-falls-back to the first visible case while actually in detail
@@ -1042,84 +1106,164 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           screen, shown one at a time via viewMode — replacing the previous
           always-both split-pane. Same data, same filters, same handlers. */}
       {viewMode === 'list' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-700 uppercase tracking-wider">
-              Dossiers ({visibleAlerts.length})
-            </span>
-            <span className="text-[11px] text-slate-500">
-              {isGlobalViewer ? 'Toutes filiales' : 'Assignés'}
-            </span>
+        <div className="space-y-3">
+          {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
+              Onglets de filtre par panier de statut + bouton "+ Nouveau",
+              façon maquette. Les filtres détaillés existants (recherche,
+              statut précis, entité, NOCA, non-attribués, en retard) restent
+              inchangés dans le bloc "Filtre bar" juste au-dessus — rien
+              n'est retiré, ce nouveau raccourci s'ajoute simplement. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              {(
+                [
+                  ['all', t.db_bucket_tous],
+                  ['a_traiter', t.db_bucket_a_traiter],
+                  ['en_cours', t.db_bucket_en_cours],
+                  ['en_attente', t.db_bucket_en_attente],
+                  ['clotures', t.db_bucket_clotures],
+                  ['rejetes', t.db_bucket_rejetes],
+                ] as [AlertStatusBucket | 'all', string][]
+              ).map(([bucket, label]) => (
+                <button
+                  key={bucket}
+                  onClick={() => setBucketFilter(bucket)}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition border ${
+                    bucketFilter === bucket
+                      ? 'bg-[#0B2545] text-white border-[#0B2545]'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                  }`}
+                >
+                  {label} ({bucketTabCounts[bucket]})
+                </button>
+              ))}
+            </div>
+            {onCreateNewCase && (
+              <button
+                onClick={onCreateNewCase}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" /> {t.db_new_case_button}
+              </button>
+            )}
           </div>
 
-          {visibleAlerts.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-500">
-              Aucun dossier ne correspond à vos critères de filtrage.
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-700 uppercase tracking-wider">
+                Dossiers ({visibleAlerts.length})
+              </span>
+              <span className="text-[11px] text-slate-500">
+                {isGlobalViewer ? 'Toutes filiales' : 'Assignés'}
+              </span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-4">
-              {visibleAlerts.map((alert) => {
-                const isSelected = selectedAlert?.id === alert.id;
-                return (
-                  <div
-                    key={alert.id}
-                    onClick={() => {
-                      setSelectedAlertId(alert.id);
-                      setViewMode('detail');
-                      storage.logAudit(
-                        'ALERT_ACCESSED',
-                        `Consultation de la fiche dossier ${alert.trackingNumber} par ${activeUser.name}.`,
-                        { id: alert.id, trackingNumber: alert.trackingNumber },
-                        activeUser
-                      );
-                    }}
-                    className={`p-4 rounded-xl border cursor-pointer transition ${
-                      isSelected
-                        ? 'bg-blue-50/70 border-blue-400 ring-1 ring-blue-200'
-                        : 'border-slate-200 hover:border-blue-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-mono font-bold text-xs text-[#0B2545] flex items-center gap-1.5">
-                        {alert.trackingNumber}
-                        {getConfidentialityBadge(alert)}
-                      </span>
-                      {getPriorityBadge(alert)}
-                    </div>
 
-                    <div className="font-semibold text-xs text-slate-900 line-clamp-1 mb-1">
-                      {alert.category}
-                    </div>
-
-                    <div className="text-[11px] text-slate-600 line-clamp-2 mb-2">
-                      {alert.detailedDescription}
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-slate-100">
-                      <span className="flex items-center gap-1 font-medium text-slate-700 truncate max-w-[160px]">
-                        <Building2 className="w-3 h-3 text-slate-400" />
-                        {alert.concernedEntity}
-                      </span>
-
-                      <div className="flex items-center gap-2">
-                        {alert.messages.length > 0 && (
-                          <span className="flex items-center gap-0.5 text-blue-600 font-semibold">
-                            <MessageSquare className="w-3 h-3" />
-                            {alert.messages.length}
-                          </span>
-                        )}
-                        <span className={`font-semibold ${
-                          alert.status === 'closed' ? 'text-emerald-700' : 'text-slate-600'
-                        }`}>
-                          {alert.status.toUpperCase()}
+            <div className="p-4">
+              <DataTable
+                columns={
+                  [
+                    {
+                      key: 'id',
+                      header: 'N° Dossier',
+                      render: (alert) => (
+                        <span className="font-mono font-bold text-[#0B2545] flex items-center gap-1.5">
+                          {alert.trackingNumber}
+                          {getConfidentialityBadge(alert)}
                         </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                      ),
+                    },
+                    {
+                      key: 'object',
+                      header: 'Objet',
+                      render: (alert) => <span className="line-clamp-1 max-w-[220px]">{alert.detailedDescription}</span>,
+                      hideOnMobile: true,
+                    },
+                    {
+                      key: 'country_entity',
+                      header: 'Pays / Entité',
+                      render: (alert) => (
+                        <span className="flex items-center gap-1 truncate max-w-[160px]">
+                          <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+                          {alert.concernedEntity}
+                        </span>
+                      ),
+                      hideOnMobile: true,
+                    },
+                    { key: 'category', header: 'Catégorie', render: (alert) => alert.category },
+                    {
+                      key: 'status',
+                      header: 'Statut',
+                      render: (alert) => (
+                        <StatusBadge
+                          status={alert.status === 'corrective_action' ? 'closed' : (alert.status as any)}
+                          label={t[`status_${alert.status}` as keyof typeof t] ?? alert.status}
+                          size="sm"
+                        />
+                      ),
+                    },
+                    { key: 'priority', header: 'Priorité', render: (alert) => getPriorityBadge(alert) },
+                    {
+                      key: 'received',
+                      header: 'Reçu le',
+                      render: (alert) => new Date(alert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'),
+                      hideOnMobile: true,
+                    },
+                  ] as DataTableColumn<AlertRecord>[]
+                }
+                rows={pagedAlerts}
+                getRowKey={(alert) => alert.id}
+                onRowClick={(alert) => {
+                  setSelectedAlertId(alert.id);
+                  setViewMode('detail');
+                  storage.logAudit(
+                    'ALERT_ACCESSED',
+                    `Consultation de la fiche dossier ${alert.trackingNumber} par ${activeUser.name}.`,
+                    { id: alert.id, trackingNumber: alert.trackingNumber },
+                    activeUser
+                  );
+                }}
+                emptyTitle="Aucun dossier ne correspond à vos critères de filtrage."
+              />
             </div>
-          )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === */}
+            {visibleAlerts.length > 0 && totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-[11px] text-slate-500">
+                <span>{visibleAlerts.length} résultats</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                    .map((p, idx, arr) => (
+                      <React.Fragment key={p}>
+                        {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-slate-300">…</span>}
+                        <button
+                          onClick={() => setCurrentPage(p)}
+                          className={`w-7 h-7 rounded-lg font-bold ${
+                            p === currentPage ? 'bg-[#0B2545] text-white' : 'border border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
