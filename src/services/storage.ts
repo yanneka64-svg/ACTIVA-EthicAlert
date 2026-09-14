@@ -1,5 +1,5 @@
 import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile } from '../types';
-import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG } from '../data/activaConfig';
+import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG, HierarchyLevels, DEFAULT_HIERARCHY_LEVELS } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
 import { CaseStatus } from '../domain/caseTypes';
@@ -19,6 +19,8 @@ const STORAGE_KEYS = {
   COUNTRIES: 'activa_ethicalert_countries_v1',
   // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
   SLA_CONFIG: 'activa_ethicalert_sla_config_v1',
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+  HIERARCHY_LEVELS: 'activa_ethicalert_hierarchy_levels_v1',
 };
 
 // Event dispatched when data changes
@@ -42,6 +44,9 @@ class StorageService {
   private countries: CountryDef[] = [];
   // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
   private slaConfig: SlaConfig = DEFAULT_SLA_CONFIG;
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+  // Même motif seed-then-mutate que slaConfig ci-dessus.
+  private hierarchyLevels: HierarchyLevels = DEFAULT_HIERARCHY_LEVELS;
 
   constructor() {
     this.init();
@@ -114,6 +119,15 @@ class StorageService {
         this.slaConfig = { ...DEFAULT_SLA_CONFIG };
         this.persistSlaConfig();
       }
+
+      // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+      const storedHierarchyLevels = localStorage.getItem(STORAGE_KEYS.HIERARCHY_LEVELS);
+      if (storedHierarchyLevels) {
+        this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS, ...JSON.parse(storedHierarchyLevels) };
+      } else {
+        this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
+        this.persistHierarchyLevels();
+      }
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
       this.alerts = [...INITIAL_ALERTS];
@@ -125,6 +139,8 @@ class StorageService {
       // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
       this.countries = [...ACTIVA_COUNTRIES];
       this.slaConfig = { ...DEFAULT_SLA_CONFIG };
+      // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+      this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
     }
   }
 
@@ -190,6 +206,15 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.SLA_CONFIG, JSON.stringify(this.slaConfig));
     } catch (e) {
       console.error('Failed to persist SLA config', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+  private persistHierarchyLevels() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.HIERARCHY_LEVELS, JSON.stringify(this.hierarchyLevels));
+    } catch (e) {
+      console.error('Failed to persist hierarchy levels', e);
     }
   }
 
@@ -620,6 +645,28 @@ class StorageService {
     );
   }
 
+  // --- Hierarchy levels API (Phase 1 — routage indépendant) ---
+  // Table par rôle utilisée par domain/independentRouting.ts pour trouver
+  // une autorité indépendante de niveau strictement supérieur. Réservée en
+  // écriture à system_admin en administration (AdminConfigView.tsx, onglet
+  // Gouvernance, Phase 5) — même garde `configuration.manage` que SLA/
+  // matrice de risque/catégories/entités/pays ci-dessus.
+  public getHierarchyLevels(): HierarchyLevels {
+    return { ...this.hierarchyLevels };
+  }
+
+  public updateHierarchyLevels(updates: Partial<HierarchyLevels>, actor: UserProfile): void {
+    this.hierarchyLevels = { ...this.hierarchyLevels, ...updates };
+    this.persistHierarchyLevels();
+    this.notify();
+    this.logAudit(
+      'CONFIG_UPDATED',
+      `Niveaux hiérarchiques de routage indépendant mis à jour par ${actor.name}.`,
+      undefined,
+      actor
+    );
+  }
+
   // --- Draft auto-save for whistleblowers ---
   public getDraft(): any {
     try {
@@ -668,6 +715,8 @@ class StorageService {
     this.countries = [...ACTIVA_COUNTRIES];
     // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
     this.slaConfig = { ...DEFAULT_SLA_CONFIG };
+    // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+    this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS };
     this.persistAlerts();
     this.persistAuditLogs();
     this.persistUsers();
@@ -675,6 +724,7 @@ class StorageService {
     this.persistCategories();
     this.persistCountries();
     this.persistSlaConfig();
+    this.persistHierarchyLevels();
     this.clearDraft();
     this.notify();
   }

@@ -80,6 +80,14 @@ export interface InvolvedPerson {
   name: string;
   position: string;
   hierarchyRole: 'Employé' | 'Cadre' | 'Sous-Directeur' | 'Directeur+';
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+  // Rattachement optionnel de cette personne mise en cause à un compte réel
+  // de la plateforme (UserProfile.id), renseigné au triage par un
+  // opérateur/enquêteur qui la reconnaît (voir InvestigationDesk.tsx,
+  // Phase 2). Absent = personne externe, comportement inchangé. Dès que
+  // ce champ est défini, le routage indépendant (domain/independentRouting.ts,
+  // Phase 3-4) exclut automatiquement ce compte de l'accès au dossier.
+  linkedUserId?: string;
 }
 
 export interface Witness {
@@ -87,6 +95,12 @@ export interface Witness {
   name: string;
   position: string;
   hierarchyRole: 'Employé' | 'Cadre' | 'Sous-Directeur' | 'Directeur+';
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+  // Même rattachement optionnel que InvolvedPerson.linkedUserId ci-dessus.
+  // Un témoin lié est un facteur de conflit pour une CIBLE de routage
+  // (il ne peut pas hériter le dossier), mais n'est PAS exclu de la
+  // visibilité du dossier — seule la personne mise en cause l'est (§49).
+  linkedUserId?: string;
 }
 
 export interface EvidenceFile {
@@ -232,6 +246,19 @@ export interface AlertRecord {
   escalatedBy?: string;
   escalatedReason?: string;
   escalatedOwnerId?: string;
+  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+  // Routage indépendant (brief §47-68) : lorsqu'une personne mise en cause
+  // est rattachée à un compte réel (InvolvedPerson.linkedUserId/
+  // Witness.linkedUserId), storage.triggerIndependentRouting() (Phase 4)
+  // calcule ici les comptes exclus de tout accès au dossier, et réutilise
+  // escalatedAt/By/Reason/OwnerId ci-dessus (jamais de champs dupliqués)
+  // pour enregistrer vers qui le dossier a été routé et pourquoi.
+  // independentRoutingUnresolved = true quand aucune autorité indépendante
+  // n'a été trouvée (ex. le rôle opérationnel le plus élevé est lui-même
+  // mis en cause) : nécessite une intervention manuelle, volontairement un
+  // indicateur orthogonal plutôt qu'une extension de workflowStatus.
+  independentRoutingExcludedUserIds?: string[];
+  independentRoutingUnresolved?: boolean;
 
   // Communication & Notes
   internalNotes: InternalNote[];
@@ -357,7 +384,10 @@ export interface AuditLogEntry {
     // === AMÉLIORATION AJOUTÉE : traçabilité des tentatives d'accès refusées (rate limiting) ===
     | 'ACCESS_DENIED'
     // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-    | 'CASE_ESCALATED';
+    | 'CASE_ESCALATED'
+    // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
+    | 'INDEPENDENT_ROUTING_TRIGGERED'
+    | 'NO_INDEPENDENT_AUTHORITY_FOUND';
   details: string;
   timestamp: string;
   ipAddress?: string;
