@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   FolderOpen,
   Search,
-  ListTodo,
   Paperclip,
   MessageSquare,
   Wrench,
@@ -27,6 +26,8 @@ import {
   Clock3,
   CheckCircle2,
   ListChecks,
+  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des investigations) ===
+  BarChart3,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -152,7 +153,14 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // functional_admin, garde "Toutes les X" même depuis l'espace Enquêteur).
   const toolsItems: Array<Omit<NavItem, 'group'>> = [
     { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" /> },
-    { key: 'tasks', label: canSeeControlPanel ? t.sidebar_tasks_registry : t.sidebar_my_tasks, icon: <ListTodo className="w-4 h-4" /> },
+    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des
+    // investigations) === libellé unique (plus de distinction Mes/Toutes
+    // les tâches) : cet écran n'est plus un registre à plat des tâches
+    // mais un tableau de bord de suivi par dossier — le périmètre réel
+    // (tous les dossiers pour un compte à vision globale, seulement les
+    // siens sinon) reste géré par useVisibleAlerts comme partout ailleurs,
+    // sans que le nom de l'écran ait besoin de le préciser.
+    { key: 'tasks', label: t.reg_investigations_title, icon: <BarChart3 className="w-4 h-4" /> },
     { key: 'evidence', label: canSeeControlPanel ? t.sidebar_evidence_registry : t.sidebar_my_evidence, icon: <Paperclip className="w-4 h-4" /> },
     { key: 'communications', label: canSeeControlPanel ? t.sidebar_comms_registry : t.sidebar_my_comms, icon: <MessageSquare className="w-4 h-4" /> },
     { key: 'corrective_actions', label: t.sidebar_corrective_measures, icon: <Wrench className="w-4 h-4" /> },
