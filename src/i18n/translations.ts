@@ -765,6 +765,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_tasks_registry: 'Toutes les tâches',
     sidebar_evidence_registry: 'Toutes les preuves',
     sidebar_comms_registry: 'Toutes les communications',
+    // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
+    // Un compte sans vision globale (ex. investigator) ne voit jamais
+    // "toutes" les données via ces écrans — computeVisibleAlerts
+    // (useVisibleAlerts.ts) le limite déjà à ses dossiers assignés. Ces
+    // libellés reflètent ce périmètre réel au lieu de dire "Toutes" à tort.
+    sidebar_my_tasks: 'Mes tâches',
+    sidebar_my_evidence: 'Mes preuves',
+    sidebar_my_comms: 'Mes communications',
     sidebar_help_title: 'Besoin d’aide ?',
     sidebar_help_body: 'Consultez la documentation ou contactez l’équipe conformité.',
     footer_confidentiality: 'Confidentialité',
@@ -1543,6 +1551,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_tasks_registry: 'All Tasks',
     sidebar_evidence_registry: 'All Evidence',
     sidebar_comms_registry: 'All Communications',
+    // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
+    sidebar_my_tasks: 'My Tasks',
+    sidebar_my_evidence: 'My Evidence',
+    sidebar_my_comms: 'My Communications',
     sidebar_help_title: 'Need help?',
     sidebar_help_body: 'Check the documentation or contact the compliance team.',
     footer_confidentiality: 'Confidentiality',
@@ -2317,6 +2329,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_tasks_registry: 'Todas as tarefas',
     sidebar_evidence_registry: 'Todas as provas',
     sidebar_comms_registry: 'Todas as comunicações',
+    // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
+    sidebar_my_tasks: 'Minhas tarefas',
+    sidebar_my_evidence: 'Minhas provas',
+    sidebar_my_comms: 'Minhas comunicações',
     sidebar_help_title: 'Precisa de ajuda?',
     sidebar_help_body: 'Consulte a documentação ou contacte a equipa de conformidade.',
     footer_confidentiality: 'Confidencialidade',

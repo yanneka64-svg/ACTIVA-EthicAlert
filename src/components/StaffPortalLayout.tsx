@@ -156,11 +156,22 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // un compte admin-only, ex. system_admin, n'a de toute façon aucun accès
   // réel aux dossiers — brief section 30 — ces raccourcis y étaient déjà
   // des impasses avant cette phase, pas une fonctionnalité perdue).
+  //
+  // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le
+  // périmètre réel) === Ces 3 écrans (Tâches/Preuves/Communications) sont
+  // filtrés par `computeVisibleAlerts` (useVisibleAlerts.ts) : un compte
+  // sans vision globale du rôle (`isGlobalCaseViewer` — ex. investigator)
+  // n'y voit JAMAIS "toutes" les données, seulement celles des dossiers qui
+  // lui sont assignés. "Toutes les tâches" serait donc trompeur pour un tel
+  // compte — le libellé bascule sur "Mes tâches"/"Mes preuves"/"Mes
+  // communications" selon le périmètre réel du compte connecté, pas selon
+  // l'espace actuellement sélectionné (un compte à vision globale, ex.
+  // functional_admin, garde "Toutes les X" même depuis l'espace Enquêteur).
   const toolsItems: Array<Omit<NavItem, 'group'>> = [
     { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" /> },
-    { key: 'tasks', label: t.sidebar_tasks_registry, icon: <ListTodo className="w-4 h-4" /> },
-    { key: 'evidence', label: t.sidebar_evidence_registry, icon: <Paperclip className="w-4 h-4" /> },
-    { key: 'communications', label: t.sidebar_comms_registry, icon: <MessageSquare className="w-4 h-4" /> },
+    { key: 'tasks', label: canSeeControlPanel ? t.sidebar_tasks_registry : t.sidebar_my_tasks, icon: <ListTodo className="w-4 h-4" /> },
+    { key: 'evidence', label: canSeeControlPanel ? t.sidebar_evidence_registry : t.sidebar_my_evidence, icon: <Paperclip className="w-4 h-4" /> },
+    { key: 'communications', label: canSeeControlPanel ? t.sidebar_comms_registry : t.sidebar_my_comms, icon: <MessageSquare className="w-4 h-4" /> },
     { key: 'corrective_actions', label: t.sidebar_corrective_measures, icon: <Wrench className="w-4 h-4" /> },
     { key: 'reports', label: t.sidebar_reports_exports, icon: <LayoutGrid className="w-4 h-4" /> },
   ];

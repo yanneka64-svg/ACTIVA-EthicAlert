@@ -83,8 +83,16 @@ const STAFF_TAB_KEYS = [
   // === AMÉLIORATION AJOUTÉE (Phase 11) ===
   'admin_roles',
   // === AMÉLIORATION AJOUTÉE (Phase 6 — espaces /operator /investigator /admin) ===
-  'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed', 'op_search', 'op_reports', 'op_communications',
-  'inv_dashboard', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending', 'inv_tasks', 'inv_evidence', 'inv_communications', 'inv_reports', 'inv_search',
+  // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons morts) ===
+  // `op_search`/`op_reports`/`op_communications`/`inv_tasks`/`inv_evidence`/
+  // `inv_communications`/`inv_reports`/`inv_search` retirés de cette liste :
+  // ils rendaient le même écran que `advanced_search`/`reports`/
+  // `communications`/`tasks`/`evidence` sans aucune différence fonctionnelle,
+  // et n'étaient plus atteignables par aucun bouton de menu depuis la
+  // Proposition B (voir StaffPortalLayout.tsx). Leurs anciennes URLs restent
+  // fonctionnelles via un alias dans routing/routes.ts.
+  'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed',
+  'inv_dashboard', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending',
   'admin_audit', 'admin_reports', 'admin_organization',
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   'admin_governance',
@@ -420,7 +428,10 @@ function AppShell() {
             lang={lang}
             activeUser={activeUser}
             onNavigateToCases={navigateToCases}
-            onNavigateToReports={() => goToTab('op_reports')}
+            // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons morts) ===
+            // Pointait vers `op_reports`, un doublon exact de `reports`
+            // retiré ci-dessous — même écran, une seule route désormais.
+            onNavigateToReports={() => goToTab('reports')}
             onNavigateToNewCase={() => goToTab('new_alert')}
           />
         </PermissionGuard>
@@ -436,29 +447,27 @@ function AppShell() {
       );
     }
     if (currentTab === 'op_processed') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'closed' }} />;
-    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === réouvrait
-    // simplement l'écran Dossiers (barre de recherche mot-clé existante) —
-    // pointe désormais vers le vrai formulaire multicritère.
-    if (currentTab === 'op_search') return <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'op_reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
-    if (currentTab === 'op_communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
+    // morts) === `op_search`/`op_reports`/`op_communications` (Phase 6)
+    // supprimés d'ici : ils rendaient exactement `advanced_search`/
+    // `reports`/`communications` ci-dessous, sans aucune différence
+    // fonctionnelle, et n'étaient plus reliés à aucun bouton de menu depuis
+    // la Proposition B. Leurs anciennes URLs restent fonctionnelles
+    // (routing/routes.ts, LEGACY_PATH_ALIASES) et retombent directement sur
+    // ces mêmes branches partagées.
 
     if (currentTab === 'inv_dashboard') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
     if (currentTab === 'inv_my_cases') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
     if (currentTab === 'inv_to_process') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'new' }} />;
     if (currentTab === 'inv_in_progress') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'investigation' }} />;
     if (currentTab === 'inv_pending') return <InvestigationDesk lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true, status: 'under_review' }} />;
-    if (currentTab === 'inv_tasks') return <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'inv_evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'inv_communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'inv_reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
-    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === même correctif
-    // que op_search ci-dessus.
-    if (currentTab === 'inv_search') return <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === nouvelle
-    // entrée de barre latérale partagée (pas propre à un espace) — même
-    // écran que op_search/inv_search ci-dessus, useVisibleAlerts limite
-    // déjà correctement le périmètre pour n'importe quel rôle.
+    // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
+    // morts) === `inv_tasks`/`inv_evidence`/`inv_communications`/
+    // `inv_reports`/`inv_search` (Phase 6) supprimés d'ici, même motif que
+    // op_search/op_reports/op_communications ci-dessus.
+    // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === entrée de
+    // barre latérale partagée (pas propre à un espace) — useVisibleAlerts
+    // limite déjà correctement le périmètre pour n'importe quel rôle.
     if (currentTab === 'advanced_search') return <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
 
     if (currentTab === 'admin_audit') {
