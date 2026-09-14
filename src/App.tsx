@@ -84,6 +84,8 @@ const STAFF_TAB_KEYS = [
   'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed', 'op_search', 'op_reports', 'op_communications',
   'inv_dashboard', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending', 'inv_tasks', 'inv_evidence', 'inv_communications', 'inv_reports', 'inv_search',
   'admin_audit', 'admin_reports', 'admin_organization',
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+  'admin_governance',
 ];
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
@@ -451,6 +453,14 @@ function AppShell() {
       return (
         <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Organisation">
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="organization" />
+        </PermissionGuard>
+      );
+    }
+    // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+    if (currentTab === 'admin_governance') {
+      return (
+        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Gouvernance">
+          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="governance" />
         </PermissionGuard>
       );
     }

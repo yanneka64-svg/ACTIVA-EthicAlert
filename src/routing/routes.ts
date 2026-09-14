@@ -85,6 +85,8 @@ export const TAB_TO_PATH: Record<string, string> = {
   admin_reports: '/admin/reports',
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   admin_organization: '/admin/organization',
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+  admin_governance: '/admin/governance',
 };
 
 const PATH_TO_TAB: Record<string, string> = Object.fromEntries(

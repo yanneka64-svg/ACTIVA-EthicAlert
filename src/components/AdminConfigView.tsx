@@ -14,11 +14,13 @@ import {
   Cloud,
   Server,
   Pencil,
-  X
+  X,
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+  Network,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { EntityDef, CategoryDef, CountryDef } from '../data/activaConfig';
+import { EntityDef, CategoryDef, CountryDef, HierarchyLevels } from '../data/activaConfig';
 import { storage } from '../services/storage';
 import {
   isFirebaseConfigured,
@@ -32,6 +34,8 @@ import {
 // existing data — src/domain/permissions.ts itself is never modified.
 import { ROLE_PERMISSIONS, Permission } from '../domain/permissions';
 import { RoleId } from '../domain/caseTypes';
+// === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+import { getRoutingMatrixView } from '../domain/independentRouting';
 
 interface AdminConfigViewProps {
   lang: Language;
@@ -45,7 +49,8 @@ interface AdminConfigViewProps {
   // n'est retiré, le sélecteur d'onglets complet reste toujours visible et
   // navigable, exactement comme avant.
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
-  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database';
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === 'governance'
+  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance';
 }
 
 export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
@@ -55,7 +60,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database'>(initialTab ?? 'matrix');
+  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance'>(initialTab ?? 'matrix');
   const [saveBanner, setSaveBanner] = useState('');
 
   // Firebase connection state
@@ -98,6 +103,18 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     e.preventDefault();
     storage.updateSlaConfig({ noca1Days: slaNoca1, noca2Days: slaNoca2, noca3Days: slaNoca3, noca4Days: slaNoca4 }, activeUser);
     flashBanner('Délais SLA mis à jour.');
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+  // --- Hierarchy levels state (routage indépendant) --- même motif
+  // seed-then-edit-then-save que la configuration SLA ci-dessus : une
+  // copie locale éditée puis sauvegardée explicitement, jamais écrite
+  // directement dans storage.ts à chaque frappe.
+  const [hierarchyLevelsDraft, setHierarchyLevelsDraft] = useState<HierarchyLevels>(storage.getHierarchyLevels());
+  const handleSaveHierarchyLevels = (e: React.FormEvent) => {
+    e.preventDefault();
+    storage.updateHierarchyLevels(hierarchyLevelsDraft, activeUser);
+    flashBanner('Niveaux hiérarchiques de routage indépendant mis à jour.');
   };
 
   // --- Entities CRUD state ---
@@ -576,6 +593,16 @@ service cloud.firestore {
             }`}
           >
             Rôles & Permissions
+          </button>
+          {/* === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === */}
+          <button
+            onClick={() => setConfigTab('governance')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+              configTab === 'governance' ? 'bg-[#0B2545] text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Network className="w-3.5 h-3.5" />
+            <span>Gouvernance (Routage indépendant)</span>
           </button>
           <button
             onClick={() => setConfigTab('database')}
@@ -1060,6 +1087,77 @@ service cloud.firestore {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+          GOUVERNANCE TAB — hiérarchie PAR RÔLE (jamais codée en dur, brief
+          §47-68) utilisée par domain/independentRouting.ts pour trouver une
+          autorité indépendante de niveau strictement supérieur, + vue
+          dérivée en LECTURE SEULE (getRoutingMatrixView) : jamais une
+          seconde table à maintenir à la main, qui pourrait diverger de la
+          table de niveaux éditée ci-dessous. */}
+      {configTab === 'governance' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6 text-xs">
+          <div className="border-b border-slate-100 pb-3">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <Network className="w-4 h-4 text-blue-700" />
+              Routage indépendant — Niveaux hiérarchiques
+            </h3>
+            <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
+              Lorsqu'un signalement met en cause un opérateur, un enquêteur ou un administrateur (personne
+              impliquée rattachée à un compte réel, onglet Personnes d'un dossier), ce compte perd tout accès et
+              le dossier est routé vers un compte dont le rôle a un niveau strictement supérieur ci-dessous, capable
+              d'investiguer (Enquêteur/Admin fonctionnel/Conformité DARC), en priorité de même périmètre pays/entité,
+              sinon vers le Groupe. Aucune autorité disponible → intervention manuelle requise (piste d'audit,
+              indicateur "NO_INDEPENDENT_AUTHORITY_FOUND").
+            </p>
+          </div>
+
+          <form onSubmit={handleSaveHierarchyLevels} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ALL_ROLE_IDS.map((r) => (
+                <label key={r} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200">
+                  <span className="font-semibold text-slate-700">{ROLE_ID_LABELS[r]}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={hierarchyLevelsDraft[r]}
+                    onChange={(e) =>
+                      setHierarchyLevelsDraft((prev) => ({ ...prev, [r]: Number(e.target.value) || 0 }))
+                    }
+                    className="w-20 px-2.5 py-1.5 border border-slate-300 rounded-lg text-right font-mono"
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition"
+              >
+                Enregistrer les niveaux
+              </button>
+            </div>
+          </form>
+
+          <div className="pt-2 border-t border-slate-100">
+            <h4 className="font-bold text-slate-900 mb-2">
+              Vue dérivée — autorité de repli par rôle (lecture seule)
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {getRoutingMatrixView(hierarchyLevelsDraft).map((row) => (
+                <div key={row.role} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2">
+                  <span className="text-slate-700 font-medium">{ROLE_ID_LABELS[row.role]} (niveau {row.level})</span>
+                  <span className="text-slate-500 text-right">
+                    {row.nextLevelRoles.length > 0
+                      ? row.nextLevelRoles.map((r) => ROLE_ID_LABELS[r]).join(', ')
+                      : 'Aucune — intervention manuelle'}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

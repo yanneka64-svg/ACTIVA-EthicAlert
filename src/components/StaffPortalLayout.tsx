@@ -16,6 +16,8 @@ import {
   HelpCircle,
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   Globe2,
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+  Network,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -85,7 +87,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   const showSpaceSwitcher = spaceCount >= 2;
   const isOperatorTabActive = currentTab.startsWith('op_');
   const isInvestigatorTabActive = currentTab.startsWith('inv_');
-  const isAdminTabActive = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization'].includes(currentTab);
+  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === 'admin_governance' ajouté
+  const isAdminTabActive = ['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance'].includes(currentTab);
 
   const navItems: Array<{ key: string; label: string; icon: React.ReactNode; visible: boolean; group: string }> = [
     { key: 'control_panel', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, visible: canSeeControlPanel, group: '' },
@@ -103,6 +106,10 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 
     // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
     { key: 'admin_organization', label: 'Organisation (Pays)', icon: <Globe2 className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
+    // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === libellé en
+    // dur, même précédent que "Organisation (Pays)" ci-dessus (Phase 8) —
+    // pas de nouvelle clé i18n pour un libellé admin-only.
+    { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
     { key: 'settings', label: t.sidebar_admin_settings, icon: <Settings className="w-4 h-4" />, visible: canSeeAdmin, group: t.sidebar_group_admin },
