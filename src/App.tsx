@@ -411,6 +411,7 @@ function AppShell() {
             lang={lang}
             initialTrackingNumber={prefilledTrackingNumber}
             onGoToNewAlert={() => goToTab('new_alert')}
+            onGoToContact={() => goToTab('contact')}
           />
         )}
 

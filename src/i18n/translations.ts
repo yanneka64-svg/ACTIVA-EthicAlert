@@ -282,7 +282,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_confidential_note_desc: 'Seules les personnes habilitées au sein de la Direction d’Audit, des Risques et de la Conformité ont accès à ce dossier.',
     track_id_identified: 'Identifié',
     track_id_anonymous: 'Anonyme',
-    msg_box_subtitle: 'Échangez de manière confidentielle avec l’équipe d’investigation.',
+    msg_box_subtitle: 'Vos échanges sont anonymisés et protégés.',
     track_message_input_helper: 'Vous pouvez joindre des fichiers depuis l’onglet « Pièces jointes ».',
     track_docs_upload_title: 'Ajouter des pièces jointes',
     track_docs_upload_hint: 'Glissez-déposez vos fichiers ici ou cliquez pour parcourir',
@@ -294,11 +294,21 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_supplement_placeholder: 'Précisez un nouveau fait, une nouvelle date, un montant rectifié ou le nom d’un autre témoin...',
     track_supplement_warning: 'Évitez d’inclure des informations permettant de vous identifier si vous avez choisi le mode anonyme.',
     track_supplement_submit: 'Valider et transmettre',
+    // === AMÉLIORATION AJOUTÉE (Phase 34 — nouvelle maquette du portail de
+    // suivi : panneau photo sur la connexion, navigation latérale, historique
+    // en frise chronologique) ===
+    track_login_tagline: 'Un environnement plus éthique, plus sûr pour tous.',
+    track_login_photo_note: 'Un canal sécurisé, anonyme et indépendant.',
+    track_docs_subtitle: 'Ajoutez des documents pour appuyer votre signalement.',
+    track_updates_title: 'Historique du dossier',
+    track_updates_subtitle: 'Suivez toutes les étapes et actions réalisées sur votre signalement.',
+    track_you_label: 'Vous',
+    track_field_status: 'Statut',
 
     // Messaging
     // === AMÉLIORATION AJOUTÉE (Phase 33) === titre raccourci + sous-titre
     // séparé, conforme à la capture (bandeau vert avec les deux lignes).
-    msg_box_title: 'Messagerie anonyme sécurisée',
+    msg_box_title: 'Messagerie sécurisée et chiffrée',
     msg_placeholder: 'Écrivez un message ou apportez un complément d’information...',
     btn_send_msg: 'Envoyer',
 
@@ -947,7 +957,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_confidential_note_desc: 'Only authorized members of the Audit, Risk and Compliance Department have access to this case.',
     track_id_identified: 'Identified',
     track_id_anonymous: 'Anonymous',
-    msg_box_subtitle: 'Exchange confidentially with the investigation team.',
+    msg_box_subtitle: 'Your exchanges are anonymized and protected.',
     track_message_input_helper: 'You can attach files from the "Documents" tab.',
     track_docs_upload_title: 'Add attachments',
     track_docs_upload_hint: 'Drag and drop your files here or click to browse',
@@ -959,8 +969,17 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_supplement_placeholder: 'Specify a new fact, a new date, a corrected amount, or the name of another witness...',
     track_supplement_warning: 'Avoid including information that could identify you if you chose the anonymous mode.',
     track_supplement_submit: 'Submit',
+    // === AMÉLIORATION AJOUTÉE (Phase 34 — tracking portal redesign: login
+    // photo panel, sidebar navigation, timeline-style history) ===
+    track_login_tagline: 'A more ethical, safer environment for everyone.',
+    track_login_photo_note: 'A secure, anonymous, independent channel.',
+    track_docs_subtitle: 'Add documents to support your report.',
+    track_updates_title: 'Case history',
+    track_updates_subtitle: 'Follow every step and action taken on your report.',
+    track_you_label: 'You',
+    track_field_status: 'Status',
 
-    msg_box_title: 'Secure anonymous messaging',
+    msg_box_title: 'Secure, encrypted messaging',
     msg_placeholder: 'Write a message or provide additional evidence...',
     btn_send_msg: 'Send Message',
 
@@ -1597,7 +1616,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_confidential_note_desc: 'Apenas as pessoas habilitadas na Direção de Auditoria, Riscos e Conformidade têm acesso a este processo.',
     track_id_identified: 'Identificado',
     track_id_anonymous: 'Anônimo',
-    msg_box_subtitle: 'Converse de forma confidencial com a equipa de investigação.',
+    msg_box_subtitle: 'As suas trocas são anonimizadas e protegidas.',
     track_message_input_helper: 'Pode anexar ficheiros a partir do separador « Documentos ».',
     track_docs_upload_title: 'Adicionar anexos',
     track_docs_upload_hint: 'Arraste e solte os seus ficheiros aqui ou clique para procurar',
@@ -1609,8 +1628,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_supplement_placeholder: 'Especifique um novo fato, uma nova data, um montante corrigido ou o nome de outra testemunha...',
     track_supplement_warning: 'Evite incluir informações que permitam identificá-lo se escolheu o modo anônimo.',
     track_supplement_submit: 'Validar e transmitir',
+    // === AMÉLIORATION AJOUTÉE (Phase 34 — nova maquete do portal de
+    // acompanhamento: painel de foto na conexão, navegação lateral,
+    // histórico em linha do tempo) ===
+    track_login_tagline: 'Um ambiente mais ético e mais seguro para todos.',
+    track_login_photo_note: 'Um canal seguro, anônimo e independente.',
+    track_docs_subtitle: 'Adicione documentos para apoiar a sua denúncia.',
+    track_updates_title: 'Histórico do processo',
+    track_updates_subtitle: 'Acompanhe todas as etapas e ações realizadas na sua denúncia.',
+    track_you_label: 'Você',
+    track_field_status: 'Status',
 
-    msg_box_title: 'Mensagens anônimas e seguras',
+    msg_box_title: 'Mensagens seguras e encriptadas',
     msg_placeholder: 'Escreva uma mensagem ou envie informações complementares...',
     btn_send_msg: 'Enviar',
 
