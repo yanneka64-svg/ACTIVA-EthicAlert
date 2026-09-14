@@ -338,17 +338,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Account / role-switcher menu (role-switching stays crucial for demo & CDC 3.2.3 access testing) */}
             <div className="relative">
-              {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
-                  fourni) === Sur les pages publiques, le déclencheur reprend
-                  l'apparence "Connexion" (icône + libellé) de la maquette au
-                  lieu de l'avatar/nom — mais ouvre exactement le même menu
-                  de changement de profil en dessous : rien n'est perdu, la
-                  fonction de test des rôles (CDC 3.2.3) reste entière. Dans
-                  l'espace collaborateur, l'avatar + nom + rôle reste affiché
-                  (contexte où savoir "qui est connecté" a du sens). */}
+              {/* === AMÉLIORATION AJOUTÉE (page de connexion plein cadre,
+                  sur maquette fournie) === Sur les pages publiques, le
+                  bouton "Connexion" ouvre désormais le véritable écran de
+                  connexion (deux volets, photo + formulaire) plutôt que ce
+                  menu de changement de profil — cohérent avec la maquette,
+                  qui montre un écran dédié, pas un menu déroulant. Dans
+                  l'espace collaborateur (isStaffContext), rien ne change :
+                  l'avatar + nom + rôle ouvre toujours ce même menu, la
+                  fonction de test des rôles (CDC 3.2.3) reste entière. */}
               <button
                 id="btn-role-switcher"
-                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                onClick={() => (isStaffContext ? setShowUserDropdown(!showUserDropdown) : setCurrentTab('login'))}
                 className={
                   isStaffContext
                     ? 'flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 border border-transparent hover:border-slate-200 transition'
@@ -371,7 +372,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 )}
                 {!isStaffContext && <span className="hidden sm:block text-xs font-bold">{t.nav_connexion}</span>}
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+                {/* Le chevron n'a de sens que pour le menu déroulant (espace
+                    collaborateur) — "Connexion" ouvre désormais un écran,
+                    pas un menu. */}
+                {isStaffContext && <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />}
               </button>
 
               {showUserDropdown && (
