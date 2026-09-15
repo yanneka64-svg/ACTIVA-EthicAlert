@@ -182,14 +182,18 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
     predicate: (a) => a.status === 'under_review',
     rowAction: 'followup',
   },
-  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === inverse exact de
-  // "non attribués" — même règle que l'ancien `assignedOnly`.
+  // === AMÉLIORATION AJOUTÉE (Dossiers ouverts, ex-"Dossiers attribués") ===
+  // Renommé sur demande explicite, maintenant que les dossiers clôturés ont
+  // leur propre onglet dédié (`closed`, ci-dessous) : exclut désormais les
+  // dossiers déjà clôturés, pour ne plus faire doublon avec ce nouvel
+  // onglet — inverse exact de "non attribués" restreint aux dossiers
+  // encore ouverts.
   assigned: {
     icon: FolderCheck,
     titleKey: 'sidebar_op_processed',
     subtitleKey: 'ocd_assigned_subtitle',
     emptyKey: 'ocd_empty_assigned',
-    predicate: (a) => a.assignedInvestigators.length > 0,
+    predicate: (a) => a.assignedInvestigators.length > 0 && a.status !== 'closed',
     rowAction: 'reassign',
   },
   // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === même
@@ -332,7 +336,6 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   const unassignedCount = modeAlerts.filter((a) => a.assignedInvestigators.length === 0).length;
   const urgentCount = modeAlerts.filter((a) => effectivePriority(a) === 'critique' || effectivePriority(a) === 'tres_elevee').length;
   const overdueCount = modeAlerts.filter((a) => computeSlaStatus(a) === 'overdue').length;
-  const closedCount = modeAlerts.filter((a) => a.status === 'closed' || a.status === 'archived').length;
   const inProgressCount = modeAlerts.filter((a) => a.status === 'investigation').length;
   const waitingLongCount = modeAlerts.filter((a) => Date.now() - new Date(a.updatedAt).getTime() > 7 * 24 * 3600 * 1000).length;
   const receivedTodayCount = modeAlerts.filter((a) => isToday(a.createdAt)).length;
@@ -360,11 +363,16 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
         ]
       : mode === 'assigned'
-      ? [
-          { value: modeAlerts.length, label: 'Total attribués', tone: 'blue' },
+      ? // === AMÉLIORATION AJOUTÉE (Dossiers ouverts) === "Clôturés"
+        // retiré : `modeAlerts` exclut désormais les dossiers clôturés
+        // (voir MODE_CONFIG.assigned.predicate), ce chiffre serait toujours
+        // à 0 — remplacé par "Urgents / critiques", cohérent avec les
+        // autres écrans "de travail".
+        [
+          { value: modeAlerts.length, label: 'Total ouverts', tone: 'blue' },
           { value: inProgressCount, label: 'En cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: closedCount, label: 'Clôturés', tone: 'emerald' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
         ]
       : mode === 'closed'
       ? [

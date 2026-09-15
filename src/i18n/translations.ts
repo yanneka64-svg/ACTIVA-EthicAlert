@@ -544,13 +544,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ocd_inbox_subtitle: 'Tous les signalements reçus du public — triez-les et échangez avec le lanceur d’alerte avant attribution.',
     ocd_to_assign_subtitle: 'Dossiers nouveaux et en cours, classés par pays, entité, nature, criticité, sévérité et urgence — attribuez-les à un enquêteur.',
     ocd_pending_info_subtitle: 'Dossiers en cours nécessitant des informations complémentaires du lanceur d’alerte.',
-    ocd_assigned_subtitle: 'Toutes les affaires déjà attribuées à un enquêteur.',
+    // === AMÉLIORATION AJOUTÉE (Dossiers ouverts — exclut désormais les
+    // dossiers clôturés, qui ont leur propre onglet dédié) ===
+    ocd_assigned_subtitle: 'Dossiers attribués à un enquêteur, non encore clôturés.',
     // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
     ocd_closed_subtitle: 'Dossiers attribués et clôturés — référence, nature, pays, entité, dates et résumé de clôture.',
     ocd_empty_inbox: 'Aucun signalement en attente de tri.',
     ocd_empty_to_assign: 'Aucun dossier à attribuer pour le moment.',
     ocd_empty_pending_info: 'Aucun dossier en attente d’informations complémentaires.',
-    ocd_empty_assigned: 'Aucun dossier attribué pour le moment.',
+    ocd_empty_assigned: 'Aucun dossier ouvert pour le moment.',
     ocd_empty_closed: 'Aucun dossier clôturé pour le moment.',
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
     // Enquêteur) === 3 écrans supplémentaires, mêmes titres que les clés
@@ -864,7 +866,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // changés ("toutes les affaires attribuées", ex-"Dossiers traités"/
     // statut Clôturé) — clé de code conservée pour ne pas toucher
     // routing/routes.ts, App.tsx et StaffPortalLayout.tsx sans nécessité.
-    sidebar_op_processed: 'Dossiers attribués',
+    // === AMÉLIORATION AJOUTÉE (Dossiers ouverts) === renommé depuis
+    // "Dossiers attribués", sur demande explicite, maintenant que les
+    // dossiers clôturés ont leur propre onglet dédié.
+    sidebar_op_processed: 'Dossiers ouverts',
     // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
     sidebar_op_closed: 'Dossiers clôturés',
     sidebar_inv_my_cases: 'Mes dossiers',
@@ -1431,12 +1436,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ocd_inbox_subtitle: 'All reports received from the public — triage them and message the reporter before assignment.',
     ocd_to_assign_subtitle: 'New and in-progress cases, classified by country, entity, nature, criticality, severity and urgency — assign them to an investigator.',
     ocd_pending_info_subtitle: 'In-progress cases awaiting additional information from the reporter.',
-    ocd_assigned_subtitle: 'All cases already assigned to an investigator.',
+    ocd_assigned_subtitle: 'Cases assigned to an investigator, not yet closed.',
     ocd_closed_subtitle: 'Assigned and closed cases — reference, nature, country, entity, dates and closure summary.',
     ocd_empty_inbox: 'No reports awaiting triage.',
     ocd_empty_to_assign: 'No cases to assign at the moment.',
     ocd_empty_pending_info: 'No cases awaiting additional information.',
-    ocd_empty_assigned: 'No assigned cases at the moment.',
+    ocd_empty_assigned: 'No open cases at the moment.',
     ocd_empty_closed: 'No closed cases at the moment.',
     ocd_my_cases_subtitle: 'All cases assigned to you.',
     ocd_to_process_subtitle: 'Your new and in-progress cases, to handle first.',
@@ -1736,7 +1741,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_inbox: 'Inbox',
     sidebar_op_assign: 'To Assign',
     sidebar_op_pending: 'Pending Info',
-    sidebar_op_processed: 'Assigned Cases',
+    sidebar_op_processed: 'Open Cases',
     sidebar_op_closed: 'Closed Cases',
     sidebar_inv_my_cases: 'My Cases',
     sidebar_inv_to_process: 'To Process',
@@ -2291,12 +2296,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ocd_inbox_subtitle: 'Todas as denúncias recebidas do público — triadas e trocando mensagens com o denunciante antes da atribuição.',
     ocd_to_assign_subtitle: 'Casos novos e em curso, classificados por país, entidade, natureza, criticidade, gravidade e urgência — atribua-os a um investigador.',
     ocd_pending_info_subtitle: 'Casos em curso que aguardam informações complementares do denunciante.',
-    ocd_assigned_subtitle: 'Todos os casos já atribuídos a um investigador.',
+    ocd_assigned_subtitle: 'Casos atribuídos a um investigador, ainda não encerrados.',
     ocd_closed_subtitle: 'Casos atribuídos e encerrados — referência, natureza, país, entidade, datas e resumo de encerramento.',
     ocd_empty_inbox: 'Nenhuma denúncia à espera de triagem.',
     ocd_empty_to_assign: 'Nenhum caso a atribuir no momento.',
     ocd_empty_pending_info: 'Nenhum caso à espera de informações complementares.',
-    ocd_empty_assigned: 'Nenhum caso atribuído no momento.',
+    ocd_empty_assigned: 'Nenhum caso em aberto no momento.',
     ocd_empty_closed: 'Nenhum caso encerrado no momento.',
     ocd_my_cases_subtitle: 'Todos os casos atribuídos a si.',
     ocd_to_process_subtitle: 'Os seus casos novos e em curso, a tratar em prioridade.',
@@ -2596,7 +2601,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_inbox: 'Caixa de entrada',
     sidebar_op_assign: 'A atribuir',
     sidebar_op_pending: 'Aguardando informações',
-    sidebar_op_processed: 'Casos atribuídos',
+    sidebar_op_processed: 'Casos em aberto',
     sidebar_op_closed: 'Casos encerrados',
     sidebar_inv_my_cases: 'Meus casos',
     sidebar_inv_to_process: 'A processar',
