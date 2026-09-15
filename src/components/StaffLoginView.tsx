@@ -50,8 +50,16 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin }) => {
     if (selectedUser) onLogin(selectedUser);
   };
 
+  // === AMÉLIORATION AJOUTÉE (correction de bug — centrage vertical) ===
+  // `min-h-[70vh]` était une fraction arbitraire de la hauteur de la
+  // fenêtre : sur un écran où le contenu réel entre la Navbar et le pied
+  // de page dépasse 70vh, la carte se retrouvait centrée dans une boîte
+  // plus petite que l'espace disponible, laissant un vide visible en
+  // dessous. `min-h-full` centre réellement sur toute la hauteur donnée
+  // par le parent (`<main className="flex-1">` dans App.tsx, qui occupe
+  // déjà tout l'espace entre Navbar et pied de page).
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4">
+    <div className="min-h-full flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
         <div className="text-center mb-6">
           <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
