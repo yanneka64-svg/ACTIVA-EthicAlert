@@ -151,7 +151,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-40">
+    // === AMÉLIORATION AJOUTÉE (Ascenseur sous l'en-tête) === `sticky
+    // top-0` devenu inutile : App.tsx a été restructuré pour que ce
+    // `<header>` vive hors de la zone désormais seule scrollable de la
+    // page — il reste donc déjà visible en permanence sans "coller" à
+    // rien. `shrink-0` évite qu'un flex-parent ne le rétrécisse jamais ;
+    // `z-40` reste nécessaire pour que les menus déroulants (langue,
+    // compte) de ce header s'affichent au-dessus du contenu en dessous.
+    <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm shrink-0 relative z-40">
       {/* === AMÉLIORATION AJOUTÉE (Phase 24) === bande utilitaire (Phase 23)
           retirée sur demande explicite. */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">

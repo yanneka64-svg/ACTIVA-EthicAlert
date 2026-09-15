@@ -641,7 +641,15 @@ function AppShell() {
   // arrière sur demande.)
 
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+    // === AMÉLIORATION AJOUTÉE (Ascenseur sous l'en-tête) === `min-h-screen`
+    // + page (html/body) scrollable → `h-screen overflow-hidden` + seule la
+    // zone sous l'en-tête (nouveau conteneur ci-dessous) scrolle. Sur
+    // demande explicite : la barre de défilement verticale ne doit plus
+    // s'étendre sur toute la hauteur (à côté de l'en-tête aussi), mais
+    // débuter juste en dessous. L'en-tête (Navbar) reste hors de cette zone
+    // scrollable, donc toujours visible, sans avoir besoin d'être `sticky`
+    // (son parent ne défile plus).
+    <div className="h-screen overflow-hidden bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       {/* Top Main Navigation */}
       <Navbar
         currentTab={currentTab}
@@ -658,6 +666,14 @@ function AppShell() {
         onLogout={handleLogout}
       />
 
+      {/* === AMÉLIORATION AJOUTÉE (Ascenseur sous l'en-tête) === Seule zone
+          scrollable de la page : regroupe `<main>` et `<footer>` pour que le
+          pied de page continue de défiler avec le contenu (comportement
+          inchangé) — seul l'en-tête reste désormais hors du défilement.
+          `min-h-0` est nécessaire : sans lui, un enfant flex refuse par
+          défaut de rétrécir sous la taille de son contenu, empêchant
+          `overflow-y-auto` de jouer son rôle ici. */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
       {/* Main Content Area */}
       <main className="flex-1 pb-16">
         {currentTab === 'home' && (
@@ -753,6 +769,7 @@ function AppShell() {
           </div>
         </div>
       </footer>
+      </div>
 
       {/* QR Code Modal */}
       <QrCodeModal
