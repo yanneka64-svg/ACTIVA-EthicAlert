@@ -8,15 +8,13 @@
  * confondre (brief section 8 : "le lanceur d'alerte ne doit PAS utiliser
  * le compte interne ACTIVA").
  *
- * Carte de connexion unique, centrée (le volet gauche photo + branding a
- * été retiré sur demande explicite — ne restait que "la partie
- * connexion"), à taille compacte plutôt qu'en plein cadre. Le sélecteur
- * "Votre profil" (Opérateur / Enquêteur / Administrateur / Consultant),
- * qui vivait auparavant dans le volet photo, est désormais intégré en
- * haut du formulaire lui-même — il continue de restreindre la liste de
- * comptes de démonstration proposée au groupe de rôles RBAC correspondant
- * (voir PROFILE_GROUPS) ; après connexion, App.tsx (`handleLogin`) route
- * vers l'espace adapté au rôle réel du compte choisi.
+ * Carte de connexion unique, centrée et compacte (le volet gauche photo +
+ * branding a été retiré sur demande explicite). Le sélecteur "Votre
+ * profil" a lui aussi été retiré (demande explicite) : "Compte" liste
+ * désormais tous les comptes de démonstration directement, sans filtre
+ * par groupe de rôles. Le sélecteur de langue propre à cet écran a été
+ * retiré également — redondant avec celui, toujours visible, de la
+ * Navbar (celle-ci ne disparaît plus jamais, voir App.tsx).
  *
  * IMPORTANT (brief section 32, "no fake functionality" / "règle de
  * non-hallucination") : cette application n'a pas de backend
@@ -28,44 +26,19 @@
  * l'écran le dit explicitement, rien n'est présenté comme sécurisé alors
  * que ça ne l'est pas.
  */
-import React, { useMemo, useState } from 'react';
-import { LogIn, ChevronDown, Lock, Mail, User, Eye, EyeOff } from 'lucide-react';
-import { Language, UserRole, UserProfile } from '../types';
+import React, { useState } from 'react';
+import { LogIn, Lock, Mail, User, Eye, EyeOff } from 'lucide-react';
+import { UserProfile } from '../types';
 import { storage } from '../services/storage';
 
 interface StaffLoginViewProps {
-  lang: Language;
-  setLang: (lang: Language) => void;
   onLogin: (user: UserProfile) => void;
 }
 
-type ProfileKey = 'operator' | 'investigator' | 'administrator' | 'consultant';
-
-const PROFILE_GROUPS: Record<ProfileKey, { label: string; roles: UserRole[] }> = {
-  operator: { label: 'Opérateur', roles: ['functional_admin', 'darc_compliance'] },
-  investigator: { label: 'Enquêteur', roles: ['investigator', 'senior_investigator'] },
-  administrator: { label: 'Administrateur', roles: ['system_admin', 'security_admin'] },
-  consultant: { label: 'Consultant', roles: ['consultation', 'audit_committee', 'executive'] },
-};
-
-export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ lang, setLang, onLogin }) => {
+export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin }) => {
   const staffUsers = storage.getUsers();
-  const [profileKey, setProfileKey] = useState<ProfileKey>('operator');
-  const [showLangDropdown, setShowLangDropdown] = useState(false);
-
-  const accountsForProfile = useMemo(
-    () => staffUsers.filter((u) => PROFILE_GROUPS[profileKey].roles.includes(u.role)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profileKey]
-  );
-  const [selectedId, setSelectedId] = useState<string>(accountsForProfile[0]?.id ?? '');
-  const selectedUser = accountsForProfile.find((u) => u.id === selectedId) ?? accountsForProfile[0];
-
-  const handleProfileChange = (key: ProfileKey) => {
-    setProfileKey(key);
-    const first = staffUsers.find((u) => PROFILE_GROUPS[key].roles.includes(u.role));
-    setSelectedId(first?.id ?? '');
-  };
+  const [selectedId, setSelectedId] = useState<string>(staffUsers[0]?.id ?? '');
+  const selectedUser = staffUsers.find((u) => u.id === selectedId) ?? staffUsers[0];
 
   // Décoratif (fidélité à la maquette) : ne pilote pas la connexion — seul
   // le compte de démonstration choisi ci-dessus le fait.
@@ -79,76 +52,35 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ lang, setLang, o
 
   return (
     <div className="max-w-md mx-auto my-10 px-4">
-      <div className="relative flex justify-end mb-3">
-        {/* Sélecteur de langue */}
-        <div className="relative">
-          <button
-            onClick={() => setShowLangDropdown(!showLangDropdown)}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold uppercase transition"
-          >
-            {lang}
-            <ChevronDown className="w-3 h-3 opacity-70" />
-          </button>
-          {showLangDropdown && (
-            <div
-              className="absolute right-0 mt-1 w-32 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-xs"
-              onClick={() => setShowLangDropdown(false)}
-            >
-              <button onClick={() => setLang('fr')} className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 ${lang === 'fr' ? 'font-bold text-blue-700' : ''}`}>🇫🇷 Français</button>
-              <button onClick={() => setLang('en')} className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 ${lang === 'en' ? 'font-bold text-blue-700' : ''}`}>🇬🇧 English</button>
-              <button onClick={() => setLang('pt')} className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 ${lang === 'pt' ? 'font-bold text-blue-700' : ''}`}>🇵🇹 Português</button>
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
         <div className="text-center mb-6">
           <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
             <User className="w-6 h-6" />
           </span>
-          <p className="text-lg font-bold text-slate-900">Accédez à votre espace de travail sécurisé</p>
+          <p className="text-sm font-bold text-slate-900">Accédez à votre espace de travail sécurisé</p>
           <div className="w-10 h-1 rounded-full bg-blue-500 mx-auto mt-3" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
-              Votre profil
-            </label>
-            <select
-              id="login-profile-select"
-              value={profileKey}
-              onChange={(e) => handleProfileChange(e.target.value as ProfileKey)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            >
-              {(Object.keys(PROFILE_GROUPS) as ProfileKey[]).map((key) => (
-                <option key={key} value={key}>
-                  {PROFILE_GROUPS[key].label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
               Compte
             </label>
-            {accountsForProfile.length > 0 ? (
+            {staffUsers.length > 0 ? (
               <select
                 id="login-account-select"
                 value={selectedId}
                 onChange={(e) => setSelectedId(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               >
-                {accountsForProfile.map((u) => (
+                {staffUsers.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name} — {u.roleTitle}
                   </option>
                 ))}
               </select>
             ) : (
-              <p className="text-xs text-rose-600">Aucun compte de démonstration pour ce profil.</p>
+              <p className="text-xs text-rose-600">Aucun compte de démonstration disponible.</p>
             )}
           </div>
 
