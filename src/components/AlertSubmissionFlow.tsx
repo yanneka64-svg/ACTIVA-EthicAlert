@@ -30,7 +30,6 @@ import {
   Pencil,
   // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité) ===
   X,
-  Shield,
 } from 'lucide-react';
 import {
   Language,
@@ -533,21 +532,18 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
             <X className="w-5 h-5" />
           </button>
 
-          {/* === AMÉLIORATION AJOUTÉE (Phase 34 — icône bouclier + cadenas
-              dans un anneau pointillé, fidèle à la maquette fournie) === */}
+          {/* === AMÉLIORATION AJOUTÉE (Phase 35 — photo fournie par
+              l'utilisateur, icône bouclier + cadenas déjà intégrée à
+              l'image) === Remplace la photo générique + l'icône dessinée en
+              CSS (Phase 34) par la photo exacte de la maquette (main sur
+              clavier, icône déjà incrustée dans l'image), servie depuis
+              public/brand/confidentiality-gate-bg.jpg. */}
           <div className="relative hidden md:flex items-center justify-center min-h-[460px] overflow-hidden">
             <img
-              src="/brand/track-login-bg.jpg"
+              src="/brand/confidentiality-gate-bg.jpg"
               alt=""
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover object-left"
             />
-            <div className="absolute inset-0 bg-[#0B2545]/45" />
-            <div className="relative z-10 w-48 h-48 rounded-full border-2 border-dashed border-white/50 flex items-center justify-center">
-              <div className="relative w-24 h-24 flex items-center justify-center">
-                <Shield className="w-24 h-24 text-white" strokeWidth={1.25} />
-                <Lock className="w-8 h-8 text-white absolute" />
-              </div>
-            </div>
           </div>
 
           <div className="p-8 sm:p-12 flex flex-col justify-center space-y-5">
