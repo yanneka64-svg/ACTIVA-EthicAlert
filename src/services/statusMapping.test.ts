@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import { AlertRecord, AlertStatus } from '../types';
 import { CaseStatus } from '../domain/caseTypes';
-import { deriveCaseStatus, mapToEnterpriseStatus, syncLegacyStatus } from './statusMapping';
+import { applyCaseStatus, deriveCaseStatus, mapToEnterpriseStatus, syncLegacyStatus } from './statusMapping';
 
 function makeAlert(status: AlertStatus, assignedInvestigators: string[] = []): AlertRecord {
   return {
@@ -109,5 +109,44 @@ describe('syncLegacyStatus — richer CaseStatus values with no exact legacy equ
     for (const s of allCaseStatuses) {
       expect(typeof syncLegacyStatus(s)).toBe('string');
     }
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts — cause
+// racine) === `applyCaseStatus` est le point de passage unique remplaçant
+// la construction manuelle `{ status: X, workflowStatus: X }` qui a causé
+// 3 bugs distincts cette session (clôture/réouverture/archivage, un champ
+// oublié à chaque fois). Ces tests verrouillent la garantie qu'il apporte :
+// les deux champs sont TOUJOURS mutuellement cohérents (jamais l'un sans
+// l'autre), pour n'importe laquelle des 14 valeurs riches.
+describe('applyCaseStatus — single entry point keeping status/workflowStatus paired', () => {
+  it('sets workflowStatus to the given rich status and status to its synced legacy equivalent, for every CaseStatus value', () => {
+    const base = makeAlert('investigation');
+    const allCaseStatuses: CaseStatus[] = [
+      'new', 'triage', 'under_review', 'assigned', 'investigation', 'pending_information',
+      'escalated', 'conclusion_pending', 'functional_review', 'closed', 'reopened', 'archived',
+      'duplicate', 'out_of_scope',
+    ];
+    for (const richStatus of allCaseStatuses) {
+      const result = applyCaseStatus(base, richStatus);
+      expect(result.workflowStatus).toBe(richStatus);
+      expect(result.status).toBe(syncLegacyStatus(richStatus));
+    }
+  });
+
+  it('does not mutate the original alert (returns a new object, like a plain spread)', () => {
+    const base = makeAlert('investigation');
+    const result = applyCaseStatus(base, 'closed');
+    expect(base.status).toBe('investigation');
+    expect(base.workflowStatus).toBeUndefined();
+    expect(result).not.toBe(base);
+  });
+
+  it('preserves every other field untouched, exactly like the manual spread it replaces', () => {
+    const base = makeAlert('investigation', ['inv-1']);
+    const result = applyCaseStatus(base, 'reopened');
+    expect(result.id).toBe(base.id);
+    expect(result.trackingNumber).toBe(base.trackingNumber);
+    expect(result.assignedInvestigators).toEqual(base.assignedInvestigators);
   });
 });

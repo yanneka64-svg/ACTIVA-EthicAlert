@@ -53,6 +53,11 @@ describe('roleHasPermission', () => {
     expect(roleHasPermission('senior_investigator', 'cases.close')).toBe(true);
     expect(roleHasPermission('functional_admin', 'cases.create')).toBe(true);
     expect(roleHasPermission('darc_compliance', 'evidence.upload')).toBe(false);
+    // === AMÉLIORATION AJOUTÉE : darc_compliance (Directeur Audit, Risques
+    // et Conformité Groupe) a désormais cases.edit, en plus de son
+    // cases.assign déjà présent — mêmes habilitations Opérateur + Enquêteur
+    // que senior_investigator.
+    expect(roleHasPermission('darc_compliance', 'cases.edit')).toBe(true);
     expect(roleHasPermission('consultation', 'cases.edit')).toBe(false);
     expect(roleHasPermission('executive', 'reports.read')).toBe(true);
     expect(roleHasPermission('executive', 'cases.read')).toBe(false);
@@ -191,6 +196,23 @@ describe('can — assigned vs. global visibility', () => {
   it('allows audit_committee to read an in-scope case with no assignment at all, same as consultation', () => {
     const ctx = caseContext({ assignee: 'someone-else', additionalInvestigators: [] });
     expect(can(user({ userId: 'u-1', roleId: 'audit_committee' }), 'cases.read', ctx)).toBe(true);
+  });
+
+  // === AMÉLIORATION AJOUTÉE (Responsable des Investigations = Opérateur +
+  // Enquêteur par défaut) === seul rôle "investigateur" à obtenir la vision
+  // globale de son périmètre (nécessaire pour que l'Espace Opérateur —
+  // attribution des dossiers — lui soit réellement utilisable), contrairement
+  // à `investigator` (enquêteur simple, toujours limité à ses dossiers assignés).
+  it('allows senior_investigator (Responsable des Investigations) to read and assign an in-scope case with no assignment at all', () => {
+    const ctx = caseContext({ assignee: 'someone-else', additionalInvestigators: [] });
+    expect(can(user({ userId: 'u-1', roleId: 'senior_investigator' }), 'cases.read', ctx)).toBe(true);
+    expect(can(user({ userId: 'u-1', roleId: 'senior_investigator' }), 'cases.assign', ctx)).toBe(true);
+  });
+
+  it('still denies a plain investigator cases.assign and any non-assigned, non-global case', () => {
+    const ctx = caseContext({ assignee: 'someone-else', additionalInvestigators: [] });
+    expect(can(user({ userId: 'u-1', roleId: 'investigator' }), 'cases.assign', ctx)).toBe(false);
+    expect(can(user({ userId: 'u-1', roleId: 'investigator' }), 'cases.read', ctx)).toBe(false);
   });
 
   it('denies security_admin direct case read under any circumstance', () => {

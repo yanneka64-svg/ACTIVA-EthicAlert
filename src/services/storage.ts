@@ -1,12 +1,17 @@
-import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile, UserRole } from '../types';
-import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG, HierarchyLevels, DEFAULT_HIERARCHY_LEVELS } from '../data/activaConfig';
+import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile, UserRole, EscalationRecipient } from '../types';
+import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG, HierarchyLevels, DEFAULT_HIERARCHY_LEVELS, INITIAL_ESCALATION_RECIPIENTS } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
 import { CaseStatus } from '../domain/caseTypes';
 import { checkTransition, TransitionCheckResult, ALLOWED_TRANSITIONS, setWorkflowTransitions } from '../domain/workflow';
-import { deriveCaseStatus, syncLegacyStatus } from './statusMapping';
+import { deriveCaseStatus, syncLegacyStatus, applyCaseStatus } from './statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
 import { getConflictedUserIds, resolveIndependentAuthority } from '../domain/independentRouting';
+// === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+// routage — correctif confidentialité) === authz.ts n'importe jamais
+// storage.ts (vérifié), donc aucun cycle en important cette seule
+// fonction pure ici.
+import { canSeeAlertConfidentiality } from './authz';
 // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
 import { Permission, ROLE_PERMISSIONS } from '../domain/permissions';
 import { setRolePermissionOverrides } from '../domain/permissionOverrides';
@@ -30,6 +35,8 @@ const STORAGE_KEYS = {
   ROLE_PERMISSIONS: 'activa_ethicalert_role_permissions_v1',
   // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
   WORKFLOW_TRANSITIONS: 'activa_ethicalert_workflow_transitions_v1',
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
+  ESCALATION_RECIPIENTS: 'activa_ethicalert_escalation_recipients_v1',
 };
 
 // Event dispatched when data changes
@@ -75,6 +82,13 @@ class StorageService {
   // que checkTransition() — donc storage.transitionStatus()/escalateAlert()
   // — reflète immédiatement une édition en administration.
   private workflowTransitions: Record<CaseStatus, CaseStatus[]> = ALLOWED_TRANSITIONS;
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === Même motif seed-then-mutate que les listes ci-dessus
+  // (entities/categories/countries) — INITIAL_ESCALATION_RECIPIENTS reste
+  // le jeu par défaut, this.escalationRecipients la copie éditable réelle
+  // que l'écran Gouvernance et escalateAlert()/triggerIndependentRouting()
+  // lisent tous les deux.
+  private escalationRecipients: EscalationRecipient[] = [];
 
   constructor() {
     this.init();
@@ -174,6 +188,15 @@ class StorageService {
         this.workflowTransitions = { ...ALLOWED_TRANSITIONS };
         this.persistWorkflowTransitions();
       }
+
+      // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
+      const storedEscalationRecipients = localStorage.getItem(STORAGE_KEYS.ESCALATION_RECIPIENTS);
+      if (storedEscalationRecipients) {
+        this.escalationRecipients = JSON.parse(storedEscalationRecipients);
+      } else {
+        this.escalationRecipients = [...INITIAL_ESCALATION_RECIPIENTS];
+        this.persistEscalationRecipients();
+      }
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
       this.alerts = [...INITIAL_ALERTS];
@@ -191,6 +214,8 @@ class StorageService {
       this.rolePermissions = { ...ROLE_PERMISSIONS };
       // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
       this.workflowTransitions = { ...ALLOWED_TRANSITIONS };
+      // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
+      this.escalationRecipients = [...INITIAL_ESCALATION_RECIPIENTS];
     }
     // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
     // Pousse l'état courant (chargé, seedé, ou de repli) vers le pont
@@ -274,6 +299,15 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(this.categories));
     } catch (e) {
       console.error('Failed to persist categories', e);
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
+  private persistEscalationRecipients() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.ESCALATION_RECIPIENTS, JSON.stringify(this.escalationRecipients));
+    } catch (e) {
+      console.error('Failed to persist escalation recipients', e);
     }
   }
 
@@ -449,7 +483,19 @@ class StorageService {
 
     alert.workflowStatus = toStatus;
     alert.status = syncLegacyStatus(toStatus);
-    alert.updatedAt = new Date().toISOString();
+    // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+    // périmètre) === 'duplicate'/'out_of_scope' se synchronisent vers le
+    // statut legacy 'closed' (syncLegacyStatus) mais, contrairement à une
+    // vraie clôture (handleCloseAlert, InvestigationDesk.tsx),
+    // closedAt/closedBy n'étaient jusqu'ici jamais renseignés par cette
+    // méthode générique — un dossier ainsi classé restait invisible de
+    // l'onglet Opérateur "Dossiers clôturés" (colonne "Clôturé le" vide,
+    // prédicat `assignedInvestigators.length > 0` jamais vrai pour un
+    // dossier jamais attribué). Corrigé ici plutôt que dupliqué côté UI.
+    if ((toStatus === 'duplicate' || toStatus === 'out_of_scope') && !alert.closedAt) {
+      alert.closedAt = alert.updatedAt;
+      alert.closedBy = actor.name;
+    }
     this.persistAlerts();
     this.notify();
     this.logAudit(
@@ -475,38 +521,86 @@ class StorageService {
    * `transitionStatus`, dont la logique de transition est reprise ici
    * directement plutôt qu'appelée en cascade).
    */
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === `recipientId` référence désormais EscalationRecipient.id
+  // (registre admin-éditable) au lieu d'un UserProfile.id codé en dur
+  // (l'ancien `getGroupEscalationOwners`, qui ne reflétait que 2 rôles
+  // fixes). Quand le destinataire a un compte lié (linkedUserId) ET que
+  // son plafond de confidentialité couvre ce dossier
+  // (canSeeAlertConfidentiality, voir plus bas), il est réellement ajouté
+  // à assignedInvestigators — BUG PRÉEXISTANT CORRIGÉ : avant ce
+  // correctif, escalateAlert() ne touchait jamais assignedInvestigators,
+  // donc un destinataire sans vision Groupe (ex. senior_investigator) ne
+  // voyait jamais le dossier escaladé. Sans compte lié, ou avec un compte
+  // insuffisamment habilité, aucun accès in-app n'est accordé — le retour
+  // inclut le destinataire complet pour que l'appelant envoie une vraie
+  // notification e-mail (services/emailNotify.ts), jamais depuis ce
+  // fichier lui-même (emailNotify.ts importe déjà storage.ts — un import
+  // dans l'autre sens créerait un cycle).
   public escalateAlert(
     alertId: string,
     reason: string,
     criteriaMatched: string[],
-    ownerId: string,
+    recipientId: string,
     actor: UserProfile
-  ): TransitionCheckResult {
+  ): TransitionCheckResult & { recipient?: EscalationRecipient } {
     const alert = this.alerts.find((a) => a.id === alertId);
     if (!alert) return { allowed: false, reason: 'Dossier introuvable.' };
+
+    const recipient = this.escalationRecipients.find((r) => r.id === recipientId);
+    if (!recipient) return { allowed: false, reason: 'Destinataire introuvable dans le registre.' };
 
     const fromStatus = alert.workflowStatus ?? deriveCaseStatus(alert);
     const check = checkTransition(fromStatus, 'escalated');
     if (!check.allowed) return check;
 
-    const owner = this.users.find((u) => u.id === ownerId);
-    alert.workflowStatus = 'escalated';
-    alert.status = syncLegacyStatus('escalated');
+    // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+    // routage — correctif confidentialité) === BUG PRÉEXISTANT CORRIGÉ :
+    // un compte lié obtenait un accès in-app (assignedInvestigators) même
+    // si son plafond de confidentialité (canSeeAlertConfidentiality, déjà
+    // appliqué par le moteur d'attribution normal, domain/assignmentEngine.ts)
+    // ne couvre pas le niveau du dossier — accordant une entrée qui
+    // n'ouvrait en réalité AUCUN accès réel (useVisibleAlerts la filtre
+    // quand même), un état incohérent silencieux. Un compte lié mais
+    // insuffisamment habilité est désormais traité exactement comme un
+    // destinataire sans compte : notification e-mail uniquement, jamais
+    // d'accès fictif.
+    const linkedUser = recipient.linkedUserId ? this.users.find((u) => u.id === recipient.linkedUserId) : undefined;
+    const linkedUserCleared = linkedUser ? canSeeAlertConfidentiality(linkedUser, alert) : false;
+    if (linkedUser && linkedUserCleared && !alert.assignedInvestigators.includes(linkedUser.id)) {
+      alert.assignedInvestigators = [...alert.assignedInvestigators, linkedUser.id];
+      alert.assignedInvestigatorNames = [...alert.assignedInvestigatorNames, linkedUser.name];
+    }
+    // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+    // cause racine) === `applyCaseStatus` (services/statusMapping.ts)
+    // remplace les deux affectations manuelles précédentes — même résultat,
+    // mais désormais le même point de passage unique que
+    // transitionStatus()/InvestigationDesk.tsx (clôture/réouverture/
+    // archivage), pour qu'un futur appelant n'ait plus jamais à dupliquer
+    // "status: X, workflowStatus: X" à la main.
+    Object.assign(alert, applyCaseStatus(alert, 'escalated'));
     alert.escalatedAt = new Date().toISOString();
     alert.escalatedBy = actor.id;
     alert.escalatedReason = reason;
-    alert.escalatedOwnerId = ownerId;
+    alert.escalatedOwnerId = linkedUserCleared ? linkedUser?.id : undefined;
+    alert.escalatedRecipientId = recipient.id;
     alert.updatedAt = new Date().toISOString();
     this.persistAlerts();
     this.notify();
+    const accessNote = linkedUserCleared
+      ? ' Accès au dossier accordé (compte lié).'
+      : linkedUser
+      ? ` Compte lié (${linkedUser.name}) mais habilitation de confidentialité insuffisante pour ce dossier — aucun accès accordé, notification e-mail uniquement.`
+      : ' Aucun compte EthicAlert lié — notification e-mail uniquement.';
     this.logAudit(
       'CASE_ESCALATED',
-      `Dossier ${alert.trackingNumber} escaladé vers ${owner?.name ?? ownerId} (DARC Groupe). Motif : "${reason}".` +
-        (criteriaMatched.length > 0 ? ` Critères retenus : ${criteriaMatched.join(', ')}.` : ''),
+      `Dossier ${alert.trackingNumber} escaladé vers ${recipient.nom} (${recipient.fonction}). Motif : "${reason}".` +
+        (criteriaMatched.length > 0 ? ` Critères retenus : ${criteriaMatched.join(', ')}.` : '') +
+        accessNote,
       { id: alert.id, trackingNumber: alert.trackingNumber },
       actor
     );
-    return { allowed: true };
+    return { allowed: true, recipient };
   }
 
   // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
@@ -538,12 +632,20 @@ class StorageService {
    * exclue ni le contenu du dossier (uniquement des comptes et un nombre),
    * conformément au principe de routage confidentiel du brief.
    */
-  public triggerIndependentRouting(alertId: string, actor: UserProfile): void {
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === Retourne désormais le destinataire de dernier recours
+  // notifié quand aucune autorité interne n'est trouvée (branche
+  // `independentRoutingUnresolved`, ci-dessous) — `undefined` dans tous
+  // les autres cas (routage résolu, ou aucun destinataire actif dans le
+  // registre). L'appelant (InvestigationDesk.tsx) envoie la vraie
+  // notification e-mail via emailNotify.ts avec ce retour, pour éviter un
+  // import storage.ts → emailNotify.ts → storage.ts circulaire.
+  public triggerIndependentRouting(alertId: string, actor: UserProfile): EscalationRecipient | undefined {
     const alert = this.alerts.find((a) => a.id === alertId);
-    if (!alert) return;
+    if (!alert) return undefined;
 
     const conflictedIds = getConflictedUserIds(alert);
-    if (conflictedIds.length === 0) return; // rien à router (aucun linkedUserId sur ce dossier)
+    if (conflictedIds.length === 0) return undefined; // rien à router (aucun linkedUserId sur ce dossier)
 
     const previousAssigned = alert.assignedInvestigators.length;
     alert.assignedInvestigators = alert.assignedInvestigators.filter((id) => !conflictedIds.includes(id));
@@ -586,17 +688,35 @@ class StorageService {
         { id: alert.id, trackingNumber: alert.trackingNumber },
         actor
       );
+      return undefined;
     } else {
       alert.independentRoutingUnresolved = true;
+      // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et
+      // de routage) === Dernier recours : le destinataire actif du grade
+      // le plus élevé du registre, notifié par e-mail — jamais d'accès
+      // in-app fictif (le destinataire peut n'avoir aucun compte). Si le
+      // registre n'a aucun destinataire actif, ce champ reste absent et
+      // rien n'est notifié : jamais un faux "quelqu'un a été prévenu".
+      const fallbackRecipient = [...this.escalationRecipients]
+        .filter((r) => r.active)
+        .sort((a, b) => b.grade - a.grade)[0];
+      if (fallbackRecipient) {
+        alert.independentRoutingFallbackRecipientId = fallbackRecipient.id;
+        alert.independentRoutingFallbackNotifiedAt = new Date().toISOString();
+      }
       alert.updatedAt = new Date().toISOString();
       this.persistAlerts();
       this.notify();
       this.logAudit(
         'NO_INDEPENDENT_AUTHORITY_FOUND',
-        `Aucune autorité indépendante disponible pour ${alert.trackingNumber} après exclusion automatique — intervention manuelle requise.`,
+        `Aucune autorité indépendante disponible pour ${alert.trackingNumber} après exclusion automatique — intervention manuelle requise.` +
+          (fallbackRecipient
+            ? ` ${fallbackRecipient.nom} (${fallbackRecipient.fonction}) notifié(e) à titre de dernier recours.`
+            : ' Aucun destinataire actif dans le registre d’escalade — personne notifié.'),
         { id: alert.id, trackingNumber: alert.trackingNumber },
         actor
       );
+      return fallbackRecipient;
     }
   }
 
@@ -718,6 +838,38 @@ class StorageService {
     this.persistEntities();
     this.notify();
     this.logAudit('CONFIG_UPDATED', `Entité "${target.name}" supprimée par ${actor.name}.`, undefined, actor);
+    return true;
+  }
+
+  // --- Escalation Recipients API (Registre des destinataires d'escalade et de routage) ---
+  // Même motif exact que Entities ci-dessus.
+  public getEscalationRecipients(): EscalationRecipient[] {
+    return [...this.escalationRecipients];
+  }
+
+  public addEscalationRecipient(recipient: EscalationRecipient, actor: UserProfile): void {
+    this.escalationRecipients.push(recipient);
+    this.persistEscalationRecipients();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Destinataire d'escalade "${recipient.nom}" (${recipient.fonction}) ajouté par ${actor.name}.`, undefined, actor);
+  }
+
+  public updateEscalationRecipient(recipientId: string, updates: Partial<EscalationRecipient>, actor: UserProfile): void {
+    const idx = this.escalationRecipients.findIndex((r) => r.id === recipientId);
+    if (idx === -1) return;
+    this.escalationRecipients[idx] = { ...this.escalationRecipients[idx], ...updates };
+    this.persistEscalationRecipients();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Destinataire d'escalade "${this.escalationRecipients[idx].nom}" mis à jour par ${actor.name}.`, undefined, actor);
+  }
+
+  public deleteEscalationRecipient(recipientId: string, actor: UserProfile): boolean {
+    const target = this.escalationRecipients.find((r) => r.id === recipientId);
+    if (!target) return false;
+    this.escalationRecipients = this.escalationRecipients.filter((r) => r.id !== recipientId);
+    this.persistEscalationRecipients();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Destinataire d'escalade "${target.nom}" supprimé par ${actor.name}.`, undefined, actor);
     return true;
   }
 

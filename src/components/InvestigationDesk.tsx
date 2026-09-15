@@ -49,6 +49,8 @@ import {
   X,
   // === AMÉLIORATION AJOUTÉE (Onglet Entretiens) ===
   Mic,
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors périmètre) ===
+  Ban,
 } from 'lucide-react';
 import {
   Language,
@@ -70,19 +72,19 @@ import {
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
-import { notifyAssignmentToInvestigators } from '../services/emailNotify';
+import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
 import type { DataTableColumn } from './ui';
-import { computeSlaStatus, deriveCaseStatus } from '../services/statusMapping';
+import { computeSlaStatus, deriveCaseStatus, applyCaseStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, userCan } from '../services/authz';
+import { isGlobalCaseViewer, userCan, canSeeAlertConfidentiality } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
 // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-import { evaluateEscalationCriteria, getGroupEscalationOwners } from '../domain/escalationCriteria';
+import { evaluateEscalationCriteria } from '../domain/escalationCriteria';
 // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === même
 // regroupement en 5 paniers que le Tableau de bord (Phase 1), pour que les
 // onglets de filtre affichent exactement les mêmes catégories.
@@ -419,6 +421,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [escalateReason, setEscalateReason] = useState<string>('');
   const [escalateOwnerId, setEscalateOwnerId] = useState<string>('');
+
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+  // périmètre) === `CaseStatus` (domain/caseTypes.ts, 14 valeurs) prévoyait
+  // déjà 'duplicate'/'out_of_scope', structurellement atteignables depuis
+  // 'new' (ALLOWED_TRANSITIONS, domain/workflow.ts) — mais aucun écran ne
+  // les proposait, les rendant de fait inaccessibles (constat de l'analyse
+  // critique du frontend). Réutilise storage.transitionStatus(), déjà réel
+  // pour pending_information/conclusion_pending/functional_review, jamais
+  // un nouveau mécanisme parallèle.
+  const [showDismissModal, setShowDismissModal] = useState(false);
+  const [dismissTargetStatus, setDismissTargetStatus] = useState<'duplicate' | 'out_of_scope'>('duplicate');
+  const [dismissReason, setDismissReason] = useState<string>('');
 
   // Note & Message inputs
   const [internalNoteText, setInternalNoteText] = useState<string>('');
@@ -1045,7 +1059,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     // Un rattachement défini dès la création déclenche immédiatement le
     // routage indépendant (storage.triggerIndependentRouting, Phase 4).
     if (personLinkedUserId) {
-      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      const fallbackRecipient = storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et
+      // de routage) === Aucune autorité interne trouvée → notifie le
+      // destinataire de dernier recours identifié par storage.ts.
+      if (fallbackRecipient) {
+        notifyEscalationRecipient(fallbackRecipient, selectedAlert, activeUser, 'Routage indépendant non résolu — intervention manuelle requise');
+      }
     }
     setAddPersonKind(null);
     setPersonNameInput('');
@@ -1078,7 +1098,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     }
     // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
     if (resolvedUserId) {
-      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      const fallbackRecipient = storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      if (fallbackRecipient) {
+        notifyEscalationRecipient(fallbackRecipient, selectedAlert, activeUser, 'Routage indépendant non résolu — intervention manuelle requise');
+      }
     }
     setLinkingPerson(null);
     setLinkingUserId('');
@@ -1121,17 +1144,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     }
 
     const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      status: 'closed',
-      // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-      // l'envoi en revue) === Synchronise aussi le statut riche : sans
-      // cela, un dossier dont `workflowStatus` a été renseigné par le
-      // moteur riche (ex. passé par "Envoyer en revue") restait figé sur
-      // 'conclusion_pending'/'functional_review' après sa clôture legacy
-      // ci-dessus — la timeline "STATUT DU DOSSIER" continuait alors à
-      // afficher "En revue" comme étape courante en même temps que
-      // "Clôturé" comme faite, une incohérence visuelle réelle.
-      workflowStatus: 'closed',
+      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+      // cause racine) === `applyCaseStatus` remplace la construction
+      // manuelle `status: 'closed', workflowStatus: 'closed'` — mêmes deux
+      // champs, mais désormais écrits ensemble par construction (voir
+      // services/statusMapping.ts) : sans cela, un dossier dont
+      // `workflowStatus` a été renseigné par le moteur riche (ex. passé par
+      // "Envoyer en revue") restait figé sur 'conclusion_pending'/
+      // 'functional_review' après sa clôture legacy — la timeline "STATUT
+      // DU DOSSIER" affichait alors "En revue" comme étape courante en même
+      // temps que "Clôturé" comme faite, une incohérence visuelle réelle
+      // (bug déjà corrigé, ce refactor n'en change pas le comportement).
+      ...applyCaseStatus(selectedAlert, 'closed'),
       closedAt: new Date().toISOString(),
       closedBy: activeUser.name,
       closureSummary: closureSummary.trim() || 'Dossier traité et investigué avec succès conformément aux directives de la DARC Groupe ACTIVA.',
@@ -1165,13 +1189,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     if (!selectedAlert || !reopenReason.trim()) return;
 
     const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      status: 'reopened',
-      // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-      // l'envoi en revue) === même synchronisation que handleCloseAlert —
-      // un dossier rouvert depuis 'conclusion_pending'/'functional_review'
-      // ne doit plus afficher "En revue" comme étape courante.
-      workflowStatus: 'reopened',
+      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+      // cause racine) === `applyCaseStatus` remplace la construction
+      // manuelle — même synchronisation que handleCloseAlert : un dossier
+      // rouvert depuis 'conclusion_pending'/'functional_review' ne doit
+      // plus afficher "En revue" comme étape courante.
+      ...applyCaseStatus(selectedAlert, 'reopened'),
       reopenedAt: new Date().toISOString(),
       reopenedBy: activeUser.name,
       reopenReason: reopenReason.trim(),
@@ -1295,11 +1318,19 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === `escalateOwnerId` référence désormais un
+  // EscalationRecipient.id (registre admin-éditable) — storage.escalateAlert
+  // gère lui-même l'octroi d'accès réel (compte lié) et retourne le
+  // destinataire complet pour la notification e-mail ci-dessous.
   const handleEscalate = () => {
     if (!selectedAlert || !escalateReason.trim() || !escalateOwnerId) return;
     const criteriaMatched = evaluateEscalationCriteria(selectedAlert).map((c) => c.label);
     const result = storage.escalateAlert(selectedAlert.id, escalateReason.trim(), criteriaMatched, escalateOwnerId, activeUser);
     if (result.allowed) {
+      if (result.recipient) {
+        notifyEscalationRecipient(result.recipient, selectedAlert, activeUser, 'Dossier escaladé');
+      }
       setShowEscalateModal(false);
       setEscalateReason('');
       setEscalateOwnerId('');
@@ -1311,16 +1342,31 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     // affichage si besoin.
   };
 
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+  // périmètre) === Structurellement valide uniquement depuis 'new'
+  // (ALLOWED_TRANSITIONS), donc réservé aux dossiers pas encore attribués —
+  // évite tout chevauchement avec la clôture normale (handleCloseAlert),
+  // qui exige au moins une allégation documentée (§25) : un doublon/hors
+  // périmètre n'a par nature rien à documenter.
+  const handleDismissCase = () => {
+    if (!selectedAlert || !dismissReason.trim()) return;
+    const result = storage.transitionStatus(selectedAlert.id, dismissTargetStatus, activeUser, dismissReason.trim());
+    if (result.allowed) {
+      setShowDismissModal(false);
+      setDismissReason('');
+      setDismissTargetStatus('duplicate');
+    }
+  };
+
   // Archive Alert (CDC 3.1.3)
   const handleArchiveAlert = () => {
     if (!selectedAlert) return;
 
     const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      status: 'archived',
-      // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-      // l'envoi en revue) === même synchronisation que handleCloseAlert.
-      workflowStatus: 'archived',
+      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+      // cause racine) === `applyCaseStatus` remplace la construction
+      // manuelle — même synchronisation que handleCloseAlert.
+      ...applyCaseStatus(selectedAlert, 'archived'),
       updatedAt: new Date().toISOString(),
     };
 
@@ -1801,6 +1847,38 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   </h1>
                   {getPriorityBadge(selectedAlert)}
                   <StatusBadge status={selectedAlert.status} label={selectedAlert.status.toUpperCase().replace('_', ' ')} size="sm" />
+                  {/* === AMÉLIORATION AJOUTÉE (Visibilité de l'escalade —
+                      impasse UX corrigée) === BUG PRÉEXISTANT CORRIGÉ,
+                      identifié lors d'une analyse critique du frontend :
+                      une fois escaladé, rien dans l'interface ne montrait
+                      qu'un dossier l'était — le badge "INVESTIGATION"
+                      restait affiché sans changement visible (l'escalade
+                      était absorbée dans l'étape générique "En
+                      investigation" de la timeline "STATUT DU DOSSIER",
+                      jamais une étape à part). Ce badge n'apparaît que
+                      tant que `workflowStatus` est ENCORE 'escalated'
+                      (état courant, disparaît naturellement dès que le
+                      dossier avance à l'étape suivante) — la carte
+                      "Dossier escaladé" ci-dessous, elle, reste visible en
+                      permanence comme trace historique. */}
+                  {currentWorkflowStatus === 'escalated' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border border-rose-200 text-rose-700 bg-rose-50">
+                      <ArrowUpCircle className="w-3 h-3" />
+                      {t.case_escalated_badge}
+                    </span>
+                  )}
+                  {/* === AMÉLIORATION AJOUTÉE (Classement sans suite —
+                      Doublon / Hors périmètre) === Sans ce badge, un
+                      dossier classé "Doublon"/"Hors périmètre" afficherait
+                      seulement le badge générique "CLOSED" hérité du
+                      statut legacy (syncLegacyStatus), indiscernable d'une
+                      vraie clôture après investigation complète. */}
+                  {(currentWorkflowStatus === 'duplicate' || currentWorkflowStatus === 'out_of_scope') && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border border-slate-300 text-slate-600 bg-slate-100">
+                      <Ban className="w-3 h-3" />
+                      {currentWorkflowStatus === 'duplicate' ? t.dismiss_reason_duplicate : t.dismiss_reason_out_of_scope}
+                    </span>
+                  )}
                   {/* === AMÉLIORATION AJOUTÉE (Retours visuels 3) === BUG PRÉEXISTANT
                       CORRIGÉ, signalé par l'utilisateur (capture de référence) : le
                       score de risque était affiché dans une box flottante séparée à
@@ -1864,27 +1942,60 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       </button>
                     )}
 
+                    {/* === AMÉLIORATION AJOUTÉE (Classement sans suite —
+                        Doublon / Hors périmètre) === BUG PRÉEXISTANT
+                        CORRIGÉ, identifié lors d'une analyse critique du
+                        frontend : 'duplicate'/'out_of_scope' (CaseStatus,
+                        domain/caseTypes.ts) étaient structurellement
+                        atteignables depuis 'new' (ALLOWED_TRANSITIONS,
+                        domain/workflow.ts) mais aucun écran ne le
+                        proposait — un signalement manifestement doublon ou
+                        hors périmètre devait passer par tout le circuit
+                        d'investigation (allégations, mesures correctives)
+                        avant de pouvoir être clôturé. Même garde que
+                        "Attribuer" (cases.assign, décision d'opérateur) ;
+                        réservé aux dossiers pas encore attribués (voir
+                        handleDismissCase). */}
+                    {userCan(activeUser, 'cases.assign') && currentWorkflowStatus === 'new' && (
+                      <button
+                        id="btn-desk-dismiss"
+                        onClick={() => {
+                          setDismissTargetStatus('duplicate');
+                          setDismissReason('');
+                          setShowDismissModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <Ban className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{t.btn_dismiss_case}</span>
+                      </button>
+                    )}
+
                     {/* === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-                        Escalade manuelle vers la DARC Groupe (brief §14/§44).
-                        Gardée par `cases.reassign` (comme l'attribution,
-                        l'escalade change la responsabilité du dossier) — un
+                        Escalade manuelle (brief §14/§44). Gardée par
+                        `cases.reassign` (comme l'attribution, l'escalade
+                        change la responsabilité du dossier) — un
                         investigateur de base n'a pas cette permission, un
                         senior_investigator/functional_admin/darc_compliance
-                        oui. N'apparaît que s'il existe au moins un compte
-                        Groupe éligible pour recevoir le dossier. */}
-                    {userCan(activeUser, 'cases.reassign') && getGroupEscalationOwners(allUsers).length > 0 && (
+                        oui. N'apparaît que s'il existe au moins un
+                        destinataire actif dans le registre d'escalade
+                        admin-éditable (Gouvernance) — REMPLACE
+                        `getGroupEscalationOwners`, limité à 2 rôles codés
+                        en dur. */}
+                    {userCan(activeUser, 'cases.reassign') && storage.getEscalationRecipients().filter((r) => r.active).length > 0 && (
                       <button
                         id="btn-desk-escalate"
                         onClick={() => {
                           setEscalateReason('');
-                          setEscalateOwnerId(getGroupEscalationOwners(allUsers)[0]?.id ?? '');
+                          setEscalateOwnerId(storage.getEscalationRecipients().filter((r) => r.active)[0]?.id ?? '');
                           setShowEscalateModal(true);
                           setShowActionsMenu(false);
                         }}
                         className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
                       >
                         <ArrowUpCircle className="w-3.5 h-3.5 text-rose-600" />
-                        <span>Escalader vers la DARC Groupe</span>
+                        <span>{t.btn_escalate_case}</span>
                       </button>
                     )}
 
@@ -2317,6 +2428,48 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     <p className="leading-relaxed text-slate-700 whitespace-pre-wrap">{selectedAlert.detailedDescription}</p>
                   )}
                 </div>
+
+                {/* === AMÉLIORATION AJOUTÉE (Visibilité de l'escalade —
+                    impasse UX corrigée) === BUG PRÉEXISTANT CORRIGÉ :
+                    escalatedAt/By/Reason/OwnerId/RecipientId étaient déjà
+                    calculés et stockés par storage.escalateAlert, mais
+                    jamais affichés nulle part dans l'interface — seule la
+                    Chronologie (onglet dédié, peu visible) exposait
+                    l'entrée d'audit CASE_ESCALATED. Cette carte donne au
+                    dossier ET au nouveau destinataire un contexte visible
+                    et permanent (trace historique, contrairement au badge
+                    ci-dessus qui disparaît une fois le dossier avancé) :
+                    qui a escaladé, vers qui, quand, pourquoi, et si un
+                    accès réel a été accordé (jamais un accès fictif —
+                    correctif confidentialité déjà appliqué côté storage.ts). */}
+                {selectedAlert.escalatedRecipientId && (() => {
+                  const recipient = storage.getEscalationRecipients().find((r) => r.id === selectedAlert.escalatedRecipientId);
+                  const actor = allUsers.find((u) => u.id === selectedAlert.escalatedBy);
+                  if (!recipient) return null;
+                  return (
+                    <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/40">
+                      <h4 className="font-bold text-slate-900 flex items-center gap-2 mb-1.5">
+                        <ArrowUpCircle className="w-4 h-4 text-rose-600" />
+                        {t.case_escalated_card_title}
+                      </h4>
+                      <p className="text-slate-700">
+                        {t.case_escalated_card_meta
+                          .replace('{date}', selectedAlert.escalatedAt ? new Date(selectedAlert.escalatedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR') : '')
+                          .replace('{recipient}', recipient.nom)
+                          .replace('{fonction}', recipient.fonction)
+                          .replace('{actor}', actor?.name ?? '—')}
+                      </p>
+                      {selectedAlert.escalatedReason && (
+                        <p className="text-slate-600 mt-1">
+                          <span className="font-semibold">{t.case_escalated_card_reason_label}</span> {selectedAlert.escalatedReason}
+                        </p>
+                      )}
+                      <p className={`mt-1.5 text-[11px] font-semibold ${selectedAlert.escalatedOwnerId ? 'text-emerald-700' : 'text-slate-500'}`}>
+                        {selectedAlert.escalatedOwnerId ? t.case_escalated_card_access_granted : t.case_escalated_card_access_email_only}
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation
                     obligatoire avant l'envoi en revue) === Même gabarit que
@@ -3427,7 +3580,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
             <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Escalader vers la DARC Groupe</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t.btn_escalate_case}</h3>
               <p className="text-slate-500 text-[11px] mt-0.5">
                 Dossier {selectedAlert.trackingNumber} ({selectedAlert.concernedEntity}) — le pays et l'entité d'origine ne sont pas modifiés, seul le propriétaire du dossier change.
               </p>
@@ -3452,16 +3605,32 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             })()}
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Propriétaire Groupe *</label>
+              {/* === AMÉLIORATION AJOUTÉE (Registre des destinataires
+                  d'escalade et de routage) === Source désormais le registre
+                  admin-éditable (Gouvernance) au lieu de
+                  getGroupEscalationOwners (2 rôles codés en dur). Un
+                  destinataire sans compte lié, OU dont le compte lié n'a
+                  pas l'habilitation de confidentialité requise pour CE
+                  dossier (canSeeAlertConfidentiality — correctif
+                  confidentialité), reste sélectionnable — la mention
+                  "e-mail uniquement" évite toute ambiguïté sur ce qu'il
+                  recevra réellement (pas d'accès in-app fictif). */}
+              <label className="block font-semibold text-slate-700 mb-1">{t.escalate_recipient_label} *</label>
               <select
                 value={escalateOwnerId}
                 onChange={(e) => setEscalateOwnerId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
                 required
               >
-                {getGroupEscalationOwners(allUsers).map((u) => (
-                  <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
-                ))}
+                {storage.getEscalationRecipients().filter((r) => r.active).map((r) => {
+                  const linkedUser = r.linkedUserId ? allUsers.find((u) => u.id === r.linkedUserId) : undefined;
+                  const willGetAccess = !!linkedUser && canSeeAlertConfidentiality(linkedUser, selectedAlert);
+                  return (
+                    <option key={r.id} value={r.id}>
+                      {r.nom} — {r.fonction}{!willGetAccess ? ` (${t.escalate_recipient_email_only})` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -3472,7 +3641,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 value={escalateReason}
                 onChange={(e) => setEscalateReason(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                placeholder="Justification de l'escalade vers la DARC Groupe..."
+                placeholder="Justification de l'escalade..."
                 required
               />
             </div>
@@ -3490,6 +3659,61 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold"
               >
                 Confirmer l'escalade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+          périmètre) === Même gabarit que la modale d'escalade ci-dessus. */}
+      {showDismissModal && selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">{t.btn_dismiss_case}</h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                {t.dismiss_modal_subtitle.replace('{tracking}', selectedAlert.trackingNumber)}
+              </p>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">{t.dismiss_reason_type_label} *</label>
+              <select
+                value={dismissTargetStatus}
+                onChange={(e) => setDismissTargetStatus(e.target.value as 'duplicate' | 'out_of_scope')}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+              >
+                <option value="duplicate">{t.dismiss_reason_duplicate}</option>
+                <option value="out_of_scope">{t.dismiss_reason_out_of_scope}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">{t.dismiss_motive_label} *</label>
+              <textarea
+                rows={3}
+                value={dismissReason}
+                onChange={(e) => setDismissReason(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                placeholder={t.dismiss_motive_placeholder}
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setShowDismissModal(false)}
+                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                {t.btn_cancel}
+              </button>
+              <button
+                onClick={handleDismissCase}
+                disabled={!dismissReason.trim()}
+                className="px-4 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold"
+              >
+                {t.btn_dismiss_case_confirm}
               </button>
             </div>
           </div>

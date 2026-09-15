@@ -5,7 +5,8 @@ import {
   UserProfile,
   PriorityLevel,
   NocaThreshold,
-  UserRole
+  UserRole,
+  EscalationRecipient
 } from '../types';
 
 export interface EntityDef {
@@ -384,6 +385,53 @@ export const INITIAL_USERS: UserProfile[] = [
     country: 'Maurice',
     countries: [],
     entities: [],
+    active: true,
+  },
+];
+
+// === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+// routage) === Les 2 premiers sont liés à un compte EthicAlert déjà réel
+// ci-dessus (usr-senior-investigator/usr-darc-compliance) — l'escalade ou
+// le routage vers eux leur donne un accès in-app réel au dossier. Les 2
+// derniers (RH, DGA Groupe) n'ont volontairement PAS de compte : ils sont
+// notifiés par e-mail uniquement, jamais un accès fictif au dossier.
+export const INITIAL_ESCALATION_RECIPIENTS: EscalationRecipient[] = [
+  {
+    id: 'rec-001',
+    identifiant: 'GRP-INV-001',
+    nom: 'Grace Mensah',
+    email: 'g.mensah@group-activa.com',
+    fonction: 'Responsable des Investigations Groupe',
+    grade: 3,
+    linkedUserId: 'usr-senior-investigator',
+    active: true,
+  },
+  {
+    id: 'rec-002',
+    identifiant: 'GRP-DARC-001',
+    nom: 'DARC Groupe',
+    email: 'darc-groupe@group-activa.com',
+    fonction: 'Directeur Audit, Risques et Conformité Groupe',
+    grade: 4,
+    linkedUserId: 'usr-darc-compliance',
+    active: true,
+  },
+  {
+    id: 'rec-003',
+    identifiant: 'GRP-RH-001',
+    nom: 'Aïssatou Diallo',
+    email: 'a.diallo@group-activa.com',
+    fonction: 'Directeur des Ressources Humaines',
+    grade: 4,
+    active: true,
+  },
+  {
+    id: 'rec-004',
+    identifiant: 'GRP-DGA-001',
+    nom: 'Jean-Paul Nguema',
+    email: 'jp.nguema@group-activa.com',
+    fonction: 'Directeur Général Adjoint Groupe',
+    grade: 5,
     active: true,
   },
 ];

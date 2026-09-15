@@ -92,6 +92,38 @@ export function syncLegacyStatus(status: CaseStatus): AlertStatus {
   }
 }
 
+// === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts — cause
+// racine) ===
+//
+// Trois bugs distincts corrigés cette session (clôture, réouverture,
+// archivage) avaient tous la même cause : chaque écran qui fait avancer
+// `workflowStatus` construit lui-même l'objet `{ ...alert, status: ...,
+// workflowStatus: ... }` à la main, et RIEN n'empêche d'écrire l'un des deux
+// champs sans l'autre — le bug ne se voit qu'après coup (badge ou timeline
+// incohérent). `storage.transitionStatus()` évite déjà ce piège pour les
+// transitions génériques (pending_information/conclusion_pending/
+// functional_review), mais ne peut pas servir à la clôture/réouverture/
+// archivage/escalade réels : `checkTransition()` exige des `Allegation[]`
+// qu'`AlertRecord` ne porte pas (voir le commentaire au-dessus de
+// `storage.transitionStatus`) — ces 4 actions doivent donc écrire les deux
+// champs directement.
+//
+// `applyCaseStatus()` est le point de passage unique pour ce cas : il
+// garantit par construction que `status` et `workflowStatus` avancent
+// TOUJOURS ensemble, cohérents l'un avec l'autre (`syncLegacyStatus`) — un
+// futur écran qui l'utilise ne peut pas reproduire le bug (il n'y a qu'un
+// seul champ à fournir, `richStatus`, jamais les deux à dupliquer à la
+// main). Remplace la construction manuelle dans handleCloseAlert/
+// handleReopenAlert/handleArchiveAlert (InvestigationDesk.tsx) et
+// storage.escalateAlert — comportement strictement identique, seule la
+// duplication disparaît.
+export function applyCaseStatus<T extends { status: AlertStatus; workflowStatus?: CaseStatus }>(
+  alert: T,
+  richStatus: CaseStatus
+): T {
+  return { ...alert, status: syncLegacyStatus(richStatus), workflowStatus: richStatus };
+}
+
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const AT_RISK_WINDOW_MS = 2 * ONE_DAY_MS;
 

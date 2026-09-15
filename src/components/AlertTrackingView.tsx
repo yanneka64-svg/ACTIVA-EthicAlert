@@ -366,17 +366,19 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
   // If not logged in into a case
   if (!activeAlert) {
-    // === AMÉLIORATION AJOUTÉE (réduction de la taille de la fenêtre) ===
-    // max-w-5xl → max-w-3xl, min-h-[560px] → min-h-[460px] : fenêtre plus
-    // compacte, sur demande explicite de l'utilisateur.
+    // === AMÉLIORATION AJOUTÉE (alignement avec l'accueil des espaces
+    // StaffSpaceHome.tsx) === max-w-3xl → max-w-5xl, p-8 → p-8 sm:p-10 :
+    // mêmes dimensions que l'écran "Espaces de travail", sur demande
+    // explicite de l'utilisateur (les deux écrans doivent avoir le même
+    // gabarit). min-h-[460px] était déjà identique aux deux écrans.
     return (
-      <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
+      <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
           {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
               l'utilisateur) === Remplace la photo du siège par une photo de
               bureau avec vue sur skyline, servie depuis
               public/brand/track-login-bg.jpg. */}
-          <div className="relative hidden lg:flex flex-col justify-end p-8 min-h-[460px] text-white overflow-hidden">
+          <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[460px] text-white overflow-hidden">
             <img
               src="/brand/track-login-bg.jpg"
               alt="Espace de travail avec vue sur la ville"
@@ -398,10 +400,11 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
           {/* Form panel */}
           <div className="bg-white p-6 sm:p-10 flex flex-col justify-center">
-            <div className="text-center mb-6 space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto">
-                <Lock className="w-6 h-6" />
-              </div>
+            {/* === AMÉLIORATION AJOUTÉE (alignement avec l'accueil des
+                espaces) === Cadenas retiré et titre aligné à gauche
+                (au lieu de centré) — même style que le titre "Espaces de
+                travail" de StaffSpaceHome.tsx, sur demande explicite. */}
+            <div className="mb-6 space-y-2">
               <h2 className="text-xl font-bold text-slate-900">{t.track_title}</h2>
               <p className="text-xs text-slate-600">{t.track_subtitle}</p>
             </div>
@@ -474,11 +477,6 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               <span>{t.track_switch_to_new_alert}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
-
-            <div className="mt-5 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-              <p>{t.track_login_help}</p>
-            </div>
           </div>
         </div>
       </div>

@@ -19,7 +19,7 @@
  * jamais le flux principal (soumission/attribution déjà enregistrée avant
  * cet appel) — au pire, l'audit trail montre l'échec.
  */
-import { UserProfile } from '../types';
+import { UserProfile, EscalationRecipient } from '../types';
 import { storage } from './storage';
 
 const NOTIFY_ENDPOINT = '/api/notify-email';
@@ -118,4 +118,32 @@ export function notifyAssignmentToInvestigators(newlyAssigned: UserProfile[], al
         );
       });
     });
+}
+
+// === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+// routage) === Escalade (storage.escalateAlert) et routage indépendant
+// non résolu (storage.triggerIndependentRouting, dernier recours) :
+// contrairement aux 2 fonctions ci-dessus, le destinataire est un
+// EscalationRecipient — pas forcément un UserProfile avec compte. Même
+// discipline "jamais de fausse réussite" : chaque tentative journalisée
+// avec son issue réelle.
+export function notifyEscalationRecipient(recipient: EscalationRecipient, alert: CaseRef, actor: UserProfile, context: string): void {
+  if (!recipient.email) return;
+  sendOne(
+    recipient.email,
+    `[ACTIVA EthicAlert] ${context} — ${alert.trackingNumber}`,
+    `${context} concernant le dossier ${alert.trackingNumber}.\n\nRéférence : ${alert.trackingNumber}\n\n` +
+      (recipient.linkedUserId
+        ? 'Connectez-vous à ACTIVA EthicAlert pour y accéder.'
+        : "Vous n'avez pas de compte ACTIVA EthicAlert — ce message est une notification informative ; contactez l'équipe DARC Groupe pour toute action nécessaire.")
+  ).then((result) => {
+    storage.logAudit(
+      result.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',
+      result.ok
+        ? `Notification e-mail envoyée à ${recipient.nom} (${recipient.email}) — ${context} pour le dossier ${alert.trackingNumber}.`
+        : `Échec de l'envoi de la notification e-mail à ${recipient.nom} (${recipient.email}) — ${context} pour le dossier ${alert.trackingNumber} : ${result.reason ?? 'raison inconnue'}.`,
+      alert,
+      actor
+    );
+  });
 }

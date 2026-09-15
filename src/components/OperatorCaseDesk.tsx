@@ -237,7 +237,12 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
     titleKey: 'sidebar_op_closed',
     subtitleKey: 'ocd_closed_subtitle',
     emptyKey: 'ocd_empty_closed',
-    predicate: (a) => a.assignedInvestigators.length > 0 && a.status === 'closed',
+    // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+    // périmètre) === Un dossier classé "Doublon"/"Hors périmètre"
+    // (storage.transitionStatus) n'a par nature jamais d'investigateur
+    // assigné — sans cette clause, il resterait invisible de cet onglet
+    // (et de fait de toute l'interface Opérateur) une fois clôturé.
+    predicate: (a) => a.status === 'closed' && (a.assignedInvestigators.length > 0 || a.workflowStatus === 'duplicate' || a.workflowStatus === 'out_of_scope'),
     rowAction: 'none',
   },
   // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace

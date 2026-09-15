@@ -41,7 +41,20 @@ export { getImplicatedUserIds, getConflictedUserIds };
 // RÔLE SEUL (pas par UserProfile complet), réutilisée à la fois par
 // resolveIndependentAuthority (sur un compte réel) et getRoutingMatrixView
 // (sur la table de niveaux seule, sans compte réel en jeu).
+//
+// === AMÉLIORATION AJOUTÉE (règle métier explicite — chaîne d'implication) ===
+// `functional_admin` (point de contact / accueil des signalements) est
+// volontairement exclu comme CIBLE, bien qu'il ait techniquement
+// cases.edit/cases.assign : ce n'est pas un échelon de la chaîne
+// d'implication enquêteur → Responsable des Investigations → Directeur
+// Audit, Risques et Conformité Groupe → DGA Groupe (repli e-mail, voir
+// storage.triggerIndependentRouting). Sans cette exclusion, un Responsable
+// des Investigations mis en cause pouvait être routé vers functional_admin
+// (niveau intermédiaire) au lieu du Directeur Audit, Risques et Conformité
+// Groupe — reste éligible comme SOURCE (compte mis en cause), seule sa
+// candidature comme CIBLE est retirée.
 function isRoutingEligibleRole(role: UserRole): boolean {
+  if (role === 'functional_admin') return false;
   return roleHasPermission(role, 'cases.edit') || roleHasPermission(role, 'cases.assign');
 }
 
