@@ -270,6 +270,11 @@ export interface AlertRecord {
   investigationReport?: string;
   investigationReportBy?: string;
   investigationReportAt?: string;
+  // === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation en fichier) ===
+  // Alternative/complément au texte ci-dessus : mêmes champs qu'EvidenceFile
+  // (id/name/size/type/dataUrl/uploadedBy), déjà utilisé par "Preuves &
+  // pièces jointes" — aucun nouveau mécanisme de dépôt de fichier réinventé.
+  investigationReportFile?: EvidenceFile;
   // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
   // Escalade vers la DARC Groupe (brief §14/§44). Le pays/entité d'origine
   // ci-dessus (country/concernedEntity/countryId/entityId) ne sont JAMAIS

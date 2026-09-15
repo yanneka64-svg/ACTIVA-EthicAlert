@@ -46,6 +46,9 @@ import {
   ArrowLeft,
   // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
   Archive,
+  // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+  // envoyés en revue) ===
+  Eye,
 } from 'lucide-react';
 import { AlertRecord, Language, UserProfile, PriorityLevel, SeverityLevel, NocaThreshold, CaseMessage } from '../types';
 import { ConfidentialityLevel } from '../domain/caseTypes';
@@ -84,7 +87,15 @@ import { AssignCandidateRow } from './InvestigationDesk';
 // en lecture seule (`rowAction: 'none'`, comme les 3 écrans Enquêteur
 // "de travail" ci-dessus) — jamais de réattribution sur un dossier déjà
 // clos.
-export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'closed' | 'my_cases' | 'to_process' | 'in_progress';
+// === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers envoyés
+// en revue) === `review`, entre `assigned` et `closed` : dossiers dont le
+// rapport d'investigation a été envoyé en revue (workflowStatus
+// conclusion_pending/functional_review, InvestigationDesk.handleSendToReview)
+// — en lecture seule ici aussi (`rowAction: 'none'`), la clôture réelle se
+// fait sur la fiche dossier complète via `onOpenCase`, qui réutilise telle
+// quelle la validation déjà existante (handleCloseAlert — au moins une
+// mesure corrective documentée) plutôt que de la dupliquer.
+export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'review' | 'closed' | 'my_cases' | 'to_process' | 'in_progress';
 
 interface OperatorCaseDeskProps {
   lang: Language;
@@ -143,13 +154,13 @@ type RowAction = 'assign' | 'reassign' | 'followup' | 'none';
 interface ModeConfig {
   icon: React.ComponentType<{ className?: string }>;
   titleKey:
-    | 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed' | 'sidebar_op_closed'
+    | 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed' | 'sidebar_op_review' | 'sidebar_op_closed'
     | 'sidebar_inv_my_cases' | 'sidebar_inv_to_process' | 'sidebar_inv_in_progress';
   subtitleKey:
-    | 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle' | 'ocd_closed_subtitle'
+    | 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle' | 'ocd_review_subtitle' | 'ocd_closed_subtitle'
     | 'ocd_my_cases_subtitle' | 'ocd_to_process_subtitle' | 'ocd_in_progress_subtitle';
   emptyKey:
-    | 'ocd_empty_inbox' | 'ocd_empty_to_assign' | 'ocd_empty_pending_info' | 'ocd_empty_assigned' | 'ocd_empty_closed'
+    | 'ocd_empty_inbox' | 'ocd_empty_to_assign' | 'ocd_empty_pending_info' | 'ocd_empty_assigned' | 'ocd_empty_review' | 'ocd_empty_closed'
     | 'ocd_empty_my_cases' | 'ocd_empty_to_process' | 'ocd_empty_in_progress';
   predicate: (a: AlertRecord) => boolean;
   rowAction: RowAction;
@@ -195,6 +206,26 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
     emptyKey: 'ocd_empty_assigned',
     predicate: (a) => a.assignedInvestigators.length > 0 && a.status !== 'closed',
     rowAction: 'reassign',
+  },
+  // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+  // envoyés en revue) === Se base sur `workflowStatus` (moteur riche,
+  // InvestigationDesk.handleSendToReview) plutôt que sur le statut legacy
+  // `corrective_action` : ce dernier est aussi atteint par l'ancien
+  // mécanisme "Mesure corrective ajoutée", sans rapport avec un envoi en
+  // revue — les deux ne doivent pas être confondus ici. Exclut closed/
+  // archived explicitement : `handleCloseAlert` ne remet pas `workflowStatus`
+  // à jour, donc un dossier clôturé depuis cet état y resterait sinon
+  // indéfiniment visible.
+  review: {
+    icon: Eye,
+    titleKey: 'sidebar_op_review',
+    subtitleKey: 'ocd_review_subtitle',
+    emptyKey: 'ocd_empty_review',
+    predicate: (a) =>
+      (a.workflowStatus === 'conclusion_pending' || a.workflowStatus === 'functional_review') &&
+      a.status !== 'closed' &&
+      a.status !== 'archived',
+    rowAction: 'none',
   },
   // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === même
   // périmètre que `assigned` (dossiers réellement attribués), restreint aux
@@ -372,6 +403,13 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: modeAlerts.length, label: 'Total ouverts', tone: 'blue' },
           { value: inProgressCount, label: 'En cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+        ]
+      : mode === 'review'
+      ? [
+          { value: modeAlerts.length, label: 'Total en revue', tone: 'indigo' },
+          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
+          { value: waitingLongCount, label: 'En attente > 7 jours', tone: 'orange' },
           { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
         ]
       : mode === 'closed'

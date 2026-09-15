@@ -69,6 +69,9 @@ export const TAB_TO_PATH: Record<string, string> = {
   op_pending_info: '/operator/pending-information',
   op_assign: '/operator/assign',
   op_processed: '/operator/processed',
+  // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+  // envoyés en revue) ===
+  op_review: '/operator/review',
   // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
   op_closed: '/operator/closed',
 

@@ -105,7 +105,7 @@ const STAFF_TAB_KEYS = [
   // et n'étaient plus atteignables par aucun bouton de menu depuis la
   // Proposition B (voir StaffPortalLayout.tsx). Leurs anciennes URLs restent
   // fonctionnelles via un alias dans routing/routes.ts.
-  'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed', 'op_closed',
+  'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed', 'op_review', 'op_closed',
   'inv_dashboard', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending',
   'admin_audit', 'admin_reports', 'admin_organization',
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
@@ -499,6 +499,9 @@ function AppShell() {
       );
     }
     if (currentTab === 'op_processed') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="assigned" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+    // envoyés en revue) ===
+    if (currentTab === 'op_review') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="review" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
     if (currentTab === 'op_closed') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="closed" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
