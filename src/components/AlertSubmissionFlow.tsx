@@ -28,6 +28,8 @@ import {
   User,
   Paperclip,
   Pencil,
+  // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité) ===
+  X,
 } from 'lucide-react';
 import {
   Language,
@@ -98,6 +100,14 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   // Step control (1 to 5 = form, 6 = acknowledgment)
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [saveStatus, setSaveStatus] = useState<string>('');
+
+  // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité avant le
+  // formulaire) === Affichée systématiquement à l'ouverture du formulaire de
+  // signalement (quel que soit le point d'entrée — accueil, FAQ, écran de
+  // suivi...), tant que l'utilisateur n'a pas cliqué sur "J'ai compris et je
+  // souhaite poursuivre". "Annuler" ramène à l'écran précédent via `onCancel`,
+  // déjà utilisé ailleurs dans ce composant.
+  const [confidentialityConfirmed, setConfidentialityConfirmed] = useState(false);
 
   // 1. Whistleblower identity
   // === AMÉLIORATION AJOUTÉE (Phase 26) === isAnonymous n'est plus choisi via
@@ -506,6 +516,67 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     setCopiedTracking(true);
     setTimeout(() => setCopiedTracking(false), 2500);
   };
+
+  // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité avant le
+  // formulaire de signalement, conforme à la maquette fournie) ===
+  if (!confidentialityConfirmed) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label={t.confidentiality_gate_cancel}
+            className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/90 hover:bg-white flex items-center justify-center text-slate-500 shadow-sm"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="relative hidden md:flex items-center justify-center min-h-[420px] overflow-hidden">
+            <img
+              src="/brand/track-login-bg.jpg"
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-[#0B2545]/45" />
+            <div className="relative z-10 w-40 h-40 rounded-full bg-white/10 border border-white/30 flex items-center justify-center">
+              <ShieldCheck className="w-16 h-16 text-white" strokeWidth={1.5} />
+              <Lock className="w-8 h-8 text-white absolute" />
+            </div>
+          </div>
+
+          <div className="p-8 sm:p-10 flex flex-col justify-center space-y-5">
+            <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
+              <Lock className="w-7 h-7 text-blue-700" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-[#0B2545] leading-tight">
+              {t.confidentiality_gate_title}
+            </h2>
+            <p className="text-sm text-slate-700 leading-relaxed">{t.confidentiality_gate_body1}</p>
+            <p className="text-sm text-slate-700 leading-relaxed">{t.confidentiality_gate_body2}</p>
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition"
+              >
+                {t.confidentiality_gate_cancel}
+              </button>
+              <button
+                type="button"
+                id="confidentiality-gate-confirm"
+                onClick={() => setConfidentialityConfirmed(true)}
+                className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition"
+              >
+                {t.confidentiality_gate_confirm}
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // === AMÉLIORATION AJOUTÉE (Phase 26 — sidebar de navigation en 6 étapes,
   // fidèle à la maquette de référence) ===

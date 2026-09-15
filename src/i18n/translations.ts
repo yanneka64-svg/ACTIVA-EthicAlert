@@ -118,6 +118,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     step_4_evidence: '4. Preuves & Impact',
     step_5_security: '5. Sécurisation de l’accès',
 
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité avant le
+    // formulaire de signalement) ===
+    confidentiality_gate_title: 'Votre signalement est confidentiel',
+    confidentiality_gate_body1: 'Les informations que vous communiquez seront traitées de manière confidentielle et uniquement par les personnes habilitées à traiter votre signalement.',
+    confidentiality_gate_body2: 'Vous pouvez choisir de rester anonyme. Merci de transmettre uniquement les informations utiles au traitement des faits signalés.',
+    confidentiality_gate_cancel: 'Annuler',
+    confidentiality_gate_confirm: 'J’ai compris et je souhaite poursuivre',
+
     // === AMÉLIORATION AJOUTÉE (Phase 26 — formulaire de signalement en 6 étapes,
     // fidèle à la nouvelle maquette de référence fournie) ===
     wizard_sidebar_title: 'Signaler une préoccupation',
@@ -1031,6 +1039,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     step_4_evidence: '4. Evidence & Impact',
     step_5_security: '5. Access Security',
 
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — confidentiality gate before the
+    // reporting form) ===
+    confidentiality_gate_title: 'Your report is confidential',
+    confidentiality_gate_body1: 'The information you provide will be handled confidentially and only by people authorized to process your report.',
+    confidentiality_gate_body2: 'You may choose to remain anonymous. Please share only the information relevant to processing the reported facts.',
+    confidentiality_gate_cancel: 'Cancel',
+    confidentiality_gate_confirm: 'I understand and wish to proceed',
+
     // === AMÉLIORATION AJOUTÉE (Phase 26 — 6-step reporting form matching the
     // supplied reference mockup) ===
     wizard_sidebar_title: 'Report a concern',
@@ -1870,6 +1886,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     step_3_persons: '3. Pessoas Envolvidas & Testemunhas',
     step_4_evidence: '4. Provas & Impacto',
     step_5_security: '5. Segurança de Acesso',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — modal de confidencialidade antes do
+    // formulário de denúncia) ===
+    confidentiality_gate_title: 'A sua denúncia é confidencial',
+    confidentiality_gate_body1: 'As informações que você fornecer serão tratadas de forma confidencial e apenas por pessoas autorizadas a tratar a sua denúncia.',
+    confidentiality_gate_body2: 'Você pode optar por permanecer anônimo. Por favor, transmita apenas as informações úteis ao tratamento dos fatos denunciados.',
+    confidentiality_gate_cancel: 'Cancelar',
+    confidentiality_gate_confirm: 'Compreendi e desejo continuar',
 
     // === AMÉLIORATION AJOUTÉE (Phase 26 — formulário de denúncia em 6 etapas,
     // fiel à nova maquete de referência fornecida) ===
