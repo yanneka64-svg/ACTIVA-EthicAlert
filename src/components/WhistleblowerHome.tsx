@@ -96,48 +96,61 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
         <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/35 to-transparent pointer-events-none" />
 
-        <div className="relative z-10 max-w-xl p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)] space-y-5">
-          <span className="block text-xs font-bold tracking-wider text-blue-700 uppercase">
-            {t.hero_eyebrow}
-          </span>
+        {/* === AMÉLIORATION AJOUTÉE (Phase 36 — correction largeur du texte
+            du hero sur grand écran) === BUG PRÉEXISTANT CORRIGÉ : le padding
+            gauche de positionnement (`lg:pl-[calc((100vw-80rem)/2+2rem)]`,
+            qui grandit avec la largeur d'écran) vivait sur le même élément
+            que `max-w-xl`. Sur un écran large, ce padding pouvait à lui seul
+            dépasser la largeur max autorisée, ne laissant presque plus de
+            place au texte (ex. 186px de large à 1900px de large d'écran,
+            faisant passer chaque mot du titre sur sa propre ligne). Le
+            padding de positionnement vit désormais sur un conteneur SANS
+            max-width ; `max-w-xl` ne contraint plus que le contenu réel, à
+            l'intérieur. */}
+        <div className="relative z-10 p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)]">
+          <div className="max-w-xl space-y-5">
+            <span className="block text-xs font-bold tracking-wider text-blue-700 uppercase">
+              {t.hero_eyebrow}
+            </span>
 
-          {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
-              Titre en deux lignes bicolores, comme sur la maquette de
-              référence, à la place du nom de produit utilisé jusqu'ici. */}
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight">
-            <span className="block text-[#0B2545]">{t.hero_headline_line1}</span>
-            <span className="block text-blue-600">{t.hero_headline_line2}</span>
-          </h1>
+            {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
+                Titre en deux lignes bicolores, comme sur la maquette de
+                référence, à la place du nom de produit utilisé jusqu'ici. */}
+            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+              <span className="block text-[#0B2545]">{t.hero_headline_line1}</span>
+              <span className="block text-blue-600">{t.hero_headline_line2}</span>
+            </h1>
 
-          <p className="text-base sm:text-lg font-semibold text-slate-800 leading-snug max-w-md">
-            {t.hero_desc}
-          </p>
+            <p className="text-base sm:text-lg font-semibold text-slate-800 leading-snug max-w-md">
+              {t.hero_desc}
+            </p>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
-            <button
-              id="hero-btn-new-alert"
-              onClick={onStartNewAlert}
-              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition whitespace-nowrap"
-            >
-              <Send className="w-4 h-4" />
-              <span>{t.btn_new_alert}</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
+              <button
+                id="hero-btn-new-alert"
+                onClick={onStartNewAlert}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition whitespace-nowrap"
+              >
+                <Send className="w-4 h-4" />
+                <span>{t.btn_new_alert}</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
 
-            <button
-              id="hero-btn-track"
-              onClick={onGoToTrack}
-              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm border border-slate-300 transition whitespace-nowrap"
-            >
-              <Search className="w-4 h-4" />
-              <span>{t.btn_track_existing}</span>
-            </button>
+              <button
+                id="hero-btn-track"
+                onClick={onGoToTrack}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm border border-slate-300 transition whitespace-nowrap"
+              >
+                <Search className="w-4 h-4" />
+                <span>{t.btn_track_existing}</span>
+              </button>
+            </div>
+
+            <p className="flex items-center gap-2 text-xs font-semibold text-slate-600 pt-1">
+              <Lock className="w-4 h-4 text-blue-600 shrink-0" />
+              {t.hero_anonymous_note}
+            </p>
           </div>
-
-          <p className="flex items-center gap-2 text-xs font-semibold text-slate-600 pt-1">
-            <Lock className="w-4 h-4 text-blue-600 shrink-0" />
-            {t.hero_anonymous_note}
-          </p>
         </div>
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 30 — messages défilants, fond
