@@ -51,8 +51,8 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto my-10 px-4">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+    <div className="min-h-[70vh] flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
         <div className="text-center mb-6">
           <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
             <User className="w-6 h-6" />
