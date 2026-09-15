@@ -382,6 +382,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     btn_assign_investigator: 'Attribuer à un gestionnaire',
     btn_change_priority: 'Modifier la priorité / Délais',
+    // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et
+    // de routage) ===
+    btn_escalate_case: 'Escalader le dossier',
+    escalate_recipient_label: 'Destinataire',
+    escalate_recipient_email_only: 'e-mail uniquement',
     // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
     btn_request_info: 'Demander des informations',
     btn_send_review: 'Envoyer en revue',
@@ -1350,6 +1355,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     btn_assign_investigator: 'Assign to Investigator',
     btn_change_priority: 'Update Priority / SLA',
+    btn_escalate_case: 'Escalate case',
+    escalate_recipient_label: 'Recipient',
+    escalate_recipient_email_only: 'email only',
     btn_request_info: 'Request information',
     btn_send_review: 'Send for review',
     btn_resume_investigation: 'Resume investigation',
@@ -2249,6 +2257,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     btn_assign_investigator: 'Atribuir a um Investigador',
     btn_change_priority: 'Modificar Prioridade / Prazos',
+    btn_escalate_case: 'Escalar o processo',
+    escalate_recipient_label: 'Destinatário',
+    escalate_recipient_email_only: 'apenas e-mail',
     btn_request_info: 'Solicitar informações',
     btn_send_review: 'Enviar para revisão',
     btn_resume_investigation: 'Retomar a investigação',

@@ -285,6 +285,20 @@ export interface AlertRecord {
   escalatedBy?: string;
   escalatedReason?: string;
   escalatedOwnerId?: string;
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === Référence vers EscalationRecipient.id, toujours renseignée
+  // à l'escalade (que le destinataire ait ou non un compte EthicAlert) —
+  // contrairement à escalatedOwnerId ci-dessus qui reste `undefined` quand
+  // le destinataire n'a pas de compte (jamais d'id de compte fictif).
+  escalatedRecipientId?: string;
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === Quand le routage indépendant ne trouve aucune autorité
+  // interne (independentRoutingUnresolved ci-dessous), le destinataire actif
+  // du grade le plus élevé du registre est notifié par e-mail à titre de
+  // dernier recours — jamais d'accès in-app fictif accordé, juste une vraie
+  // notification à un humain désigné plutôt qu'un silence total.
+  independentRoutingFallbackRecipientId?: string;
+  independentRoutingFallbackNotifiedAt?: string;
   // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
   // Routage indépendant (brief §47-68) : lorsqu'une personne mise en cause
   // est rattachée à un compte réel (InvolvedPerson.linkedUserId/
@@ -354,6 +368,28 @@ export interface CaseInterview {
   conductedBy: string;
   summary?: string;
   status: 'planned' | 'completed' | 'cancelled';
+}
+
+// === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+// routage) === Distinct de `UserProfile` : ces destinataires n'ont pas
+// forcément de compte EthicAlert (ex. DRH, DGA Groupe) — `linkedUserId`
+// est renseigné UNIQUEMENT quand la personne a aussi un compte réel, ce
+// qui lui donne alors un accès in-app réel au dossier concerné (voir
+// storage.escalateAlert/triggerIndependentRouting) ; sans ce lien, le
+// destinataire est notifié par e-mail mais n'obtient jamais d'accès
+// fictif au dossier. `grade` est une échelle numérique propre à ce
+// registre (plus élevé = plus senior), utilisée pour choisir le
+// destinataire de dernier recours quand le routage indépendant ne trouve
+// aucune autorité interne.
+export interface EscalationRecipient {
+  id: string;
+  identifiant: string;
+  nom: string;
+  email: string;
+  fonction: string;
+  grade: number;
+  linkedUserId?: string;
+  active: boolean;
 }
 
 export interface ConflictDeclaration {

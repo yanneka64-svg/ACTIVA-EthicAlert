@@ -46,7 +46,7 @@ describe('storage.triggerIndependentRouting', () => {
     expect(newAuditEntries.map((e) => e.actionType)).toEqual(['INVESTIGATOR_ASSIGNED', 'INDEPENDENT_ROUTING_TRIGGERED']);
   });
 
-  it('marks the case as unresolved when the implicated account is the highest operational role (darc_compliance)', () => {
+  it('marks the case as unresolved when the implicated account is the highest operational role (darc_compliance), and notifies the highest-grade active escalation recipient as a last resort', () => {
     const target = storage.getAlerts().find((a) => a.trackingNumber === 'ACT-2026-0418')!;
     const darcUser = storage.getUsers().find((u) => u.role === 'darc_compliance')!;
 
@@ -55,11 +55,20 @@ describe('storage.triggerIndependentRouting', () => {
       involvedPersons: [...target.involvedPersons, { id: 'per-test-darc', name: 'x', position: 'x', hierarchyRole: 'Directeur+', linkedUserId: darcUser.id }],
     });
 
-    storage.triggerIndependentRouting(target.id, storage.getActiveUser());
+    const fallbackRecipient = storage.triggerIndependentRouting(target.id, storage.getActiveUser());
 
     const after = storage.getAlertById(target.id);
     expect(after?.independentRoutingExcludedUserIds).toContain(darcUser.id);
     expect(after?.independentRoutingUnresolved).toBe(true);
     expect(storage.getAuditLogs()[0].actionType).toBe('NO_INDEPENDENT_AUTHORITY_FOUND');
+
+    // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+    // routage) === Le destinataire actif du grade le plus élevé du
+    // registre (seed : DGA Groupe, grade 5) est identifié et retourné pour
+    // notification — jamais de silence total sur un cas non résolu.
+    const expectedFallback = [...storage.getEscalationRecipients()].filter((r) => r.active).sort((a, b) => b.grade - a.grade)[0];
+    expect(fallbackRecipient?.id).toBe(expectedFallback.id);
+    expect(after?.independentRoutingFallbackRecipientId).toBe(expectedFallback.id);
+    expect(after?.independentRoutingFallbackNotifiedAt).toBeTruthy();
   });
 });

@@ -70,19 +70,19 @@ import {
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
-import { notifyAssignmentToInvestigators } from '../services/emailNotify';
+import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
 import type { DataTableColumn } from './ui';
 import { computeSlaStatus, deriveCaseStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, userCan } from '../services/authz';
+import { isGlobalCaseViewer, userCan, canSeeAlertConfidentiality } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
 // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-import { evaluateEscalationCriteria, getGroupEscalationOwners } from '../domain/escalationCriteria';
+import { evaluateEscalationCriteria } from '../domain/escalationCriteria';
 // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === même
 // regroupement en 5 paniers que le Tableau de bord (Phase 1), pour que les
 // onglets de filtre affichent exactement les mêmes catégories.
@@ -1045,7 +1045,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     // Un rattachement défini dès la création déclenche immédiatement le
     // routage indépendant (storage.triggerIndependentRouting, Phase 4).
     if (personLinkedUserId) {
-      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      const fallbackRecipient = storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et
+      // de routage) === Aucune autorité interne trouvée → notifie le
+      // destinataire de dernier recours identifié par storage.ts.
+      if (fallbackRecipient) {
+        notifyEscalationRecipient(fallbackRecipient, selectedAlert, activeUser, 'Routage indépendant non résolu — intervention manuelle requise');
+      }
     }
     setAddPersonKind(null);
     setPersonNameInput('');
@@ -1078,7 +1084,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     }
     // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
     if (resolvedUserId) {
-      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      const fallbackRecipient = storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      if (fallbackRecipient) {
+        notifyEscalationRecipient(fallbackRecipient, selectedAlert, activeUser, 'Routage indépendant non résolu — intervention manuelle requise');
+      }
     }
     setLinkingPerson(null);
     setLinkingUserId('');
@@ -1295,11 +1304,19 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === `escalateOwnerId` référence désormais un
+  // EscalationRecipient.id (registre admin-éditable) — storage.escalateAlert
+  // gère lui-même l'octroi d'accès réel (compte lié) et retourne le
+  // destinataire complet pour la notification e-mail ci-dessous.
   const handleEscalate = () => {
     if (!selectedAlert || !escalateReason.trim() || !escalateOwnerId) return;
     const criteriaMatched = evaluateEscalationCriteria(selectedAlert).map((c) => c.label);
     const result = storage.escalateAlert(selectedAlert.id, escalateReason.trim(), criteriaMatched, escalateOwnerId, activeUser);
     if (result.allowed) {
+      if (result.recipient) {
+        notifyEscalationRecipient(result.recipient, selectedAlert, activeUser, 'Dossier escaladé');
+      }
       setShowEscalateModal(false);
       setEscalateReason('');
       setEscalateOwnerId('');
@@ -1865,26 +1882,29 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     )}
 
                     {/* === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-                        Escalade manuelle vers la DARC Groupe (brief §14/§44).
-                        Gardée par `cases.reassign` (comme l'attribution,
-                        l'escalade change la responsabilité du dossier) — un
+                        Escalade manuelle (brief §14/§44). Gardée par
+                        `cases.reassign` (comme l'attribution, l'escalade
+                        change la responsabilité du dossier) — un
                         investigateur de base n'a pas cette permission, un
                         senior_investigator/functional_admin/darc_compliance
-                        oui. N'apparaît que s'il existe au moins un compte
-                        Groupe éligible pour recevoir le dossier. */}
-                    {userCan(activeUser, 'cases.reassign') && getGroupEscalationOwners(allUsers).length > 0 && (
+                        oui. N'apparaît que s'il existe au moins un
+                        destinataire actif dans le registre d'escalade
+                        admin-éditable (Gouvernance) — REMPLACE
+                        `getGroupEscalationOwners`, limité à 2 rôles codés
+                        en dur. */}
+                    {userCan(activeUser, 'cases.reassign') && storage.getEscalationRecipients().filter((r) => r.active).length > 0 && (
                       <button
                         id="btn-desk-escalate"
                         onClick={() => {
                           setEscalateReason('');
-                          setEscalateOwnerId(getGroupEscalationOwners(allUsers)[0]?.id ?? '');
+                          setEscalateOwnerId(storage.getEscalationRecipients().filter((r) => r.active)[0]?.id ?? '');
                           setShowEscalateModal(true);
                           setShowActionsMenu(false);
                         }}
                         className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
                       >
                         <ArrowUpCircle className="w-3.5 h-3.5 text-rose-600" />
-                        <span>Escalader vers la DARC Groupe</span>
+                        <span>{t.btn_escalate_case}</span>
                       </button>
                     )}
 
@@ -3427,7 +3447,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
             <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Escalader vers la DARC Groupe</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t.btn_escalate_case}</h3>
               <p className="text-slate-500 text-[11px] mt-0.5">
                 Dossier {selectedAlert.trackingNumber} ({selectedAlert.concernedEntity}) — le pays et l'entité d'origine ne sont pas modifiés, seul le propriétaire du dossier change.
               </p>
@@ -3452,16 +3472,32 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             })()}
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Propriétaire Groupe *</label>
+              {/* === AMÉLIORATION AJOUTÉE (Registre des destinataires
+                  d'escalade et de routage) === Source désormais le registre
+                  admin-éditable (Gouvernance) au lieu de
+                  getGroupEscalationOwners (2 rôles codés en dur). Un
+                  destinataire sans compte lié, OU dont le compte lié n'a
+                  pas l'habilitation de confidentialité requise pour CE
+                  dossier (canSeeAlertConfidentiality — correctif
+                  confidentialité), reste sélectionnable — la mention
+                  "e-mail uniquement" évite toute ambiguïté sur ce qu'il
+                  recevra réellement (pas d'accès in-app fictif). */}
+              <label className="block font-semibold text-slate-700 mb-1">{t.escalate_recipient_label} *</label>
               <select
                 value={escalateOwnerId}
                 onChange={(e) => setEscalateOwnerId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
                 required
               >
-                {getGroupEscalationOwners(allUsers).map((u) => (
-                  <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
-                ))}
+                {storage.getEscalationRecipients().filter((r) => r.active).map((r) => {
+                  const linkedUser = r.linkedUserId ? allUsers.find((u) => u.id === r.linkedUserId) : undefined;
+                  const willGetAccess = !!linkedUser && canSeeAlertConfidentiality(linkedUser, selectedAlert);
+                  return (
+                    <option key={r.id} value={r.id}>
+                      {r.nom} — {r.fonction}{!willGetAccess ? ` (${t.escalate_recipient_email_only})` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -3472,7 +3508,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 value={escalateReason}
                 onChange={(e) => setEscalateReason(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                placeholder="Justification de l'escalade vers la DARC Groupe..."
+                placeholder="Justification de l'escalade..."
                 required
               />
             </div>
