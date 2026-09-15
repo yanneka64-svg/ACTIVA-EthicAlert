@@ -366,11 +366,14 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
   // If not logged in into a case
   if (!activeAlert) {
+    // === AMÉLIORATION AJOUTÉE (réduction de la taille de la fenêtre) ===
+    // max-w-5xl → max-w-3xl, min-h-[560px] → min-h-[460px] : fenêtre plus
+    // compacte, sur demande explicite de l'utilisateur.
     return (
-      <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
+      <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
           {/* Photo panel — même photo que le hero de l'accueil */}
-          <div className="relative hidden lg:flex flex-col justify-end p-8 min-h-[560px] text-white overflow-hidden">
+          <div className="relative hidden lg:flex flex-col justify-end p-8 min-h-[460px] text-white overflow-hidden">
             <img
               src="/brand/activa-hq.jpg"
               alt="Siège du Groupe ACTIVA"

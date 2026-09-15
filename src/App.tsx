@@ -60,8 +60,6 @@ import { resolveRoute, pathForTab } from './routing/routes';
 import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
 import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from './services/authz';
 import { StaffLoginView } from './components/StaffLoginView';
-// === AMÉLIORATION AJOUTÉE (connexion par profil — seul l'Opérateur a 2 espaces) ===
-import { computeAvailableSpaces, computeGeneralDashboardTab, SPACE_DASHBOARD_TAB } from './domain/staffSpaces';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -239,26 +237,17 @@ function AppShell() {
     setIsStaffSessionActive(true);
   };
 
-  // === AMÉLIORATION AJOUTÉE (connexion par profil — seul l'Opérateur a 2
-  // espaces) === Un compte n'ayant qu'une seule interface réelle
-  // (`computeAvailableSpaces`, domain/staffSpaces.ts — logique déjà
-  // existante et testée, réutilisée telle quelle) va directement dans son
-  // espace au lieu de passer par l'accueil des espaces. Seul un compte à 2
-  // espaces réels ou plus (en pratique : Opérateur, qui a à la fois
-  // l'espace Opérateur et l'espace Enquêteur) voit encore cet écran de
-  // choix.
+  // === AMÉLIORATION AJOUTÉE (connexion — retour systématique à l'accueil
+  // des espaces) === Sur demande explicite de l'utilisateur, TOUT compte
+  // qui se connecte est désormais ramené sur l'accueil des espaces
+  // (StaffSpaceHome.tsx), quel que soit le nombre d'espaces réellement
+  // accessibles — c'est là que son nom est affiché et que le choix
+  // d'espace se fait, plutôt que d'y accéder directement pour les comptes
+  // à un seul espace comme auparavant.
   const handleLogin = (user: UserProfile) => {
     handleUserChange(user);
     setIsStaffSessionActive(true);
-    const spaces = computeAvailableSpaces(user);
-    const first = spaces[0];
-    if (spaces.length > 1) {
-      navigate(pathForTab('space_home'));
-    } else if (first && first !== 'general') {
-      navigate(pathForTab(SPACE_DASHBOARD_TAB[first]));
-    } else {
-      navigate(pathForTab(computeGeneralDashboardTab(user)));
-    }
+    navigate(pathForTab('space_home'));
   };
 
   const handleLogout = () => {
