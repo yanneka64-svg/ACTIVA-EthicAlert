@@ -128,7 +128,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     confidentiality_gate_body2_bold: 'anonyme.',
     confidentiality_gate_body2_post: ' Merci de transmettre uniquement les informations utiles au traitement des faits signalés.',
     confidentiality_gate_cancel: 'Annuler',
-    confidentiality_gate_confirm: 'J’ai compris et je souhaite poursuivre',
+    confidentiality_gate_confirm: 'Je souhaite poursuivre',
 
     // === AMÉLIORATION AJOUTÉE (Phase 26 — formulaire de signalement en 6 étapes,
     // fidèle à la nouvelle maquette de référence fournie) ===
@@ -1053,7 +1053,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     confidentiality_gate_body2_bold: 'anonymous.',
     confidentiality_gate_body2_post: ' Please share only the information relevant to processing the reported facts.',
     confidentiality_gate_cancel: 'Cancel',
-    confidentiality_gate_confirm: 'I understand and wish to proceed',
+    confidentiality_gate_confirm: 'I wish to proceed',
 
     // === AMÉLIORATION AJOUTÉE (Phase 26 — 6-step reporting form matching the
     // supplied reference mockup) ===
@@ -1905,7 +1905,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     confidentiality_gate_body2_bold: 'anônimo.',
     confidentiality_gate_body2_post: ' Por favor, transmita apenas as informações úteis ao tratamento dos fatos denunciados.',
     confidentiality_gate_cancel: 'Cancelar',
-    confidentiality_gate_confirm: 'Compreendi e desejo continuar',
+    confidentiality_gate_confirm: 'Desejo continuar',
 
     // === AMÉLIORATION AJOUTÉE (Phase 26 — formulário de denúncia em 6 etapas,
     // fiel à nova maquete de referência fornecida) ===
