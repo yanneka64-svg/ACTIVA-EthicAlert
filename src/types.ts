@@ -253,6 +253,13 @@ export interface AlertRecord {
   reopenReason?: string;
   reopenedAt?: string;
   reopenedBy?: string;
+  // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
+  // Horodatage réel du premier passage par ces 2 étapes (jamais fabriqué a
+  // posteriori) — permet à la timeline "STATUT DU DOSSIER" de les marquer
+  // honnêtement "fait" une fois le dossier passé à l'étape suivante, sans
+  // jamais cocher une étape que le dossier n'a en réalité pas traversée.
+  pendingInfoReachedAt?: string;
+  reviewReachedAt?: string;
   // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
   // Escalade vers la DARC Groupe (brief §14/§44). Le pays/entité d'origine
   // ci-dessus (country/concernedEntity/countryId/entityId) ne sont JAMAIS
