@@ -372,12 +372,15 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     return (
       <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
-          {/* Photo panel — même photo que le hero de l'accueil */}
+          {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
+              l'utilisateur) === Remplace la photo du siège par une photo de
+              bureau avec vue sur skyline, servie depuis
+              public/brand/track-login-bg.jpg. */}
           <div className="relative hidden lg:flex flex-col justify-end p-8 min-h-[460px] text-white overflow-hidden">
             <img
-              src="/brand/activa-hq.jpg"
-              alt="Siège du Groupe ACTIVA"
-              className="absolute inset-0 w-full h-full object-cover"
+              src="/brand/track-login-bg.jpg"
+              alt="Espace de travail avec vue sur la ville"
+              className="absolute inset-0 w-full h-full object-cover object-left"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/90 via-[#0B2545]/55 to-[#0B2545]/15" />
             <div className="relative z-10 space-y-5">

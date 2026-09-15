@@ -95,12 +95,15 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
     // compacte, sur demande explicite de l'utilisateur.
     <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
-        {/* Photo panel — nouvelle photo moderne du siège ACTIVA avec message d'accueil enrichi et suppression des anciens textes */}
+        {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
+            l'utilisateur) === Remplace la photo du siège par une photo de
+            bureau avec vue sur skyline (heure dorée), servie depuis
+            public/brand/space-home-bg.jpg. */}
         <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[460px] text-white overflow-hidden">
           <img
-            src="/brand/activa-headquarters-modern.jpg"
-            alt="Siège moderne du Groupe ACTIVA"
-            className="absolute inset-0 w-full h-full object-cover"
+            src="/brand/space-home-bg.jpg"
+            alt="Espace de travail avec vue sur la ville"
+            className="absolute inset-0 w-full h-full object-cover object-left"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/95 via-[#0B2545]/70 to-[#0B2545]/35" />
           <div className="relative z-10 space-y-4">
