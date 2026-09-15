@@ -1318,113 +1318,17 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                       </button>
                     </div>
 
-                    {/* OFFICIAL DARC RISK MATRIX (ANNEXE 9) — conservée intégralement (Phase 26 : relocalisée ici) */}
-                    <div className="p-5 rounded-2xl bg-[#0B2545]/5 border border-[#134074]/20 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-[#0B2545] flex items-center gap-1.5">
-                            <Info className="w-4 h-4 text-blue-700" />
-                            {t.matrix_title}
-                          </h4>
-                          <p className="text-[11px] text-slate-600">
-                            Application stricte des 4 critères d'évaluation du Cahier des Charges (Annexe 9).
-                          </p>
-                        </div>
-                        {/* Live NOCA Badge */}
-                        <div className="text-right">
-                          <span className="text-[10px] text-slate-500 block">Score : {liveRisk.totalScore}/16</span>
-                          <span
-                            className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${
-                              liveRisk.nocaThreshold === 'NOCA 4'
-                                ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                                : liveRisk.nocaThreshold === 'NOCA 3'
-                                ? 'bg-orange-100 text-orange-800 border border-orange-300'
-                                : liveRisk.nocaThreshold === 'NOCA 2'
-                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                            }`}
-                          >
-                            {liveRisk.nocaThreshold} - {liveRisk.priority.toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                        {/* 1. Financial Impact */}
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">1. Impact financier</label>
-                          <select
-                            value={finFactor}
-                            onChange={(e: any) => setFinFactor(Number(e.target.value) as any)}
-                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
-                          >
-                            <option value={1}>Faible (01) : &lt; 5 000 Euro</option>
-                            <option value={2}>Élevé (02) : 5 000 - 10 000 Euro</option>
-                            <option value={3}>Très élevé (03) : 10 000 - 20 000 Euro</option>
-                            <option value={4}>Critique (04) : &gt; 20 000 Euro</option>
-                          </select>
-                        </div>
-
-                        {/* 2. Hierarchy Level */}
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">2. Niveau hiérarchique</label>
-                          <select
-                            value={hierFactor}
-                            onChange={(e: any) => setHierFactor(Number(e.target.value) as any)}
-                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
-                          >
-                            <option value={1}>Faible (01) : Employé</option>
-                            <option value={2}>Élevé (02) : Cadre</option>
-                            <option value={3}>Très élevé (03) : Sous Directeur</option>
-                            <option value={4}>Critique (04) : Directeur</option>
-                          </select>
-                        </div>
-
-                        {/* 3. Recidivism */}
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">3. Récidive</label>
-                          <select
-                            value={recidFactor}
-                            onChange={(e: any) => setRecidFactor(Number(e.target.value) as any)}
-                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
-                          >
-                            <option value={1}>Faible (01) : Aucune</option>
-                            <option value={2}>Élevé (02) : Possible</option>
-                            <option value={3}>Très élevé (03) : Confirmée</option>
-                            <option value={4}>Critique (04) : Confirmée (Majeure)</option>
-                          </select>
-                        </div>
-
-                        {/* 4. Reputation Risk */}
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">4. Risque pour la réputation</label>
-                          <select
-                            value={reputFactor}
-                            onChange={(e: any) => setReputFactor(Number(e.target.value) as any)}
-                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
-                          >
-                            <option value={1}>Faible (01) : Négligeable</option>
-                            <option value={2}>Élevé (02) : Modéré</option>
-                            <option value={3}>Très élevé (03) : Élevé</option>
-                            <option value={4}>Critique (04) : Élevé / Médiatique</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Traitement attendu selon Annexe 9 */}
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs flex items-center justify-between">
-                        <div>
-                          <span className="font-semibold text-slate-700">Traitement attendu DARC :</span>{' '}
-                          <span className="text-[#0B2545] font-bold">{liveRisk.expectedTreatment}</span>
-                        </div>
-                        <span className="text-[11px] text-slate-500">
-                          {liveRisk.totalScore <= 6 && 'Seuil NOCA 1 (Score 4-6)'}
-                          {liveRisk.totalScore >= 7 && liveRisk.totalScore <= 10 && 'Seuil NOCA 2 (Score 7-10)'}
-                          {liveRisk.totalScore >= 11 && liveRisk.totalScore <= 13 && 'Seuil NOCA 3 (Score 11-13)'}
-                          {liveRisk.totalScore >= 14 && 'Seuil NOCA 4 (Score 14-16)'}
-                        </span>
-                      </div>
-                    </div>
+                    {/* === AMÉLIORATION AJOUTÉE : matrice de risque DARC (Annexe
+                        9) retirée de l'affichage sur demande explicite —
+                        cette classification automatique reste calculée
+                        (`liveRisk`, mêmes facteurs par défaut qu'avant :
+                        finFactor/hierFactor/reputFactor=2, recidFactor=1) et
+                        enregistrée avec le signalement (riskEvaluation),
+                        exactement comme avant ; seule son exposition et son
+                        édition interactive au lanceur d'alerte disparaissent
+                        du formulaire public. La classification reste
+                        ajustable ensuite par le personnel habilité via
+                        "Modifier la priorité / Délais" (InvestigationDesk.tsx). */}
 
                     <div className="flex justify-between pt-4">
                       <button
