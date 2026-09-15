@@ -121,8 +121,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité avant le
     // formulaire de signalement) ===
     confidentiality_gate_title: 'Votre signalement est confidentiel',
-    confidentiality_gate_body1: 'Les informations que vous communiquez seront traitées de manière confidentielle et uniquement par les personnes habilitées à traiter votre signalement.',
-    confidentiality_gate_body2: 'Vous pouvez choisir de rester anonyme. Merci de transmettre uniquement les informations utiles au traitement des faits signalés.',
+    confidentiality_gate_body1_pre: 'Les informations que vous communiquez seront traitées ',
+    confidentiality_gate_body1_bold: 'de manière confidentielle',
+    confidentiality_gate_body1_post: ' et uniquement par les personnes habilitées à traiter votre signalement.',
+    confidentiality_gate_body2_pre: 'Vous pouvez choisir de rester ',
+    confidentiality_gate_body2_bold: 'anonyme.',
+    confidentiality_gate_body2_post: ' Merci de transmettre uniquement les informations utiles au traitement des faits signalés.',
     confidentiality_gate_cancel: 'Annuler',
     confidentiality_gate_confirm: 'J’ai compris et je souhaite poursuivre',
 
@@ -1042,8 +1046,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 33 — confidentiality gate before the
     // reporting form) ===
     confidentiality_gate_title: 'Your report is confidential',
-    confidentiality_gate_body1: 'The information you provide will be handled confidentially and only by people authorized to process your report.',
-    confidentiality_gate_body2: 'You may choose to remain anonymous. Please share only the information relevant to processing the reported facts.',
+    confidentiality_gate_body1_pre: 'The information you provide will be handled ',
+    confidentiality_gate_body1_bold: 'confidentially',
+    confidentiality_gate_body1_post: ' and only by people authorized to process your report.',
+    confidentiality_gate_body2_pre: 'You may choose to remain ',
+    confidentiality_gate_body2_bold: 'anonymous.',
+    confidentiality_gate_body2_post: ' Please share only the information relevant to processing the reported facts.',
     confidentiality_gate_cancel: 'Cancel',
     confidentiality_gate_confirm: 'I understand and wish to proceed',
 
@@ -1890,8 +1898,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 33 — modal de confidencialidade antes do
     // formulário de denúncia) ===
     confidentiality_gate_title: 'A sua denúncia é confidencial',
-    confidentiality_gate_body1: 'As informações que você fornecer serão tratadas de forma confidencial e apenas por pessoas autorizadas a tratar a sua denúncia.',
-    confidentiality_gate_body2: 'Você pode optar por permanecer anônimo. Por favor, transmita apenas as informações úteis ao tratamento dos fatos denunciados.',
+    confidentiality_gate_body1_pre: 'As informações que você fornecer serão tratadas ',
+    confidentiality_gate_body1_bold: 'de forma confidencial',
+    confidentiality_gate_body1_post: ' e apenas por pessoas autorizadas a tratar a sua denúncia.',
+    confidentiality_gate_body2_pre: 'Você pode optar por permanecer ',
+    confidentiality_gate_body2_bold: 'anônimo.',
+    confidentiality_gate_body2_post: ' Por favor, transmita apenas as informações úteis ao tratamento dos fatos denunciados.',
     confidentiality_gate_cancel: 'Cancelar',
     confidentiality_gate_confirm: 'Compreendi e desejo continuar',
 

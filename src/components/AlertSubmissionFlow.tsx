@@ -30,6 +30,7 @@ import {
   Pencil,
   // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité) ===
   X,
+  Shield,
 } from 'lucide-react';
 import {
   Language,
@@ -522,7 +523,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   if (!confidentialityConfirmed) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+        <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
           <button
             type="button"
             onClick={onCancel}
@@ -532,28 +533,37 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
             <X className="w-5 h-5" />
           </button>
 
-          <div className="relative hidden md:flex items-center justify-center min-h-[420px] overflow-hidden">
+          {/* === AMÉLIORATION AJOUTÉE (Phase 34 — icône bouclier + cadenas
+              dans un anneau pointillé, fidèle à la maquette fournie) === */}
+          <div className="relative hidden md:flex items-center justify-center min-h-[460px] overflow-hidden">
             <img
               src="/brand/track-login-bg.jpg"
               alt=""
               className="absolute inset-0 w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-[#0B2545]/45" />
-            <div className="relative z-10 w-40 h-40 rounded-full bg-white/10 border border-white/30 flex items-center justify-center">
-              <ShieldCheck className="w-16 h-16 text-white" strokeWidth={1.5} />
-              <Lock className="w-8 h-8 text-white absolute" />
+            <div className="relative z-10 w-48 h-48 rounded-full border-2 border-dashed border-white/50 flex items-center justify-center">
+              <div className="relative w-24 h-24 flex items-center justify-center">
+                <Shield className="w-24 h-24 text-white" strokeWidth={1.25} />
+                <Lock className="w-8 h-8 text-white absolute" />
+              </div>
             </div>
           </div>
 
-          <div className="p-8 sm:p-10 flex flex-col justify-center space-y-5">
-            <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
-              <Lock className="w-7 h-7 text-blue-700" />
-            </div>
-            <h2 className="text-2xl font-extrabold text-[#0B2545] leading-tight">
+          <div className="p-8 sm:p-12 flex flex-col justify-center space-y-5">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545] leading-tight">
               {t.confidentiality_gate_title}
             </h2>
-            <p className="text-sm text-slate-700 leading-relaxed">{t.confidentiality_gate_body1}</p>
-            <p className="text-sm text-slate-700 leading-relaxed">{t.confidentiality_gate_body2}</p>
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
+              {t.confidentiality_gate_body1_pre}
+              <span className="font-bold text-slate-900">{t.confidentiality_gate_body1_bold}</span>
+              {t.confidentiality_gate_body1_post}
+            </p>
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
+              {t.confidentiality_gate_body2_pre}
+              <span className="font-bold text-slate-900">{t.confidentiality_gate_body2_bold}</span>
+              {t.confidentiality_gate_body2_post}
+            </p>
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 type="button"
