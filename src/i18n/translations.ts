@@ -323,6 +323,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_subtitle_single: 'Accédez à votre espace de travail pour reprendre votre activité.',
     space_home_subtitle_plural: 'Sélectionnez votre environnement de travail pour accéder aux dossiers, à la boîte de réception et aux outils dédiés.',
     space_home_session_active: 'Session active',
+    // === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) ===
+    space_home_denied_title: 'Accès restreint',
+    space_home_denied_body: 'Votre profil ne dispose pas des habilitations nécessaires pour accéder à « {space} ».',
+    space_home_denied_close: 'Fermer',
     space_home_operator_title: 'Espace Opérateur',
     space_home_operator_desc: 'Traitement des signalements, qualification, cotation et attribution des dossiers.',
     space_home_operator_stat: '{n} nouveau(x) signalement(s)',
@@ -1236,6 +1240,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_subtitle_single: 'Access your workspace to resume your activity.',
     space_home_subtitle_plural: 'Select your workspace to access cases, the inbox and dedicated tools.',
     space_home_session_active: 'Active session',
+    // === AMÉLIORATION AJOUTÉE (access-denied window on click) ===
+    space_home_denied_title: 'Access restricted',
+    space_home_denied_body: 'Your profile does not have the necessary permissions to access “{space}”.',
+    space_home_denied_close: 'Close',
     space_home_operator_title: 'Operator Space',
     space_home_operator_desc: 'Intake, qualification, scoring and assignment of reports.',
     space_home_operator_stat: '{n} new report(s)',
@@ -2089,6 +2097,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_subtitle_single: 'Acesse seu espaço de trabalho para retomar sua atividade.',
     space_home_subtitle_plural: 'Selecione seu ambiente de trabalho para acessar os casos, a caixa de entrada e as ferramentas dedicadas.',
     space_home_session_active: 'Sessão ativa',
+    // === AMÉLIORATION AJOUTÉE (janela de acesso restrito ao clicar) ===
+    space_home_denied_title: 'Acesso restrito',
+    space_home_denied_body: 'Seu perfil não possui as permissões necessárias para acessar « {space} ».',
+    space_home_denied_close: 'Fechar',
     space_home_operator_title: 'Espaço Operador',
     space_home_operator_desc: 'Tratamento das denúncias, qualificação, classificação e atribuição dos casos.',
     space_home_operator_stat: '{n} nova(s) denúncia(s)',

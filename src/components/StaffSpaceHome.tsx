@@ -1,5 +1,5 @@
 import React from 'react';
-import { Briefcase, Search, Settings, Users, ChevronRight, ShieldCheck } from 'lucide-react';
+import { Briefcase, Search, Settings, Users, ChevronRight, ShieldCheck, ShieldOff, X } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
@@ -31,6 +31,15 @@ interface StaffSpaceHomeProps {
  */
 export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser, setCurrentTab }) => {
   const t = TRANSLATIONS[lang];
+
+  // === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) === Sur
+  // demande explicite : cliquer sur un espace non permis n'emmène plus vers
+  // l'écran "Accès restreint" (PermissionGuard, routing/guards.tsx) — qui
+  // reste la protection réelle si l'écran est atteint autrement (lien
+  // profond, retour navigateur...) — mais affiche une fenêtre de message
+  // directement ici, sans quitter l'accueil des espaces. Jamais un accès
+  // fictif : le clic ne navigue simplement pas.
+  const [deniedSpace, setDeniedSpace] = React.useState<SpaceKey | null>(null);
 
   // === AMÉLIORATION AJOUTÉE (conforme à la maquette "Espaces de travail")
   // === Les 4 espaces canoniques sont désormais TOUJOURS affichés, quel que
@@ -90,10 +99,11 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
   };
 
   return (
-    // === AMÉLIORATION AJOUTÉE (réduction de la taille de la fenêtre) ===
-    // max-w-5xl → max-w-3xl, min-h-[560px] → min-h-[460px] : fenêtre plus
-    // compacte, sur demande explicite de l'utilisateur.
-    <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
+    <>
+    {/* === AMÉLIORATION AJOUTÉE (élargissement de la fenêtre) === max-w-3xl →
+        max-w-5xl, sur demande explicite de l'utilisateur (trop d'espace vide
+        de part et d'autre sur grand écran). */}
+    <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
         {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
             l'utilisateur) === Remplace la photo du siège par une photo de
@@ -151,7 +161,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
                 <button
                   key={space}
                   id={`space-home-choice-${space}`}
-                  onClick={() => setCurrentTab(targetTabFor(space))}
+                  onClick={() => (highlighted ? setCurrentTab(targetTabFor(space)) : setDeniedSpace(space))}
                   className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl border transition text-left ${
                     highlighted
                       ? 'border-blue-300 bg-blue-50 hover:bg-blue-100'
@@ -178,5 +188,42 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
         </div>
       </div>
     </div>
+
+    {/* === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) === */}
+    {deniedSpace && (
+      <div
+        className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={() => setDeniedSpace(null)}
+      >
+        <div
+          className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => setDeniedSpace(null)}
+            aria-label={t.space_home_denied_close}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto mb-4 text-rose-600">
+            <ShieldOff className="w-7 h-7" />
+          </div>
+          <h2 className="text-lg font-bold text-slate-900">{t.space_home_denied_title}</h2>
+          <p className="text-xs text-slate-600 mt-2">
+            {t.space_home_denied_body.replace('{space}', SPACE_CONTENT[deniedSpace].title)}
+          </p>
+          <button
+            type="button"
+            onClick={() => setDeniedSpace(null)}
+            className="mt-5 w-full px-4 py-2.5 rounded-xl bg-[#0B2545] text-white text-xs font-bold hover:bg-[#0B2545]/90 transition"
+          >
+            {t.space_home_denied_close}
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
