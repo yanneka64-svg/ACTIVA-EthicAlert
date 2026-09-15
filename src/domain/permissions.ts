@@ -23,6 +23,12 @@ export type Permission =
   | 'cases.edit'
   | 'cases.close'
   | 'cases.reopen'
+  // === AMÉLIORATION AJOUTÉE (Fix — gate Archiver par une permission dédiée) ===
+  // Distincte de `cases.close`/`cases.reopen` : l'archivage légal (statut
+  // `archived`, conservation 10 ans) est une action encore plus définitive,
+  // réservée aux mêmes rôles que `cases.reopen` (voir ROLE_PERMISSIONS
+  // ci-dessous).
+  | 'cases.archive'
   | 'cases.export'
   | 'evidence.read'
   | 'evidence.upload'
@@ -68,6 +74,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'cases.edit',
     'cases.close',
     'cases.reopen',
+    'cases.archive',
     'cases.export',
     'evidence.read',
     'evidence.upload',
@@ -84,6 +91,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'cases.reassign',
     'cases.close',
     'cases.reopen',
+    'cases.archive',
     'cases.export',
     'evidence.read',
     'communications.read',
