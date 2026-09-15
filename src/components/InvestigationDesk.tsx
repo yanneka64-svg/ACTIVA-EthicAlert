@@ -401,6 +401,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [showRequestInfoModal, setShowRequestInfoModal] = useState(false);
   const [requestInfoReason, setRequestInfoReason] = useState<string>('');
 
+  // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+  // l'envoi en revue) === "Envoyer en revue" n'apparaît dans le menu
+  // Actions qu'une fois ce rapport renseigné (selectedAlert.investigationReport).
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportDraft, setReportDraft] = useState('');
+
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [escalateReason, setEscalateReason] = useState<string>('');
@@ -1148,6 +1154,30 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     storage.transitionStatus(selectedAlert.id, 'investigation', activeUser);
   };
 
+  // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+  // l'envoi en revue) === "Rédiger"/"Modifier le rapport d'investigation" —
+  // simple champ texte horodaté/attribué (pas de statut ni de transition,
+  // juste du contenu documentant le dossier), condition d'apparition de
+  // "Envoyer en revue" dans le menu Actions ci-dessous.
+  const handleSaveInvestigationReport = () => {
+    if (!selectedAlert || !reportDraft.trim()) return;
+    storage.saveAlert({
+      ...selectedAlert,
+      investigationReport: reportDraft.trim(),
+      investigationReportBy: activeUser.name,
+      investigationReportAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    storage.logAudit(
+      'INVESTIGATION_REPORT_SAVED',
+      `Rapport d'investigation rédigé pour le dossier ${selectedAlert.trackingNumber} par ${activeUser.name}.`,
+      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
+      activeUser
+    );
+    setShowReportModal(false);
+    setReportDraft('');
+  };
+
   // "Envoyer en revue" — enchaîne investigation → conclusion_pending →
   // functional_review (les 2 sous-étapes distinctes du moteur riche) en un
   // seul geste utilisateur, l'écran "STATUT DU DOSSIER" n'ayant qu'une
@@ -1798,7 +1828,28 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       </button>
                     )}
 
+                    {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation
+                        obligatoire avant l'envoi en revue) === Rédiger le
+                        rapport est désormais un préalable réel : "Envoyer en
+                        revue" ci-dessous n'apparaît que si
+                        selectedAlert.investigationReport est renseigné —
+                        jamais un bouton visible mais bloqué. */}
                     {currentWorkflowStatus === 'investigation' && (
+                      <button
+                        id="btn-desk-write-report"
+                        onClick={() => {
+                          setReportDraft(selectedAlert.investigationReport ?? '');
+                          setShowReportModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-teal-50 text-teal-700 font-semibold text-left"
+                      >
+                        <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                        <span>{selectedAlert.investigationReport ? t.btn_edit_report : t.btn_write_report}</span>
+                      </button>
+                    )}
+
+                    {currentWorkflowStatus === 'investigation' && !!selectedAlert.investigationReport && (
                       <button
                         id="btn-desk-send-review"
                         onClick={() => {
@@ -2146,6 +2197,44 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     </div>
                   ) : (
                     <p className="leading-relaxed text-slate-700 whitespace-pre-wrap">{selectedAlert.detailedDescription}</p>
+                  )}
+                </div>
+
+                {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation
+                    obligatoire avant l'envoi en revue) === Même gabarit que
+                    la carte Description ci-dessus (lecture + bouton
+                    Rédiger/Modifier qui ouvre la modale partagée), pour que
+                    le rapport reste visible/consultable une fois rédigé —
+                    jamais une action "invisible" une fois faite. */}
+                <div className="p-4 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold text-slate-900 flex items-center gap-2">
+                      <ClipboardList className="w-4 h-4 text-teal-600" />
+                      {t.report_card_title}
+                    </h4>
+                    {!['closed', 'archived'].includes(selectedAlert.status) && (
+                      <button
+                        onClick={() => { setReportDraft(selectedAlert.investigationReport ?? ''); setShowReportModal(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                        {selectedAlert.investigationReport ? t.case_btn_edit : t.btn_write_report}
+                      </button>
+                    )}
+                  </div>
+                  {selectedAlert.investigationReport ? (
+                    <>
+                      <p className="leading-relaxed text-slate-700 whitespace-pre-wrap">{selectedAlert.investigationReport}</p>
+                      {selectedAlert.investigationReportAt && (
+                        <p className="text-slate-400 text-[10px] mt-2">
+                          {t.report_card_meta
+                            .replace('{author}', selectedAlert.investigationReportBy ?? '')
+                            .replace('{date}', new Date(selectedAlert.investigationReportAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'))}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-slate-400 italic">{t.report_card_empty}</p>
                   )}
                 </div>
 
@@ -3663,6 +3752,55 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold"
               >
                 {t.request_info_modal_submit}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+          l'envoi en revue) === MODAL: rédiger/modifier le rapport
+          d'investigation — même structure que la modale "Demander des
+          informations" ci-dessus, couleur distincte (teal). */}
+      {showReportModal && selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 text-teal-700">
+                <ClipboardList className="w-4 h-4" />
+                {t.report_modal_title} — {selectedAlert.trackingNumber}
+              </h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">{t.report_modal_desc}</p>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">{t.report_modal_label}</label>
+              <textarea
+                rows={6}
+                value={reportDraft}
+                onChange={(e) => setReportDraft(e.target.value)}
+                placeholder={t.report_modal_placeholder}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowReportModal(false)}
+                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                id="btn-report-submit"
+                onClick={handleSaveInvestigationReport}
+                disabled={!reportDraft.trim()}
+                className="px-4 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold"
+              >
+                {t.report_modal_submit}
               </button>
             </div>
           </div>
