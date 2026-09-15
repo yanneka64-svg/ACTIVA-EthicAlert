@@ -1731,7 +1731,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       </button>
                     )}
 
-                    {selectedAlert.status === 'closed' && (
+                    {/* === AMÉLIORATION AJOUTÉE (Fix — gate Réouvrir par la
+                        permission cases.reopen) === BUG PRÉEXISTANT CORRIGÉ,
+                        même nature que "Clôturer le dossier" ci-dessus : ce
+                        bouton était visible pour tout compte ayant
+                        simplement cases.edit, y compris un enquêteur junior,
+                        qui n'a PAS cases.reopen (réservée à
+                        functional_admin/darc_compliance/system_admin(*)). */}
+                    {selectedAlert.status === 'closed' && userCan(activeUser, 'cases.reopen') && (
                       <button
                         id="btn-desk-reopen"
                         onClick={() => {
