@@ -47,6 +47,8 @@ import {
   Eye,
   // === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation en fichier) ===
   X,
+  // === AMÉLIORATION AJOUTÉE (Onglet Entretiens) ===
+  Mic,
 } from 'lucide-react';
 import {
   Language,
@@ -63,6 +65,7 @@ import {
   EvidenceFile,
   InvolvedPerson,
   Witness,
+  CaseInterview,
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
@@ -366,7 +369,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // "Rapport", en plus d'une synthèse — rien n'est supprimé, tout reste
   // accessible, juste réorganisé. 'triage' s'affiche sous le libellé
   // "Allégations" (contenu existant enrichi d'un résumé de la qualification).
-  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'persons' | 'evidence_tab' | 'report'>(initialCaseTab ?? 'overview');
+  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'messages' | 'corrective' | 'tasks' | 'interviews' | 'timeline' | 'triage' | 'persons' | 'evidence_tab' | 'report'>(initialCaseTab ?? 'overview');
 
   // === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon maquette) ===
   // Consolidates the action toolbar (Attribution/Priorité/Clôture/Réouverture/
@@ -436,6 +439,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [taskOwnerId, setTaskOwnerId] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
   const [taskPriority, setTaskPriority] = useState<TaskPriority>('medium');
+
+  // === AMÉLIORATION AJOUTÉE (Onglet Entretiens — branchement de
+  // storage.addInterview(), jusqu'ici écrit et testé mais jamais appelé par
+  // aucun écran) === même gabarit que le formulaire "+Nouvelle tâche"
+  // ci-dessus.
+  const [showAddInterviewModal, setShowAddInterviewModal] = useState(false);
+  const [interviewIntervieweeName, setInterviewIntervieweeName] = useState('');
+  const [interviewLinkedPersonId, setInterviewLinkedPersonId] = useState('');
+  const [interviewScheduledAt, setInterviewScheduledAt] = useState('');
+  const [interviewSummary, setInterviewSummary] = useState('');
+  const [interviewStatus, setInterviewStatus] = useState<CaseInterview['status']>('planned');
 
   // === AMÉLIORATION AJOUTÉE (Phase 6 — Triage & Conflit d'intérêt) ===
   const [showConflictModal, setShowConflictModal] = useState(false);
@@ -917,6 +931,41 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       status: nextStatus,
       completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined,
     }, activeUser);
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === storage.addInterview,
+  // même motif audit que handleAddTask ci-dessus. La personne entendue peut
+  // être liée à une entrée réelle de "Personnes impliquées"/"Témoins" (son
+  // nom est alors repris tel quel, jamais dupliqué à la main) ou saisie
+  // librement (entretien avec un tiers externe au dossier).
+  const handleAddInterview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAlert) return;
+    const linkedPerson = interviewLinkedPersonId
+      ? [...selectedAlert.involvedPersons, ...selectedAlert.witnesses].find((p) => p.id === interviewLinkedPersonId)
+      : undefined;
+    const intervieweeName = linkedPerson?.name ?? interviewIntervieweeName.trim();
+    if (!intervieweeName) return;
+
+    const newInterview: CaseInterview = {
+      id: 'itv-' + Date.now(),
+      intervieweeName,
+      intervieweePersonId: linkedPerson?.id,
+      scheduledAt: interviewScheduledAt || undefined,
+      conductedAt: interviewStatus === 'completed' ? new Date().toISOString() : undefined,
+      conductedBy: activeUser.name,
+      summary: interviewSummary.trim() || undefined,
+      status: interviewStatus,
+    };
+
+    storage.addInterview(selectedAlert.id, newInterview, activeUser);
+
+    setInterviewIntervieweeName('');
+    setInterviewLinkedPersonId('');
+    setInterviewScheduledAt('');
+    setInterviewSummary('');
+    setInterviewStatus('planned');
+    setShowAddInterviewModal(false);
   };
 
   const taskEffectiveStatus = (task: CaseTask): CaseTask['status'] => {
@@ -2160,6 +2209,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   {(selectedAlert.tasks ?? []).length}
                 </span>
               </button>
+              {/* === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === */}
+              <button
+                onClick={() => setActiveCaseTab('interviews')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                  activeCaseTab === 'interviews'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>{t.nav_interviews}</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px]">
+                  {(selectedAlert.interviews ?? []).length}
+                </span>
+              </button>
               <button
                 onClick={() => setActiveCaseTab('messages')}
                 className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
@@ -2811,6 +2874,67 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === même gabarit
+                que l'onglet Tâches ci-dessus (liste + "+Ajouter"). */}
+            {activeCaseTab === 'interviews' && (
+              <div className="p-6 space-y-4 max-h-[560px] overflow-y-auto text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                    {t.tab_interviews} ({(selectedAlert.interviews ?? []).length})
+                  </span>
+                  <button
+                    onClick={() => setShowAddInterviewModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{t.btn_add_interview}</span>
+                  </button>
+                </div>
+
+                {(selectedAlert.interviews ?? []).length === 0 ? (
+                  <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
+                    {t.interviews_empty}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(selectedAlert.interviews ?? []).map((interview) => (
+                      <div key={interview.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="mt-0.5 shrink-0 w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                          <Mic className="w-4 h-4" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-900">{interview.intervieweeName}</span>
+                            <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${
+                              interview.status === 'completed' ? 'bg-emerald-100 text-emerald-800'
+                              : interview.status === 'cancelled' ? 'bg-slate-200 text-slate-600'
+                              : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {interview.status === 'completed' ? t.interview_status_completed
+                                : interview.status === 'cancelled' ? t.interview_status_cancelled
+                                : t.interview_status_planned}
+                            </span>
+                          </div>
+                          {interview.summary && <p className="text-slate-600 mt-0.5">{interview.summary}</p>}
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-1.5">
+                            {(interview.scheduledAt || interview.conductedAt) && (
+                              <span>
+                                {t.interview_scheduled_label} :{' '}
+                                <strong className="text-slate-700">
+                                  {new Date(interview.conductedAt ?? interview.scheduledAt!).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
+                                </strong>
+                              </span>
+                            )}
+                            <span>{t.interview_conducted_by_label} : <strong className="text-slate-700">{interview.conductedBy}</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -3619,6 +3743,97 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 </button>
                 <button type="submit" className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">
                   {t.btn_add_task}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === MODAL: "+Nouvel
+          entretien" — même structure que "+Nouvelle tâche" ci-dessus. */}
+      {showAddInterviewModal && selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">{t.btn_add_interview}</h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">{selectedAlert.trackingNumber}</p>
+            </div>
+
+            <form onSubmit={handleAddInterview} className="space-y-3">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">{t.interview_link_person_label}</label>
+                <select
+                  value={interviewLinkedPersonId}
+                  onChange={(e) => { setInterviewLinkedPersonId(e.target.value); if (e.target.value) setInterviewIntervieweeName(''); }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                >
+                  <option value="">—</option>
+                  {[...selectedAlert.involvedPersons, ...selectedAlert.witnesses].map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {!interviewLinkedPersonId && (
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.interview_interviewee_label} *</label>
+                  <input
+                    type="text"
+                    value={interviewIntervieweeName}
+                    onChange={(e) => setInterviewIntervieweeName(e.target.value)}
+                    placeholder={t.interview_interviewee_placeholder}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.interview_scheduled_label}</label>
+                  <input
+                    type="date"
+                    value={interviewScheduledAt}
+                    onChange={(e) => setInterviewScheduledAt(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.interview_status_label}</label>
+                  <div className="flex gap-1.5">
+                    {(['planned', 'completed', 'cancelled'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setInterviewStatus(s)}
+                        className={`flex-1 px-2 py-2 rounded-lg text-[11px] font-bold border transition ${
+                          interviewStatus === s ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                        }`}
+                      >
+                        {s === 'planned' ? t.interview_status_planned : s === 'completed' ? t.interview_status_completed : t.interview_status_cancelled}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">{t.interview_summary_label}</label>
+                <textarea
+                  rows={3}
+                  value={interviewSummary}
+                  onChange={(e) => setInterviewSummary(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => setShowAddInterviewModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
+                  {t.btn_cancel}
+                </button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                  {t.btn_add_interview}
                 </button>
               </div>
             </form>
