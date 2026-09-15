@@ -1752,7 +1752,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       </button>
                     )}
 
-                    {selectedAlert.status === 'closed' && (
+                    {/* === AMÉLIORATION AJOUTÉE (Fix — gate Archiver par la
+                        permission cases.archive) === BUG PRÉEXISTANT
+                        CORRIGÉ, même nature que "Clôturer"/"Rouvrir"
+                        ci-dessus : ce bouton était visible pour tout compte
+                        ayant simplement cases.edit. cases.archive est une
+                        nouvelle permission dédiée (domain/permissions.ts),
+                        réservée aux mêmes rôles que cases.reopen
+                        (functional_admin/darc_compliance) — l'archivage
+                        légal (conservation 10 ans) est une action au moins
+                        aussi définitive qu'une réouverture. */}
+                    {selectedAlert.status === 'closed' && userCan(activeUser, 'cases.archive') && (
                       <button
                         onClick={() => {
                           handleArchiveAlert();

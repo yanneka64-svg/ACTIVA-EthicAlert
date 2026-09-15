@@ -576,6 +576,7 @@ service cloud.firestore {
         { key: 'cases.edit', label: 'Modifier un dossier' },
         { key: 'cases.close', label: 'Clôturer un dossier' },
         { key: 'cases.reopen', label: 'Rouvrir un dossier' },
+        { key: 'cases.archive', label: 'Archiver un dossier' },
         { key: 'cases.export', label: 'Exporter les dossiers' },
       ],
     },
