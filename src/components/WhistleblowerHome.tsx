@@ -81,11 +81,17 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           réinitialisation, zone de dépôt et état associé disparaissent ;
           l'image du hero redevient fixe comme sur toutes les maquettes de
           référence fournies depuis la Phase 17. */}
+      {/* === AMÉLIORATION AJOUTÉE (Phase 33 — nouvelle photo du siège) ===
+          Photo authentique du siège ACTIVA fournie directement par
+          l'utilisateur (vue en contre-plongée, ciel bleu, tour vitrée),
+          recadrée en bandeau large et servie depuis
+          public/brand/activa-hq-hero.jpg (1600px de large, JPEG qualité 85),
+          en remplacement de activa-hq.jpg. */}
       <div className="relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center">
         <img
-          src="/brand/activa-hq.jpg"
+          src="/brand/activa-hq-hero.jpg"
           alt="Siège du Groupe ACTIVA"
-          className="absolute inset-0 w-full h-full object-cover object-right sm:object-[88%_center]"
+          className="absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"
         />
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
         <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/35 to-transparent pointer-events-none" />
