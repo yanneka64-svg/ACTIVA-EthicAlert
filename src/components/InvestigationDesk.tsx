@@ -1707,7 +1707,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       </button>
                     )}
 
-                    {selectedAlert.status !== 'closed' && selectedAlert.status !== 'archived' && (
+                    {/* === AMÉLIORATION AJOUTÉE (Fix — gate Clôturer par la
+                        permission cases.close) === BUG PRÉEXISTANT CORRIGÉ :
+                        ce bouton était visible pour tout compte pouvant
+                        simplement ouvrir la fiche dossier (cases.edit), y
+                        compris un enquêteur junior (role investigator) qui
+                        n'a, selon domain/permissions.ts, PAS la permission
+                        cases.close (réservée à senior_investigator/
+                        functional_admin/darc_compliance/system_admin(*)) —
+                        même garde que le bouton Attribuer/Réattribuer
+                        (`canAssign`, cases.assign) déjà réel plus haut. */}
+                    {selectedAlert.status !== 'closed' && selectedAlert.status !== 'archived' && userCan(activeUser, 'cases.close') && (
                       <button
                         id="btn-desk-close"
                         onClick={() => {
