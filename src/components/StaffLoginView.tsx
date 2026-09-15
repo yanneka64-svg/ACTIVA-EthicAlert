@@ -56,10 +56,20 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin }) => {
   // de page dépasse 70vh, la carte se retrouvait centrée dans une boîte
   // plus petite que l'espace disponible, laissant un vide visible en
   // dessous. `min-h-full` centre réellement sur toute la hauteur donnée
-  // par le parent (`<main className="flex-1">` dans App.tsx, qui occupe
-  // déjà tout l'espace entre Navbar et pied de page).
+  // par le parent (`<main className="flex-1 pb-16">` dans App.tsx, qui
+  // occupe déjà tout l'espace entre Navbar et pied de page).
+  //
+  // === AMÉLIORATION AJOUTÉE (correction de bug — carte perçue trop haute)
+  // === `<main>` porte 64px de marge basse (`pb-16`) réservée pour les
+  // autres écrans ; comme `min-height: 100%` se calcule sur la boîte de
+  // contenu (donc hors ce padding), le centrage se faisait dans un espace
+  // qui s'arrêtait 64px trop tôt en bas — la carte apparaissait décalée
+  // vers le haut au lieu d'être au milieu réel entre Navbar et pied de
+  // page. `pt-16` compense exactement cette même marge en haut, pour que
+  // le centrage se fasse sur l'espace visuel réel, pas seulement la boîte
+  // de contenu de `<main>`.
   return (
-    <div className="min-h-full flex items-center justify-center px-4">
+    <div className="min-h-full flex items-center justify-center px-4 pt-16">
       <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
         <div className="text-center mb-6">
           <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
