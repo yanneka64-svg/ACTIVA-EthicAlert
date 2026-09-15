@@ -1818,6 +1818,26 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   </h1>
                   {getPriorityBadge(selectedAlert)}
                   <StatusBadge status={selectedAlert.status} label={selectedAlert.status.toUpperCase().replace('_', ' ')} size="sm" />
+                  {/* === AMÉLIORATION AJOUTÉE (Visibilité de l'escalade —
+                      impasse UX corrigée) === BUG PRÉEXISTANT CORRIGÉ,
+                      identifié lors d'une analyse critique du frontend :
+                      une fois escaladé, rien dans l'interface ne montrait
+                      qu'un dossier l'était — le badge "INVESTIGATION"
+                      restait affiché sans changement visible (l'escalade
+                      était absorbée dans l'étape générique "En
+                      investigation" de la timeline "STATUT DU DOSSIER",
+                      jamais une étape à part). Ce badge n'apparaît que
+                      tant que `workflowStatus` est ENCORE 'escalated'
+                      (état courant, disparaît naturellement dès que le
+                      dossier avance à l'étape suivante) — la carte
+                      "Dossier escaladé" ci-dessous, elle, reste visible en
+                      permanence comme trace historique. */}
+                  {currentWorkflowStatus === 'escalated' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border border-rose-200 text-rose-700 bg-rose-50">
+                      <ArrowUpCircle className="w-3 h-3" />
+                      {t.case_escalated_badge}
+                    </span>
+                  )}
                   {/* === AMÉLIORATION AJOUTÉE (Retours visuels 3) === BUG PRÉEXISTANT
                       CORRIGÉ, signalé par l'utilisateur (capture de référence) : le
                       score de risque était affiché dans une box flottante séparée à
@@ -2337,6 +2357,48 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     <p className="leading-relaxed text-slate-700 whitespace-pre-wrap">{selectedAlert.detailedDescription}</p>
                   )}
                 </div>
+
+                {/* === AMÉLIORATION AJOUTÉE (Visibilité de l'escalade —
+                    impasse UX corrigée) === BUG PRÉEXISTANT CORRIGÉ :
+                    escalatedAt/By/Reason/OwnerId/RecipientId étaient déjà
+                    calculés et stockés par storage.escalateAlert, mais
+                    jamais affichés nulle part dans l'interface — seule la
+                    Chronologie (onglet dédié, peu visible) exposait
+                    l'entrée d'audit CASE_ESCALATED. Cette carte donne au
+                    dossier ET au nouveau destinataire un contexte visible
+                    et permanent (trace historique, contrairement au badge
+                    ci-dessus qui disparaît une fois le dossier avancé) :
+                    qui a escaladé, vers qui, quand, pourquoi, et si un
+                    accès réel a été accordé (jamais un accès fictif —
+                    correctif confidentialité déjà appliqué côté storage.ts). */}
+                {selectedAlert.escalatedRecipientId && (() => {
+                  const recipient = storage.getEscalationRecipients().find((r) => r.id === selectedAlert.escalatedRecipientId);
+                  const actor = allUsers.find((u) => u.id === selectedAlert.escalatedBy);
+                  if (!recipient) return null;
+                  return (
+                    <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/40">
+                      <h4 className="font-bold text-slate-900 flex items-center gap-2 mb-1.5">
+                        <ArrowUpCircle className="w-4 h-4 text-rose-600" />
+                        {t.case_escalated_card_title}
+                      </h4>
+                      <p className="text-slate-700">
+                        {t.case_escalated_card_meta
+                          .replace('{date}', selectedAlert.escalatedAt ? new Date(selectedAlert.escalatedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR') : '')
+                          .replace('{recipient}', recipient.nom)
+                          .replace('{fonction}', recipient.fonction)
+                          .replace('{actor}', actor?.name ?? '—')}
+                      </p>
+                      {selectedAlert.escalatedReason && (
+                        <p className="text-slate-600 mt-1">
+                          <span className="font-semibold">{t.case_escalated_card_reason_label}</span> {selectedAlert.escalatedReason}
+                        </p>
+                      )}
+                      <p className={`mt-1.5 text-[11px] font-semibold ${selectedAlert.escalatedOwnerId ? 'text-emerald-700' : 'text-slate-500'}`}>
+                        {selectedAlert.escalatedOwnerId ? t.case_escalated_card_access_granted : t.case_escalated_card_access_email_only}
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation
                     obligatoire avant l'envoi en revue) === Même gabarit que
