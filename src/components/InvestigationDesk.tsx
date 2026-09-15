@@ -42,6 +42,9 @@ import {
   ChevronLeft,
   // === AMÉLIORATION AJOUTÉE (Retours visuels — cartes d'info du dossier) ===
   Hourglass,
+  // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
+  HelpCircle,
+  Eye,
 } from 'lucide-react';
 import {
   Language,
@@ -65,7 +68,7 @@ import { storage } from '../services/storage';
 import { notifyAssignmentToInvestigators } from '../services/emailNotify';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
 import type { DataTableColumn } from './ui';
-import { computeSlaStatus } from '../services/statusMapping';
+import { computeSlaStatus, deriveCaseStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { isGlobalCaseViewer, userCan } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
@@ -385,6 +388,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [reopenReason, setReopenReason] = useState<string>('');
+
+  // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche —
+  // étapes "En attente d'informations" et "En revue" désormais atteignables)
+  // === `domain/workflow.ts`/`storage.transitionStatus()` existaient déjà,
+  // entièrement testés (storage.transitionStatus.test.ts), mais n'étaient
+  // appelés par aucun écran — ces deux étapes de la timeline "STATUT DU
+  // DOSSIER" restaient donc en permanence grisées ("à venir"), quel que
+  // soit le dossier. Ces 2 nouvelles actions les rendent réellement
+  // franchissables, sans toucher à la logique de clôture existante
+  // (handleCloseAlert), qui continue de fonctionner exactement comme avant.
+  const [showRequestInfoModal, setShowRequestInfoModal] = useState(false);
+  const [requestInfoReason, setRequestInfoReason] = useState<string>('');
 
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   const [showEscalateModal, setShowEscalateModal] = useState(false);
@@ -1101,6 +1116,56 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setReopenReason('');
   };
 
+  // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
+  // Statut riche courant (14 valeurs) — `workflowStatus` s'il a déjà été
+  // renseigné par une de ces actions, sinon dérivé du statut legacy
+  // (`deriveCaseStatus`, déjà utilisé par storage.transitionStatus()
+  // lui-même) pour qu'un dossier jamais touché par ce nouveau chemin
+  // affiche des actions cohérentes dès le premier clic.
+  const currentWorkflowStatus = selectedAlert ? selectedAlert.workflowStatus ?? deriveCaseStatus(selectedAlert) : undefined;
+
+  // "Demander des informations complémentaires" (investigation → pending_information).
+  // Horodate `pendingInfoReachedAt` une seule fois (première visite réelle),
+  // pour que la timeline puisse plus tard cocher cette étape honnêtement.
+  const handleRequestInfo = () => {
+    if (!selectedAlert || !requestInfoReason.trim()) return;
+    const result = storage.transitionStatus(selectedAlert.id, 'pending_information', activeUser, requestInfoReason.trim());
+    if (result.allowed) {
+      const fresh = storage.getAlerts().find((a) => a.id === selectedAlert.id);
+      if (fresh && !fresh.pendingInfoReachedAt) {
+        storage.saveAlert({ ...fresh, pendingInfoReachedAt: new Date().toISOString() });
+      }
+    }
+    setShowRequestInfoModal(false);
+    setRequestInfoReason('');
+  };
+
+  // "Reprendre l'investigation" — depuis pending_information, conclusion_pending
+  // ou functional_review, toutes structurellement valides vers investigation
+  // (domain/workflow.ts, ALLOWED_TRANSITIONS).
+  const handleResumeInvestigation = () => {
+    if (!selectedAlert) return;
+    storage.transitionStatus(selectedAlert.id, 'investigation', activeUser);
+  };
+
+  // "Envoyer en revue" — enchaîne investigation → conclusion_pending →
+  // functional_review (les 2 sous-étapes distinctes du moteur riche) en un
+  // seul geste utilisateur, l'écran "STATUT DU DOSSIER" n'ayant qu'une
+  // seule étape visuelle "En revue" pour les deux. Horodate
+  // `reviewReachedAt` une seule fois (première visite réelle).
+  const handleSendToReview = () => {
+    if (!selectedAlert) return;
+    const step1 = storage.transitionStatus(selectedAlert.id, 'conclusion_pending', activeUser);
+    if (!step1.allowed) return;
+    const step2 = storage.transitionStatus(selectedAlert.id, 'functional_review', activeUser);
+    if (step2.allowed) {
+      const fresh = storage.getAlerts().find((a) => a.id === selectedAlert.id);
+      if (fresh && !fresh.reviewReachedAt) {
+        storage.saveAlert({ ...fresh, reviewReachedAt: new Date().toISOString() });
+      }
+    }
+  };
+
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   const handleEscalate = () => {
     if (!selectedAlert || !escalateReason.trim() || !escalateOwnerId) return;
@@ -1704,6 +1769,60 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       >
                         <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
                         <span>{t.btn_change_priority}</span>
+                      </button>
+                    )}
+
+                    {/* === AMÉLIORATION AJOUTÉE (Branchement du moteur de
+                        workflow riche) === Rend réellement franchissables
+                        les étapes "En attente d'informations" et "En revue"
+                        de la timeline "STATUT DU DOSSIER" (jusqu'ici
+                        toujours grisées — voir domain/workflow.ts,
+                        storage.transitionStatus()). Visibles pendant la
+                        phase active d'investigation uniquement. */}
+                    {currentWorkflowStatus === 'investigation' && (
+                      <button
+                        id="btn-desk-request-info"
+                        onClick={() => {
+                          setShowRequestInfoModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-purple-50 text-purple-700 font-semibold text-left"
+                      >
+                        {/* === AMÉLIORATION AJOUTÉE : `text-left` — le libellé de cet
+                            item est le plus long du menu et passe seul sur 2 lignes ;
+                            sans cette classe, le `text-align: center` par défaut des
+                            `<button>` centrait la 2e ligne au lieu de l'aligner sous
+                            la 1re comme tous les autres items du menu. */}
+                        <HelpCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{t.btn_request_info}</span>
+                      </button>
+                    )}
+
+                    {currentWorkflowStatus === 'investigation' && (
+                      <button
+                        id="btn-desk-send-review"
+                        onClick={() => {
+                          handleSendToReview();
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-indigo-50 text-indigo-700 font-semibold"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>{t.btn_send_review}</span>
+                      </button>
+                    )}
+
+                    {(currentWorkflowStatus === 'pending_information' || currentWorkflowStatus === 'conclusion_pending' || currentWorkflowStatus === 'functional_review') && (
+                      <button
+                        id="btn-desk-resume-investigation"
+                        onClick={() => {
+                          handleResumeInvestigation();
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-blue-50 text-blue-700 font-semibold"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>{t.btn_resume_investigation}</span>
                       </button>
                     )}
 
@@ -2784,24 +2903,60 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
           {/* Right column: Statut du dossier / Informations complémentaires / Liens rapides */}
           <aside className="space-y-5">
-            {/* Statut du dossier — timeline verticale, dérivée du vrai statut
-                (pas de statut fantaisiste : "En attente d'informations" et
-                "En revue" ne sont pas modélisés par AlertStatus, ils restent
-                donc à l'état "à venir" tant qu'ils ne le sont pas). */}
+            {/* === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow
+                riche) === Statut du dossier — timeline verticale, dérivée
+                du statut RICHE (workflowStatus, 14 valeurs,
+                domain/workflow.ts) plutôt que du seul statut legacy
+                (AlertStatus, 7 valeurs) : "En attente d'informations"
+                (pending_information) et "En revue" (conclusion_pending +
+                functional_review, une seule étape visuelle pour les deux
+                sous-étapes du moteur riche) reflètent désormais l'état réel
+                du dossier, via les actions "Demander des informations
+                complémentaires"/"Envoyer en revue"/"Reprendre
+                l'investigation" ci-dessus. */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-4 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
                 {t.case_status_title}
               </h3>
               {(() => {
-                const isInvestigating = ['investigation', 'corrective_action', 'closed', 'archived', 'reopened'].includes(selectedAlert.status);
                 const isClosed = ['closed', 'archived'].includes(selectedAlert.status);
+                const ws = currentWorkflowStatus;
+                const isPendingInfo = ws === 'pending_information';
+                const isInReview = ws === 'conclusion_pending' || ws === 'functional_review';
+                // "En investigation" reste l'étape courante tant qu'aucune des
+                // 2 étapes suivantes n'a été atteinte et que le dossier n'est
+                // pas clos — un aller-retour (ex. reprise après "En attente
+                // d'informations") y ramène naturellement l'affichage.
+                const isInvestigating = !isClosed && !isPendingInfo && !isInReview
+                  ? ['investigation', 'corrective_action', 'reopened'].includes(selectedAlert.status) || ws === 'investigation' || ws === 'escalated'
+                  : false;
+                // === AMÉLIORATION AJOUTÉE : "fait" uniquement si le dossier
+                // est RÉELLEMENT passé par cette étape (pendingInfoReachedAt
+                // / reviewReachedAt, horodatés une seule fois par
+                // handleRequestInfo/handleSendToReview) — jamais déduit du
+                // seul fait que le dossier a depuis avancé plus loin, pour
+                // ne jamais cocher une étape qu'il n'a pas traversée.
+                const pendingInfoDone = !!selectedAlert.pendingInfoReachedAt && (isInReview || isClosed);
+                const reviewDone = !!selectedAlert.reviewReachedAt && isClosed;
                 type StepState = 'done' | 'current' | 'pending';
                 const steps: { label: string; state: StepState; date?: string }[] = [
                   { label: t.case_status_received, state: 'done', date: selectedAlert.createdAt },
-                  { label: t.case_status_investigation, state: isClosed ? 'done' : isInvestigating ? 'current' : 'pending', date: isInvestigating ? selectedAlert.updatedAt : undefined },
-                  { label: t.case_status_pending_info, state: 'pending' },
-                  { label: t.case_status_review, state: 'pending' },
+                  {
+                    label: t.case_status_investigation,
+                    state: isClosed || isPendingInfo || isInReview ? 'done' : isInvestigating ? 'current' : 'pending',
+                    date: isInvestigating ? selectedAlert.updatedAt : undefined,
+                  },
+                  {
+                    label: t.case_status_pending_info,
+                    state: isPendingInfo ? 'current' : pendingInfoDone ? 'done' : 'pending',
+                    date: isPendingInfo ? selectedAlert.updatedAt : selectedAlert.pendingInfoReachedAt,
+                  },
+                  {
+                    label: t.case_status_review,
+                    state: isInReview ? 'current' : reviewDone ? 'done' : 'pending',
+                    date: isInReview ? selectedAlert.updatedAt : selectedAlert.reviewReachedAt,
+                  },
                   { label: t.case_status_closed_step, state: isClosed ? 'done' : 'pending', date: selectedAlert.closedAt },
                 ];
                 return (
@@ -3460,6 +3615,54 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white font-bold"
               >
                 Valider la réouverture
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche)
+          === MODAL: demander des informations complémentaires
+          (investigation → pending_information, storage.transitionStatus()). */}
+      {showRequestInfoModal && selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 text-purple-700">
+                <HelpCircle className="w-4 h-4" />
+                {t.request_info_modal_title} — {selectedAlert.trackingNumber}
+              </h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">{t.request_info_modal_desc}</p>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">{t.request_info_modal_label}</label>
+              <textarea
+                rows={4}
+                value={requestInfoReason}
+                onChange={(e) => setRequestInfoReason(e.target.value)}
+                placeholder={t.request_info_modal_placeholder}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowRequestInfoModal(false)}
+                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                id="btn-request-info-submit"
+                onClick={handleRequestInfo}
+                disabled={!requestInfoReason.trim()}
+                className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold"
+              >
+                {t.request_info_modal_submit}
               </button>
             </div>
           </div>
