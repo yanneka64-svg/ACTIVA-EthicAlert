@@ -22,9 +22,9 @@
  * démonstration/QA que le sélecteur de profil déjà présent dans l'en-tête
  * (Navbar.tsx), simplement présenté comme un vrai écran de connexion pour
  * que le flux `/login` du brief existe réellement. Le champ "Mot de passe"
- * est donc décoratif (n'importe quelle valeur est acceptée) ; le texte à
- * l'écran le dit explicitement, rien n'est présenté comme sécurisé alors
- * que ça ne l'est pas.
+ * est donc décoratif (n'importe quelle valeur est acceptée). L'encart
+ * d'avertissement qui le disait explicitement à l'écran a été retiré sur
+ * demande explicite ; cette note de code reste la seule trace de ce choix.
  */
 import React, { useState } from 'react';
 import { LogIn, Lock, Mail, User, Eye, EyeOff } from 'lucide-react';
@@ -69,7 +69,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin }) => {
   // pousse en plus la carte plus bas que le milieu exact, comme demandé.
   return (
     <div className="min-h-full flex items-center justify-center px-4 pt-32">
-      <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+      <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
         <div className="text-center mb-6">
           <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
             <User className="w-6 h-6" />
@@ -143,12 +143,6 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin }) => {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-relaxed">
-            Environnement de démonstration : le mot de passe n'est pas vérifié réellement — la
-            sélection d'un compte simule la connexion pour illustrer le fonctionnement des
-            habilitations par profil.
           </div>
 
           <button
