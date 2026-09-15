@@ -339,7 +339,29 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   return (
     <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
+      {/* === AMÉLIORATION AJOUTÉE (Correction bug — la barre de navigation
+          s'arrête bien avant le pied de page) === BUG PRÉEXISTANT CORRIGÉ,
+          signalé par l'utilisateur, capture de référence à l'appui :
+          `lg:self-start` limitait la hauteur de cette carte à son seul
+          contenu (liste de menu + carte "Besoin d'aide ?"), plus courte que
+          la colonne de contenu à droite dès qu'un écran est un peu long —
+          un grand espace vide séparait alors le bas de la barre latérale du
+          bandeau de pied de page, au lieu de s'arrêter juste au-dessus.
+          `lg:self-stretch` (le comportement par défaut de Flexbox, ici
+          réaffirmé explicitement) étire la carte à la hauteur réelle de la
+          ligne (= la plus haute des deux colonnes) ; `<nav>` porte déjà
+          `flex-1` (inchangé) et pousse donc naturellement la carte "Besoin
+          d'aide ?" tout en bas de cette hauteur disponible, sans qu'aucun
+          élément existant ne soit déplacé ou retiré. Le comportement
+          `sticky` ci-dessus reste inchangé. Limité à `selectedSpace ===
+          'admin'` (les captures de référence de l'utilisateur montrent
+          l'écran Administration) : les espaces Opérateur/Enquêteur ont des
+          tableaux de bord bien plus longs que leur propre menu (peu
+          d'entrées) — y étirer la carte créerait un vide interne bien plus
+          grand que le problème signalé, sans qu'aucune capture ne demande
+          ce changement là. `lg:self-start` (comportement inchangé) reste
+          donc la valeur par défaut pour tous les autres espaces. */}
+      <aside className={`hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] ${selectedSpace === 'admin' ? 'lg:self-stretch' : 'lg:self-start'} bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6`}>
         {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
             sélecteur en barre latérale) === Le petit bloc "ESPACES" qui
             vivait ici (2-3 boutons empilés en haut de la sidebar) est

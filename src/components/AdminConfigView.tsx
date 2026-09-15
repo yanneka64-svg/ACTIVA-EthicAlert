@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   ShieldCheck,
@@ -69,6 +69,25 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const t = TRANSLATIONS[lang];
 
   const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow'>(initialTab ?? 'matrix');
+  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — bug corrigé) ===
+  // BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : "aucune des
+  // fenêtres de cette page ne s'affiche lorsque je clique dessus excepté la
+  // première". Cause réelle : App.tsx rend ce composant depuis 9 branches
+  // différentes (admin_organization/admin_entities/.../settings), toutes au
+  // même emplacement de l'arbre React et sans `key` — React réutilise donc
+  // la MÊME instance d'`AdminConfigView` d'un clic de barre latérale à
+  // l'autre au lieu de la remonter. `useState(initialTab ?? 'matrix')`
+  // n'initialise `configTab` qu'au tout premier montage : un changement de
+  // la prop `initialTab` ensuite (clic sur une autre entrée) était donc
+  // silencieusement ignoré, et l'écran restait bloqué sur le premier onglet
+  // jamais monté. Cet effet resynchronise `configTab` à chaque changement
+  // réel de `initialTab`, sans toucher au comportement de navigation
+  // interne par onglet (l'utilisateur reste libre de changer `configTab`
+  // sans que cet effet ne le réinitialise, car `initialTab` ne change pas
+  // tant que la barre latérale n'est pas recliquée).
+  useEffect(() => {
+    setConfigTab(initialTab ?? 'matrix');
+  }, [initialTab]);
   const [saveBanner, setSaveBanner] = useState('');
 
   // Firebase connection state
