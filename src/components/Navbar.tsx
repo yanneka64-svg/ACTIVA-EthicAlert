@@ -262,7 +262,40 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* === AMÉLIORATION AJOUTÉE (Phase 27) === Icône QR Code retirée
                 de l'en-tête public sur demande explicite. */}
 
-            {/* Language Selector */}
+            {!isStaffContext && (
+              /* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
+                  fourni) === "Suivre mon signalement" reprend le style
+                  large façon barre de recherche de la maquette (icône +
+                  texte dans un encadré large, coins arrondis) plutôt qu'un
+                  simple bouton contour ; "Signaler une préoccupation" passe
+                  en coins arrondis, comme le reste du modèle. */
+              <>
+                <button
+                  id="nav-btn-track"
+                  onClick={() => setCurrentTab('track')}
+                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold transition whitespace-nowrap"
+                >
+                  <Search className="w-4 h-4 shrink-0" />
+                  <span>{t.btn_track_existing}</span>
+                </button>
+                <button
+                  id="nav-btn-new-alert"
+                  onClick={() => setCurrentTab('new_alert')}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{t.btn_new_alert}</span>
+                </button>
+                <div className="hidden sm:block w-px h-6 bg-slate-200" />
+              </>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (repositionnement en-tête) ===
+                Sélecteur de langue déplacé ici, juste avant Connexion/le
+                menu de compte, pour que les deux se retrouvent groupés
+                tout à droite de la barre — au lieu de vivre avant les
+                boutons d'action publics ("Suivre mon signalement" /
+                "Signaler une préoccupation"), sur demande explicite. */}
             <div className="relative">
               <button
                 id="btn-language-selector"
@@ -307,34 +340,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
             </div>
-
-            {!isStaffContext && (
-              /* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
-                  fourni) === "Suivre mon signalement" reprend le style
-                  large façon barre de recherche de la maquette (icône +
-                  texte dans un encadré large, coins arrondis) plutôt qu'un
-                  simple bouton contour ; "Signaler une préoccupation" passe
-                  en coins arrondis, comme le reste du modèle. */
-              <>
-                <button
-                  id="nav-btn-track"
-                  onClick={() => setCurrentTab('track')}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold transition whitespace-nowrap"
-                >
-                  <Search className="w-4 h-4 shrink-0" />
-                  <span>{t.btn_track_existing}</span>
-                </button>
-                <button
-                  id="nav-btn-new-alert"
-                  onClick={() => setCurrentTab('new_alert')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{t.btn_new_alert}</span>
-                </button>
-                <div className="hidden sm:block w-px h-6 bg-slate-200" />
-              </>
-            )}
 
             {/* Account / role-switcher menu (role-switching stays crucial for demo & CDC 3.2.3 access testing) */}
             <div className="relative">

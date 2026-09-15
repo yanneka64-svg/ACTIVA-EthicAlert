@@ -36,12 +36,17 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
   const t = TRANSLATIONS[lang];
   const badge = getRoleBadge(activeUser.role);
 
-  // === AMÉLIORATION AJOUTÉE === un compte sans aucun des 3 espaces réels
-  // (consultation/executive/audit_committee/security_admin) reçoit
-  // désormais, lui aussi, une carte — l'unique espace "general" de repli,
-  // au lieu d'être envoyé directement sans jamais voir cet accueil.
+  // === AMÉLIORATION AJOUTÉE (conforme à la maquette "Espaces de travail")
+  // === Les 4 espaces canoniques sont désormais TOUJOURS affichés, quel que
+  // soit le compte connecté — plus seulement ceux réellement permis. Un
+  // espace auquel le compte n'a pas droit reste cliquable mais renvoie
+  // honnêtement vers l'écran "Accès restreint" existant (PermissionGuard,
+  // App.tsx) au lieu d'être masqué : jamais un accès fictif, juste une
+  // liste complète et cohérente d'un profil à l'autre. `realSpaces` sert
+  // uniquement à distinguer visuellement les espaces réellement accessibles
+  // (mis en avant) des autres.
   const realSpaces = computeAvailableSpaces(activeUser);
-  const spaces: SpaceKey[] = realSpaces.length > 0 ? realSpaces : ['general'];
+  const spaces: SpaceKey[] = ['operator', 'investigator', 'admin', 'general'];
 
   const targetTabFor = (space: SpaceKey): string =>
     space === 'general' ? computeGeneralDashboardTab(activeUser) : SPACE_DASHBOARD_TAB[space];
@@ -134,12 +139,12 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
           </div>
 
           <div className="space-y-2.5">
-            {spaces.map((space, idx) => {
+            {spaces.map((space) => {
               const content = SPACE_CONTENT[space];
-              // === AMÉLIORATION AJOUTÉE === le premier espace de la liste
-              // (l'ordre vient de `computeAvailableSpaces`, inchangé) reste
-              // mis en avant visuellement, conforme à la maquette.
-              const highlighted = idx === 0;
+              // Mis en avant visuellement seulement si le compte y a
+              // réellement accès (`computeAvailableSpaces`) — jamais pour
+              // un espace qu'il ne peut pas ouvrir.
+              const highlighted = realSpaces.includes(space);
               return (
                 <button
                   key={space}
