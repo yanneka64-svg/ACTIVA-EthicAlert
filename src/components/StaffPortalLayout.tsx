@@ -339,7 +339,12 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   return (
     <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
+      {/* === AMÉLIORATION AJOUTÉE (sidebar sous la topbar) === z-index
+          explicite, strictement inférieur à celui de la topbar
+          (Navbar.tsx, `sticky top-0 z-40`), pour garantir que la sidebar
+          collante ne puisse jamais s'afficher par-dessus elle pendant le
+          défilement — elle doit toujours commencer juste en dessous. */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] lg:z-30 lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
         {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
             sélecteur en barre latérale) === Le petit bloc "ESPACES" qui
             vivait ici (2-3 boutons empilés en haut de la sidebar) est

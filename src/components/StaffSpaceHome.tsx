@@ -90,10 +90,13 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
+    // === AMÉLIORATION AJOUTÉE (réduction de la taille de la fenêtre) ===
+    // max-w-5xl → max-w-3xl, min-h-[560px] → min-h-[460px] : fenêtre plus
+    // compacte, sur demande explicite de l'utilisateur.
+    <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
         {/* Photo panel — nouvelle photo moderne du siège ACTIVA avec message d'accueil enrichi et suppression des anciens textes */}
-        <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[560px] text-white overflow-hidden">
+        <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[460px] text-white overflow-hidden">
           <img
             src="/brand/activa-headquarters-modern.jpg"
             alt="Siège moderne du Groupe ACTIVA"
