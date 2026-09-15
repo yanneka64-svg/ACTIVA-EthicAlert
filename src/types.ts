@@ -260,6 +260,16 @@ export interface AlertRecord {
   // jamais cocher une étape que le dossier n'a en réalité pas traversée.
   pendingInfoReachedAt?: string;
   reviewReachedAt?: string;
+  // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+  // l'envoi en revue) === Champ texte simple, horodaté/attribué — dans le
+  // même esprit qu'InternalNote, mais un unique document mis à jour plutôt
+  // qu'une liste. `investigationReport` conditionne à lui seul la
+  // visibilité de "Envoyer en revue" dans le menu Actions (voir
+  // InvestigationDesk.tsx) : tant qu'il est absent, l'action n'apparaît
+  // simplement pas — aucun état "bloqué"/"désactivé" fabriqué.
+  investigationReport?: string;
+  investigationReportBy?: string;
+  investigationReportAt?: string;
   // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
   // Escalade vers la DARC Groupe (brief §14/§44). Le pays/entité d'origine
   // ci-dessus (country/concernedEntity/countryId/entityId) ne sont JAMAIS
@@ -416,7 +426,10 @@ export interface AuditLogEntry {
     // honnête de chaque tentative d'envoi (voir services/emailNotify.ts) —
     // jamais un seul type "envoyé" qui masquerait un échec réel.
     | 'EMAIL_NOTIFICATION_SENT'
-    | 'EMAIL_NOTIFICATION_FAILED';
+    | 'EMAIL_NOTIFICATION_FAILED'
+    // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+    // l'envoi en revue) ===
+    | 'INVESTIGATION_REPORT_SAVED';
   details: string;
   timestamp: string;
   ipAddress?: string;
