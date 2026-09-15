@@ -1,9 +1,8 @@
 import React from 'react';
-import { Briefcase, Search, Settings, Users, ChevronRight, ShieldCheck, Info } from 'lucide-react';
+import { Briefcase, Search, Settings, Users, ChevronRight, ShieldCheck } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-import { getRoleBadge } from './Navbar';
 import { computeAvailableSpaces, computeGeneralDashboardTab, SPACE_DASHBOARD_TAB, SpaceKey } from '../domain/staffSpaces';
 
 interface StaffSpaceHomeProps {
@@ -21,11 +20,9 @@ interface StaffSpaceHomeProps {
  * affichée pour TOUTE connexion (App.tsx, `handleLogin`) — y compris un
  * compte à un seul espace réel, ou à aucun des 3 (repli "vision globale") —
  * pas seulement les comptes à 2 espaces ou plus comme lors d'une première
- * itération. Habillage aligné sur la référence fournie par l'utilisateur :
- * badge "Dispositif d'Alerte Éthique & Déontologie", panneau photo avec
- * indicateurs Confidentialité/Traçabilité, avatar générique, titre
- * singulier/pluriel selon le nombre d'espaces, bloc "Session active" en bas
- * du panneau de choix.
+ * itération. Habillage aligné sur la référence fournie par l'utilisateur.
+ * Le bloc "Session active" qui vivait en bas du panneau de choix a été
+ * retiré sur demande explicite.
  *
  * L'identifiant/mot de passe (StaffLoginView.tsx, `/login`) reste
  * strictement inchangé et reste le seul point de connexion — cet écran
@@ -34,7 +31,6 @@ interface StaffSpaceHomeProps {
  */
 export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser, setCurrentTab }) => {
   const t = TRANSLATIONS[lang];
-  const badge = getRoleBadge(activeUser.role);
 
   // === AMÉLIORATION AJOUTÉE (conforme à la maquette "Espaces de travail")
   // === Les 4 espaces canoniques sont désormais TOUJOURS affichés, quel que
@@ -172,19 +168,6 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
                 </button>
               );
             })}
-          </div>
-
-          {/* === AMÉLIORATION AJOUTÉE === bloc "Session active", données déjà
-              réelles du compte (roleTitle/country existent sur UserProfile
-              depuis l'origine) — jamais un résumé fabriqué. */}
-          <div className="mt-6 p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-            <div className="text-[11px] leading-snug">
-              <p className="font-bold text-slate-700">{t.space_home_session_active}</p>
-              <p className="text-slate-500 mt-0.5">
-                {activeUser.name} • {badge?.label ?? activeUser.roleTitle} • {activeUser.country}
-              </p>
-            </div>
           </div>
         </div>
       </div>
