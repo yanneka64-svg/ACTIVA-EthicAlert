@@ -28,7 +28,7 @@
  * que ça ne l'est pas.
  */
 import React, { useMemo, useState } from 'react';
-import { LogIn, ChevronDown, Lock, Mail } from 'lucide-react';
+import { LogIn, ChevronDown, Lock, Mail, User, Eye, EyeOff } from 'lucide-react';
 import { Language, UserRole, UserProfile } from '../types';
 import { storage } from '../services/storage';
 
@@ -69,6 +69,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ lang, setLang, o
   // Décoratif (fidélité à la maquette) : ne pilote pas la connexion — seul
   // le compte de démonstration choisi ci-dessus le fait.
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,9 +77,10 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ lang, setLang, o
   };
 
   return (
-    <div className="min-h-[calc(100vh-0px)] grid grid-cols-1 lg:grid-cols-2">
+    <div className="max-w-7xl mx-auto my-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[70vh] grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
       {/* Volet gauche — photo du siège + sélecteur de profil */}
-      <div className="relative min-h-[280px] lg:min-h-screen flex flex-col justify-between p-8 sm:p-12 text-white overflow-hidden">
+      <div className="relative min-h-[280px] flex flex-col justify-between p-8 sm:p-12 text-white overflow-hidden">
         <img
           src="/brand/activa-hq.jpg"
           alt="Siège du Groupe ACTIVA"
@@ -156,11 +158,12 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ lang, setLang, o
         </div>
 
         <div className="w-full max-w-sm space-y-6">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Se connecter à EthicsAlert</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Profil sélectionné : <strong className="text-slate-700">{PROFILE_GROUPS[profileKey].label}</strong>
-            </p>
+          <div className="text-center">
+            <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
+              <User className="w-6 h-6" />
+            </span>
+            <p className="text-lg font-bold text-slate-900">Accédez à votre espace de travail sécurisé</p>
+            <div className="w-10 h-1 rounded-full bg-blue-500 mx-auto mt-3" />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -213,12 +216,20 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ lang, setLang, o
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -234,11 +245,12 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ lang, setLang, o
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-sm font-bold hover:bg-[#0B2545]/90 disabled:opacity-50 transition"
             >
               <LogIn className="w-4 h-4" />
-              Se connecter à EthicsAlert
+              Se connecter
             </button>
           </form>
         </div>
       </div>
+    </div>
     </div>
   );
 };
