@@ -45,6 +45,8 @@ import {
   // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
   HelpCircle,
   Eye,
+  // === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation en fichier) ===
+  X,
 } from 'lucide-react';
 import {
   Language,
@@ -403,9 +405,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
   // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
   // l'envoi en revue) === "Envoyer en revue" n'apparaît dans le menu
-  // Actions qu'une fois ce rapport renseigné (selectedAlert.investigationReport).
+  // Actions qu'une fois ce rapport renseigné (texte ET/OU fichier importé —
+  // selectedAlert.investigationReport / investigationReportFile).
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportDraft, setReportDraft] = useState('');
+  const [reportFile, setReportFile] = useState<EvidenceFile | undefined>(undefined);
+  const reportFileInputRef = useRef<HTMLInputElement>(null);
 
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   const [showEscalateModal, setShowEscalateModal] = useState(false);
@@ -1069,6 +1074,15 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     const updatedAlert: AlertRecord = {
       ...selectedAlert,
       status: 'closed',
+      // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+      // l'envoi en revue) === Synchronise aussi le statut riche : sans
+      // cela, un dossier dont `workflowStatus` a été renseigné par le
+      // moteur riche (ex. passé par "Envoyer en revue") restait figé sur
+      // 'conclusion_pending'/'functional_review' après sa clôture legacy
+      // ci-dessus — la timeline "STATUT DU DOSSIER" continuait alors à
+      // afficher "En revue" comme étape courante en même temps que
+      // "Clôturé" comme faite, une incohérence visuelle réelle.
+      workflowStatus: 'closed',
       closedAt: new Date().toISOString(),
       closedBy: activeUser.name,
       closureSummary: closureSummary.trim() || 'Dossier traité et investigué avec succès conformément aux directives de la DARC Groupe ACTIVA.',
@@ -1104,6 +1118,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     const updatedAlert: AlertRecord = {
       ...selectedAlert,
       status: 'reopened',
+      // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+      // l'envoi en revue) === même synchronisation que handleCloseAlert —
+      // un dossier rouvert depuis 'conclusion_pending'/'functional_review'
+      // ne doit plus afficher "En revue" comme étape courante.
+      workflowStatus: 'reopened',
       reopenedAt: new Date().toISOString(),
       reopenedBy: activeUser.name,
       reopenReason: reopenReason.trim(),
@@ -1155,15 +1174,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   };
 
   // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-  // l'envoi en revue) === "Rédiger"/"Modifier le rapport d'investigation" —
-  // simple champ texte horodaté/attribué (pas de statut ni de transition,
-  // juste du contenu documentant le dossier), condition d'apparition de
-  // "Envoyer en revue" dans le menu Actions ci-dessous.
+  // l'envoi en revue) === "Rédiger le rapport d'investigation" — texte et/ou
+  // fichier importé (au moins l'un des deux), horodaté/attribué (pas de
+  // statut ni de transition, juste du contenu documentant le dossier),
+  // condition d'apparition de "Envoyer en revue" dans le menu Actions
+  // ci-dessous. Toujours le même libellé "Rédiger", qu'un rapport existe
+  // déjà ou non — rédiger de nouveau REMPLACE le contenu précédent plutôt
+  // que de prétendre à une distinction "création"/"modification" qui
+  // n'apporte rien ici (pas d'historique de versions).
   const handleSaveInvestigationReport = () => {
-    if (!selectedAlert || !reportDraft.trim()) return;
+    if (!selectedAlert || (!reportDraft.trim() && !reportFile)) return;
     storage.saveAlert({
       ...selectedAlert,
-      investigationReport: reportDraft.trim(),
+      investigationReport: reportDraft.trim() || undefined,
+      investigationReportFile: reportFile,
       investigationReportBy: activeUser.name,
       investigationReportAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -1176,6 +1200,31 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     );
     setShowReportModal(false);
     setReportDraft('');
+    setReportFile(undefined);
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation en
+  // fichier) === Même mécanique de lecture que handleAddEvidenceFile
+  // ci-dessus (FileReader → dataUrl) mais reste local à la modale
+  // (`reportFile`, pas storage.saveAlert direct) : le fichier n'est
+  // persisté qu'au clic sur "Enregistrer le rapport", comme le texte.
+  const handleImportReportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setReportFile({
+        id: 'ev-report-' + Date.now(),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadedAt: new Date().toISOString(),
+        dataUrl: typeof reader.result === 'string' ? reader.result : undefined,
+        uploadedBy: activeUser.name,
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // "Envoyer en revue" — enchaîne investigation → conclusion_pending →
@@ -1220,6 +1269,9 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     const updatedAlert: AlertRecord = {
       ...selectedAlert,
       status: 'archived',
+      // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+      // l'envoi en revue) === même synchronisation que handleCloseAlert.
+      workflowStatus: 'archived',
       updatedAt: new Date().toISOString(),
     };
 
@@ -1831,25 +1883,28 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation
                         obligatoire avant l'envoi en revue) === Rédiger le
                         rapport est désormais un préalable réel : "Envoyer en
-                        revue" ci-dessous n'apparaît que si
-                        selectedAlert.investigationReport est renseigné —
-                        jamais un bouton visible mais bloqué. */}
+                        revue" ci-dessous n'apparaît que si un rapport (texte
+                        et/ou fichier importé) est renseigné — jamais un
+                        bouton visible mais bloqué. Libellé toujours
+                        "Rédiger" : réécrire remplace le contenu précédent,
+                        pas de distinction création/modification. */}
                     {currentWorkflowStatus === 'investigation' && (
                       <button
                         id="btn-desk-write-report"
                         onClick={() => {
                           setReportDraft(selectedAlert.investigationReport ?? '');
+                          setReportFile(selectedAlert.investigationReportFile);
                           setShowReportModal(true);
                           setShowActionsMenu(false);
                         }}
                         className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-teal-50 text-teal-700 font-semibold text-left"
                       >
                         <ClipboardList className="w-3.5 h-3.5 shrink-0" />
-                        <span>{selectedAlert.investigationReport ? t.btn_edit_report : t.btn_write_report}</span>
+                        <span>{t.btn_write_report}</span>
                       </button>
                     )}
 
-                    {currentWorkflowStatus === 'investigation' && !!selectedAlert.investigationReport && (
+                    {currentWorkflowStatus === 'investigation' && (!!selectedAlert.investigationReport || !!selectedAlert.investigationReportFile) && (
                       <button
                         id="btn-desk-send-review"
                         onClick={() => {
@@ -2203,9 +2258,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation
                     obligatoire avant l'envoi en revue) === Même gabarit que
                     la carte Description ci-dessus (lecture + bouton
-                    Rédiger/Modifier qui ouvre la modale partagée), pour que
-                    le rapport reste visible/consultable une fois rédigé —
-                    jamais une action "invisible" une fois faite. */}
+                    "Rédiger" qui ouvre la modale partagée), pour que le
+                    rapport reste visible/consultable une fois rédigé —
+                    jamais une action "invisible" une fois faite. Texte et
+                    fichier importé sont affichés côte à côte quand les deux
+                    sont présents. */}
                 <div className="p-4 rounded-xl border border-slate-200">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-bold text-slate-900 flex items-center gap-2">
@@ -2214,17 +2271,34 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     </h4>
                     {!['closed', 'archived'].includes(selectedAlert.status) && (
                       <button
-                        onClick={() => { setReportDraft(selectedAlert.investigationReport ?? ''); setShowReportModal(true); }}
+                        onClick={() => {
+                          setReportDraft(selectedAlert.investigationReport ?? '');
+                          setReportFile(selectedAlert.investigationReportFile);
+                          setShowReportModal(true);
+                        }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold"
                       >
                         <SlidersHorizontal className="w-3.5 h-3.5" />
-                        {selectedAlert.investigationReport ? t.case_btn_edit : t.btn_write_report}
+                        {t.btn_write_report}
                       </button>
                     )}
                   </div>
-                  {selectedAlert.investigationReport ? (
+                  {selectedAlert.investigationReport || selectedAlert.investigationReportFile ? (
                     <>
-                      <p className="leading-relaxed text-slate-700 whitespace-pre-wrap">{selectedAlert.investigationReport}</p>
+                      {selectedAlert.investigationReport && (
+                        <p className="leading-relaxed text-slate-700 whitespace-pre-wrap">{selectedAlert.investigationReport}</p>
+                      )}
+                      {selectedAlert.investigationReportFile && (
+                        <div className={`flex items-center gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-200 ${selectedAlert.investigationReport ? 'mt-3' : ''}`}>
+                          <span className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                            <FileText className="w-4 h-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span className="font-medium text-slate-800 block truncate">{selectedAlert.investigationReportFile.name}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 shrink-0">{Math.round(selectedAlert.investigationReportFile.size / 1024)} Ko</span>
+                        </div>
+                      )}
                       {selectedAlert.investigationReportAt && (
                         <p className="text-slate-400 text-[10px] mt-2">
                           {t.report_card_meta
@@ -3759,9 +3833,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-          l'envoi en revue) === MODAL: rédiger/modifier le rapport
-          d'investigation — même structure que la modale "Demander des
-          informations" ci-dessus, couleur distincte (teal). */}
+          l'envoi en revue) === MODAL: rédiger le rapport d'investigation —
+          même structure que la modale "Demander des informations"
+          ci-dessus, couleur distincte (teal). Texte et fichier importé sont
+          tous deux facultatifs pris isolément, mais au moins l'un des deux
+          est requis (voir handleSaveInvestigationReport). */}
       {showReportModal && selectedAlert && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
@@ -3781,8 +3857,44 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 onChange={(e) => setReportDraft(e.target.value)}
                 placeholder={t.report_modal_placeholder}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                required
               />
+            </div>
+
+            {/* === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation
+                en fichier) === Même mécanisme que "Preuves & pièces
+                jointes" (handleAddEvidenceFile) : lecture locale en
+                dataUrl, jamais d'upload réseau fabriqué. */}
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">{t.report_modal_import_label}</label>
+              {reportFile ? (
+                <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                  <span className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium text-slate-800 block truncate">{reportFile.name}</span>
+                    <span className="text-[10px] text-slate-400">{Math.round(reportFile.size / 1024)} Ko</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReportFile(undefined)}
+                    className="text-slate-400 hover:text-rose-600 shrink-0"
+                    title={t.report_modal_remove_file}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => reportFileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-200 text-teal-700 hover:bg-teal-50 font-semibold"
+                >
+                  <Paperclip className="w-3.5 h-3.5" />
+                  {t.report_modal_import_btn}
+                </button>
+              )}
+              <input id="report-file-input" ref={reportFileInputRef} type="file" className="hidden" onChange={handleImportReportFile} />
             </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
@@ -3797,7 +3909,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 type="button"
                 id="btn-report-submit"
                 onClick={handleSaveInvestigationReport}
-                disabled={!reportDraft.trim()}
+                disabled={!reportDraft.trim() && !reportFile}
                 className="px-4 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold"
               >
                 {t.report_modal_submit}
