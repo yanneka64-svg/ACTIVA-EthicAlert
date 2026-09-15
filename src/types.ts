@@ -243,6 +243,13 @@ export interface AlertRecord {
   // le champ que tout écran existant continue de lire sans changement.
   // Optionnel : absent tant qu'aucune transition n'est passée par le
   // nouveau chemin.
+  //
+  // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+  // cause racine) === N'écrivez JAMAIS `status`/`workflowStatus`
+  // séparément à la main (source de 3 bugs distincts cette session, un par
+  // champ oublié) : `storage.transitionStatus()` pour les transitions
+  // génériques, sinon `applyCaseStatus()` (services/statusMapping.ts) —
+  // les deux champs avancent alors toujours ensemble par construction.
   workflowStatus?: CaseStatus;
   assignedInvestigators: string[]; // Investigator IDs
   assignedInvestigatorNames: string[];

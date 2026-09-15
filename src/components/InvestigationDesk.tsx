@@ -49,6 +49,8 @@ import {
   X,
   // === AMÉLIORATION AJOUTÉE (Onglet Entretiens) ===
   Mic,
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors périmètre) ===
+  Ban,
 } from 'lucide-react';
 import {
   Language,
@@ -73,7 +75,7 @@ import { storage } from '../services/storage';
 import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
 import type { DataTableColumn } from './ui';
-import { computeSlaStatus, deriveCaseStatus } from '../services/statusMapping';
+import { computeSlaStatus, deriveCaseStatus, applyCaseStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { isGlobalCaseViewer, userCan, canSeeAlertConfidentiality } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
@@ -419,6 +421,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [escalateReason, setEscalateReason] = useState<string>('');
   const [escalateOwnerId, setEscalateOwnerId] = useState<string>('');
+
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+  // périmètre) === `CaseStatus` (domain/caseTypes.ts, 14 valeurs) prévoyait
+  // déjà 'duplicate'/'out_of_scope', structurellement atteignables depuis
+  // 'new' (ALLOWED_TRANSITIONS, domain/workflow.ts) — mais aucun écran ne
+  // les proposait, les rendant de fait inaccessibles (constat de l'analyse
+  // critique du frontend). Réutilise storage.transitionStatus(), déjà réel
+  // pour pending_information/conclusion_pending/functional_review, jamais
+  // un nouveau mécanisme parallèle.
+  const [showDismissModal, setShowDismissModal] = useState(false);
+  const [dismissTargetStatus, setDismissTargetStatus] = useState<'duplicate' | 'out_of_scope'>('duplicate');
+  const [dismissReason, setDismissReason] = useState<string>('');
 
   // Note & Message inputs
   const [internalNoteText, setInternalNoteText] = useState<string>('');
@@ -1130,17 +1144,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     }
 
     const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      status: 'closed',
-      // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-      // l'envoi en revue) === Synchronise aussi le statut riche : sans
-      // cela, un dossier dont `workflowStatus` a été renseigné par le
-      // moteur riche (ex. passé par "Envoyer en revue") restait figé sur
-      // 'conclusion_pending'/'functional_review' après sa clôture legacy
-      // ci-dessus — la timeline "STATUT DU DOSSIER" continuait alors à
-      // afficher "En revue" comme étape courante en même temps que
-      // "Clôturé" comme faite, une incohérence visuelle réelle.
-      workflowStatus: 'closed',
+      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+      // cause racine) === `applyCaseStatus` remplace la construction
+      // manuelle `status: 'closed', workflowStatus: 'closed'` — mêmes deux
+      // champs, mais désormais écrits ensemble par construction (voir
+      // services/statusMapping.ts) : sans cela, un dossier dont
+      // `workflowStatus` a été renseigné par le moteur riche (ex. passé par
+      // "Envoyer en revue") restait figé sur 'conclusion_pending'/
+      // 'functional_review' après sa clôture legacy — la timeline "STATUT
+      // DU DOSSIER" affichait alors "En revue" comme étape courante en même
+      // temps que "Clôturé" comme faite, une incohérence visuelle réelle
+      // (bug déjà corrigé, ce refactor n'en change pas le comportement).
+      ...applyCaseStatus(selectedAlert, 'closed'),
       closedAt: new Date().toISOString(),
       closedBy: activeUser.name,
       closureSummary: closureSummary.trim() || 'Dossier traité et investigué avec succès conformément aux directives de la DARC Groupe ACTIVA.',
@@ -1174,13 +1189,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     if (!selectedAlert || !reopenReason.trim()) return;
 
     const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      status: 'reopened',
-      // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-      // l'envoi en revue) === même synchronisation que handleCloseAlert —
-      // un dossier rouvert depuis 'conclusion_pending'/'functional_review'
-      // ne doit plus afficher "En revue" comme étape courante.
-      workflowStatus: 'reopened',
+      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+      // cause racine) === `applyCaseStatus` remplace la construction
+      // manuelle — même synchronisation que handleCloseAlert : un dossier
+      // rouvert depuis 'conclusion_pending'/'functional_review' ne doit
+      // plus afficher "En revue" comme étape courante.
+      ...applyCaseStatus(selectedAlert, 'reopened'),
       reopenedAt: new Date().toISOString(),
       reopenedBy: activeUser.name,
       reopenReason: reopenReason.trim(),
@@ -1328,16 +1342,31 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     // affichage si besoin.
   };
 
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+  // périmètre) === Structurellement valide uniquement depuis 'new'
+  // (ALLOWED_TRANSITIONS), donc réservé aux dossiers pas encore attribués —
+  // évite tout chevauchement avec la clôture normale (handleCloseAlert),
+  // qui exige au moins une allégation documentée (§25) : un doublon/hors
+  // périmètre n'a par nature rien à documenter.
+  const handleDismissCase = () => {
+    if (!selectedAlert || !dismissReason.trim()) return;
+    const result = storage.transitionStatus(selectedAlert.id, dismissTargetStatus, activeUser, dismissReason.trim());
+    if (result.allowed) {
+      setShowDismissModal(false);
+      setDismissReason('');
+      setDismissTargetStatus('duplicate');
+    }
+  };
+
   // Archive Alert (CDC 3.1.3)
   const handleArchiveAlert = () => {
     if (!selectedAlert) return;
 
     const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      status: 'archived',
-      // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-      // l'envoi en revue) === même synchronisation que handleCloseAlert.
-      workflowStatus: 'archived',
+      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+      // cause racine) === `applyCaseStatus` remplace la construction
+      // manuelle — même synchronisation que handleCloseAlert.
+      ...applyCaseStatus(selectedAlert, 'archived'),
       updatedAt: new Date().toISOString(),
     };
 
@@ -1838,6 +1867,18 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       {t.case_escalated_badge}
                     </span>
                   )}
+                  {/* === AMÉLIORATION AJOUTÉE (Classement sans suite —
+                      Doublon / Hors périmètre) === Sans ce badge, un
+                      dossier classé "Doublon"/"Hors périmètre" afficherait
+                      seulement le badge générique "CLOSED" hérité du
+                      statut legacy (syncLegacyStatus), indiscernable d'une
+                      vraie clôture après investigation complète. */}
+                  {(currentWorkflowStatus === 'duplicate' || currentWorkflowStatus === 'out_of_scope') && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border border-slate-300 text-slate-600 bg-slate-100">
+                      <Ban className="w-3 h-3" />
+                      {currentWorkflowStatus === 'duplicate' ? t.dismiss_reason_duplicate : t.dismiss_reason_out_of_scope}
+                    </span>
+                  )}
                   {/* === AMÉLIORATION AJOUTÉE (Retours visuels 3) === BUG PRÉEXISTANT
                       CORRIGÉ, signalé par l'utilisateur (capture de référence) : le
                       score de risque était affiché dans une box flottante séparée à
@@ -1898,6 +1939,36 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       >
                         <UserPlus className="w-3.5 h-3.5 text-blue-600" />
                         <span>{t.btn_assign_investigator}</span>
+                      </button>
+                    )}
+
+                    {/* === AMÉLIORATION AJOUTÉE (Classement sans suite —
+                        Doublon / Hors périmètre) === BUG PRÉEXISTANT
+                        CORRIGÉ, identifié lors d'une analyse critique du
+                        frontend : 'duplicate'/'out_of_scope' (CaseStatus,
+                        domain/caseTypes.ts) étaient structurellement
+                        atteignables depuis 'new' (ALLOWED_TRANSITIONS,
+                        domain/workflow.ts) mais aucun écran ne le
+                        proposait — un signalement manifestement doublon ou
+                        hors périmètre devait passer par tout le circuit
+                        d'investigation (allégations, mesures correctives)
+                        avant de pouvoir être clôturé. Même garde que
+                        "Attribuer" (cases.assign, décision d'opérateur) ;
+                        réservé aux dossiers pas encore attribués (voir
+                        handleDismissCase). */}
+                    {userCan(activeUser, 'cases.assign') && currentWorkflowStatus === 'new' && (
+                      <button
+                        id="btn-desk-dismiss"
+                        onClick={() => {
+                          setDismissTargetStatus('duplicate');
+                          setDismissReason('');
+                          setShowDismissModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <Ban className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{t.btn_dismiss_case}</span>
                       </button>
                     )}
 
@@ -3588,6 +3659,61 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold"
               >
                 Confirmer l'escalade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+          périmètre) === Même gabarit que la modale d'escalade ci-dessus. */}
+      {showDismissModal && selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">{t.btn_dismiss_case}</h3>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                {t.dismiss_modal_subtitle.replace('{tracking}', selectedAlert.trackingNumber)}
+              </p>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">{t.dismiss_reason_type_label} *</label>
+              <select
+                value={dismissTargetStatus}
+                onChange={(e) => setDismissTargetStatus(e.target.value as 'duplicate' | 'out_of_scope')}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+              >
+                <option value="duplicate">{t.dismiss_reason_duplicate}</option>
+                <option value="out_of_scope">{t.dismiss_reason_out_of_scope}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">{t.dismiss_motive_label} *</label>
+              <textarea
+                rows={3}
+                value={dismissReason}
+                onChange={(e) => setDismissReason(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                placeholder={t.dismiss_motive_placeholder}
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setShowDismissModal(false)}
+                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                {t.btn_cancel}
+              </button>
+              <button
+                onClick={handleDismissCase}
+                disabled={!dismissReason.trim()}
+                className="px-4 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold"
+              >
+                {t.btn_dismiss_case_confirm}
               </button>
             </div>
           </div>

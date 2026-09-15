@@ -32,6 +32,15 @@ interface StaffSpaceHomeProps {
 export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser, setCurrentTab }) => {
   const t = TRANSLATIONS[lang];
 
+  // === AMÉLIORATION AJOUTÉE (retrait du libellé de fonction dans la
+  // salutation) === `UserProfile.name` porte parfois la fonction entre
+  // parenthèses (ex. "B. Y. Ekani (Point de Contact)") — utile dans les
+  // en-têtes/menus compacts pour identifier le compte, mais redondant ici
+  // à côté de "Bienvenue sur EthicsAlert". Ne modifie que l'affichage de
+  // cette salutation, jamais `activeUser.name` lui-même (toujours utilisé
+  // tel quel ailleurs — Navbar, audit, etc.).
+  const greetingName = activeUser.name.replace(/\s*\([^)]*\)\s*$/, '');
+
   // === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) === Sur
   // demande explicite : cliquer sur un espace non permis n'emmène plus vers
   // l'écran "Accès restreint" (PermissionGuard, routing/guards.tsx) — qui
@@ -122,7 +131,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
                 <ShieldCheck className="w-3.5 h-3.5 text-blue-300" /> EthicsAlert · Signalement • Enquêtes • Éthique
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight pt-2">
-                Bonjour M. {activeUser.name}
+                Bonjour M. {greetingName}
               </h2>
               <p className="text-lg font-semibold text-blue-200">
                 Bienvenue sur EthicsAlert

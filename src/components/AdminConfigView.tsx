@@ -24,6 +24,8 @@ import {
   Folder,
   // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
   Mail,
+  // === AMÉLIORATION AJOUTÉE (Visibilité de l'état des notifications e-mail) ===
+  AlertTriangle,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, EscalationRecipient } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -1494,6 +1496,76 @@ service cloud.firestore {
                 </table>
               </div>
             )}
+          </div>
+
+          {/* === AMÉLIORATION AJOUTÉE (Visibilité de l'état des
+              notifications e-mail) === BUG PRÉEXISTANT CORRIGÉ, identifié
+              lors d'une analyse critique du frontend : chaque tentative
+              d'envoi (nouveau signalement, attribution, escalade, repli de
+              routage) était déjà honnêtement journalisée dans l'Audit Trail
+              (EMAIL_NOTIFICATION_SENT/FAILED, services/emailNotify.ts —
+              jamais un faux succès), mais RIEN ne le rendait visible sans
+              aller fouiller l'Audit Trail écran par écran. Carte dérivée en
+              LECTURE SEULE des entrées d'audit réelles — jamais un chiffre
+              fabriqué — pour que l'administrateur voie immédiatement si les
+              e-mails partent vraiment dans cet environnement. */}
+          <div className="pt-4 border-t border-slate-100">
+            {(() => {
+              const logs = storage.getAuditLogs();
+              const sent = logs.filter((l) => l.actionType === 'EMAIL_NOTIFICATION_SENT').length;
+              const failed = logs.filter((l) => l.actionType === 'EMAIL_NOTIFICATION_FAILED').length;
+              const total = sent + failed;
+              const neverWorked = total > 0 && sent === 0;
+              // === AMÉLIORATION AJOUTÉE (Incohérence i18n — corrigée) ===
+              // `t.email_status_never_worked` porte le nom de fichier comme
+              // placeholder texte `{doc}` (jamais traduit en tant que tel) ;
+              // séparé ici en 2 morceaux pour garder le style <code> sans
+              // sortir ce segment du système de traduction.
+              const [neverWorkedBefore, neverWorkedAfter] = t.email_status_never_worked.split('{doc}');
+              return (
+                <>
+                  <h4 className="font-bold text-slate-900 flex items-center gap-1.5 mb-2">
+                    <Mail className="w-4 h-4 text-blue-700" />
+                    {t.email_status_title}
+                  </h4>
+                  {total === 0 ? (
+                    <p className="text-slate-500 text-[11px] italic">
+                      {t.email_status_empty}
+                    </p>
+                  ) : (
+                    <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
+                      neverWorked ? 'bg-amber-50 border-amber-200' : failed > 0 ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'
+                    }`}>
+                      {neverWorked || failed > 0 ? (
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      )}
+                      <div className={neverWorked || failed > 0 ? 'text-amber-900' : 'text-emerald-900'}>
+                        <p className="font-semibold">
+                          {t.email_status_summary
+                            .replace('{total}', String(total))
+                            .replace('{sent}', String(sent))
+                            .replace('{failed}', String(failed))}
+                        </p>
+                        {neverWorked && (
+                          <p className="text-[11px] mt-1 leading-relaxed">
+                            {neverWorkedBefore}
+                            <code className="font-mono bg-white/60 px-1 rounded">docs/EMAIL-NOTIFICATIONS.md</code>
+                            {neverWorkedAfter}
+                          </p>
+                        )}
+                        {!neverWorked && failed > 0 && (
+                          <p className="text-[11px] mt-1 leading-relaxed">
+                            {t.email_status_partial_failure}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

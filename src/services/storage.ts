@@ -4,7 +4,7 @@ import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
 import { CaseStatus } from '../domain/caseTypes';
 import { checkTransition, TransitionCheckResult, ALLOWED_TRANSITIONS, setWorkflowTransitions } from '../domain/workflow';
-import { deriveCaseStatus, syncLegacyStatus } from './statusMapping';
+import { deriveCaseStatus, syncLegacyStatus, applyCaseStatus } from './statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
 import { getConflictedUserIds, resolveIndependentAuthority } from '../domain/independentRouting';
 // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
@@ -483,7 +483,19 @@ class StorageService {
 
     alert.workflowStatus = toStatus;
     alert.status = syncLegacyStatus(toStatus);
-    alert.updatedAt = new Date().toISOString();
+    // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+    // périmètre) === 'duplicate'/'out_of_scope' se synchronisent vers le
+    // statut legacy 'closed' (syncLegacyStatus) mais, contrairement à une
+    // vraie clôture (handleCloseAlert, InvestigationDesk.tsx),
+    // closedAt/closedBy n'étaient jusqu'ici jamais renseignés par cette
+    // méthode générique — un dossier ainsi classé restait invisible de
+    // l'onglet Opérateur "Dossiers clôturés" (colonne "Clôturé le" vide,
+    // prédicat `assignedInvestigators.length > 0` jamais vrai pour un
+    // dossier jamais attribué). Corrigé ici plutôt que dupliqué côté UI.
+    if ((toStatus === 'duplicate' || toStatus === 'out_of_scope') && !alert.closedAt) {
+      alert.closedAt = alert.updatedAt;
+      alert.closedBy = actor.name;
+    }
     this.persistAlerts();
     this.notify();
     this.logAudit(
@@ -559,8 +571,14 @@ class StorageService {
       alert.assignedInvestigators = [...alert.assignedInvestigators, linkedUser.id];
       alert.assignedInvestigatorNames = [...alert.assignedInvestigatorNames, linkedUser.name];
     }
-    alert.workflowStatus = 'escalated';
-    alert.status = syncLegacyStatus('escalated');
+    // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+    // cause racine) === `applyCaseStatus` (services/statusMapping.ts)
+    // remplace les deux affectations manuelles précédentes — même résultat,
+    // mais désormais le même point de passage unique que
+    // transitionStatus()/InvestigationDesk.tsx (clôture/réouverture/
+    // archivage), pour qu'un futur appelant n'ait plus jamais à dupliquer
+    // "status: X, workflowStatus: X" à la main.
+    Object.assign(alert, applyCaseStatus(alert, 'escalated'));
     alert.escalatedAt = new Date().toISOString();
     alert.escalatedBy = actor.id;
     alert.escalatedReason = reason;

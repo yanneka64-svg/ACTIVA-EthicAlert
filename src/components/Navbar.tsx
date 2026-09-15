@@ -185,8 +185,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {isStaffContext ? (
             <>
-              {/* Search bar (staff portal) */}
-              <form onSubmit={handleSearchSubmit} className="flex-1 hidden md:block max-w-xl">
+              {/* Search bar (staff portal) === AMÉLIORATION AJOUTÉE
+                  (correctif débordement en-tête) === même correctif que le
+                  nav public ci-dessous : aligné sur `lg` pour ne jamais se
+                  superposer à la barre mobile de repli (`lg:hidden`). */}
+              <form onSubmit={handleSearchSubmit} className="flex-1 hidden lg:block max-w-xl">
                 <div className="relative">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -207,7 +210,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 FAQ / Nous contacter. Les trois derniers font défiler la page
                 d'accueil jusqu'à la section correspondante (id posé dans
                 WhistleblowerHome.tsx) plutôt que de changer d'écran. */
-            <nav className="hidden md:flex items-center gap-1 flex-1">
+            /* === AMÉLIORATION AJOUTÉE (correctif débordement en-tête) ===
+                BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur ("la barre
+                de navigation traverse le topbar") : ce nav desktop
+                apparaissait dès `md` (768px) alors que la barre mobile de
+                repli ci-dessous ne disparaît qu'à `lg` (1024px) — entre les
+                deux, les deux barres s'affichaient en même temps et le
+                cumul logo + nav + cluster droit dépassait la largeur
+                disponible, poussant "FR"/"Connexion" hors du cadre visible
+                de l'en-tête. Aligné sur `lg`, exactement le seuil où la
+                barre mobile disparaît (`lg:hidden` plus bas). */
+            <nav className="hidden lg:flex items-center gap-1 flex-1">
               <button
                 id="nav-btn-home"
                 onClick={() => setCurrentTab('home')}
@@ -289,23 +302,36 @@ export const Navbar: React.FC<NavbarProps> = ({
                   simple bouton contour ; "Signaler une préoccupation" passe
                   en coins arrondis, comme le reste du modèle. */
               <>
+                {/* === AMÉLIORATION AJOUTÉE (correctif débordement en-tête)
+                    === `sm` (640px) → `md` (768px) : entre 640 et ~728px, ce
+                    bouton + le séparateur redevenaient visibles alors que le
+                    nav desktop était déjà masqué, mais la largeur cumulée
+                    (logo + bouton + séparateur + reste du cluster droit) ne
+                    tenait toujours pas dans le viewport, coupant
+                    "Connexion" à droite. */}
                 <button
                   id="nav-btn-track"
                   onClick={() => setCurrentTab('track')}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold transition whitespace-nowrap"
+                  className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold transition whitespace-nowrap"
                 >
                   <Search className="w-4 h-4 shrink-0" />
                   <span>{t.btn_track_existing}</span>
                 </button>
+                {/* === AMÉLIORATION AJOUTÉE (correctif débordement en-tête)
+                    === Libellé masqué sous `sm` (comme "Connexion" juste en
+                    dessous) : seul bouton toujours visible sans repli
+                    icône-seule, son texte long ("Signaler une
+                    préoccupation") restait le dernier responsable du
+                    débordement sur mobile étroit (ex. 390px). */}
                 <button
                   id="nav-btn-new-alert"
                   onClick={() => setCurrentTab('new_alert')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>{t.btn_new_alert}</span>
+                  <span className="hidden sm:inline">{t.btn_new_alert}</span>
                 </button>
-                <div className="hidden sm:block w-px h-6 bg-slate-200" />
+                <div className="hidden md:block w-px h-6 bg-slate-200" />
               </>
             )}
 

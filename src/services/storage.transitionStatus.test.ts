@@ -46,4 +46,43 @@ describe('storage.transitionStatus', () => {
       expect(result.reason).toBeTruthy();
     }
   });
+
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+  // périmètre) === 'duplicate'/'out_of_scope' étaient structurellement
+  // valides depuis 'new' mais jamais exercés par aucun écran avant ce
+  // correctif — verrouille le comportement attendu : statut legacy
+  // 'closed', et closedAt/closedBy renseignés (sinon le dossier resterait
+  // invisible de l'onglet Opérateur "Dossiers clôturés", qui affiche
+  // "Clôturé le").
+  it('dismisses a never-assigned "new" case as a duplicate: syncs to legacy "closed" and stamps closedAt/closedBy', () => {
+    const base = storage.getAlerts()[0];
+    const target = { ...base, id: 'test-dismiss-duplicate', status: 'new' as const, workflowStatus: undefined, assignedInvestigators: [] as string[], assignedInvestigatorNames: [] as string[], closedAt: undefined, closedBy: undefined };
+    storage.saveAlert(target);
+    const actor = storage.getActiveUser();
+
+    const result = storage.transitionStatus(target.id, 'duplicate', actor, 'Doublon du dossier ACT-...');
+
+    expect(result.allowed).toBe(true);
+    const after = storage.getAlertById(target.id);
+    expect(after?.workflowStatus).toBe('duplicate');
+    expect(after?.status).toBe('closed');
+    expect(after?.closedAt).toBeTruthy();
+    expect(after?.closedBy).toBe(actor.name);
+  });
+
+  it('dismisses a never-assigned "new" case as out of scope: same closure bookkeeping', () => {
+    const base = storage.getAlerts()[0];
+    const target = { ...base, id: 'test-dismiss-out-of-scope', status: 'new' as const, workflowStatus: undefined, assignedInvestigators: [] as string[], assignedInvestigatorNames: [] as string[], closedAt: undefined, closedBy: undefined };
+    storage.saveAlert(target);
+    const actor = storage.getActiveUser();
+
+    const result = storage.transitionStatus(target.id, 'out_of_scope', actor, 'Hors périmètre du dispositif');
+
+    expect(result.allowed).toBe(true);
+    const after = storage.getAlertById(target.id);
+    expect(after?.workflowStatus).toBe('out_of_scope');
+    expect(after?.status).toBe('closed');
+    expect(after?.closedAt).toBeTruthy();
+    expect(after?.closedBy).toBe(actor.name);
+  });
 });
