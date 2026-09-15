@@ -38,6 +38,8 @@ import {
   // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) ===
   ClipboardCheck,
   Eye,
+  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
+  Archive,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -195,6 +197,9 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'op_assign', label: t.sidebar_op_assign, icon: <UserPlus className="w-4 h-4" />, group: '' },
     { key: 'op_pending_info', label: t.sidebar_op_pending, icon: <Clock3 className="w-4 h-4" />, group: '' },
     { key: 'op_processed', label: t.sidebar_op_processed, icon: <CheckCircle2 className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === juste en
+    // dessous de "Dossiers attribués", sur demande explicite.
+    { key: 'op_closed', label: t.sidebar_op_closed, icon: <Archive className="w-4 h-4" />, group: '' },
     ...toolsItems.map((i) => ({ ...i, group: t.sidebar_group_tools })),
   ];
 

@@ -44,6 +44,8 @@ import {
   Lock,
   X,
   ArrowLeft,
+  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
+  Archive,
 } from 'lucide-react';
 import { AlertRecord, Language, UserProfile, PriorityLevel, SeverityLevel, NocaThreshold, CaseMessage } from '../types';
 import { ConfidentialityLevel } from '../domain/caseTypes';
@@ -76,7 +78,13 @@ import { AssignCandidateRow } from './InvestigationDesk';
 // `pending_info` existant (règle et action "Relancer" identiques), avec ses
 // libellés surchargés via `titleOverride`/`subtitleOverride`/`emptyOverride`
 // ci-dessous plutôt qu'un 5e mode dupliqué.
-export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'my_cases' | 'to_process' | 'in_progress';
+// === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === `closed`,
+// juste en dessous de `assigned` ("Dossiers attribués") dans la barre
+// latérale (StaffPortalLayout.tsx) : les dossiers attribués ET clôturés,
+// en lecture seule (`rowAction: 'none'`, comme les 3 écrans Enquêteur
+// "de travail" ci-dessus) — jamais de réattribution sur un dossier déjà
+// clos.
+export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'closed' | 'my_cases' | 'to_process' | 'in_progress';
 
 interface OperatorCaseDeskProps {
   lang: Language;
@@ -135,13 +143,13 @@ type RowAction = 'assign' | 'reassign' | 'followup' | 'none';
 interface ModeConfig {
   icon: React.ComponentType<{ className?: string }>;
   titleKey:
-    | 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed'
+    | 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed' | 'sidebar_op_closed'
     | 'sidebar_inv_my_cases' | 'sidebar_inv_to_process' | 'sidebar_inv_in_progress';
   subtitleKey:
-    | 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle'
+    | 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle' | 'ocd_closed_subtitle'
     | 'ocd_my_cases_subtitle' | 'ocd_to_process_subtitle' | 'ocd_in_progress_subtitle';
   emptyKey:
-    | 'ocd_empty_inbox' | 'ocd_empty_to_assign' | 'ocd_empty_pending_info' | 'ocd_empty_assigned'
+    | 'ocd_empty_inbox' | 'ocd_empty_to_assign' | 'ocd_empty_pending_info' | 'ocd_empty_assigned' | 'ocd_empty_closed'
     | 'ocd_empty_my_cases' | 'ocd_empty_to_process' | 'ocd_empty_in_progress';
   predicate: (a: AlertRecord) => boolean;
   rowAction: RowAction;
@@ -183,6 +191,19 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
     emptyKey: 'ocd_empty_assigned',
     predicate: (a) => a.assignedInvestigators.length > 0,
     rowAction: 'reassign',
+  },
+  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === même
+  // périmètre que `assigned` (dossiers réellement attribués), restreint aux
+  // dossiers clôturés — jamais de réattribution possible sur ceux-ci
+  // (`rowAction: 'none'`), colonnes dédiées ci-dessous (Réf./Nature/Pays/
+  // Entité/Reçu le/Clôturé le/Résumé).
+  closed: {
+    icon: Archive,
+    titleKey: 'sidebar_op_closed',
+    subtitleKey: 'ocd_closed_subtitle',
+    emptyKey: 'ocd_empty_closed',
+    predicate: (a) => a.assignedInvestigators.length > 0 && a.status === 'closed',
+    rowAction: 'none',
   },
   // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
   // Enquêteur) === 3 modes ci-dessous : mêmes règles exactes que les
@@ -344,6 +365,25 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: inProgressCount, label: 'En cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
           { value: closedCount, label: 'Clôturés', tone: 'emerald' },
+        ]
+      : mode === 'closed'
+      ? [
+          { value: modeAlerts.length, label: 'Total clôturés', tone: 'emerald' },
+          { value: modeAlerts.filter((a) => a.closedAt && isToday(a.closedAt)).length, label: 'Clôturés aujourd’hui', tone: 'blue' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          {
+            value: (() => {
+              const withDates = modeAlerts.filter((a) => a.closedAt);
+              if (withDates.length === 0) return 0;
+              const totalDays = withDates.reduce(
+                (sum, a) => sum + (new Date(a.closedAt!).getTime() - new Date(a.createdAt).getTime()) / (24 * 3600 * 1000),
+                0
+              );
+              return Math.round(totalDays / withDates.length);
+            })(),
+            label: 'Délai moyen (jours)',
+            tone: 'indigo',
+          },
         ]
       : mode === 'my_cases'
       ? [
@@ -594,7 +634,57 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   // réception a sa propre liste + panneau plus bas. `select`/`action` sont
   // omises quand l'écran n'a réellement aucune action à proposer
   // (`canActOnRows`), voir `rowAction` ci-dessus.
-  const columns: DataTableColumn<AlertRecord>[] = [
+  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === colonnes
+  // dédiées demandées explicitement (Réf./Nature/Pays/Entité/Reçu le/
+  // Clôturé le/Résumé) — écran strictement en lecture (`rowAction: 'none'`),
+  // aucune case à cocher ni colonne d'action, donc `canActOnRows` est
+  // toujours faux ici (voir `cfg.rowAction` ci-dessus).
+  const closedColumns: DataTableColumn<AlertRecord>[] = [
+    {
+      key: 'id',
+      header: 'Réf.',
+      render: (a) => (
+        <div className="whitespace-nowrap">
+          <span className="font-mono font-bold text-[#0B2545] block">{a.trackingNumber}</span>
+          <ConfidentialityBadge level={a.confidentialityLevel} />
+        </div>
+      ),
+    },
+    { key: 'nature', header: 'Nature', render: (a) => <span className="truncate max-w-[160px] inline-block">{a.category}</span>, hideOnMobile: true },
+    { key: 'country', header: 'Pays', render: (a) => a.country, hideOnMobile: true },
+    {
+      key: 'entity',
+      header: 'Entité',
+      render: (a) => (
+        <span className="flex items-center gap-1 truncate max-w-[160px] text-slate-800">
+          <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+          {a.concernedEntity}
+        </span>
+      ),
+      hideOnMobile: true,
+    },
+    {
+      key: 'received',
+      header: 'Reçu le',
+      render: (a) => new Date(a.createdAt).toLocaleDateString(dateLocale),
+    },
+    {
+      key: 'closed',
+      header: 'Clôturé le',
+      render: (a) => (a.closedAt ? new Date(a.closedAt).toLocaleDateString(dateLocale) : '—'),
+    },
+    {
+      key: 'summary',
+      header: 'Résumé',
+      render: (a) => (
+        <span className="block max-w-xs truncate text-slate-600" title={a.closureSummary || a.detailedDescription}>
+          {a.closureSummary || a.detailedDescription}
+        </span>
+      ),
+    },
+  ];
+
+  const columns: DataTableColumn<AlertRecord>[] = mode === 'closed' ? closedColumns : [
     ...(canActOnRows
       ? [
           {
