@@ -56,8 +56,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // demande explicite ("le modèle que je t'ai donné"). `hero_title` reste
     // inchangé (utilisé ailleurs comme nom de produit, ex. en-tête du
     // portail collaborateur) — seul le hero utilise désormais ces 2 clés.
-    hero_headline_line1: 'Signalez en toute',
-    hero_headline_line2: 'confiance',
+    hero_headline_line1: 'Signalez en',
+    hero_headline_line2: 'toute confiance',
     hero_desc: 'Un comportement contraire à nos valeurs, à l’éthique ou à la réglementation ? Parlez-en. Nous vous écoutons.',
     hero_paragraph: 'L’intégrité est au cœur de notre culture d’entreprise. EthicsAlert vous permet de signaler, en toute confidentialité et sans crainte, tout comportement contraire à nos valeurs, à notre code d’éthique ou à la réglementation en vigueur. Chaque signalement est pris au sérieux et traité avec rigueur.',
     hero_tags: '100% CONFIDENTIEL · SÉCURISÉ · CONFORME',
@@ -987,8 +987,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     hero_title: 'EthicsAlert.Com',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — matching the supplied model) ===
-    hero_headline_line1: 'Report with complete',
-    hero_headline_line2: 'confidence',
+    hero_headline_line1: 'Report with',
+    hero_headline_line2: 'complete confidence',
     hero_desc: 'Something contrary to our values, ethics, or regulations? Speak up. We’re listening.',
     hero_paragraph: 'Integrity is at the heart of our corporate culture. EthicsAlert lets you report, in full confidentiality and without fear, any behavior contrary to our values, our code of ethics, or applicable regulations. Every report is taken seriously and handled rigorously.',
     hero_tags: '100% CONFIDENTIAL · SECURE · COMPLIANT',
@@ -1839,8 +1839,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     hero_title: 'EthicsAlert.Com',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — fidelidade ao modelo fornecido) ===
-    hero_headline_line1: 'Denuncie com toda a',
-    hero_headline_line2: 'confiança',
+    hero_headline_line1: 'Denuncie com',
+    hero_headline_line2: 'toda a confiança',
     hero_desc: 'Um comportamento contrário aos nossos valores, à ética ou à regulamentação? Fale sobre isso. Estamos a ouvir.',
     hero_paragraph: 'A integridade está no centro da nossa cultura empresarial. O EthicsAlert permite-lhe reportar, em total confidencialidade e sem receio, qualquer comportamento contrário aos nossos valores, ao nosso código de ética ou à regulamentação em vigor. Cada denúncia é levada a sério e tratada com rigor.',
     hero_tags: '100% CONFIDENCIAL · SEGURO · CONFORME',
