@@ -19,7 +19,6 @@ import {
 // fois `NOTIFICATION_ICONS`/le centre de notifications retirés ci-dessous.
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
 import { ActivaLogo } from './ui';
 import { canManageConfiguration } from '../services/authz';
@@ -100,10 +99,30 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const t = TRANSLATIONS[lang];
-  const allUsers = storage.getUsers();
   const [showUserDropdown, setShowUserDropdown] = React.useState(false);
   const [showLangDropdown, setShowLangDropdown] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
+
+  // === AMÉLIORATION AJOUTÉE (menu profil — fermeture au clic extérieur) ===
+  // Les deux menus déroulants (profil, langue) ne se refermaient jusqu'ici
+  // qu'en cliquant À L'INTÉRIEUR d'eux-mêmes — un clic ailleurs sur la page
+  // les laissait ouverts. Un écouteur global les referme désormais dès
+  // qu'un clic a lieu en dehors de leur zone respective, comme un menu
+  // déroulant standard.
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
+  const langMenuRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false);
+      }
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+        setShowLangDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
   // Remplace l'ancienne comparaison à 3 rôles codée en dur par la vraie
@@ -296,7 +315,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 tout à droite de la barre — au lieu de vivre avant les
                 boutons d'action publics ("Suivre mon signalement" /
                 "Signaler une préoccupation"), sur demande explicite. */}
-            <div className="relative">
+            <div className="relative" ref={langMenuRef}>
               <button
                 id="btn-language-selector"
                 onClick={() => setShowLangDropdown(!showLangDropdown)}
@@ -341,8 +360,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Account / role-switcher menu (role-switching stays crucial for demo & CDC 3.2.3 access testing) */}
-            <div className="relative">
+            {/* Account menu */}
+            <div className="relative" ref={userMenuRef}>
               {/* === AMÉLIORATION AJOUTÉE (page de connexion plein cadre,
                   sur maquette fournie) === Sur les pages publiques, le
                   bouton "Connexion" ouvre désormais le véritable écran de
@@ -438,49 +457,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
-                  <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">
-                    <p className="font-semibold text-slate-600">{t.switch_role}</p>
-                    <p className="text-[11px] text-slate-500">Testez les accès selon le profil (CDC 3.2.3)</p>
-                  </div>
-
-                  {allUsers.map((u) => (
-                    <button
-                      key={u.id}
-                      onClick={() => {
-                        setActiveUser(u);
-                        storage.setActiveUser(u);
-                      }}
-                      className={`w-full text-left px-3 py-2 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 ${
-                        activeUser.id === u.id ? 'bg-blue-50/80 font-semibold' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-slate-900">{u.name}</span>
-                        <span className="text-[10px] text-slate-500">{u.country}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 truncate">{u.roleTitle}</div>
-                    </button>
-                  ))}
-
-                  {/* Option to simulate pure anonymous whistleblower */}
-                  <button
-                    onClick={() => {
-                      const wbUser: UserProfile = {
-                        id: 'usr-whistleblower',
-                        name: 'Lanceur d’alerte (Visiteur)',
-                        email: 'anonyme@declare.activa',
-                        role: 'reporter',
-                        roleTitle: 'Déclarant externe ou employé',
-                        entity: 'Toutes entités',
-                        country: 'Groupe ACTIVA',
-                      };
-                      setActiveUser(wbUser);
-                      storage.setActiveUser(wbUser);
-                    }}
-                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-800 font-medium"
-                  >
-                    👤 Mode Lanceur d’alerte (Public)
-                  </button>
+                  {/* === AMÉLIORATION AJOUTÉE (menu profil — recentré sur
+                      l'identité connectée) === Le sélecteur "Changer de rôle
+                      pour tester" (liste de tous les comptes) et le "Mode
+                      Lanceur d'alerte (Public)" sont retirés de ce menu, sur
+                      demande explicite : seuls le nom et les identifiants du
+                      compte réellement connecté doivent y figurer. */}
 
                   {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne
                       dédiée) === Déconnexion réelle de la session
