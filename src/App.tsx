@@ -667,9 +667,10 @@ function AppShell() {
       />
 
       {/* === AMÉLIORATION AJOUTÉE (Ascenseur sous l'en-tête) === Seule zone
-          scrollable de la page : regroupe `<main>` et `<footer>` pour que le
-          pied de page continue de défiler avec le contenu (comportement
-          inchangé) — seul l'en-tête reste désormais hors du défilement.
+          scrollable de la page : uniquement `<main>` — l'en-tête ET le pied
+          de page vivent désormais tous deux hors du défilement (voir
+          plus bas, BUG PRÉEXISTANT CORRIGÉ : la barre de défilement
+          couvrait visuellement le pied de page, signalé par l'utilisateur).
           `min-h-0` est nécessaire : sans lui, un enfant flex refuse par
           défaut de rétrécir sous la taille de son contenu, empêchant
           `overflow-y-auto` de jouer son rôle ici. */}
@@ -750,6 +751,7 @@ function AppShell() {
             See src/components/CaseLookup.tsx and docs/FIREBASE-SETUP.md. */}
         {currentTab === 'firebase_lookup' && <CaseLookup lang={lang} />}
       </main>
+      </div>
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Pied de page réduit à
           l'exact contenu de la maquette de référence : un simple lien de
@@ -758,7 +760,17 @@ function AppShell() {
       {/* === AMÉLIORATION AJOUTÉE (Phase 13) === Pied de page bleu marine,
           conforme à la nouvelle maquette d'accueil (au lieu du pied clair
           précédent). */}
-      <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
+      {/* === AMÉLIORATION AJOUTÉE (pied de page fixe en bas de l'écran) ===
+          BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : la barre de
+          défilement (propre à la zone scrollable ci-dessus) continuait de
+          s'afficher par-dessus le pied de page tant qu'il faisait partie de
+          cette même zone scrollable — comportement standard de tout
+          navigateur, mais visuellement gênant. Sorti de la zone scrollable
+          et placé ici, en frère direct (racine `flex flex-col`, `shrink-0`
+          implicite car sans `flex-1`) : il reste désormais TOUJOURS visible,
+          épinglé en bas de l'écran, et la barre de défilement ne couvre
+          plus que la zone entre l'en-tête et lui. */}
+      <footer className="shrink-0 bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* === AMÉLIORATION AJOUTÉE (Phase 20) === logo retiré du pied de page sur demande explicite (ajouté Phase 17). */}
           <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
@@ -769,7 +781,6 @@ function AppShell() {
           </div>
         </div>
       </footer>
-      </div>
 
       {/* QR Code Modal */}
       <QrCodeModal
