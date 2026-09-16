@@ -39,7 +39,6 @@ import {
   BarChart3,
   Activity,
   LayoutDashboard,
-  RefreshCw,
   Plus,
   ListChecks,
   AlertOctagon,
@@ -88,7 +87,7 @@ interface ControlPanelProps {
 const PRIORITY_RANK: Record<PriorityLevel, number> = { critique: 4, tres_elevee: 3, elevee: 2, faible: 1 };
 const CATEGORY_PALETTE = ['#2563eb', '#6366f1', '#f97316', '#9333ea', '#0891b2', '#f43f5e', '#10b981', '#64748b', '#eab308', '#14b8a6'];
 
-type PeriodKey = 'today' | '7d' | '30d' | 'quarter' | 'custom';
+type PeriodKey = 'today' | '7d' | '30d' | 'custom';
 type TrendRange = '7d' | '30d' | '12m';
 
 function localeOf(lang: Language): string {
@@ -105,9 +104,6 @@ function getPeriodWindow(period: PeriodKey, customStart: string, customEnd: stri
       break;
     case '7d':
       start = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
-      break;
-    case 'quarter':
-      start = new Date(now.getTime() - 91 * 24 * 3600 * 1000);
       break;
     case 'custom':
       start = customStart ? new Date(customStart) : new Date(now.getTime() - 30 * 24 * 3600 * 1000);
@@ -167,12 +163,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const locale = localeOf(lang);
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
-  // === AMÉLIORATION AJOUTÉE (retour visuel bouton Actualiser) ===
-  // `lastRefreshed` n'affiche que l'heure/minute : un clic répété dans la
-  // même minute ne changeait rien à l'écran, donnant l'impression que le
-  // bouton ne fonctionnait pas. `isRefreshing` déclenche une brève
-  // animation de l'icône pour confirmer visuellement le clic à chaque fois.
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [period, setPeriod] = useState<PeriodKey>('30d');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -185,14 +175,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     });
     return unsub;
   }, []);
-
-  const handleRefresh = () => {
-    setAlerts(storage.getAlerts());
-    setLastRefreshed(new Date());
-    // === AMÉLIORATION AJOUTÉE : confirmation visuelle immédiate du clic ===
-    setIsRefreshing(true);
-    window.setTimeout(() => setIsRefreshing(false), 600);
-  };
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
   // `visible` vient désormais du hook partagé, qui applique en plus le
@@ -423,7 +405,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     { key: 'today', label: t.cp_period_today },
     { key: '7d', label: t.cp_period_7d },
     { key: '30d', label: t.cp_period_30d },
-    { key: 'quarter', label: t.cp_period_quarter },
     { key: 'custom', label: t.cp_period_custom },
   ];
 
@@ -481,17 +462,17 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
               />
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline">
-              {t.cp_last_updated}: {lastRefreshed.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            <button
-              onClick={handleRefresh}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} /> {t.cp_refresh}
-            </button>
-          </div>
+          {/* === AMÉLIORATION AJOUTÉE (réorganisation de l'en-tête — retrait
+              de "Trimestre" et du bouton "Actualiser") === Les données sont
+              déjà mises à jour en temps réel (storage.subscribe() ci-dessus)
+              — le bouton manuel était redondant. Il ne reste ici qu'un
+              indicateur discret de dernière mise à jour, aligné avec les
+              boutons de période plutôt que de laisser un texte orphelin sans
+              son bouton d'origine. */}
+          <span className="flex items-center gap-1.5 text-[10px] text-slate-400 whitespace-nowrap shrink-0">
+            <Clock3 className="w-3 h-3" />
+            {t.cp_last_updated}: {lastRefreshed.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+          </span>
         </div>
       </div>
 
