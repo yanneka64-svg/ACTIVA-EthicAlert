@@ -19,8 +19,6 @@ import {
   Folder,
   // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
   Mail,
-  // === AMÉLIORATION AJOUTÉE (Visibilité de l'état des notifications e-mail) ===
-  AlertTriangle,
   // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire) ===
   KeyRound,
   Copy,
@@ -265,15 +263,6 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const [userEntity, setUserEntity] = useState('');
   const [userCountry, setUserCountry] = useState('');
   const [deleteUserConfirmId, setDeleteUserConfirmId] = useState<string | null>(null);
-  // === AMÉLIORATION AJOUTÉE (réinitialisation de l'historique de test des
-  // notifications e-mail) === même motif de confirmation en 2 temps que
-  // deleteUserConfirmId/resetPasswordConfirmId ci-dessus.
-  const [confirmClearEmailLogs, setConfirmClearEmailLogs] = useState(false);
-  const handleClearEmailNotificationLogs = () => {
-    storage.clearEmailNotificationLogs(activeUser);
-    setConfirmClearEmailLogs(false);
-    flashBanner('Historique des notifications e-mail réinitialisé.');
-  };
   // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire,
   // expiration 4h) === identifiant + mot de passe généré, affiché UNE
   // SEULE FOIS à l'admin (à la création d'un compte, ou après une
@@ -1550,102 +1539,14 @@ service cloud.firestore {
             )}
           </div>
 
-          {/* === AMÉLIORATION AJOUTÉE (Visibilité de l'état des
-              notifications e-mail) === BUG PRÉEXISTANT CORRIGÉ, identifié
-              lors d'une analyse critique du frontend : chaque tentative
-              d'envoi (nouveau signalement, attribution, escalade, repli de
-              routage) était déjà honnêtement journalisée dans l'Audit Trail
-              (EMAIL_NOTIFICATION_SENT/FAILED, services/emailNotify.ts —
-              jamais un faux succès), mais RIEN ne le rendait visible sans
-              aller fouiller l'Audit Trail écran par écran. Carte dérivée en
-              LECTURE SEULE des entrées d'audit réelles — jamais un chiffre
-              fabriqué — pour que l'administrateur voie immédiatement si les
-              e-mails partent vraiment dans cet environnement. */}
-          <div className="pt-4 border-t border-slate-100">
-            {(() => {
-              const logs = storage.getAuditLogs();
-              const sent = logs.filter((l) => l.actionType === 'EMAIL_NOTIFICATION_SENT').length;
-              const failed = logs.filter((l) => l.actionType === 'EMAIL_NOTIFICATION_FAILED').length;
-              const total = sent + failed;
-              const neverWorked = total > 0 && sent === 0;
-              // === AMÉLIORATION AJOUTÉE (Incohérence i18n — corrigée) ===
-              // `t.email_status_never_worked` porte le nom de fichier comme
-              // placeholder texte `{doc}` (jamais traduit en tant que tel) ;
-              // séparé ici en 2 morceaux pour garder le style <code> sans
-              // sortir ce segment du système de traduction.
-              const [neverWorkedBefore, neverWorkedAfter] = t.email_status_never_worked.split('{doc}');
-              return (
-                <>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <Mail className="w-4 h-4 text-blue-700" />
-                      {t.email_status_title}
-                    </h4>
-                    {/* === AMÉLIORATION AJOUTÉE (réinitialisation de l'historique
-                        de test des notifications e-mail) === Ne retire que les
-                        entrées EMAIL_NOTIFICATION_SENT/FAILED (voir
-                        storage.clearEmailNotificationLogs) — jamais le reste
-                        du journal d'audit. */}
-                    {total > 0 && (
-                      confirmClearEmailLogs ? (
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button onClick={handleClearEmailNotificationLogs} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">
-                            {t.email_status_clear_confirm}
-                          </button>
-                          <button onClick={() => setConfirmClearEmailLogs(false)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">
-                            {t.email_status_clear_cancel}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmClearEmailLogs(true)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-700 shrink-0"
-                          title={t.email_status_clear}
-                        >
-                          <RotateCcw className="w-3 h-3" /> {t.email_status_clear}
-                        </button>
-                      )
-                    )}
-                  </div>
-                  {total === 0 ? (
-                    <p className="text-slate-500 text-[11px] italic">
-                      {t.email_status_empty}
-                    </p>
-                  ) : (
-                    <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
-                      neverWorked ? 'bg-amber-50 border-amber-200' : failed > 0 ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'
-                    }`}>
-                      {neverWorked || failed > 0 ? (
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      )}
-                      <div className={neverWorked || failed > 0 ? 'text-amber-900' : 'text-emerald-900'}>
-                        <p className="font-semibold">
-                          {t.email_status_summary
-                            .replace('{total}', String(total))
-                            .replace('{sent}', String(sent))
-                            .replace('{failed}', String(failed))}
-                        </p>
-                        {neverWorked && (
-                          <p className="text-[11px] mt-1 leading-relaxed">
-                            {neverWorkedBefore}
-                            <code className="font-mono bg-white/60 px-1 rounded">docs/EMAIL-NOTIFICATIONS.md</code>
-                            {neverWorkedAfter}
-                          </p>
-                        )}
-                        {!neverWorked && failed > 0 && (
-                          <p className="text-[11px] mt-1 leading-relaxed">
-                            {t.email_status_partial_failure}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
+          {/* === AMÉLIORATION AJOUTÉE (carte "État des notifications e-mail"
+              retirée de l'affichage, sur demande explicite) === Le suivi
+              continue normalement en arrière-plan : chaque tentative d'envoi
+              (nouveau signalement, attribution, escalade, repli de routage)
+              reste journalisée dans la base (Audit Trail,
+              EMAIL_NOTIFICATION_SENT/FAILED, services/emailNotify.ts) — rien
+              n'est désactivé, seule cette carte de lecture n'est plus
+              rendue ici. */}
         </div>
       )}
 
