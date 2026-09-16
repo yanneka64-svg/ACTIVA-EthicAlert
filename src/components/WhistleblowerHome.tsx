@@ -94,24 +94,24 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             du hero) === Sur demande explicite : texte fin (`font-light`, pas
             gras) posé directement sur la photo, sans fond ni carte.
             === AMÉLIORATION AJOUTÉE (effet flottant au survol) === Sur
-            demande explicite : léger soulèvement + ombre portée au survol,
-            porté par un conteneur interne dédié pour ne pas entrer en
-            conflit avec le `-translate-y-1/2` de centrage vertical de ce
-            conteneur externe (pas de fond ajouté, juste une transition
-            douce), pour donner une sensation de bloc flottant sans revenir
-            sur la décision "sans fond ni carte" ci-dessus. */}
+            demande explicite : chaque ligne de valeur flotte
+            individuellement au survol (léger soulèvement + ombre portée),
+            pas le bandeau entier — la transformation est posée directement
+            sur chaque `<li>`, donc seule la ligne survolée bouge (pas de
+            fond ajouté, juste une transition douce). */}
         <div className="hidden lg:flex flex-col gap-3 absolute right-10 xl:right-20 top-1/2 -translate-y-1/2 z-10 text-white max-w-[220px]">
-          <div className="flex flex-col gap-3 transition-transform duration-300 ease-out hover:-translate-y-2 hover:drop-shadow-[0_12px_20px_rgba(0,0,0,0.35)]">
-            <ul className="space-y-2.5">
-              {[t.hero_value_1, t.hero_value_2, t.hero_value_3, t.hero_value_4, t.hero_value_5].map((value) => (
-                <li key={value} className="text-xs xl:text-sm font-light tracking-[0.2em] uppercase leading-snug">
-                  {value}
-                </li>
-              ))}
-            </ul>
-            <div className="w-10 h-0.5 rounded-full bg-blue-400" />
-            <p className="text-xs font-light text-white/90 leading-snug">{t.hero_values_caption}</p>
-          </div>
+          <ul className="space-y-2.5">
+            {[t.hero_value_1, t.hero_value_2, t.hero_value_3, t.hero_value_4, t.hero_value_5].map((value) => (
+              <li
+                key={value}
+                className="text-xs xl:text-sm font-light tracking-[0.2em] uppercase leading-snug transition-transform duration-300 ease-out hover:-translate-y-1 hover:drop-shadow-[0_8px_14px_rgba(0,0,0,0.35)]"
+              >
+                {value}
+              </li>
+            ))}
+          </ul>
+          <div className="w-10 h-0.5 rounded-full bg-blue-400" />
+          <p className="text-xs font-light text-white/90 leading-snug">{t.hero_values_caption}</p>
         </div>
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 36 — correction largeur du texte
