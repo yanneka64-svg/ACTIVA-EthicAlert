@@ -72,3 +72,16 @@ textarea {
 label {
   user-select: none;
 }
+
+/* === AMÉLIORATION AJOUTÉE (icône "œil" native du navigateur en double) ===
+   Signalé par l'utilisateur : un second glyphe "œil" apparaît dans les
+   champs mot de passe dès qu'une valeur est saisie — ce n'est PAS un bug de
+   l'application, mais l'icône native de révélation du mot de passe
+   qu'Edge ajoute automatiquement (pseudo-élément `::-ms-reveal`), en plus
+   du bouton œil déjà codé à la main (StaffLoginView.tsx,
+   AlertTrackingView.tsx). Masquée ici ; sans effet dans les navigateurs qui
+   ne supportent pas ce pseudo-élément (Chrome, Firefox, Safari). */
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}

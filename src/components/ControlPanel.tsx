@@ -25,7 +25,7 @@
  * export, or navigation callback was removed; `onNavigateToNewCase` is a
  * new, additive prop.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Inbox,
   UserX,
@@ -163,6 +163,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [trendRange, setTrendRange] = useState<TrendRange>('7d');
+  // === AMÉLIORATION AJOUTÉE (calendrier de période pour le rapport) ===
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = storage.subscribe(() => {
@@ -171,6 +174,20 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     });
     return unsub;
   }, []);
+
+  // === AMÉLIORATION AJOUTÉE (calendrier de période pour le rapport) ===
+  // Ferme le sélecteur de dates au clic en dehors, comme tout menu/popover
+  // de cet écran.
+  useEffect(() => {
+    if (!showDatePicker) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
+        setShowDatePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDatePicker]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
   // `visible` vient désormais du hook partagé, qui applique en plus le
@@ -384,13 +401,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     },
   ];
 
-  const periodOptions: { key: PeriodKey; label: string }[] = [
-    { key: 'today', label: t.cp_period_today },
-    { key: '7d', label: t.cp_period_7d },
-    { key: '30d', label: t.cp_period_30d },
-    { key: 'custom', label: t.cp_period_custom },
-  ];
-
   return (
     <div className="max-w-[1500px] mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-5">
       {/* Header */}
@@ -412,39 +422,46 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80 overflow-x-auto">
-            {periodOptions.map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => setPeriod(opt.key)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition flex items-center gap-1 cursor-pointer ${
-                  period === opt.key
-                    ? 'bg-[#0B2545] text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                }`}
-              >
-                {opt.key === 'custom' && <CalendarRange className="w-3 h-3" />}
-                {opt.label}
-              </button>
-            ))}
+          {/* === AMÉLIORATION AJOUTÉE (calendrier de période pour le rapport) ===
+              Sur demande explicite : remplace les boutons de période
+              (Aujourd'hui/7 jours/30 jours/Personnalisé) + la paire de
+              champs date affichée seulement en mode "Personnalisé" par un
+              unique déclencheur "calendrier" ouvrant un vrai sélecteur de
+              dates (Du/Au). `period` reste utilisé tel quel côté logique
+              (getPeriodWindow, KPIs, graphiques) — passe simplement à
+              'custom' dès qu'une date est choisie ici, avec repli sur les
+              30 derniers jours tant qu'aucune date n'est choisie (mêmes
+              valeurs par défaut qu'avant, voir getPeriodWindow ci-dessus). */}
+          <div className="relative" ref={datePickerRef}>
+            <button
+              onClick={() => setShowDatePicker((v) => !v)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+            >
+              <CalendarRange className="w-3.5 h-3.5 text-blue-600" />
+              <span>
+                {customStart && customEnd
+                  ? `${new Date(customStart).toLocaleDateString(locale)} → ${new Date(customEnd).toLocaleDateString(locale)}`
+                  : t.cp_period_30d}
+              </span>
+            </button>
+            {showDatePicker && (
+              <div className="absolute right-0 top-full mt-2 z-20 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex items-center gap-2 text-[11px]">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => { setCustomStart(e.target.value); setPeriod('custom'); }}
+                  className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
+                />
+                <span className="text-slate-400">→</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => { setCustomEnd(e.target.value); setPeriod('custom'); }}
+                  className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
+                />
+              </div>
+            )}
           </div>
-          {period === 'custom' && (
-            <div className="flex items-center gap-1.5 text-[11px]">
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
-              />
-              <span className="text-slate-400">→</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
-              />
-            </div>
-          )}
           {/* === AMÉLIORATION AJOUTÉE (réorganisation de l'en-tête — retrait
               de "Trimestre" et du bouton "Actualiser") === Les données sont
               déjà mises à jour en temps réel (storage.subscribe() ci-dessus)

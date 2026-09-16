@@ -822,10 +822,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'Aucune tâche ouverte restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign : période, graphiques, tableau) ===
-    cp_period_today: 'Aujourd’hui',
-    cp_period_7d: '7 jours',
     cp_period_30d: '30 jours',
-    cp_period_custom: 'Personnalisé',
     cp_last_updated: 'Dernière mise à jour',
     cp_section_trend: 'Tendance des alertes',
     cp_section_category: 'Alertes par catégorie',
@@ -1789,10 +1786,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'No open tasks remaining',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
-    cp_period_today: 'Today',
-    cp_period_7d: '7 Days',
     cp_period_30d: '30 Days',
-    cp_period_custom: 'Custom',
     cp_last_updated: 'Last updated',
     cp_section_trend: 'Alerts Trend',
     cp_section_category: 'Alerts by Category',
@@ -2725,10 +2719,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'Nenhuma tarefa em aberto restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
-    cp_period_today: 'Hoje',
-    cp_period_7d: '7 dias',
     cp_period_30d: '30 dias',
-    cp_period_custom: 'Personalizado',
     cp_last_updated: 'Última atualização',
     cp_section_trend: 'Tendência de alertas',
     cp_section_category: 'Alertas por categoria',

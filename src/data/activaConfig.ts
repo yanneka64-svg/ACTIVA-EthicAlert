@@ -60,13 +60,18 @@ export const DEFAULT_SLA_CONFIG: SlaConfig = {
 // strictement supérieur" échouerait silencieusement). Vérifié contre
 // ROLE_PERMISSIONS (domain/permissions.ts) : un investigator mis en cause
 // trouve un senior_investigator au-dessus ; un senior_investigator mis en
-// cause trouve functional_admin/darc_compliance ; darc_compliance (le rôle
-// opérationnel le plus élevé) mis en cause ne trouve légitimement AUCUNE
-// autorité indépendante — cas NO_INDEPENDENT_AUTHORITY_FOUND prévu par
-// conception, pas un bug. Les rôles au niveau 7 (executive/consultation/
-// audit_committee) n'ont ni cases.edit ni cases.assign et ne sont donc
-// jamais éligibles comme cible de routage, quel que soit leur niveau —
-// confirme le §63 "privilège technique ≠ autorité d'investigation".
+// cause saute le niveau 5 (functional_admin/system_admin/security_admin,
+// ex æquo) pour trouver darc_compliance au niveau 6 — functional_admin a
+// techniquement cases.edit/cases.assign mais est explicitement exclu comme
+// CIBLE de routage (voir isRoutingEligibleRole, domain/independentRouting.ts,
+// "chaîne d'implication") ; system_admin/security_admin n'ont ni l'un ni
+// l'autre. darc_compliance (le rôle opérationnel le plus élevé) mis en
+// cause ne trouve légitimement AUCUNE autorité indépendante — cas
+// NO_INDEPENDENT_AUTHORITY_FOUND prévu par conception, pas un bug. Les
+// rôles au niveau 7 (executive/consultation/audit_committee) n'ont ni
+// cases.edit ni cases.assign et ne sont donc jamais éligibles comme cible
+// de routage, quel que soit leur niveau — confirme le §63 "privilège
+// technique ≠ autorité d'investigation".
 export type HierarchyLevels = Record<UserRole, number>;
 
 export const DEFAULT_HIERARCHY_LEVELS: HierarchyLevels = {
@@ -303,13 +308,32 @@ export const INITIAL_ESCALATION_RECIPIENTS: EscalationRecipient[] = [
   // INITIAL_USERS) — ces 2 entrées basculent en "e-mail uniquement", même
   // comportement que rec-003/rec-004 ci-dessous, jusqu'à ce qu'un
   // administrateur les relie à un vrai compte via Administration.
+  //
+  // === AMÉLIORATION AJOUTÉE (retrait des noms fictifs, ordre de dernier
+  // recours) === Sur demande explicite : `nom` porte désormais un intitulé
+  // générique par fonction (même motif que "DARC Groupe", déjà ainsi),
+  // plus aucun nom de personne fictif — e-mails alignés en conséquence.
+  // rec-003 (RH Groupe) est désormais listé AVANT rec-002 (DARC Groupe) :
+  // à grade égal (4), storage.triggerIndependentRouting() choisit le
+  // dernier recours via `.sort((a, b) => b.grade - a.grade)[0]`, un tri
+  // stable qui retient le premier du tableau en cas d'égalité — RH Groupe
+  // l'emporte désormais sur DARC Groupe dans ce cas précis, sur demande.
   {
     id: 'rec-001',
     identifiant: 'GRP-INV-001',
-    nom: 'Grace Mensah',
-    email: 'g.mensah@group-activa.com',
+    nom: 'Investigations Groupe',
+    email: 'investigations-groupe@group-activa.com',
     fonction: 'Responsable des Investigations Groupe',
     grade: 3,
+    active: true,
+  },
+  {
+    id: 'rec-003',
+    identifiant: 'GRP-RH-001',
+    nom: 'RH Groupe',
+    email: 'rh-groupe@group-activa.com',
+    fonction: 'Directeur des Ressources Humaines',
+    grade: 4,
     active: true,
   },
   {
@@ -322,19 +346,10 @@ export const INITIAL_ESCALATION_RECIPIENTS: EscalationRecipient[] = [
     active: true,
   },
   {
-    id: 'rec-003',
-    identifiant: 'GRP-RH-001',
-    nom: 'Aïssatou Diallo',
-    email: 'a.diallo@group-activa.com',
-    fonction: 'Directeur des Ressources Humaines',
-    grade: 4,
-    active: true,
-  },
-  {
     id: 'rec-004',
     identifiant: 'GRP-DGA-001',
-    nom: 'Jean-Paul Nguema',
-    email: 'jp.nguema@group-activa.com',
+    nom: 'DGA Groupe',
+    email: 'dga-groupe@group-activa.com',
     fonction: 'Directeur Général Adjoint Groupe',
     grade: 5,
     active: true,
