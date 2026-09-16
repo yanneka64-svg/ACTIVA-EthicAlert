@@ -118,23 +118,30 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
             l'utilisateur) === Remplace la photo du siège par une photo de
             bureau avec vue sur skyline (heure dorée), servie depuis
             public/brand/space-home-bg.jpg. */}
-        <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[460px] text-white overflow-hidden">
+        {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
+            BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : couleur de
+            repli (`bg-[#0B2545]`, même teinte que le voile ci-dessous) le
+            temps du chargement au lieu d'un flash blanc, + priorité de
+            chargement explicite sur l'image. */}
+        <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[460px] text-white overflow-hidden bg-[#0B2545]">
           <img
             src="/brand/space-home-bg.jpg"
             alt="Espace de travail avec vue sur la ville"
+            fetchPriority="high"
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover object-left"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/95 via-[#0B2545]/70 to-[#0B2545]/35" />
           <div className="relative z-10 space-y-4">
             <div className="space-y-1.5">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/20 border border-white/30 backdrop-blur-sm text-blue-100">
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-300" /> EthicsAlert · Signalement • Enquêtes • Éthique
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-300" /> activa-whistleblowing · Signalement • Enquêtes • Éthique
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight pt-2">
                 Bonjour M. {greetingName}
               </h2>
               <p className="text-lg font-semibold text-blue-200">
-                Bienvenue sur EthicsAlert
+                Bienvenue sur activa-whistleblowing
               </p>
             </div>
 

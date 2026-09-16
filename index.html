@@ -4,12 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- === AMÉLIORATION AJOUTÉE (Phase 11 — alignement de marque) === -->
-    <title>ACTIVA EthicAlert</title>
+    <title>activa-whistleblowing</title>
     <meta name="description" content="Plateforme sécurisée et multilingue de gestion et de signalement confidentiel ou anonyme des alertes éthiques pour le Groupe ACTIVA." />
-    <meta property="og:title" content="ACTIVA EthicAlert" />
+    <meta property="og:title" content="activa-whistleblowing" />
     <meta property="og:description" content="Plateforme sécurisée et multilingue de gestion et de signalement confidentiel ou anonyme des alertes éthiques pour le Groupe ACTIVA." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
+         BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : la photo du
+         siège (page d'accueil publique, destination naturelle après
+         déconnexion) n'était demandée qu'une fois React monté et le
+         composant WhistleblowerHome rendu — après le téléchargement et
+         l'exécution du bundle JS. Ce préchargement démarre le
+         téléchargement de l'image EN PARALLÈLE du bundle, dès le chargement
+         de la page, réduisant nettement le délai avant son affichage. -->
+    <link rel="preload" as="image" href="/brand/activa-hq-hero.jpg" fetchpriority="high" />
   </head>
   <body>
     <div id="root"></div>

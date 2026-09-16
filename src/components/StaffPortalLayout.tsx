@@ -34,7 +34,6 @@ import {
   // importé plus haut), désormais aussi présentes en barre latérale.
   Building2,
   Tag,
-  Database,
   // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) ===
   ClipboardCheck,
   Eye,
@@ -247,8 +246,18 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
     { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, group: '' },
-    { key: 'admin_database', label: 'Base de données', icon: <Database className="w-4 h-4" />, group: '' },
-    { key: 'settings', label: 'Paramètres système', icon: <Settings className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (suppression de l'onglet Base de données) ===
+    // Retiré de la navigation sur demande explicite de l'utilisateur. L'écran
+    // (rattachement Firebase, AdminConfigView.tsx, `configTab === 'database'`)
+    // et sa route ('/admin/database') restent en place — seul ce lien de
+    // menu disparaît, aucune fonctionnalité n'est supprimée.
+    // === AMÉLIORATION AJOUTÉE (suppression du lien "Paramètres système") ===
+    // Retiré sur demande explicite de l'utilisateur : ce lien était
+    // redondant avec le titre "Paramètre système" désormais affiché en tête
+    // de la sidebar ci-dessous. L'écran qu'il ciblait ('settings' → route
+    // '/admin', `configTab` par défaut 'matrix') reste l'écran d'accueil
+    // naturel de l'espace Admin — atteint dès l'entrée dans l'espace, sans
+    // avoir besoin d'un lien de menu dédié.
   ];
 
   // === AMÉLIORATION AJOUTÉE (Espace Consultation — Audit interne &
@@ -374,18 +383,23 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
             Pour changer d'espace après coup, voir le lien "Changer
             d'espace" du menu Profil (Navbar.tsx). */}
         {/* === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — retours
-            visuels sur capture de référence) === Bloc titre "Administration"
+            visuels sur capture de référence) === Bloc titre "Configuration"
             en tête de la barre latérale, propre à l'espace Admin (fidèle à
             la référence) — purement visuel, ne change ni `navItems` ni la
-            navigation elle-même. */}
+            navigation elle-même.
+            === AMÉLIORATION AJOUTÉE (renommage du bloc titre) === sur
+            demande explicite de l'utilisateur : "Administration" devient
+            "Configuration" puis "Paramètres", puis enfin "Paramètre
+            système" (remplace aussi le lien de menu du même nom, retiré
+            juste au-dessus) — le sous-texte ("Paramètres, utilisateurs et
+            configuration") reste retiré. */}
         {selectedSpace === 'admin' && (
           <div className="flex items-center gap-2.5 px-3.5 pt-4 pb-1">
             <span className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 shrink-0">
               <Settings className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <p className="font-extrabold text-slate-900 text-sm leading-tight">Administration</p>
-              <p className="text-[10px] text-slate-500 leading-snug">Paramètres, utilisateurs et configuration</p>
+              <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">Paramètre système</p>
             </div>
           </div>
         )}

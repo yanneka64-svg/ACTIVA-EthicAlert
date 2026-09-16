@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Settings,
   ShieldCheck,
   Building2,
   Users,
@@ -72,7 +71,20 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow'>(initialTab ?? 'matrix');
+  // === AMÉLIORATION AJOUTÉE (navigation Admin figée après le premier clic)
+  // === BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : `configTab`
+  // était un `useState` initialisé UNE SEULE FOIS depuis `initialTab` — un
+  // clic sur un autre lien de la sidebar (StaffPortalLayout.tsx) change
+  // bien `currentTab`/l'URL et donc la prop `initialTab` reçue ici, mais
+  // React réutilise la même instance de ce composant (même position dans
+  // l'arbre) sans jamais réexécuter l'initialiseur du `useState` : l'écran
+  // restait figé sur le tout premier onglet visité, quel que soit le lien
+  // cliqué ensuite. Aucun code de ce composant n'appelait plus jamais
+  // `setConfigTab` par ailleurs (la sidebar est la SEULE source de
+  // navigation depuis la suppression de l'ancienne rangée d'onglets interne
+  // — voir plus bas) : `configTab` peut donc être dérivé directement de la
+  // prop à chaque rendu, sans état local du tout.
+  const configTab: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow' = initialTab ?? 'matrix';
   const [saveBanner, setSaveBanner] = useState('');
 
   // Firebase connection state
@@ -216,6 +228,11 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const [entityName, setEntityName] = useState('');
   const [entityCountry, setEntityCountry] = useState('');
   const [entityFlag, setEntityFlag] = useState('');
+  // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+  // Code de numérotation des dossiers (préfixe du format XX-YY-MM-XXXX,
+  // voir storage.generateCaseNumber) — éditable ici car c'est la DARC
+  // Groupe, pas le code, qui fait autorité sur sa valeur officielle.
+  const [entityCode, setEntityCode] = useState('');
   const [deleteEntityConfirmId, setDeleteEntityConfirmId] = useState<string | null>(null);
 
   // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
@@ -276,6 +293,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     setEntityName('');
     setEntityCountry('');
     setEntityFlag('');
+    setEntityCode('');
   };
   const openAddEntity = () => { resetEntityForm(); setShowEntityModal(true); };
   const openEditEntity = (ent: EntityDef) => {
@@ -283,17 +301,23 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     setEntityName(ent.name);
     setEntityCountry(ent.country);
     setEntityFlag(ent.flag);
+    setEntityCode(ent.code);
     setShowEntityModal(true);
   };
   const handleSaveEntity = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!entityName.trim() || !entityCountry.trim()) return;
+    // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+    // Validation stricte : le code alimente directement le numéro de
+    // dossier officiel (storage.generateCaseNumber) — 2 à 6 lettres
+    // majuscules uniquement, jamais vide.
+    const normalizedCode = entityCode.trim().toUpperCase();
+    if (!entityName.trim() || !entityCountry.trim() || !/^[A-Z]{2,6}$/.test(normalizedCode)) return;
     if (editingEntityId) {
-      storage.updateEntity(editingEntityId, { name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️' }, activeUser);
+      storage.updateEntity(editingEntityId, { name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️', code: normalizedCode }, activeUser);
       flashBanner(`Entité "${entityName.trim()}" mise à jour.`);
     } else {
       const id = `ent-${slugify(entityName)}-${Date.now().toString(36)}`;
-      storage.addEntity({ id, name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️' }, activeUser);
+      storage.addEntity({ id, name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️', code: normalizedCode }, activeUser);
       flashBanner(`Entité "${entityName.trim()}" ajoutée.`);
     }
     setShowEntityModal(false);
@@ -592,14 +616,6 @@ service cloud.firestore {
     setTimeout(() => setRulesCopied(false), 2500);
   };
 
-  const handleResetDemoData = () => {
-    if (confirm("Réinitialiser l'application avec le jeu d'essai standard conforme au Cahier des Charges ?")) {
-      storage.resetToFactory();
-      setSaveBanner("Données réinitialisées avec succès.");
-      setTimeout(() => setSaveBanner(''), 3000);
-    }
-  };
-
   // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
   // Structure d'affichage (groupes/libellés) au-dessus de la table réelle.
   // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) === n'est plus
@@ -689,64 +705,32 @@ service cloud.firestore {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
-      {/* Top Banner */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Settings className="w-5 h-5 text-blue-700" />
-              <h2 className="text-xl font-bold text-slate-900">
-                {t.nav_settings}
-              </h2>
-            </div>
-            <p className="text-xs text-slate-600">
-              Paramétrage global de la plateforme réservé à l'Administrateur Système.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleResetDemoData}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Réinitialiser jeu de démonstration</span>
-            </button>
-          </div>
+    // === AMÉLIORATION AJOUTÉE (alignement sidebar/contenu Admin) === BUG
+    // PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : ce `py-8` s'ajoutait
+    // au `lg:py-6` déjà appliqué par le conteneur parent (StaffPortalLayout,
+    // "Content canvas"), faisant démarrer la première carte de ce contenu
+    // ~32px plus bas que le haut de la sidebar (qui, elle, n'a pas de
+    // padding interne avant sa première carte). `lg:pt-0` aligne les deux
+    // sur grand écran — `pt-8` reste sur mobile, où la sidebar est masquée
+    // (remplacée par le nav horizontal) et cet espace au-dessus reste utile.
+    <div className="max-w-7xl mx-auto pt-8 lg:pt-0 pb-8 px-4 sm:px-6 lg:px-8 space-y-6">
+      {/* === AMÉLIORATION AJOUTÉE (suppression de la bande au-dessus des
+          tableaux) === BUG PRÉEXISTANT CORRIGÉ, sur demande explicite de
+          l'utilisateur : la carte "Configuration Système" + "Réinitialiser
+          jeu de démonstration" (déjà retirée) puis le repère de section
+          gris restant ("MATRICE DES RISQUES & DÉLAIS SLA", etc.) sont
+          retirés — ce bandeau permanent est redondant avec le titre déjà
+          actif dans la sidebar (StaffPortalLayout.tsx) et avec le titre de
+          chaque carte de contenu ci-dessous. `saveBanner` (retours de
+          succès CRUD, utilisé par ~20 actions de cet écran) reste affiché,
+          mais seulement quand un message est réellement présent — plus de
+          carte vide en permanence au-dessus des tableaux. */}
+      {saveBanner && (
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>{saveBanner}</span>
         </div>
-
-        {saveBanner && (
-          <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>{saveBanner}</span>
-          </div>
-        )}
-
-        {/* === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === BUG
-            PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : cette rangée de
-            9 boutons dupliquait exactement les entrées de la barre latérale
-            Admin (StaffPortalLayout.tsx) — 5 d'entre elles y figuraient déjà
-            en double, et les 4 autres (Matrice & SLA, Entités, Catégories,
-            Base de données) n'étaient accessibles que par ici. La barre
-            latérale liste désormais les 9 sections ; `configTab` (état,
-            logique de rendu ci-dessous, tout le contenu de chaque section)
-            reste strictement inchangé — seule cette navigation redondante
-            disparaît. Un simple repère visuel remplace la rangée retirée. */}
-        <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
-          {{
-            matrix: 'Matrice des risques & Délais SLA',
-            entities: 'Entités du Groupe',
-            organization: 'Organisation (Pays)',
-            categories: "Catégories d'alerte",
-            users: 'Comptes & Habilitations',
-            roles: 'Rôles & Permissions',
-            governance: 'Gouvernance (Routage indépendant)',
-            workflow: 'Workflows & Statuts',
-            database: 'Base de données & Firebase',
-          }[configTab]}
-        </div>
-      </div>
+      )}
 
       {/* 1. MATRIX & SLA TAB */}
       {configTab === 'matrix' && (
@@ -926,7 +910,11 @@ service cloud.firestore {
                       <span>{ent.flag}</span>
                       <span className="truncate">{ent.name}</span>
                     </div>
-                    <div className="text-[11px] text-slate-500">{ent.country}</div>
+                    <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                      <span>{ent.country}</span>
+                      {/* === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) === */}
+                      <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono font-bold text-[10px]">{ent.code}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button onClick={() => openEditEntity(ent)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Modifier">
@@ -1342,19 +1330,14 @@ service cloud.firestore {
           table de niveaux éditée ci-dessous. */}
       {configTab === 'governance' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6 text-xs">
+          {/* === AMÉLIORATION AJOUTÉE (suppression du texte explicatif) ===
+              sur demande explicite de l'utilisateur : le paragraphe
+              descriptif sous ce titre est retiré (le titre seul suffit). */}
           <div className="border-b border-slate-100 pb-3">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <Network className="w-4 h-4 text-blue-700" />
               Routage indépendant — Niveaux hiérarchiques
             </h3>
-            <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
-              Lorsqu'un signalement met en cause un opérateur, un enquêteur ou un administrateur (personne
-              impliquée rattachée à un compte réel, onglet Personnes d'un dossier), ce compte perd tout accès et
-              le dossier est routé vers un compte dont le rôle a un niveau strictement supérieur ci-dessous, capable
-              d'investiguer (Enquêteur/Admin fonctionnel/Conformité DARC), en priorité de même périmètre pays/entité,
-              sinon vers le Groupe. Aucune autorité disponible → intervention manuelle requise (piste d'audit,
-              indicateur "NO_INDEPENDENT_AUTHORITY_FOUND").
-            </p>
           </div>
 
           <form onSubmit={handleSaveHierarchyLevels} className="space-y-3">
@@ -1422,7 +1405,7 @@ service cloud.firestore {
                 <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
                   Personnes pouvant recevoir une escalade manuelle ou servir de dernier recours pour le routage
                   indépendant, classées par grade (le plus élevé = dernier recours). Un destinataire sans compte
-                  EthicAlert lié est notifié par e-mail uniquement.
+                  activa-whistleblowing lié est notifié par e-mail uniquement.
                 </p>
               </div>
               <button
@@ -1652,7 +1635,7 @@ service cloud.firestore {
             <div>
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Database className="w-4 h-4 text-amber-500" />
-                Rattachement au Projet Firebase "ACTIVA EthicAlert"
+                Rattachement au Projet Firebase "activa-whistleblowing"
               </h3>
               <p className="text-slate-500 text-[11px] mt-0.5">
                 Connectez directement votre projet Cloud Firestore pour la centralisation des alertes et de la piste d'audit.
@@ -1705,7 +1688,7 @@ service cloud.firestore {
                   Identifiants de l'application Web Firebase
                 </h4>
                 <p className="text-slate-500 text-[11px]">
-                  Disponibles sur <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-blue-600 underline font-medium">console.firebase.google.com</a> &gt; Projet <strong>ACTIVA EthicAlert</strong> &gt; Paramètres du projet &gt; Vos applications (Web).
+                  Disponibles sur <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-blue-600 underline font-medium">console.firebase.google.com</a> &gt; Projet <strong>activa-whistleblowing</strong> &gt; Paramètres du projet &gt; Vos applications (Web).
                 </p>
               </div>
 
@@ -1899,6 +1882,24 @@ service cloud.firestore {
                 <label className="block font-semibold text-slate-700 mb-1">Emoji drapeau (optionnel)</label>
                 <input type="text" value={entityFlag} onChange={(e) => setEntityFlag(e.target.value)} placeholder="🇧🇯" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" maxLength={8} />
               </div>
+              {/* === AMÉLIORATION AJOUTÉE (numérotation officielle des
+                  dossiers) === code utilisé comme préfixe du numéro de
+                  dossier officiel (ex. AARDC-26-09-0001). */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Code entité (numérotation des dossiers) *</label>
+                <input
+                  type="text"
+                  value={entityCode}
+                  onChange={(e) => setEntityCode(e.target.value.toUpperCase())}
+                  placeholder="Ex : AARDC"
+                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg font-mono uppercase"
+                  maxLength={6}
+                  pattern="[A-Za-z]{2,6}"
+                  title="2 à 6 lettres, ex : AARDC"
+                  required
+                />
+                <p className="mt-1 text-[10px] text-slate-500">2 à 6 lettres. Préfixe des numéros de dossier de cette entité (ex : AARDC-26-09-0001).</p>
+              </div>
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button type="button" onClick={() => setShowEntityModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
                 <button type="submit" className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold">
@@ -1951,7 +1952,7 @@ service cloud.firestore {
                   <input type="text" value={recipientFonction} onChange={(e) => setRecipientFonction(e.target.value)} placeholder="Ex : Directeur Général Adjoint Groupe" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block font-semibold text-slate-700 mb-1">Compte EthicAlert lié (optionnel)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Compte activa-whistleblowing lié (optionnel)</label>
                   <select value={recipientLinkedUserId} onChange={(e) => setRecipientLinkedUserId(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
                     <option value="">Aucun — notification e-mail uniquement</option>
                     {users.map((u) => (

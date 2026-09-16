@@ -68,8 +68,20 @@ export function DataTable<T>({ columns, rows, getRowKey, onRowClick, emptyTitle,
                 onClick={() => onRowClick?.(row)}
                 className={onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}
               >
+                {/* === AMÉLIORATION AJOUTÉE (bien ranger les données —
+                    lignes de tableau) === BUG PRÉEXISTANT CORRIGÉ, même
+                    cause que le correctif d'alignement des en-têtes
+                    ci-dessus (déjà `whitespace-nowrap`) : une cellule au
+                    contenu plus long qu'une autre (ex. libellé de catégorie)
+                    passait sur 2-4 lignes alors que ses voisines restaient
+                    sur 1, rendant la hauteur de chaque ligne irrégulière et
+                    le tableau visuellement désordonné. `whitespace-nowrap`
+                    uniformise toutes les cellules sur une seule ligne — le
+                    conteneur défile déjà horizontalement au besoin
+                    (`overflow-x-auto` ci-dessus), pour toutes les tables de
+                    l'application (composant générique). */}
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3 text-slate-700 align-middle">
+                  <td key={col.key} className="px-4 py-3 text-slate-700 align-middle whitespace-nowrap">
                     {col.render(row)}
                   </td>
                 ))}

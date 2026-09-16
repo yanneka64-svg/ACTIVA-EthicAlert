@@ -37,6 +37,8 @@ const STORAGE_KEYS = {
   WORKFLOW_TRANSITIONS: 'activa_ethicalert_workflow_transitions_v1',
   // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
   ESCALATION_RECIPIENTS: 'activa_ethicalert_escalation_recipients_v1',
+  // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+  CASE_NUMBER_COUNTERS: 'activa_ethicalert_case_number_counters_v1',
 };
 
 // Event dispatched when data changes
@@ -89,6 +91,12 @@ class StorageService {
   // que l'écran Gouvernance et escalateAlert()/triggerIndependentRouting()
   // lisent tous les deux.
   private escalationRecipients: EscalationRecipient[] = [];
+  // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+  // Compteur séquentiel par entité et par mois, clé `${entityCode}-${YYMM}`,
+  // utilisé par generateCaseNumber() ci-dessous pour produire le numéro de
+  // dossier officiel Groupe (format XX-YY-MM-XXXX). Même motif
+  // seed-then-mutate/persisté que les autres champs de cette classe.
+  private caseNumberCounters: Record<string, number> = {};
 
   constructor() {
     this.init();
@@ -197,6 +205,15 @@ class StorageService {
         this.escalationRecipients = [...INITIAL_ESCALATION_RECIPIENTS];
         this.persistEscalationRecipients();
       }
+
+      // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+      const storedCaseNumberCounters = localStorage.getItem(STORAGE_KEYS.CASE_NUMBER_COUNTERS);
+      if (storedCaseNumberCounters) {
+        this.caseNumberCounters = JSON.parse(storedCaseNumberCounters);
+      } else {
+        this.caseNumberCounters = {};
+        this.persistCaseNumberCounters();
+      }
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
       this.alerts = [...INITIAL_ALERTS];
@@ -216,6 +233,8 @@ class StorageService {
       this.workflowTransitions = { ...ALLOWED_TRANSITIONS };
       // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
       this.escalationRecipients = [...INITIAL_ESCALATION_RECIPIENTS];
+      // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+      this.caseNumberCounters = {};
     }
     // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
     // Pousse l'état courant (chargé, seedé, ou de repli) vers le pont
@@ -238,6 +257,60 @@ class StorageService {
       this.categories = backfilled;
       this.persistCategories();
     }
+
+    // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+    // Même motif que backfillCategoryDefaults ci-dessus : une entité déjà
+    // stockée avant l'ajout du champ `code` (localStorage plus ancien) reçoit
+    // un code générique, jamais un code officiel deviné à sa place.
+    const entitiesBackfilled = this.backfillEntityDefaults(this.entities);
+    if (entitiesBackfilled !== this.entities) {
+      this.entities = entitiesBackfilled;
+      this.persistEntities();
+    }
+    // Aligne les compteurs sur les dossiers déjà existants (seed ou import),
+    // pour ne jamais réémettre un numéro déjà utilisé — recalculé à chaque
+    // démarrage (idempotent, ne fait que remonter un compteur, jamais le
+    // redescendre) plutôt que fait confiance à un compteur persisté qui
+    // pourrait être en retard sur des dossiers ajoutés autrement.
+    const countersSeeded = this.seedCaseNumberCountersFromAlerts(this.caseNumberCounters, this.alerts);
+    if (countersSeeded !== this.caseNumberCounters) {
+      this.caseNumberCounters = countersSeeded;
+      this.persistCaseNumberCounters();
+    }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+  private backfillEntityDefaults(defs: EntityDef[]): EntityDef[] {
+    let changed = false;
+    const next = defs.map((e) => {
+      if (e.code) return e;
+      changed = true;
+      return { ...e, code: e.name.replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase() || 'GRP' };
+    });
+    return changed ? next : defs;
+  }
+
+  // Numéro de dossier officiel : XX(code entité)-YY(année)-MM(mois)-XXXX
+  // (ex. AARDC-26-09-0001). Dérive, sans jamais redescendre, le plus haut
+  // numéro déjà utilisé par entité+mois à partir des dossiers existants —
+  // protège contre toute collision même si le compteur persisté est en
+  // retard (dossiers seedés, importés, ou ajoutés hors de generateCaseNumber).
+  private seedCaseNumberCountersFromAlerts(counters: Record<string, number>, alerts: AlertRecord[]): Record<string, number> {
+    let changed = false;
+    const next = { ...counters };
+    const pattern = /^([A-Z]+)-(\d{2})-(\d{2})-(\d{4})$/;
+    for (const alert of alerts) {
+      const match = pattern.exec(alert.trackingNumber ?? '');
+      if (!match) continue;
+      const [, entityCode, yy, mm, seqStr] = match;
+      const key = `${entityCode}-${yy}${mm}`;
+      const seq = parseInt(seqStr, 10);
+      if (!next[key] || next[key] < seq) {
+        next[key] = seq;
+        changed = true;
+      }
+    }
+    return changed ? next : counters;
   }
 
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
@@ -311,6 +384,15 @@ class StorageService {
     }
   }
 
+  // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+  private persistCaseNumberCounters() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CASE_NUMBER_COUNTERS, JSON.stringify(this.caseNumberCounters));
+    } catch (e) {
+      console.error('Failed to persist case number counters', e);
+    }
+  }
+
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   private persistCountries() {
     try {
@@ -367,6 +449,24 @@ class StorageService {
 
   public getAlertByTracking(trackingNumber: string): AlertRecord | undefined {
     return this.alerts.find(a => a.trackingNumber.trim().toUpperCase() === trackingNumber.trim().toUpperCase());
+  }
+
+  // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+  // Format Groupe fourni par la DARC : XX(code entité)-YY(année)-
+  // MM(mois)-XXXX(n° séquentiel sur 4 chiffres, remis à 0001 chaque début
+  // de mois, PAR ENTITÉ). Remplace l'ancien suffixe aléatoire ACT-2026-XXXX
+  // (Phase 26) utilisé par AlertSubmissionFlow. `entityCode` doit être
+  // EntityDef.code (jamais deviné ici) ; `referenceDate` est injectable
+  // pour les tests, sinon la date réelle de soumission.
+  public generateCaseNumber(entityCode: string, referenceDate: Date = new Date()): string {
+    const code = entityCode.trim().toUpperCase() || 'GRP';
+    const yy = String(referenceDate.getFullYear()).slice(-2);
+    const mm = String(referenceDate.getMonth() + 1).padStart(2, '0');
+    const key = `${code}-${yy}${mm}`;
+    const next = (this.caseNumberCounters[key] ?? 0) + 1;
+    this.caseNumberCounters[key] = next;
+    this.persistCaseNumberCounters();
+    return `${code}-${yy}-${mm}-${String(next).padStart(4, '0')}`;
   }
 
   public saveAlert(alert: AlertRecord): void {
@@ -591,7 +691,7 @@ class StorageService {
       ? ' Accès au dossier accordé (compte lié).'
       : linkedUser
       ? ` Compte lié (${linkedUser.name}) mais habilitation de confidentialité insuffisante pour ce dossier — aucun accès accordé, notification e-mail uniquement.`
-      : ' Aucun compte EthicAlert lié — notification e-mail uniquement.';
+      : ' Aucun compte activa-whistleblowing lié — notification e-mail uniquement.';
     this.logAudit(
       'CASE_ESCALATED',
       `Dossier ${alert.trackingNumber} escaladé vers ${recipient.nom} (${recipient.fonction}). Motif : "${reason}".` +

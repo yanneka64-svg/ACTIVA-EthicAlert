@@ -358,7 +358,7 @@ export const WhistleblowerPortal: React.FC<WhistleblowerPortalProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="Ex : ACT-2026-0418"
+                  placeholder="Ex : AACMR-26-09-0001"
                   value={trackingNumberInput}
                   onChange={(e) => setTrackingNumberInput(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-mono uppercase transition bg-slate-50/50"
@@ -401,23 +401,23 @@ export const WhistleblowerPortal: React.FC<WhistleblowerPortalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setTrackingNumberInput('ACT-2026-0418');
+                  setTrackingNumberInput('AACMR-26-09-0001');
                   setPasswordInput('Activa2026!');
                 }}
                 className="px-3 py-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-slate-700 text-left transition font-mono text-[11px]"
               >
-                <div className="font-bold text-[#0B2545]">ACT-2026-0418</div>
+                <div className="font-bold text-[#0B2545]">AACMR-26-09-0001</div>
                 <div className="text-[10px] text-slate-500 font-sans">Mot de passe : Activa2026!</div>
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setTrackingNumberInput('ACT-2026-0391');
+                  setTrackingNumberInput('AACIV-26-08-0001');
                   setPasswordInput('Secret2026!');
                 }}
                 className="px-3 py-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-slate-700 text-left transition font-mono text-[11px]"
               >
-                <div className="font-bold text-[#0B2545]">ACT-2026-0391</div>
+                <div className="font-bold text-[#0B2545]">AACIV-26-08-0001</div>
                 <div className="text-[10px] text-slate-500 font-sans">Mot de passe : Secret2026!</div>
               </button>
             </div>

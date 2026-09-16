@@ -31,7 +31,7 @@ const NOTIFY_ENDPOINT = '/api/notify-email';
 // l'entrée ALERT_SUBMITTED, jamais un compte réel emprunté.
 const SYSTEM_ACTOR: UserProfile = {
   id: 'system-notifications',
-  name: 'Système ACTIVA EthicAlert',
+  name: 'Système activa-whistleblowing',
   email: 'systeme@activa-hotline.internal',
   role: 'reporter',
   roleTitle: 'Notifications automatiques',
@@ -79,8 +79,8 @@ export function notifyNewAlertToOperators(operators: UserProfile[], alert: CaseR
     .forEach((u) => {
       sendOne(
         u.email,
-        `[ACTIVA EthicAlert] Nouveau signalement — ${alert.trackingNumber}`,
-        `Un nouveau signalement vient d'être déposé et attend le tri dans la Boîte de réception.\n\nRéférence : ${alert.trackingNumber}\n\nConnectez-vous à ACTIVA EthicAlert pour le consulter.`
+        `[activa-whistleblowing] Nouveau signalement — ${alert.trackingNumber}`,
+        `Un nouveau signalement vient d'être déposé et attend le tri dans la Boîte de réception.\n\nRéférence : ${alert.trackingNumber}\n\nConnectez-vous à activa-whistleblowing pour le consulter.`
       ).then((result) => {
         storage.logAudit(
           result.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',
@@ -105,8 +105,8 @@ export function notifyAssignmentToInvestigators(newlyAssigned: UserProfile[], al
     .forEach((u) => {
       sendOne(
         u.email,
-        `[ACTIVA EthicAlert] Dossier attribué — ${alert.trackingNumber}`,
-        `Un dossier vient de vous être attribué.\n\nRéférence : ${alert.trackingNumber}\n\nConnectez-vous à ACTIVA EthicAlert pour y accéder — vous ne pouvez consulter que les dossiers qui vous sont attribués.`
+        `[activa-whistleblowing] Dossier attribué — ${alert.trackingNumber}`,
+        `Un dossier vient de vous être attribué.\n\nRéférence : ${alert.trackingNumber}\n\nConnectez-vous à activa-whistleblowing pour y accéder — vous ne pouvez consulter que les dossiers qui vous sont attribués.`
       ).then((result) => {
         storage.logAudit(
           result.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',
@@ -131,11 +131,11 @@ export function notifyEscalationRecipient(recipient: EscalationRecipient, alert:
   if (!recipient.email) return;
   sendOne(
     recipient.email,
-    `[ACTIVA EthicAlert] ${context} — ${alert.trackingNumber}`,
+    `[activa-whistleblowing] ${context} — ${alert.trackingNumber}`,
     `${context} concernant le dossier ${alert.trackingNumber}.\n\nRéférence : ${alert.trackingNumber}\n\n` +
       (recipient.linkedUserId
-        ? 'Connectez-vous à ACTIVA EthicAlert pour y accéder.'
-        : "Vous n'avez pas de compte ACTIVA EthicAlert — ce message est une notification informative ; contactez l'équipe DARC Groupe pour toute action nécessaire.")
+        ? 'Connectez-vous à activa-whistleblowing pour y accéder.'
+        : "Vous n'avez pas de compte activa-whistleblowing — ce message est une notification informative ; contactez l'équipe DARC Groupe pour toute action nécessaire.")
   ).then((result) => {
     storage.logAudit(
       result.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',

@@ -87,10 +87,19 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           recadrée en bandeau large et servie depuis
           public/brand/activa-hq-hero.jpg (1600px de large, JPEG qualité 85),
           en remplacement de activa-hq.jpg. */}
-      <div className="relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center">
+      {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
+          BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur (photo lente à
+          l'affichage après déconnexion — cette page est la destination
+          publique naturelle). `bg-slate-100` évite un flash blanc/vide
+          pendant le chargement ; `fetchPriority="high"` + `decoding="async"`
+          sur l'image, combinés au préchargement ajouté dans index.html,
+          accélèrent son affichage réel. */}
+      <div className="relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center bg-slate-100">
         <img
           src="/brand/activa-hq-hero.jpg"
           alt="Siège du Groupe ACTIVA"
+          fetchPriority="high"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"
         />
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
@@ -153,35 +162,51 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </div>
         </div>
 
-        {/* === AMÉLIORATION AJOUTÉE (Phase 30 — messages défilants, fond
-            beaucoup plus transparent) === Remplace les deux encarts opaques
-            de la Phase 25 (carte de valeurs + bulle de citation) par un seul
-            encart qui fait défiler les 4 messages (3 valeurs + citation),
-            sur fond nettement plus transparent (bleu marine à 30% d'opacité
-            + flou, au lieu de blanc/marine à 95%) pour laisser mieux
-            transparaître la photo derrière. `key={heroMsgIndex}` redéclenche
-            le fondu à chaque changement de message (voir .activa-fade-in
-            dans index.css). */}
-        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-[#0B2545]/30 backdrop-blur-md rounded-2xl shadow-lg border border-white/25 p-4">
+        {/* === AMÉLIORATION AJOUTÉE (Palette « confiance & conformité » —
+            carte de valeurs du hero) === Nouvelle palette demandée
+            explicitement (bleu profond #0B4F8A, bleu clair #3B82C4, bleu
+            translucide, blanc, blanc translucide, or « intégrité »
+            #F4C430) : un dégradé bleu profond → bleu clair, tous deux à
+            faible opacité, remplace l'aplat marine uni précédent — plus
+            "premium" qu'une seule teinte plate, tout en restant
+            suffisamment transparent pour laisser deviner la photo derrière
+            (jamais un effet de verre trop opaque). L'or reste un accent
+            sobre, réservé à l'icône et au repère de progression actif —
+            jamais la couleur dominante de la carte. Valeurs exactes en
+            style inline (hors palette Tailwind par défaut), le reste des
+            classes utilitaires est inchangé. */}
+        <div
+          className="hidden sm:block absolute top-6 right-6 z-10 w-64 backdrop-blur-md rounded-2xl shadow-lg p-4"
+          style={{
+            background: 'linear-gradient(135deg, rgba(11, 79, 138, 0.4) 0%, rgba(59, 130, 196, 0.22) 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.35)',
+          }}
+        >
           <div key={heroMsgIndex} className="flex items-start gap-3 activa-fade-in min-h-[2.75rem]">
-            <span className="w-9 h-9 rounded-full bg-white/20 text-amber-300 flex items-center justify-center shrink-0">
+            <span
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+              style={{ backgroundColor: 'rgba(255, 255, 255, 0.65)', color: '#F4C430' }}
+            >
               <ActiveHeroIcon className="w-4 h-4" />
             </span>
             <div>
               <div className="font-bold text-white text-sm leading-snug drop-shadow-sm">{activeHeroMessage.title}</div>
               {activeHeroMessage.desc && (
-                <div className="text-xs text-white/85">{activeHeroMessage.desc}</div>
+                <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{activeHeroMessage.desc}</div>
               )}
             </div>
           </div>
-          {/* Puces de progression, un point par message */}
-          <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-white/20">
+          {/* Puces de progression, un point par message — l'or (« intégrité »)
+              marque le message actif, un accent sobre plutôt qu'une couleur dominante. */}
+          <div className="flex items-center gap-1.5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.25)' }}>
             {heroMessages.map((_, i) => (
               <span
                 key={i}
-                className={`h-1 rounded-full transition-all duration-300 ${
-                  i === heroMsgIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/40'
-                }`}
+                className="h-1 rounded-full transition-all duration-300"
+                style={{
+                  width: i === heroMsgIndex ? '1rem' : '0.375rem',
+                  backgroundColor: i === heroMsgIndex ? '#F4C430' : 'rgba(255, 255, 255, 0.35)',
+                }}
               />
             ))}
           </div>
@@ -196,10 +221,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           fournie) === Retour à une carte à bordure/ombre (Phase 17), icône
           rond plein (fond bleu, glyphe blanc) à gauche du texte plutôt
           qu'icône pâle centrée au-dessus (Phase 23) — taille d'icône
-          reprise précisément de la capture (rond de 36px, glyphe de 16px). */}
+          reprise précisément de la capture (rond de 36px, glyphe de 16px).
+          === AMÉLIORATION AJOUTÉE (éclat + réaction au survol des bulles)
+          === sur demande explicite de l'utilisateur : dégradé + ombre
+          portée colorée (au lieu du bleu plat d'origine) pour plus d'éclat,
+          et une légère mise à l'échelle + ombre accentuée au survol de
+          chaque bulle (`hover:scale-110`), pour un retour visuel immédiat. */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border border-slate-200 rounded-2xl bg-white shadow-sm">
         <div className="p-5 flex items-center gap-3">
-          <span className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out hover:scale-110 hover:shadow-lg hover:shadow-blue-600/50">
             <ShieldCheck className="w-4 h-4" />
           </span>
           <div>
@@ -208,7 +238,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </div>
         </div>
         <div className="p-5 flex items-center gap-3">
-          <span className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out hover:scale-110 hover:shadow-lg hover:shadow-blue-600/50">
             <UserX className="w-4 h-4" />
           </span>
           <div>
@@ -217,7 +247,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </div>
         </div>
         <div className="p-5 flex items-center gap-3">
-          <span className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out hover:scale-110 hover:shadow-lg hover:shadow-blue-600/50">
             <HeartHandshake className="w-4 h-4" />
           </span>
           <div>
@@ -257,11 +287,17 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             { icon: CheckCircle2, title: t.process_step4_title, desc: t.process_step4_desc, tone: 'emerald' as const },
           ].map((step, idx) => {
             const Icon = step.icon;
+            // === AMÉLIORATION AJOUTÉE (éclat + réaction au survol des
+            // bulles) === sur demande explicite de l'utilisateur : dégradé +
+            // ombre portée colorée (par teinte) au lieu du fond plat
+            // d'origine, plus une mise à l'échelle au survol de chaque icône
+            // (`hover:scale-110`) — même traitement que les 3 bulles
+            // Confidentialité/Anonymat/Pas de représailles ci-dessus.
             const toneClasses: Record<string, string> = {
-              blue: 'bg-blue-50 text-blue-600',
-              amber: 'bg-amber-50 text-amber-600',
-              purple: 'bg-purple-50 text-purple-600',
-              emerald: 'bg-emerald-50 text-emerald-600',
+              blue: 'bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 shadow-sm shadow-blue-300/50 hover:shadow-md hover:shadow-blue-400/60',
+              amber: 'bg-gradient-to-br from-amber-50 to-amber-100 text-amber-600 shadow-sm shadow-amber-300/50 hover:shadow-md hover:shadow-amber-400/60',
+              purple: 'bg-gradient-to-br from-purple-50 to-purple-100 text-purple-600 shadow-sm shadow-purple-300/50 hover:shadow-md hover:shadow-purple-400/60',
+              emerald: 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 shadow-sm shadow-emerald-300/50 hover:shadow-md hover:shadow-emerald-400/60',
             };
             return (
               <div key={idx} className="bg-white p-6 border border-slate-200 shadow-sm space-y-3">
@@ -269,7 +305,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                   <span className="w-6 h-6 bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center shrink-0">
                     {idx + 1}
                   </span>
-                  <span className={`w-10 h-10 flex items-center justify-center shrink-0 ${toneClasses[step.tone]}`}>
+                  <span className={`w-10 h-10 flex items-center justify-center shrink-0 transition-all duration-300 ease-out hover:scale-110 ${toneClasses[step.tone]}`}>
                     <Icon className="w-5 h-5" />
                   </span>
                 </div>
