@@ -135,17 +135,19 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 casse naturelle (un essai en minuscules a été tenté puis
                 abandonné au profit de cette capture de référence). Espace
                 resserré avant le titre via `-mt-1` sur le titre ci-dessous. */}
-            {/* === AMÉLIORATION AJOUTÉE (variante premium, couleurs
-                explicites) === Sur demande explicite, palette précise à 3
-                tons : #123B63 (nom de marque, bleu nuit sobre), #3B82F6
-                (point médian, accent vif) et #64748B (accroche, gris
-                ardoise discret) — remplace la tentative précédente basée
-                sur un échantillonnage de la photo. Identique sur mobile et
-                web (même composant, pas de variante distincte). */}
-            <p className="text-base font-semibold text-[#64748B]">
-              <span className="font-extrabold text-[#123B63]">{t.hero_title}</span>
-              <span className="text-[#3B82F6]">{' '}·{' '}</span>
-              {t.hero_eyebrow}
+            {/* === AMÉLIORATION AJOUTÉE (palette premium finale, couleurs +
+                graisses explicites) === Sur demande explicite, tableau
+                précis : #082B52/Bold (nom de marque), #1E6BFF/Medium
+                (point médian), #526B86/Regular (accroche) — remplace la
+                palette précédente (#123B63/#3B82F6/#64748B). Texte foncé
+                conservé (jamais de variante blanche) : reste lisible sur
+                les zones très lumineuses de la photo, cohérent avec
+                l'identité visuelle corporate d'ACTIVA. Identique sur
+                mobile et web (même composant, pas de variante distincte). */}
+            <p className="text-base">
+              <span className="font-bold text-[#082B52]">{t.hero_title}</span>
+              <span className="font-medium text-[#1E6BFF]">{' '}·{' '}</span>
+              <span className="font-normal text-[#526B86]">{t.hero_eyebrow}</span>
             </p>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
