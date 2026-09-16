@@ -138,16 +138,18 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             {/* === AMÉLIORATION AJOUTÉE (palette premium finale, couleurs +
                 graisses explicites) === Sur demande explicite, tableau
                 précis : #082B52/Bold (nom de marque), #1E6BFF/Medium
-                (point médian), #526B86/Regular (accroche) — remplace la
-                palette précédente (#123B63/#3B82F6/#64748B). Texte foncé
-                conservé (jamais de variante blanche) : reste lisible sur
-                les zones très lumineuses de la photo, cohérent avec
-                l'identité visuelle corporate d'ACTIVA. Identique sur
-                mobile et web (même composant, pas de variante distincte). */}
+                (point médian et accroche, cette dernière repassée en bleu
+                sur demande explicite au lieu du gris ardoise #526B86
+                initial) — remplace la palette précédente
+                (#123B63/#3B82F6/#64748B). Texte foncé conservé (jamais de
+                variante blanche) : reste lisible sur les zones très
+                lumineuses de la photo, cohérent avec l'identité visuelle
+                corporate d'ACTIVA. Identique sur mobile et web (même
+                composant, pas de variante distincte). */}
             <p className="text-base">
               <span className="font-bold text-[#082B52]">{t.hero_title}</span>
               <span className="font-medium text-[#1E6BFF]">{' '}·{' '}</span>
-              <span className="font-normal text-[#526B86]">{t.hero_eyebrow}</span>
+              <span className="font-normal text-[#1E6BFF]">{t.hero_eyebrow}</span>
             </p>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
