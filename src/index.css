@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/* === AMÉLIORATION AJOUTÉE (dézoom léger pour un meilleur affichage) ===
+   Sur demande explicite de l'utilisateur : l'app utilise très majoritairement
+   des unités Tailwind en `rem` (tailles de police, paddings, marges...), donc
+   réduire la taille de police racine réduit proportionnellement quasiment
+   tout l'affichage — plus de contenu visible sans défilement, sans toucher à
+   chaque composant individuellement. `zoom`/`transform: scale()` sur `body`
+   auraient un support ou des effets de bord moins prévisibles (barres de
+   défilement, position des éléments `fixed`) ; cette approche standard est
+   fiable dans tous les navigateurs. Réduction modérée (~94 %, 16px → 15px)
+   pour rester lisible. */
+html {
+  font-size: 93.75%;
+}
+
 /* === AMÉLIORATION AJOUTÉE (Phase 30 — messages défilants du hero) ===
    Petit fondu enchaîné pour le changement de message toutes les 4 secondes
    dans WhistleblowerHome.tsx — respecte prefers-reduced-motion. */

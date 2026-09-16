@@ -50,7 +50,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_subcollections_note: 'Allégations, personnes, preuves, notes et échanges ne sont pas affichés ici : leur lecture nécessite une Cloud Function (non déployée, projet en forfait Spark). Voir docs/FIREBASE-SETUP.md.',
     
     // Whistleblower home
-    hero_title: 'EthicsAlert.Com',
+    hero_title: 'activa-whistleblowing',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
     // Titre du hero remplacé par un message d'action en deux lignes, sur
     // demande explicite ("le modèle que je t'ai donné"). `hero_title` reste
@@ -59,7 +59,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_headline_line1: 'Signalez en',
     hero_headline_line2: 'toute confiance',
     hero_desc: 'Un comportement contraire à nos valeurs, à l’éthique ou à la réglementation ? Parlez-en. Nous vous écoutons.',
-    hero_paragraph: 'L’intégrité est au cœur de notre culture d’entreprise. EthicsAlert vous permet de signaler, en toute confidentialité et sans crainte, tout comportement contraire à nos valeurs, à notre code d’éthique ou à la réglementation en vigueur. Chaque signalement est pris au sérieux et traité avec rigueur.',
+    hero_paragraph: 'L’intégrité est au cœur de notre culture d’entreprise. activa-whistleblowing vous permet de signaler, en toute confidentialité et sans crainte, tout comportement contraire à nos valeurs, à notre code d’éthique ou à la réglementation en vigueur. Chaque signalement est pris au sérieux et traité avec rigueur.',
     hero_tags: '100% CONFIDENTIEL · SÉCURISÉ · CONFORME',
     hero_how_it_works_link: 'Comment ça marche ?',
     hero_quote: 'Ensemble, pour un Groupe plus éthique et plus solide.',
@@ -903,7 +903,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la
     // maquette : logo, sidebar, onglets de la fiche dossier, pied de page) ===
-    app_title: 'EthicsAlert.Com',
+    app_title: 'activa-whistleblowing',
     app_subtitle: 'Canal sécurisé pour signaler les préoccupations éthiques et de conformité',
     brand_tagline: 'passionnément clients',
     navbar_search_placeholder: 'Rechercher un dossier, une personne, un mot-clé...',
@@ -1073,12 +1073,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Description',
     fb_lookup_subcollections_note: 'Allegations, persons, evidence, notes and communications are not shown here: reading them requires a Cloud Function (not deployed, project on Spark plan). See docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'EthicsAlert.Com',
+    hero_title: 'activa-whistleblowing',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — matching the supplied model) ===
     hero_headline_line1: 'Report with',
     hero_headline_line2: 'complete confidence',
     hero_desc: 'Something contrary to our values, ethics, or regulations? Speak up. We’re listening.',
-    hero_paragraph: 'Integrity is at the heart of our corporate culture. EthicsAlert lets you report, in full confidentiality and without fear, any behavior contrary to our values, our code of ethics, or applicable regulations. Every report is taken seriously and handled rigorously.',
+    hero_paragraph: 'Integrity is at the heart of our corporate culture. activa-whistleblowing lets you report, in full confidentiality and without fear, any behavior contrary to our values, our code of ethics, or applicable regulations. Every report is taken seriously and handled rigorously.',
     hero_tags: '100% CONFIDENTIAL · SECURE · COMPLIANT',
     hero_how_it_works_link: 'How does it work?',
     hero_quote: 'Together, for a more ethical and resilient Group.',
@@ -1849,7 +1849,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     person_modal_kind_witness: 'Witness',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — faithful mockup reproduction) ===
-    app_title: 'EthicsAlert.Com',
+    app_title: 'activa-whistleblowing',
     app_subtitle: 'Secure channel to report ethical and compliance concerns',
     brand_tagline: 'passionately serving clients',
     navbar_search_placeholder: 'Search a case, a person, a keyword...',
@@ -1993,12 +1993,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Descrição',
     fb_lookup_subcollections_note: 'Alegações, pessoas, provas, notas e comunicações não são exibidas aqui: sua leitura requer uma Cloud Function (não implantada, projeto no plano Spark). Ver docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'EthicsAlert.Com',
+    hero_title: 'activa-whistleblowing',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — fidelidade ao modelo fornecido) ===
     hero_headline_line1: 'Denuncie com',
     hero_headline_line2: 'toda a confiança',
     hero_desc: 'Um comportamento contrário aos nossos valores, à ética ou à regulamentação? Fale sobre isso. Estamos a ouvir.',
-    hero_paragraph: 'A integridade está no centro da nossa cultura empresarial. O EthicsAlert permite-lhe reportar, em total confidencialidade e sem receio, qualquer comportamento contrário aos nossos valores, ao nosso código de ética ou à regulamentação em vigor. Cada denúncia é levada a sério e tratada com rigor.',
+    hero_paragraph: 'A integridade está no centro da nossa cultura empresarial. O activa-whistleblowing permite-lhe reportar, em total confidencialidade e sem receio, qualquer comportamento contrário aos nossos valores, ao nosso código de ética ou à regulamentação em vigor. Cada denúncia é levada a sério e tratada com rigor.',
     hero_tags: '100% CONFIDENCIAL · SEGURO · CONFORME',
     hero_how_it_works_link: 'Como funciona?',
     hero_quote: 'Juntos, por um Grupo mais ético e mais sólido.',
@@ -2770,7 +2770,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     person_modal_kind_witness: 'Testemunha',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reprodução fiel da maquete) ===
-    app_title: 'EthicsAlert.Com',
+    app_title: 'activa-whistleblowing',
     app_subtitle: 'Canal seguro para reportar preocupações éticas e de conformidade',
     brand_tagline: 'apaixonadamente clientes',
     navbar_search_placeholder: 'Pesquisar um caso, uma pessoa, uma palavra-chave...',

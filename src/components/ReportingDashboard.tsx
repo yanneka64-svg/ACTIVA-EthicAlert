@@ -236,7 +236,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `ACTIVA_EthicAlert_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `activa-whistleblowing_Report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -266,7 +266,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     const ExcelJSModule = await import('exceljs');
     const Excel = (ExcelJSModule.default ?? ExcelJSModule) as typeof ExcelJS;
     const workbook = new Excel.Workbook();
-    workbook.creator = 'ACTIVA EthicAlert';
+    workbook.creator = 'activa-whistleblowing';
     workbook.created = new Date();
     const sheet = workbook.addWorksheet('Rapport');
     sheet.addRow(headers).font = { bold: true };
@@ -287,7 +287,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ACTIVA_EthicAlert_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+    link.download = `activa-whistleblowing_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -373,7 +373,7 @@ function AppShell() {
             activeUser={activeUser}
             mode="my_cases"
             titleOverride="Dossiers"
-            subtitleOverride="Consultez et suivez l'ensemble des dossiers signalés dans le cadre d'EthicsAlert."
+            subtitleOverride="Consultez et suivez l'ensemble des dossiers signalés dans le cadre d'activa-whistleblowing."
             emptyOverride="Aucun dossier à afficher pour le moment."
             onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
           />

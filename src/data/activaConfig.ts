@@ -712,7 +712,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
     alertId: 'alt-001',
     trackingNumber: 'AACMR-26-09-0001',
     authorId: 'system',
-    authorName: 'Système ACTIVA EthicAlert',
+    authorName: 'Système activa-whistleblowing',
     authorRole: 'Système',
     actionType: 'ALERT_SUBMITTED',
     details: 'Signalement anonyme soumis pour ACTIVA Assurances (Cameroun). Classification automatique : NOCA 3 (Enquête urgente).',

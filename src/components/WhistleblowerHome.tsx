@@ -87,10 +87,19 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           recadrée en bandeau large et servie depuis
           public/brand/activa-hq-hero.jpg (1600px de large, JPEG qualité 85),
           en remplacement de activa-hq.jpg. */}
-      <div className="relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center">
+      {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
+          BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur (photo lente à
+          l'affichage après déconnexion — cette page est la destination
+          publique naturelle). `bg-slate-100` évite un flash blanc/vide
+          pendant le chargement ; `fetchPriority="high"` + `decoding="async"`
+          sur l'image, combinés au préchargement ajouté dans index.html,
+          accélèrent son affichage réel. */}
+      <div className="relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center bg-slate-100">
         <img
           src="/brand/activa-hq-hero.jpg"
           alt="Siège du Groupe ACTIVA"
+          fetchPriority="high"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"
         />
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
@@ -212,10 +221,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           fournie) === Retour à une carte à bordure/ombre (Phase 17), icône
           rond plein (fond bleu, glyphe blanc) à gauche du texte plutôt
           qu'icône pâle centrée au-dessus (Phase 23) — taille d'icône
-          reprise précisément de la capture (rond de 36px, glyphe de 16px). */}
+          reprise précisément de la capture (rond de 36px, glyphe de 16px).
+          === AMÉLIORATION AJOUTÉE (éclat + réaction au survol des bulles)
+          === sur demande explicite de l'utilisateur : dégradé + ombre
+          portée colorée (au lieu du bleu plat d'origine) pour plus d'éclat,
+          et une légère mise à l'échelle + ombre accentuée au survol de
+          chaque bulle (`hover:scale-110`), pour un retour visuel immédiat. */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border border-slate-200 rounded-2xl bg-white shadow-sm">
         <div className="p-5 flex items-center gap-3">
-          <span className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out hover:scale-110 hover:shadow-lg hover:shadow-blue-600/50">
             <ShieldCheck className="w-4 h-4" />
           </span>
           <div>
@@ -224,7 +238,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </div>
         </div>
         <div className="p-5 flex items-center gap-3">
-          <span className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out hover:scale-110 hover:shadow-lg hover:shadow-blue-600/50">
             <UserX className="w-4 h-4" />
           </span>
           <div>
@@ -233,7 +247,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </div>
         </div>
         <div className="p-5 flex items-center gap-3">
-          <span className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out hover:scale-110 hover:shadow-lg hover:shadow-blue-600/50">
             <HeartHandshake className="w-4 h-4" />
           </span>
           <div>
@@ -273,11 +287,17 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             { icon: CheckCircle2, title: t.process_step4_title, desc: t.process_step4_desc, tone: 'emerald' as const },
           ].map((step, idx) => {
             const Icon = step.icon;
+            // === AMÉLIORATION AJOUTÉE (éclat + réaction au survol des
+            // bulles) === sur demande explicite de l'utilisateur : dégradé +
+            // ombre portée colorée (par teinte) au lieu du fond plat
+            // d'origine, plus une mise à l'échelle au survol de chaque icône
+            // (`hover:scale-110`) — même traitement que les 3 bulles
+            // Confidentialité/Anonymat/Pas de représailles ci-dessus.
             const toneClasses: Record<string, string> = {
-              blue: 'bg-blue-50 text-blue-600',
-              amber: 'bg-amber-50 text-amber-600',
-              purple: 'bg-purple-50 text-purple-600',
-              emerald: 'bg-emerald-50 text-emerald-600',
+              blue: 'bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 shadow-sm shadow-blue-300/50 hover:shadow-md hover:shadow-blue-400/60',
+              amber: 'bg-gradient-to-br from-amber-50 to-amber-100 text-amber-600 shadow-sm shadow-amber-300/50 hover:shadow-md hover:shadow-amber-400/60',
+              purple: 'bg-gradient-to-br from-purple-50 to-purple-100 text-purple-600 shadow-sm shadow-purple-300/50 hover:shadow-md hover:shadow-purple-400/60',
+              emerald: 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 shadow-sm shadow-emerald-300/50 hover:shadow-md hover:shadow-emerald-400/60',
             };
             return (
               <div key={idx} className="bg-white p-6 border border-slate-200 shadow-sm space-y-3">
@@ -285,7 +305,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                   <span className="w-6 h-6 bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center shrink-0">
                     {idx + 1}
                   </span>
-                  <span className={`w-10 h-10 flex items-center justify-center shrink-0 ${toneClasses[step.tone]}`}>
+                  <span className={`w-10 h-10 flex items-center justify-center shrink-0 transition-all duration-300 ease-out hover:scale-110 ${toneClasses[step.tone]}`}>
                     <Icon className="w-5 h-5" />
                   </span>
                 </div>

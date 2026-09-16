@@ -378,10 +378,17 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               l'utilisateur) === Remplace la photo du siège par une photo de
               bureau avec vue sur skyline, servie depuis
               public/brand/track-login-bg.jpg. */}
-          <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[460px] text-white overflow-hidden">
+          {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
+              BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : couleur de
+              repli (`bg-[#0B2545]`, même teinte que le voile ci-dessous) le
+              temps du chargement au lieu d'un flash blanc, + priorité de
+              chargement explicite sur l'image. */}
+          <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[460px] text-white overflow-hidden bg-[#0B2545]">
             <img
               src="/brand/track-login-bg.jpg"
               alt="Espace de travail avec vue sur la ville"
+              fetchPriority="high"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover object-left"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/90 via-[#0B2545]/55 to-[#0B2545]/15" />

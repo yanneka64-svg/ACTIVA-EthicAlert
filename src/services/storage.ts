@@ -691,7 +691,7 @@ class StorageService {
       ? ' Accès au dossier accordé (compte lié).'
       : linkedUser
       ? ` Compte lié (${linkedUser.name}) mais habilitation de confidentialité insuffisante pour ce dossier — aucun accès accordé, notification e-mail uniquement.`
-      : ' Aucun compte EthicAlert lié — notification e-mail uniquement.';
+      : ' Aucun compte activa-whistleblowing lié — notification e-mail uniquement.';
     this.logAudit(
       'CASE_ESCALATED',
       `Dossier ${alert.trackingNumber} escaladé vers ${recipient.nom} (${recipient.fonction}). Motif : "${reason}".` +
