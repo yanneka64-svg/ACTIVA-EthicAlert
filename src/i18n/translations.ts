@@ -64,7 +64,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_how_it_works_link: 'Comment ça marche ?',
     hero_quote: 'Ensemble, pour un Groupe plus éthique et plus solide.',
     // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
-    hero_eyebrow: 'Canal éthique du Groupe ACTIVA',
+    hero_eyebrow: 'Canal de gestion des alertes du Groupe ACTIVA',
     hero_anonymous_note: 'Vous pouvez effectuer un signalement de manière anonyme.',
     // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
     // Sur demande explicite, avec capture de référence à respecter (couleurs,
@@ -1099,7 +1099,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_how_it_works_link: 'How does it work?',
     hero_quote: 'Together, for a more ethical and resilient Group.',
     // === AMÉLIORATION AJOUTÉE (Phase 17 — homepage reorganization) ===
-    hero_eyebrow: 'ACTIVA Group ethics channel',
+    hero_eyebrow: 'ACTIVA Group alert management channel',
     hero_anonymous_note: 'You can file a report anonymously.',
     // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
     hero_value_1: 'Customer focus',
@@ -2023,7 +2023,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_how_it_works_link: 'Como funciona?',
     hero_quote: 'Juntos, por um Grupo mais ético e mais sólido.',
     // === AMÉLIORATION AJOUTÉE (Phase 17 — reorganização da página inicial) ===
-    hero_eyebrow: 'Canal de ética do Grupo ACTIVA',
+    hero_eyebrow: 'Canal de gestão de alertas do Grupo ACTIVA',
     hero_anonymous_note: 'Pode efetuar uma denúncia de forma anónima.',
     // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
     hero_value_1: 'Foco no cliente',
