@@ -135,22 +135,21 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 casse naturelle (un essai en minuscules a été tenté puis
                 abandonné au profit de cette capture de référence). Espace
                 resserré avant le titre via `-mt-1` sur le titre ci-dessous. */}
-            {/* === AMÉLIORATION AJOUTÉE (palette premium finale, couleurs +
-                graisses explicites) === Sur demande explicite, tableau
-                précis : #082B52/Bold (nom de marque) ; le point médian et
-                l'accroche utilisaient #1E6BFF, jugé trop clair et "perdu"
-                sur la photo — remplacé par `text-blue-600` (#2563eb), le
-                même bleu déjà utilisé pour "toute confiance" juste en
-                dessous, sur demande explicite ("un bleu qui tend vers
-                celui utilisé pour signalez en..."). Texte foncé conservé
-                (jamais de variante blanche) : reste lisible sur les zones
-                très lumineuses de la photo, cohérent avec l'identité
-                visuelle corporate d'ACTIVA. Identique sur mobile et web
-                (même composant, pas de variante distincte). */}
-            <p className="text-base">
+            {/* === AMÉLIORATION AJOUTÉE (palette premium finale + halo de
+                lisibilité) === Sur demande explicite, palette : #082B52/Bold
+                (nom de marque), `blue-800` #1e40af/Medium+Regular (point
+                médian + accroche) — un ton plus sombre que `blue-600`
+                (#2563eb), encore jugé "pas assez lisible" sur la photo
+                malgré un bleu déjà proche de "toute confiance" ci-dessous.
+                Un halo blanc léger (`text-shadow`) est aussi ajouté sur
+                tout le bloc pour garantir la lisibilité quelle que soit la
+                zone de la photo en dessous, plutôt que de ne compter que
+                sur la teinte. Identique sur mobile et web (même composant,
+                pas de variante distincte). */}
+            <p className="text-base [text-shadow:0_1px_4px_rgba(255,255,255,0.9),0_0_12px_rgba(255,255,255,0.7)]">
               <span className="font-bold text-[#082B52]">{t.hero_title}</span>
-              <span className="font-medium text-blue-600">{' '}·{' '}</span>
-              <span className="font-normal text-blue-600">{t.hero_eyebrow}</span>
+              <span className="font-medium text-blue-800">{' '}·{' '}</span>
+              <span className="font-normal text-blue-800">{t.hero_eyebrow}</span>
             </p>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
