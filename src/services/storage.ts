@@ -125,9 +125,29 @@ class StorageService {
         this.persistAuditLogs();
       }
 
+      // === AMÉLIORATION AJOUTÉE (correctif — verrouillage total hors
+      // recours) === BUG PRÉEXISTANT CORRIGÉ, signalé par un utilisateur
+      // réel : supprimer TOUS les comptes staff (Administration →
+      // Utilisateurs) laissait `localStorage` avec un tableau vide plutôt
+      // qu'absent — `if (storedUsers)` restait vrai pour la chaîne "[]",
+      // donc plus personne ne pouvait jamais se reconnecter, sans aucun
+      // recours (pas de backend, pas d'admin externe pour recréer un
+      // compte). Un tableau STOCKÉ MAIS VIDE est désormais traité comme un
+      // état cassé plutôt qu'un choix délibéré (aucun produit sérieux ne
+      // laisse un administrateur se retirer lui-même tout accès sans
+      // filet) : un compte de secours réel est réamorcé, avec le même
+      // repli "demo" documenté que les autres comptes de démonstration
+      // (voir verifyStaffLogin ci-dessous) — jamais un accès fictif, juste
+      // un identifiant réel et déjà connu pour sortir de l'impasse.
       const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
       if (storedUsers) {
-        this.users = JSON.parse(storedUsers);
+        const parsedUsers: UserProfile[] = JSON.parse(storedUsers);
+        if (parsedUsers.length > 0) {
+          this.users = parsedUsers;
+        } else {
+          this.users = this.emergencyAdminSeed();
+          this.persistUsers();
+        }
       } else {
         this.users = [...INITIAL_USERS];
         this.persistUsers();
@@ -361,6 +381,33 @@ class StorageService {
     } catch (e) {
       console.error('Failed to persist users', e);
     }
+  }
+
+  // === AMÉLIORATION AJOUTÉE (correctif — verrouillage total hors recours)
+  // === Compte de secours réamorcé UNIQUEMENT quand `this.users` serait
+  // sinon vide au chargement — jamais si au moins un compte existe déjà.
+  // `system_admin` (et non `functional_admin`) : c'est le seul rôle qui
+  // donne accès à Utilisateurs/Rôles & Permissions, condition nécessaire
+  // pour recréer les autres comptes ensuite sans aide extérieure. Aucun
+  // `passwordHash` : repli "demo" documenté dans verifyStaffLogin, comme
+  // tout autre compte de démonstration jamais passé par le nouveau flux —
+  // une fois connecté, "Régénérer le mot de passe" (Administration →
+  // Utilisateurs) donne un vrai mot de passe temporaire pour ce compte.
+  private emergencyAdminSeed(): UserProfile[] {
+    return [
+      {
+        id: 'usr-emergency-admin',
+        name: 'B. Y. Ekani',
+        email: 'by.ekani@group-activa.com',
+        role: 'system_admin',
+        roleTitle: 'Administrateur système',
+        entity: 'Toutes entités',
+        country: 'Groupe ACTIVA',
+        countries: [],
+        entities: [],
+        active: true,
+      },
+    ];
   }
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===

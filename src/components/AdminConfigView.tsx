@@ -600,6 +600,21 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
       setDeleteUserConfirmId(null);
       return;
     }
+    // === AMÉLIORATION AJOUTÉE : garde-fou anti-verrouillage total ===
+    // Empêche de supprimer le dernier compte "Administrateur système" actif :
+    // sans cela, la plateforme se retrouve sans aucun admin capable de créer
+    // ou réinitialiser des comptes (verrouillage complet côté client, sans
+    // recours puisqu'il n'y a pas de backend distant pour restaurer un accès).
+    if (u.role === 'system_admin' && u.active) {
+      const remainingActiveAdmins = storage
+        .getUsers()
+        .filter((other) => other.id !== u.id && other.role === 'system_admin' && other.active).length;
+      if (remainingActiveAdmins === 0) {
+        alert('Impossible de supprimer ce compte : il s\'agit du dernier administrateur système actif. Créez ou activez un autre compte "Administrateur système" avant de supprimer celui-ci.');
+        setDeleteUserConfirmId(null);
+        return;
+      }
+    }
     storage.deleteUser(u.id, activeUser);
     setDeleteUserConfirmId(null);
     flashBanner(`Compte "${u.name}" supprimé.`);

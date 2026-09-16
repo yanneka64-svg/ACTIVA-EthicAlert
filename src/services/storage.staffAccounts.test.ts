@@ -11,9 +11,13 @@
  * première connexion, expiration 24h, changement de mot de passe, et
  * régénération admin.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { storage } from './storage';
 import { generateAccessPassword, generateSalt, hashPassword } from './crypto';
+
+// === AMÉLIORATION AJOUTÉE (correctif — verrouillage total hors recours) ===
+// Même clé littérale que STORAGE_KEYS.USERS dans storage.ts (non exportée).
+const USERS_STORAGE_KEY = 'activa_ethicalert_users_v1';
 
 let counter = 0;
 function uniqueEmail(): string {
@@ -145,5 +149,58 @@ describe('storage — comptes staff (identifiant + mot de passe)', () => {
 
     const newPasswordResult = await storage.verifyStaffLogin(email, newPlaintext);
     expect(newPasswordResult).toEqual(expect.objectContaining({ ok: true, mustChangePassword: true }));
+  });
+
+  // === AMÉLIORATION AJOUTÉE (correctif — verrouillage total hors recours) ===
+  // Cet environnement de test n'a pas de `localStorage` global (ni jsdom
+  // installé, ni polyfill Node) : storage.ts le sait déjà et retombe sur un
+  // état en mémoire (voir son try/catch "Storage init failed or running in
+  // strict sandbox"). Pour vérifier le VRAI chemin localStorage (celui qui a
+  // causé le verrouillage en production), on fournit ici un mock minimal via
+  // vi.stubGlobal plutôt que d'ajouter une dépendance jsdom.
+  describe('réamorçage de secours après suppression de tous les comptes', () => {
+    function makeLocalStorageMock() {
+      const data = new Map<string, string>();
+      return {
+        getItem: (key: string) => (data.has(key) ? data.get(key)! : null),
+        setItem: (key: string, value: string) => {
+          data.set(key, value);
+        },
+        removeItem: (key: string) => {
+          data.delete(key);
+        },
+        clear: () => data.clear(),
+      };
+    }
+
+    beforeEach(() => {
+      vi.resetModules();
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.resetModules();
+    });
+
+    it("réamorce un compte 'Administrateur système' unique quand localStorage contient un tableau vide", async () => {
+      const mockLocalStorage = makeLocalStorageMock();
+      mockLocalStorage.setItem(USERS_STORAGE_KEY, '[]');
+      vi.stubGlobal('localStorage', mockLocalStorage);
+
+      const { storage: freshStorage } = await import('./storage');
+
+      const users = freshStorage.getUsers();
+      expect(users).toHaveLength(1);
+      expect(users[0].email).toBe('by.ekani@group-activa.com');
+      expect(users[0].role).toBe('system_admin');
+      expect(users[0].active).toBe(true);
+      // Aucun passwordHash : repli documenté sur le mot de passe "demo".
+      expect(users[0].passwordHash).toBeUndefined();
+
+      const login = await freshStorage.verifyStaffLogin('by.ekani@group-activa.com', 'demo');
+      expect(login).toEqual({ ok: true, user: users[0], mustChangePassword: false });
+
+      // L'état vide cassé a bien été remplacé en localStorage (pas seulement en mémoire).
+      expect(JSON.parse(mockLocalStorage.getItem(USERS_STORAGE_KEY) || '[]')).toHaveLength(1);
+    });
   });
 });
