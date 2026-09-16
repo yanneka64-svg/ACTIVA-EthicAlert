@@ -28,6 +28,9 @@ import {
   // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire) ===
   KeyRound,
   Copy,
+  // === AMÉLIORATION AJOUTÉE (matrices moins touffues — groupes/sections repliables) ===
+  ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, EscalationRecipient } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -149,6 +152,12 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   // copie locale éditée puis sauvegardée explicitement, jamais écrite
   // directement dans storage.ts à chaque frappe.
   const [hierarchyLevelsDraft, setHierarchyLevelsDraft] = useState<HierarchyLevels>(storage.getHierarchyLevels());
+  // === AMÉLIORATION AJOUTÉE (page Gouvernance moins touffue) === sur
+  // demande explicite de l'utilisateur : la "Vue dérivée" (information
+  // calculée, lecture seule, jamais la table éditée elle-même) reste
+  // repliée par défaut — elle n'apporte rien à quelqu'un qui vient juste
+  // ajuster un niveau hiérarchique.
+  const [showDerivedRoutingView, setShowDerivedRoutingView] = useState(false);
   const handleSaveHierarchyLevels = (e: React.FormEvent) => {
     e.preventDefault();
     storage.updateHierarchyLevels(hierarchyLevelsDraft, activeUser);
@@ -163,6 +172,24 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   // et uniquement pour les rôles dont la liste a changé — pour ne pas
   // journaliser 10 entrées d'audit identiques à chaque sauvegarde.
   const [rolePermissionsDraft, setRolePermissionsDraft] = useState<Record<RoleId, Permission[]>>(storage.getRolePermissions());
+  // === AMÉLIORATION AJOUTÉE (matrice de permissions moins touffue) === sur
+  // demande explicite de l'utilisateur : les 19 lignes (7 rôles × colonne)
+  // restaient toutes visibles à la fois. Contrairement aux transitions de
+  // workflow (une ligne = un statut indépendant), une matrice de
+  // permissions sert avant tout à COMPARER les rôles entre eux sur une même
+  // permission — la replier ligne par ligne dans des fenêtres séparées
+  // casserait cette comparaison. Repliées par GROUPE à la place (Dossiers,
+  // Preuves...), chaque section reste une vraie grille rôles × permissions
+  // une fois dépliée.
+  const [expandedPermissionGroups, setExpandedPermissionGroups] = useState<Set<string>>(new Set());
+  const togglePermissionGroup = (group: string) => {
+    setExpandedPermissionGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  };
   // Empêche de se retirer soi-même (ou tout système_admin) l'accès à cet
   // écran — même principe de garde anti-auto-verrouillage déjà appliqué à
   // la suppression de son propre compte (handleDeleteUser ci-dessous) :
@@ -212,6 +239,15 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
       return { ...prev, [status]: next };
     });
   };
+  // === AMÉLIORATION AJOUTÉE (matrice de transitions moins touffue) === sur
+  // demande explicite de l'utilisateur : la grille 13×13 toujours visible
+  // (169 cases à cocher à l'écran en permanence) est remplacée par une
+  // ligne compacte par statut de départ (puces des statuts d'arrivée déjà
+  // autorisés) ; la case à cocher complète pour un statut donné ne
+  // s'affiche que dans une fenêtre dédiée, ouverte au clic sur "Modifier".
+  // Édite toujours le même `workflowTransitionsDraft` — "Enregistrer les
+  // transitions" (inchangé) reste le seul geste qui persiste réellement.
+  const [editingTransitionsFor, setEditingTransitionsFor] = useState<CaseStatus | null>(null);
   const handleSaveWorkflowTransitions = (e: React.FormEvent) => {
     e.preventDefault();
     const saved = storage.getWorkflowTransitions();
@@ -273,6 +309,13 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const [newSubCategoryInputs, setNewSubCategoryInputs] = useState<Record<string, string>>({});
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
   const [categorySearch, setCategorySearch] = useState('');
+  // === AMÉLIORATION AJOUTÉE (sous-catégories dans une fenêtre dédiée) ===
+  // sur demande explicite de l'utilisateur ("le tableau est trop touffu" —
+  // une première version dépliait la bande de puces directement dans le
+  // tableau, jugée encore trop intrusive) : la gestion des sous-catégories
+  // (ajout/retrait) s'ouvre désormais dans une fenêtre modale dédiée,
+  // laissant chaque ligne du tableau strictement compacte en permanence.
+  const [manageSubCategoriesId, setManageSubCategoriesId] = useState<string | null>(null);
 
   // --- Users CRUD state ---
   const [showUserModal, setShowUserModal] = useState(false);
@@ -782,9 +825,6 @@ service cloud.firestore {
             <h3 className="text-sm font-bold text-slate-900">
               Barème officiel de la Matrice des Risques
             </h3>
-            <p className="text-slate-500 text-[11px] mt-0.5">
-              Évaluation pondérée sur 4 axes conduisant aux seuils NOCA 1, NOCA 2, NOCA 3 et NOCA 4.
-            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -930,9 +970,6 @@ service cloud.firestore {
               <h3 className="text-sm font-bold text-slate-900">
                 Entités et filiales du Groupe ACTIVA ({entities.length} entités)
               </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Conforme au périmètre institutionnel établi dans le Cahier des Charges.
-              </p>
             </div>
             <button
               onClick={openAddEntity}
@@ -995,9 +1032,6 @@ service cloud.firestore {
               <h3 className="text-sm font-bold text-slate-900">
                 Pays du Groupe ACTIVA ({countries.length} pays)
               </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Niveau organisationnel structurant : chaque entité (onglet précédent) est rattachée à l'un de ces pays.
-              </p>
             </div>
             <button
               onClick={openAddCountry}
@@ -1115,7 +1149,7 @@ service cloud.firestore {
                       <th className="py-2 pr-3 font-bold">#</th>
                       <th className="py-2 pr-3 font-bold">Nom de la catégorie</th>
                       <th className="py-2 pr-3 font-bold">Code</th>
-                      <th className="py-2 pr-3 font-bold">Description</th>
+                      <th className="py-2 pr-3 font-bold">Sous-catégories</th>
                       <th className="py-2 pr-3 font-bold">Statut</th>
                       <th className="py-2 pr-3 font-bold">Dossiers associés</th>
                       <th className="py-2 pr-3 font-bold">Date de création</th>
@@ -1133,7 +1167,27 @@ service cloud.firestore {
                             <td className="py-3 pr-3 font-bold text-[#0B2545]">{cat.name}</td>
                             <td className="py-3 pr-3 font-mono text-slate-500">{cat.code ?? '—'}</td>
                             <td className="py-3 pr-3 text-slate-600 max-w-xs">
-                              <span className="line-clamp-2">{cat.subCategories.length > 0 ? cat.subCategories.join(', ') : '—'}</span>
+                              {/* === AMÉLIORATION AJOUTÉE (sous-catégories dans une
+                                  fenêtre dédiée) === Remplace la liste complète des
+                                  sous-catégories par un simple compte, cliquable — le
+                                  détail s'ouvre dans une fenêtre modale dédiée (jamais
+                                  déplié dans le tableau lui-même), sur demande explicite
+                                  de l'utilisateur. */}
+                              {cat.subCategories.length > 0 ? (
+                                <button
+                                  onClick={() => setManageSubCategoriesId(cat.id)}
+                                  className="text-blue-700 hover:underline font-semibold"
+                                >
+                                  {cat.subCategories.length} sous-catégorie{cat.subCategories.length > 1 ? 's' : ''}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setManageSubCategoriesId(cat.id)}
+                                  className="text-slate-400 hover:text-blue-700 hover:underline"
+                                >
+                                  Aucune — ajouter
+                                </button>
+                              )}
                             </td>
                             <td className="py-3 pr-3">
                               <button
@@ -1153,6 +1207,9 @@ service cloud.firestore {
                             </td>
                             <td className="py-3 pl-3">
                               <div className="flex items-center justify-end gap-1">
+                                <button onClick={() => setManageSubCategoriesId(cat.id)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Gérer les sous-catégories">
+                                  <Folder className="w-3.5 h-3.5" />
+                                </button>
                                 <button onClick={() => openEditCategory(cat)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Renommer">
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
@@ -1166,40 +1223,6 @@ service cloud.firestore {
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 )}
-                              </div>
-                            </td>
-                          </tr>
-                          {/* Sous-catégories — hors de la capture de référence, gardée
-                              intégralement (ajout/retrait), rattachée visuellement à
-                              la ligne au-dessus plutôt que retirée. */}
-                          <tr className="border-b border-slate-100 bg-slate-50/70">
-                            <td></td>
-                            <td colSpan={7} className="py-2.5 pr-3">
-                              <div className="flex flex-wrap items-center gap-2">
-                                {cat.subCategories.map((sub, si) => (
-                                  <span key={si} className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 font-medium">
-                                    {sub}
-                                    <button onClick={() => handleRemoveSubCategory(cat.id, sub)} className="text-slate-400 hover:text-rose-600" title="Retirer">
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  </span>
-                                ))}
-                                <div className="flex gap-1.5 min-w-[220px] flex-1">
-                                  <input
-                                    type="text"
-                                    value={newSubCategoryInputs[cat.id] || ''}
-                                    onChange={(e) => setNewSubCategoryInputs((prev) => ({ ...prev, [cat.id]: e.target.value }))}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubCategory(cat.id); } }}
-                                    placeholder="Nouvelle sous-catégorie..."
-                                    className="flex-1 px-2.5 py-1 border border-slate-300 rounded-lg bg-white"
-                                  />
-                                  <button
-                                    onClick={() => handleAddSubCategory(cat.id)}
-                                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-semibold whitespace-nowrap"
-                                  >
-                                    + Ajouter
-                                  </button>
-                                </div>
                               </div>
                             </td>
                           </tr>
@@ -1217,6 +1240,71 @@ service cloud.firestore {
         );
       })()}
 
+      {/* === AMÉLIORATION AJOUTÉE (sous-catégories dans une fenêtre dédiée)
+          === Fenêtre modale de gestion des sous-catégories d'une catégorie —
+          sur demande explicite de l'utilisateur, remplace tout affichage
+          dans le tableau lui-même (chaque ligne reste strictement
+          compacte). Même gabarit que les modales Ajouter/Modifier catégorie
+          ci-dessous. */}
+      {manageSubCategoriesId && (() => {
+        const cat = categoriesConfig.find((c) => c.id === manageSubCategoriesId);
+        if (!cat) return null;
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                    <Folder className="w-4 h-4 text-blue-700" />
+                    Sous-catégories
+                  </h3>
+                  <p className="text-slate-500 text-[11px] mt-0.5">{cat.name}</p>
+                </div>
+                <button onClick={() => setManageSubCategoriesId(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {cat.subCategories.length === 0 && <span className="text-slate-400 italic">Aucune sous-catégorie pour le moment.</span>}
+                {cat.subCategories.map((sub, si) => (
+                  <span key={si} className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-slate-700 font-medium">
+                    {sub}
+                    <button onClick={() => handleRemoveSubCategory(cat.id, sub)} className="text-slate-400 hover:text-rose-600" title="Retirer">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex gap-1.5 pt-3 border-t border-slate-100">
+                <input
+                  type="text"
+                  value={newSubCategoryInputs[cat.id] || ''}
+                  onChange={(e) => setNewSubCategoryInputs((prev) => ({ ...prev, [cat.id]: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubCategory(cat.id); } }}
+                  placeholder="Nouvelle sous-catégorie..."
+                  className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg"
+                  autoFocus
+                />
+                <button
+                  onClick={() => handleAddSubCategory(cat.id)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-semibold whitespace-nowrap"
+                >
+                  + Ajouter
+                </button>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setManageSubCategoriesId(null)} className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold">
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
           4. USERS & ROLES TAB — real CRUD against storage.ts (addUser
           already existed; updateUser/deleteUser are new). */}
@@ -1227,9 +1315,6 @@ service cloud.firestore {
               <h3 className="text-sm font-bold text-slate-900">
                 Profils et Habilitations (CDC 3.2.3)
               </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Gestionnaires, Administrateurs fonctionnels, Administrateurs système, Consultation et Lanceurs d'alerte.
-              </p>
             </div>
             <button
               onClick={openAddUser}
@@ -1305,21 +1390,14 @@ service cloud.firestore {
                 <ShieldCheck className="w-4 h-4 text-blue-700" />
                 Matrice des rôles & permissions
               </h3>
-              <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
-                Modèle RBAC granulaire (19 permissions atomiques, <code className="font-mono text-slate-600">src/domain/permissions.ts</code>) —
-                la même table sera réutilisée côté serveur (future architecture Cloud Functions / Firestore)
-                afin que client et serveur ne divergent jamais sur ce qu'un rôle peut faire.
-                {/* === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
-                    Cette matrice est désormais RÉELLEMENT éditable — cocher/
-                    décocher une case change immédiatement ce que ce rôle
-                    peut faire dans toute l'application (authz.userCan),
-                    dès l'enregistrement. Réservé à system_admin, comme les
-                    autres tables de configuration. */}
-                {' '}Cochez ou décochez une permission puis "Enregistrer" — le changement s'applique
-                immédiatement à toute l'application. La case grisée (Administrateur système ×
-                Gérer la configuration) est protégée : la retirer priverait tout le monde de l'accès
-                à cet écran.
-              </p>
+              {/* === AMÉLIORATION AJOUTÉE (suppression du texte explicatif)
+                  === sur demande explicite de l'utilisateur : le paragraphe
+                  descriptif sous ce titre est retiré (le titre seul
+                  suffit) — même traitement que Gouvernance. Rappel toujours
+                  vrai bien que non affiché : cette matrice est réellement
+                  éditable (authz.userCan), réservée à system_admin, et la
+                  case Administrateur système × Gérer la configuration reste
+                  protégée côté logique (isProtectedPermissionCell). */}
             </div>
             <button
               type="submit"
@@ -1342,14 +1420,24 @@ service cloud.firestore {
                 </tr>
               </thead>
               <tbody>
-                {PERMISSION_GROUPS.map((g) => (
+                {PERMISSION_GROUPS.map((g) => {
+                  const isGroupExpanded = expandedPermissionGroups.has(g.group);
+                  return (
                   <React.Fragment key={g.group}>
                     <tr className="bg-slate-50">
-                      <td colSpan={ALL_ROLE_IDS.length + 1} className="p-2 font-bold text-slate-500 uppercase tracking-wide text-[10px] sticky left-0">
-                        {g.group}
+                      <td colSpan={ALL_ROLE_IDS.length + 1} className="p-0 sticky left-0">
+                        <button
+                          type="button"
+                          onClick={() => togglePermissionGroup(g.group)}
+                          className="w-full flex items-center gap-1.5 p-2 font-bold text-slate-600 uppercase tracking-wide text-[10px] hover:bg-slate-100 text-left"
+                        >
+                          {isGroupExpanded ? <ChevronDown className="w-3.5 h-3.5 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
+                          {g.group}
+                          <span className="text-slate-400 normal-case font-normal">({g.permissions.length})</span>
+                        </button>
                       </td>
                     </tr>
-                    {g.permissions.map((p) => (
+                    {isGroupExpanded && g.permissions.map((p) => (
                       <tr key={p.key} className="border-b border-slate-100">
                         <td className="p-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 bg-white">{p.label}</td>
                         {ALL_ROLE_IDS.map((r) => {
@@ -1371,7 +1459,8 @@ service cloud.firestore {
                       </tr>
                     ))}
                   </React.Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1425,9 +1514,15 @@ service cloud.firestore {
           </form>
 
           <div className="pt-2 border-t border-slate-100">
-            <h4 className="font-bold text-slate-900 mb-2">
+            <button
+              type="button"
+              onClick={() => setShowDerivedRoutingView((v) => !v)}
+              className="w-full flex items-center gap-1.5 font-bold text-slate-900 mb-2 hover:text-slate-700"
+            >
+              {showDerivedRoutingView ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               Vue dérivée — autorité de repli par rôle (lecture seule)
-            </h4>
+            </button>
+            {showDerivedRoutingView && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {getRoutingMatrixView(hierarchyLevelsDraft).map((row) => (
                 <div key={row.role} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2">
@@ -1440,6 +1535,7 @@ service cloud.firestore {
                 </div>
               ))}
             </div>
+            )}
           </div>
 
           {/* === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade
@@ -1459,11 +1555,6 @@ service cloud.firestore {
                   <Mail className="w-4 h-4 text-blue-700" />
                   Registre des destinataires d'escalade et de routage ({escalationRecipients.length})
                 </h4>
-                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
-                  Personnes pouvant recevoir une escalade manuelle ou servir de dernier recours pour le routage
-                  indépendant, classées par grade (le plus élevé = dernier recours). Un destinataire sans compte
-                  activa-whistleblowing lié est notifié par e-mail uniquement.
-                </p>
               </div>
               <button
                 onClick={openAddRecipient}
@@ -1626,14 +1717,14 @@ service cloud.firestore {
                 <GitBranch className="w-4 h-4 text-blue-700" />
                 Workflows & Statuts — Transitions autorisées
               </h3>
-              <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
-                Chaque ligne est un statut de DÉPART, chaque colonne cochée un statut D'ARRIVÉE autorisé depuis cette
-                ligne. Cochez ou décochez une case puis "Enregistrer" — le changement s'applique immédiatement à
-                toute l'application (storage.transitionStatus / escalateAlert). Cette table ne gouverne que la
-                structure du parcours : les conditions métier de clôture (allégations documentées, mesures
-                correctives soldées, visa de revue fonctionnelle) restent toujours appliquées par ailleurs et ne
-                peuvent pas être contournées d'ici.
-              </p>
+              {/* === AMÉLIORATION AJOUTÉE (suppression du texte explicatif)
+                  === sur demande explicite de l'utilisateur, le titre seul
+                  suffit. Rappel toujours vrai bien que non affiché : chaque
+                  ligne est un statut de départ, "Enregistrer les
+                  transitions" applique le changement immédiatement
+                  (storage.transitionStatus / escalateAlert), et cette table
+                  ne gouverne que la structure du parcours — les conditions
+                  métier de clôture restent appliquées ailleurs. */}
             </div>
             <button
               type="submit"
@@ -1643,46 +1734,94 @@ service cloud.firestore {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-[11px]">
-              <thead>
-                <tr>
-                  <th className="p-2 text-left sticky left-0 bg-white z-10">Depuis \ Vers</th>
-                  {ALL_CASE_STATUSES.map((s) => (
-                    <th key={s} className="p-2 text-center font-bold text-slate-700 whitespace-nowrap">
-                      {CASE_STATUS_LABELS[s].fr}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {ALL_CASE_STATUSES.map((source) => (
-                  <tr key={source} className="border-b border-slate-100">
-                    <td className="p-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 bg-white">
-                      {CASE_STATUS_LABELS[source].fr}
-                    </td>
-                    {ALL_CASE_STATUSES.map((target) => {
-                      const isSelf = source === target;
-                      const checked = !isSelf && (workflowTransitionsDraft[source] ?? []).includes(target);
-                      return (
-                        <td key={target} className="p-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={isSelf}
-                            onChange={() => toggleWorkflowTransitionDraft(source, target)}
-                            title={isSelf ? 'Un statut ne transite jamais vers lui-même' : undefined}
-                            className={`accent-blue-600 w-3.5 h-3.5 ${isSelf ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
-                          />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+            {ALL_CASE_STATUSES.map((source) => {
+              const targets = (workflowTransitionsDraft[source] ?? []);
+              return (
+                <div key={source} className="p-3 flex items-center gap-3 hover:bg-slate-50">
+                  <div className="w-40 shrink-0 font-bold text-slate-900">{CASE_STATUS_LABELS[source].fr}</div>
+                  <div className="flex-1 flex flex-wrap items-center gap-1.5 min-w-0">
+                    {targets.length === 0 ? (
+                      <span className="text-slate-400 italic">Statut terminal — aucune transition autorisée</span>
+                    ) : (
+                      targets.map((t) => (
+                        <span key={t} className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 font-semibold text-[10.5px] whitespace-nowrap">
+                          {CASE_STATUS_LABELS[t].fr}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransitionsFor(source)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-slate-200 text-slate-600 font-semibold shrink-0"
+                  >
+                    <Pencil className="w-3.5 h-3.5" /> Modifier
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </form>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (matrice de transitions moins touffue) ===
+          Fenêtre dédiée : les cases à cocher complètes pour UN SEUL statut de
+          départ, plutôt que la grille entière en permanence. */}
+      {editingTransitionsFor && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <GitBranch className="w-4 h-4 text-blue-700" />
+                  Transitions depuis "{CASE_STATUS_LABELS[editingTransitionsFor].fr}"
+                </h3>
+                <p className="text-slate-500 text-[11px] mt-0.5">Statuts d'arrivée autorisés depuis ce statut.</p>
+              </div>
+              <button type="button" onClick={() => setEditingTransitionsFor(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {ALL_CASE_STATUSES.map((target) => {
+                const isSelf = editingTransitionsFor === target;
+                const checked = !isSelf && (workflowTransitionsDraft[editingTransitionsFor] ?? []).includes(target);
+                return (
+                  <label
+                    key={target}
+                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${
+                      isSelf ? 'opacity-30 cursor-not-allowed border-slate-100' : 'border-slate-200 hover:bg-slate-50 cursor-pointer'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={isSelf}
+                      onChange={() => toggleWorkflowTransitionDraft(editingTransitionsFor, target)}
+                      className="accent-blue-600 w-3.5 h-3.5"
+                    />
+                    {CASE_STATUS_LABELS[target].fr}
+                  </label>
+                );
+              })}
+            </div>
+
+            <p className="text-slate-400 pt-2 border-t border-slate-100">
+              Fermer cette fenêtre ne perd rien — cliquez ensuite sur "Enregistrer les transitions" pour appliquer les changements.
+            </p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setEditingTransitionsFor(null)}
+                className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 5. DATABASE & FIREBASE PERSISTENCE TAB */}
@@ -1694,9 +1833,6 @@ service cloud.firestore {
                 <Database className="w-4 h-4 text-amber-500" />
                 Rattachement au Projet Firebase "activa-whistleblowing"
               </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Connectez directement votre projet Cloud Firestore pour la centralisation des alertes et de la piste d'audit.
-              </p>
             </div>
 
             <div className="flex items-center gap-2">
