@@ -762,3 +762,78 @@ other undeployed piece of this project.
 **DOCUMENT** → `docs/SECURITY.md` (new "Security review" section with all
 3 fixes), `docs/API.md` (`removePersonLink` added, `addPerson`'s new gate
 noted), inline code comments in all three changed files, this entry.
+
+---
+
+## Automated test coverage for `src/data-access/` — and a real closure bug found and fixed
+
+**AUDIT** → asked to continue backend work without deployment (no live
+credentials in this session — see `docs/FIREBASE-SETUP.md`; the project
+remains on Spark by standing decision). `src/domain/workflow.test.ts` and
+`src/domain/permissions.test.ts` already covered the two pure domain
+modules (41 tests, earlier entry), but `src/data-access/caseRepository.ts`
+(`LocalCaseRepository`, the functional reference implementation every
+Cloud Function and `FirestoreAdminCaseRepository` is meant to match) and
+`src/data-access/migrateLegacy.ts` had **zero** test coverage — the exact
+layer 14 undeployed Cloud Functions are ported from field-for-field. Fully
+testable with no external dependency: `localStorage`-backed, confirmed
+absent from this project's default Vitest environment (verified directly,
+not assumed — no `jsdom`/`happy-dom` installed), so a small in-memory stub
+(`testLocalStorageStub.ts`, test-only, never imported by app code) was
+added first.
+
+**PLAN** → write integration-style tests against the real
+`LocalCaseRepository`/`migrateLegacyAlertsToCases`, not mocks, exercising
+exactly what `docs/WORKFLOW.md`/`docs/PERMISSIONS.md`/`docs/DATABASE.md`
+already claim: permission enforcement (including rule #9, scope,
+confidentiality clearance), the closure-gating sequence, the
+`implicatedUserIds`/risk-assessment invariants, and the legacy migration's
+field mapping and "no invented finding" honesty rule.
+
+**A real bug surfaced while writing the closure test, not assumed away**:
+the "success" case (all allegations assessed, no open corrective actions)
+never actually reached `allowed: true`. Traced to `checkTransition`'s 4th
+gating check (`hasFunctionalReviewSignOff`, `docs/WORKFLOW.md` §"Closure
+gating") — implemented and unit-tested in isolation since Phase 2, but
+**never supplied by any of its three callers** (`LocalCaseRepository`,
+`FirestoreAdminCaseRepository`, the `changeCaseStatus` Cloud Function),
+each always passing `undefined`. Since `closed` is reachable only from
+`functional_review`, this made closure structurally impossible for every
+case, in every implementation, since Phase 2 — a genuine integration gap a
+correctly-passing unit test suite could not have caught on its own, exactly
+the kind of thing this pass of writing repository-level tests exists to
+catch.
+
+**IMPLEMENT**:
+- `src/domain/caseTypes.ts` — `Case.functionalReviewSignedOffAt`/`By`
+  (additive, optional): the real, persisted record of sign-off, never
+  inferred from any other field.
+- `src/data-access/caseRepository.ts` — new
+  `CaseRepository.recordFunctionalReviewSignOff(caseId, actor)` (gated on
+  `cases.close`); `changeCaseStatus` now passes
+  `hasFunctionalReviewSignOff: !!kase.functionalReviewSignedOffAt`.
+- `scripts/firestoreAdminRepository.ts`, `functions/src/index.ts` — same
+  two fixes mirrored exactly (a new `recordFunctionalReviewSignOff`
+  callable, gated identically, forces the actor identity from the verified
+  token like every other callable added this session).
+- `src/data-access/testLocalStorageStub.ts`,
+  `src/data-access/caseRepository.test.ts` (18 tests),
+  `src/data-access/migrateLegacy.test.ts` (4 tests).
+
+**TEST / VERIFY**: root `tsc --noEmit` clean (also caught, and fixed, that
+`FirestoreAdminCaseRepository` — a third `CaseRepository` implementer not
+initially touched — needed the same interface method, exactly the kind of
+drift a type-checked interface is supposed to prevent). `npm --prefix
+functions run build` clean after installing `functions/`'s dependencies
+for the first time this session (pre-existing peer-dependency conflict
+between the pinned `firebase-admin`/`firebase-functions` versions, resolved
+locally with `--legacy-peer-deps` for verification only — not a code
+change, and no lockfile committed, consistent with this project's existing
+choice to leave `package-lock.json` untracked). `npx vitest run` — 200/200
+passing (22 new). No live network test possible for the Cloud Functions
+change, same standing reason as every other undeployed piece.
+
+**DOCUMENT** → `docs/API.md` (`recordFunctionalReviewSignOff` documented,
+the bug explained under `changeCaseStatus`), `docs/WORKFLOW.md` (the same
+gap explained where it first, correctly, flagged the risk without catching
+it), this entry.

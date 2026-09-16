@@ -290,7 +290,15 @@ export const changeCaseStatus = onCall(async (request) => {
   const allegations = allegationsSnap.docs.map((d) => d.data() as Allegation);
   const correctiveActions = actionsSnap.docs.map((d) => d.data() as CorrectiveAction);
 
-  const result = checkTransition(kase.status, to, { allegations, correctiveActions });
+  // === AMÉLIORATION AJOUTÉE (correctif — cadenas de revue fonctionnelle
+  // jamais réellement câblé) === voir caseTypes.ts (Case.functionalReviewSignedOffAt) :
+  // sans ce champ, cette fonction ne pouvait JAMAIS clôturer un dossier,
+  // quel que soit l'état réel des allégations/mesures correctives.
+  const result = checkTransition(kase.status, to, {
+    allegations,
+    correctiveActions,
+    hasFunctionalReviewSignOff: !!kase.functionalReviewSignedOffAt,
+  });
   if (!result.allowed) {
     await appendAudit({ actorId: user.userId, action: 'STATUS_CHANGE_REJECTED', caseId, previousValue: kase.status, newValue: to, reason: result.reason });
     throw new HttpsError('failed-precondition', result.reason ?? 'Transition not allowed.');
@@ -309,6 +317,34 @@ export const changeCaseStatus = onCall(async (request) => {
   await appendAudit({ actorId: user.userId, action: 'STATUS_CHANGED', caseId, previousValue: previousStatus, newValue: to, reason });
 
   return { ok: true, status: to };
+});
+
+// ---------------------------------------------------------------------------
+// recordFunctionalReviewSignOff
+// ---------------------------------------------------------------------------
+// === AMÉLIORATION AJOUTÉE (correctif — cadenas de revue fonctionnelle) ===
+// The one write path that sets Case.functionalReviewSignedOffAt/By, the
+// field changeCaseStatus above now actually reads before allowing closure.
+// Gated on 'cases.close' (same permission required to close outright —
+// signing off is the act that authorizes it), not a new Permission entry.
+
+export const recordFunctionalReviewSignOff = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId } = request.data as { caseId: string };
+  if (!caseId) throw new HttpsError('invalid-argument', 'caseId is required.');
+
+  const { ref } = await requireCaseAccess(caseId, user, 'cases.close');
+  const now = new Date().toISOString();
+  await ref.update({
+    functionalReviewSignedOffAt: now,
+    functionalReviewSignedOffBy: user.userId,
+    updatedAt: now,
+    updatedBy: user.userId,
+  });
+  await appendTimeline(caseId, 'FUNCTIONAL_REVIEW_SIGNED_OFF', user.userId);
+  await appendAudit({ actorId: user.userId, action: 'FUNCTIONAL_REVIEW_SIGNED_OFF', caseId });
+
+  return { ok: true };
 });
 
 // ---------------------------------------------------------------------------
