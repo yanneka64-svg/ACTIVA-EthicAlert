@@ -105,6 +105,27 @@ export const ACTIVA_COUNTRIES: CountryDef[] = [
   { code: 'AO', name: 'Angola', flag: '🇦🇴' },
 ];
 
+// === AMÉLIORATION AJOUTÉE (drapeaux devant le nom des pays, partout où il
+// s'affiche) === Recherche par NOM (c'est ce que les dossiers/comptes
+// stockent, jamais le code) dans la liste réelle passée en argument — pas
+// uniquement ACTIVA_COUNTRIES en dur, pour rester correct même si un
+// administrateur a ajouté un pays personnalisé (Administration → Pays).
+// Retourne '' (jamais une exception) si le nom est absent/inconnu — un
+// affichage sans drapeau plutôt qu'un plantage.
+export function getCountryFlag(countries: CountryDef[], name: string | undefined): string {
+  if (!name) return '';
+  return countries.find((c) => c.name === name)?.flag ?? '';
+}
+
+// Nom de pays préfixé de son drapeau ("🇨🇲 Cameroun"), sans espace parasite
+// quand le nom est absent/inconnu (ex. "Groupe ACTIVA", un libellé Groupe et
+// non un vrai pays) — à utiliser plutôt que de composer `${getCountryFlag(...)} ${name}`
+// soi-même à chaque site d'affichage.
+export function formatCountryLabel(countries: CountryDef[], name: string | undefined): string {
+  const flag = getCountryFlag(countries, name);
+  return flag ? `${flag} ${name}` : name ?? '';
+}
+
 export const ACTIVA_ENTITIES: EntityDef[] = [
   { id: 'cm_assurances', name: 'ACTIVA Assurances', country: 'Cameroun', flag: '🇨🇲', code: 'AACMR' },
   { id: 'cm_vie', name: 'ACTIVA Vie', country: 'Cameroun', flag: '🇨🇲', code: 'AVCMR' },

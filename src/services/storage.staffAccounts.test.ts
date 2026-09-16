@@ -236,5 +236,47 @@ describe('storage — comptes staff (identifiant + mot de passe)', () => {
       // L'état vide cassé a bien été remplacé en localStorage (pas seulement en mémoire).
       expect(JSON.parse(mockLocalStorage.getItem(USERS_STORAGE_KEY) || '[]')).toHaveLength(1);
     });
+
+    // === AMÉLIORATION AJOUTÉE (correctif — écran bloqué indéfiniment sur
+    // "Vérification…") === BUG RÉEL SIGNALÉ EN PRODUCTION : un navigateur
+    // avec un compte persisté AVANT l'ajout de `username` (donc sans ce
+    // champ) faisait planter verifyStaffLogin (`u.username.toLowerCase()`
+    // sur `undefined`), laissant la connexion bloquée indéfiniment, avec ou
+    // sans le bon mot de passe. Reproduit ici tel quel : un compte legacy
+    // stocké sans `username`.
+    it("migre un compte stocké sans `username` (antérieur à son introduction) au lieu de planter la connexion", async () => {
+      const mockLocalStorage = makeLocalStorageMock();
+      const legacyUser = {
+        id: 'usr-legacy-no-username',
+        name: 'Compte Legacy',
+        email: 'legacy.sans.identifiant@group-activa.com',
+        role: 'system_admin',
+        roleTitle: 'Administrateur système',
+        entity: 'Toutes entités',
+        country: 'Groupe ACTIVA',
+        countries: [],
+        entities: [],
+        active: true,
+        // Pas de `username` : exactement l'état d'un compte créé avant son introduction.
+      };
+      mockLocalStorage.setItem(USERS_STORAGE_KEY, JSON.stringify([legacyUser]));
+      vi.stubGlobal('localStorage', mockLocalStorage);
+
+      const { storage: freshStorage } = await import('./storage');
+
+      const users = freshStorage.getUsers();
+      expect(users).toHaveLength(1);
+      // Identifiant de secours dérivé de l'email, jamais `undefined`.
+      expect(users[0].username).toBe('legacy.sans.identifiant');
+
+      // La connexion se termine bien (ne reste jamais bloquée indéfiniment),
+      // qu'elle réussisse ou échoue.
+      const result = await freshStorage.verifyStaffLogin('legacy.sans.identifiant', 'peu importe');
+      expect(result.ok).toBeDefined();
+
+      // L'identifiant migré a bien été repersisté en localStorage.
+      const persisted = JSON.parse(mockLocalStorage.getItem(USERS_STORAGE_KEY) || '[]');
+      expect(persisted[0].username).toBe('legacy.sans.identifiant');
+    });
   });
 });

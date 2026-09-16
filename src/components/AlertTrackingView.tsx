@@ -38,6 +38,7 @@ import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE : vérification par hash salé + limitation du débit des tentatives ===
 import { verifyPassword } from '../services/crypto';
 import { getLockStatus, recordFailedAttempt, clearAttempts, formatRemaining } from '../services/rateLimiter';
+import { formatCountryLabel } from '../data/activaConfig';
 
 interface AlertTrackingViewProps {
   lang: Language;
@@ -704,7 +705,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
                   <p className="text-xs text-slate-600 flex items-center gap-2">
                     <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{activeAlert.concernedEntity} ({activeAlert.country})</span>
+                    <span>{activeAlert.concernedEntity} ({formatCountryLabel(storage.getCountries(), activeAlert.country)})</span>
                     <span>•</span>
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     <span>Déposé le {new Date(activeAlert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}</span>
@@ -779,7 +780,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                   </div>
                   {[
                     { icon: FileText, label: t.track_field_case_number, value: activeAlert.trackingNumber },
-                    { icon: Building2, label: t.track_field_entity, value: `${activeAlert.concernedEntity} (${activeAlert.country})` },
+                    { icon: Building2, label: t.track_field_entity, value: `${activeAlert.concernedEntity} (${formatCountryLabel(storage.getCountries(), activeAlert.country)})` },
                     { icon: Tag, label: t.track_field_category, value: activeAlert.category, sub: activeAlert.subCategory },
                     { icon: Calendar, label: t.track_field_dates, value: activeAlert.incidentDates },
                     { icon: MapPin, label: t.track_field_location, value: activeAlert.incidentLocation },

@@ -30,6 +30,7 @@ import { storage } from '../services/storage';
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { DataTable, DataTableColumn, MiniHBarList, HBarDatum } from './ui';
 import { AlertStatusBucket, getAlertStatusBucket } from '../domain/alertStatusBuckets';
+import { formatCountryLabel } from '../data/activaConfig';
 
 interface TasksRegistryProps {
   lang: Language;
@@ -109,7 +110,7 @@ export const TasksRegistry: React.FC<TasksRegistryProps> = ({ lang, activeUser, 
     {
       key: 'country',
       header: t.reg_col_country,
-      render: (a) => <span className="text-slate-700">{a.country}</span>,
+      render: (a) => <span className="text-slate-700">{formatCountryLabel(storage.getCountries(), a.country)}</span>,
       hideOnMobile: true,
     },
     {

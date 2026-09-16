@@ -56,6 +56,7 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { userCan } from '../services/authz';
+import { formatCountryLabel } from '../data/activaConfig';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { notifyAssignmentToInvestigators } from '../services/emailNotify';
 import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
@@ -772,7 +773,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
             {a.concernedEntity}
           </span>
-          <span className="text-[11px] text-slate-500">{a.country}</span>
+          <span className="text-[11px] text-slate-500">{formatCountryLabel(storage.getCountries(), a.country)}</span>
         </div>
       ),
       hideOnMobile: true,
@@ -915,7 +916,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                       <ConfidentialityBadge level={panelAlert.confidentialityLevel} />
                     </div>
                     <p className="text-xs text-slate-600 mt-1">{panelAlert.category} — {panelAlert.subCategory}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1"><Building2 className="w-3 h-3" /> {panelAlert.concernedEntity} ({panelAlert.country})</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1"><Building2 className="w-3 h-3" /> {panelAlert.concernedEntity} ({formatCountryLabel(storage.getCountries(), panelAlert.country)})</p>
                   </div>
                   <button onClick={() => setPanelAlertId(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 lg:hidden">
                     <ArrowLeft className="w-4 h-4" />

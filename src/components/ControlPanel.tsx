@@ -57,6 +57,7 @@ import { computeSlaStatus } from '../services/statusMapping';
 import { isGlobalCaseViewer, userCan } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
+import { formatCountryLabel } from '../data/activaConfig';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 import { ACTIVE_STATUSES, computeWorkload, WorkloadRow } from '../domain/workloadCalc';
 // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) === regroupement
@@ -332,7 +333,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const topCountries: HBarDatum[] = Array.from(countryCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
-    .map(([label, value]) => ({ label, value, color: '#2563eb' }));
+    .map(([label, value]) => ({ label: formatCountryLabel(storage.getCountries(), label), value, color: '#2563eb' }));
   const topCategories: HBarDatum[] = categoryData.slice(0, 5).map((d) => ({ label: d.label, value: d.value, color: d.color }));
 
   const priorityBarData: BarDatum[] = [
@@ -393,7 +394,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     { key: 'id', header: t.cp_col_case_id, render: (r) => <span className="font-bold text-blue-700">{r.trackingNumber}</span> },
     { key: 'date', header: t.cp_col_date, render: (r) => new Date(r.createdAt).toLocaleDateString(locale), hideOnMobile: true },
     { key: 'category', header: t.cp_col_category, render: (r) => r.category },
-    { key: 'country', header: t.cp_col_country, render: (r) => r.country, hideOnMobile: true },
+    { key: 'country', header: t.cp_col_country, render: (r) => formatCountryLabel(storage.getCountries(), r.country), hideOnMobile: true },
     { key: 'entity', header: t.cp_col_entity, render: (r) => r.concernedEntity, hideOnMobile: true },
     {
       key: 'priority',
