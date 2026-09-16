@@ -3627,28 +3627,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">{t.btn_escalate_case}</h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Dossier {selectedAlert.trackingNumber} ({selectedAlert.concernedEntity}) — le pays et l'entité d'origine ne sont pas modifiés, seul le propriétaire du dossier change.
-              </p>
             </div>
-
-            {(() => {
-              const criteria = evaluateEscalationCriteria(selectedAlert);
-              return criteria.length > 0 ? (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 space-y-1">
-                  <div className="font-bold text-rose-800">Critères d'escalade détectés (suggestion, non bloquant) :</div>
-                  <ul className="list-disc list-inside text-rose-700 space-y-0.5">
-                    {criteria.map((c) => (
-                      <li key={c.key}>{c.label}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <p className="text-slate-500 text-[11px] italic">
-                  Aucun critère automatique détecté — l'escalade reste possible à la discrétion de l'opérateur/enquêteur.
-                </p>
-              );
-            })()}
 
             <div>
               {/* === AMÉLIORATION AJOUTÉE (Registre des destinataires
@@ -4120,9 +4099,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 Clôturer formellement le dossier {selectedAlert.trackingNumber}
               </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Vérification de complétude et information du lanceur d'alerte.
-              </p>
             </div>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 6 — checklist de clôture, §33) ===
@@ -4176,7 +4152,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Synthèse interne de clôture pour le dossier d'audit
+                Synthèse interne de clôture pour le dossier d'enquête
               </label>
               <textarea
                 rows={3}
