@@ -224,12 +224,16 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           reprise précisément de la capture (rond de 36px, glyphe de 16px).
           === AMÉLIORATION AJOUTÉE (éclat + réaction au survol des bulles)
           === sur demande explicite de l'utilisateur : dégradé + ombre
-          portée colorée (au lieu du bleu plat d'origine) pour plus d'éclat,
-          et une légère mise à l'échelle + ombre accentuée au survol de
-          chaque bulle (`hover:scale-110`), pour un retour visuel immédiat. */}
+          portée colorée (au lieu du bleu plat d'origine) pour plus d'éclat.
+          === AMÉLIORATION AJOUTÉE (réaction de toute la bulle, pas
+          seulement l'icône) === précision explicite de l'utilisateur : la
+          réaction au survol (mise à l'échelle de l'icône + fond légèrement
+          teinté) se déclenche désormais en survolant N'IMPORTE OÙ sur toute
+          la carte (icône + texte, via `group`/`group-hover`), pas
+          uniquement en pointant précisément l'icône. */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border border-slate-200 rounded-2xl bg-white shadow-sm">
-        <div className="p-5 flex items-center gap-3">
-          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out hover:scale-110 hover:shadow-lg hover:shadow-blue-600/50">
+        <div className="group p-5 flex items-center gap-3 transition-colors duration-300 hover:bg-blue-50/60">
+          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-blue-600/50">
             <ShieldCheck className="w-4 h-4" />
           </span>
           <div>
@@ -237,8 +241,8 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             <div className="text-xs text-slate-500">{t.hero_feature_confidentiality_desc}</div>
           </div>
         </div>
-        <div className="p-5 flex items-center gap-3">
-          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out hover:scale-110 hover:shadow-lg hover:shadow-blue-600/50">
+        <div className="group p-5 flex items-center gap-3 transition-colors duration-300 hover:bg-blue-50/60">
+          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-blue-600/50">
             <UserX className="w-4 h-4" />
           </span>
           <div>
@@ -246,8 +250,8 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             <div className="text-xs text-slate-500">{t.hero_feature_anonymity_desc}</div>
           </div>
         </div>
-        <div className="p-5 flex items-center gap-3">
-          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out hover:scale-110 hover:shadow-lg hover:shadow-blue-600/50">
+        <div className="group p-5 flex items-center gap-3 transition-colors duration-300 hover:bg-blue-50/60">
+          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-blue-600/50">
             <HeartHandshake className="w-4 h-4" />
           </span>
           <div>
@@ -290,22 +294,25 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             // === AMÉLIORATION AJOUTÉE (éclat + réaction au survol des
             // bulles) === sur demande explicite de l'utilisateur : dégradé +
             // ombre portée colorée (par teinte) au lieu du fond plat
-            // d'origine, plus une mise à l'échelle au survol de chaque icône
-            // (`hover:scale-110`) — même traitement que les 3 bulles
-            // Confidentialité/Anonymat/Pas de représailles ci-dessus.
+            // d'origine.
+            // === AMÉLIORATION AJOUTÉE (réaction de toute la bulle, pas
+            // seulement l'icône) === précision explicite de l'utilisateur :
+            // `group-hover` (déclenché par le survol de la carte entière
+            // ci-dessous), plus `hover:` local — même traitement que les 3
+            // bulles Confidentialité/Anonymat/Pas de représailles ci-dessus.
             const toneClasses: Record<string, string> = {
-              blue: 'bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 shadow-sm shadow-blue-300/50 hover:shadow-md hover:shadow-blue-400/60',
-              amber: 'bg-gradient-to-br from-amber-50 to-amber-100 text-amber-600 shadow-sm shadow-amber-300/50 hover:shadow-md hover:shadow-amber-400/60',
-              purple: 'bg-gradient-to-br from-purple-50 to-purple-100 text-purple-600 shadow-sm shadow-purple-300/50 hover:shadow-md hover:shadow-purple-400/60',
-              emerald: 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 shadow-sm shadow-emerald-300/50 hover:shadow-md hover:shadow-emerald-400/60',
+              blue: 'bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 shadow-sm shadow-blue-300/50 group-hover:shadow-md group-hover:shadow-blue-400/60',
+              amber: 'bg-gradient-to-br from-amber-50 to-amber-100 text-amber-600 shadow-sm shadow-amber-300/50 group-hover:shadow-md group-hover:shadow-amber-400/60',
+              purple: 'bg-gradient-to-br from-purple-50 to-purple-100 text-purple-600 shadow-sm shadow-purple-300/50 group-hover:shadow-md group-hover:shadow-purple-400/60',
+              emerald: 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 shadow-sm shadow-emerald-300/50 group-hover:shadow-md group-hover:shadow-emerald-400/60',
             };
             return (
-              <div key={idx} className="bg-white p-6 border border-slate-200 shadow-sm space-y-3">
+              <div key={idx} className="group bg-white p-6 border border-slate-200 shadow-sm space-y-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-slate-300">
                 <div className="flex items-center gap-2.5">
                   <span className="w-6 h-6 bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center shrink-0">
                     {idx + 1}
                   </span>
-                  <span className={`w-10 h-10 flex items-center justify-center shrink-0 transition-all duration-300 ease-out hover:scale-110 ${toneClasses[step.tone]}`}>
+                  <span className={`w-10 h-10 flex items-center justify-center shrink-0 transition-all duration-300 ease-out group-hover:scale-110 ${toneClasses[step.tone]}`}>
                     <Icon className="w-5 h-5" />
                   </span>
                 </div>

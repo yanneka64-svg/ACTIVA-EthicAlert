@@ -371,8 +371,14 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     // mêmes dimensions que l'écran "Espaces de travail", sur demande
     // explicite de l'utilisateur (les deux écrans doivent avoir le même
     // gabarit). min-h-[460px] était déjà identique aux deux écrans.
+    // === AMÉLIORATION AJOUTÉE (même réduction que StaffSpaceHome.tsx,
+    // "page similaire") === sur demande explicite de l'utilisateur
+    // (« appliquer la même chose sur les pages similaires ») : largeur
+    // `max-w-5xl`→`max-w-3xl`, hauteur `min-h-[460px]`→`min-h-[260px]`,
+    // padding `p-10`→`p-8`, icône `w-5 h-5`→`w-4 h-4`, textes justifiés —
+    // mêmes valeurs exactes que la carte "Espaces de travail". */}
     return (
-      <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
+      <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
           {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
               l'utilisateur) === Remplace la photo du siège par une photo de
@@ -383,7 +389,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               repli (`bg-[#0B2545]`, même teinte que le voile ci-dessous) le
               temps du chargement au lieu d'un flash blanc, + priorité de
               chargement explicite sur l'image. */}
-          <div className="relative hidden lg:flex flex-col justify-end p-8 sm:p-10 min-h-[460px] text-white overflow-hidden bg-[#0B2545]">
+          <div className="relative hidden lg:flex flex-col justify-end p-6 sm:p-8 min-h-[260px] text-white overflow-hidden bg-[#0B2545]">
             <img
               src="/brand/track-login-bg.jpg"
               alt="Espace de travail avec vue sur la ville"
@@ -396,7 +402,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               <p className="text-2xl font-bold leading-snug max-w-xs">{t.track_login_tagline}</p>
               <div className="w-10 h-px bg-white/40" />
               <div className="flex items-start gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-white shrink-0 mt-0.5" />
+                <ShieldCheck className="w-4 h-4 text-white shrink-0 mt-0.5" />
                 <div>
                   <div className="text-sm font-bold">{t.sidebar_confidentiality_title}</div>
                   <div className="text-xs text-white/80">{t.track_login_photo_note}</div>
@@ -406,12 +412,12 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
           </div>
 
           {/* Form panel */}
-          <div className="bg-white p-6 sm:p-10 flex flex-col justify-center">
+          <div className="bg-white p-6 sm:p-8 flex flex-col justify-center">
             {/* === AMÉLIORATION AJOUTÉE (alignement avec l'accueil des
                 espaces) === Cadenas retiré et titre aligné à gauche
                 (au lieu de centré) — même style que le titre "Espaces de
                 travail" de StaffSpaceHome.tsx, sur demande explicite. */}
-            <div className="mb-6 space-y-2">
+            <div className="mb-4 space-y-2">
               <h2 className="text-xl font-bold text-slate-900">{t.track_title}</h2>
               <p className="text-xs text-slate-600">{t.track_subtitle}</p>
             </div>
