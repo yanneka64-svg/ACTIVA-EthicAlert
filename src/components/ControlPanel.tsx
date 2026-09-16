@@ -28,13 +28,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Inbox,
-  UserX,
-  Flame,
   TrendingUp,
   Clock3,
   Search,
-  UserPlus,
-  Eye,
   BarChart3,
   Activity,
   LayoutDashboard,
@@ -158,7 +154,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const t = TRANSLATIONS[lang];
   const locale = localeOf(lang);
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [period, setPeriod] = useState<PeriodKey>('30d');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -170,7 +165,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   useEffect(() => {
     const unsub = storage.subscribe(() => {
       setAlerts(storage.getAlerts());
-      setLastRefreshed(new Date());
     });
     return unsub;
   }, []);
@@ -462,17 +456,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
               </div>
             )}
           </div>
-          {/* === AMÉLIORATION AJOUTÉE (réorganisation de l'en-tête — retrait
-              de "Trimestre" et du bouton "Actualiser") === Les données sont
-              déjà mises à jour en temps réel (storage.subscribe() ci-dessus)
-              — le bouton manuel était redondant. Il ne reste ici qu'un
-              indicateur discret de dernière mise à jour, aligné avec les
-              boutons de période plutôt que de laisser un texte orphelin sans
-              son bouton d'origine. */}
-          <span className="flex items-center gap-1.5 text-[10px] text-slate-400 whitespace-nowrap shrink-0">
-            <Clock3 className="w-3 h-3" />
-            {t.cp_last_updated}: {lastRefreshed.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-          </span>
         </div>
       </div>
 
@@ -772,33 +755,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
         />
       </section>
 
-      {/* Quick actions */}
-      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 mb-4">
-          <BarChart3 className="w-4 h-4 text-blue-700" />
-          {t.cp_section_quick_actions}
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          <button onClick={() => onNavigateToCases({ status: 'new' })} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <Inbox className="w-4 h-4 text-blue-600" /> {t.cp_qa_review_new}
-          </button>
-          <button onClick={() => onNavigateToCases({ unassignedOnly: true })} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <UserX className="w-4 h-4 text-amber-600" /> {t.cp_qa_triage_unassigned}
-          </button>
-          <button onClick={() => onNavigateToCases()} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <UserPlus className="w-4 h-4 text-indigo-600" /> {t.cp_qa_assign_case}
-          </button>
-          <button onClick={() => onNavigateToCases({ overdueOnly: true })} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <Flame className="w-4 h-4 text-rose-600" /> {t.cp_qa_view_overdue}
-          </button>
-          <button onClick={() => onNavigateToCases({ status: 'corrective_action' })} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <Eye className="w-4 h-4 text-purple-600" /> {t.cp_qa_review_closure}
-          </button>
-          <button onClick={onNavigateToReports} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <BarChart3 className="w-4 h-4 text-emerald-600" /> {t.cp_qa_view_reports}
-          </button>
-        </div>
-      </section>
     </div>
   );
 };

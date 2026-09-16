@@ -679,13 +679,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // aucune des 3 langues — les titres d'état vide s'affichaient donc
     // vides (`undefined`).
     cp_empty_recent_alerts: 'Aucune alerte récente.',
-    cp_section_quick_actions: 'Actions rapides',
-    cp_qa_review_new: 'Examiner les nouvelles alertes',
-    cp_qa_triage_unassigned: 'Trier les dossiers non attribués',
-    cp_qa_assign_case: 'Attribuer un dossier',
-    cp_qa_view_overdue: 'Voir les dossiers en retard',
-    cp_qa_review_closure: 'Examiner les clôtures',
-    cp_qa_view_reports: 'Voir les rapports',
 
     // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
     // maquette Tableau de bord) === regroupement en 5 paniers de statut
@@ -823,7 +816,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign : période, graphiques, tableau) ===
     cp_period_30d: '30 jours',
-    cp_last_updated: 'Dernière mise à jour',
     cp_section_trend: 'Tendance des alertes',
     cp_section_category: 'Alertes par catégorie',
     cp_section_priority: 'Alertes par priorité',
@@ -1646,13 +1638,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_in_progress: 'In Progress',
     cp_corrective_completed: 'Completed',
     cp_empty_recent_alerts: 'No recent alerts.',
-    cp_section_quick_actions: 'Quick Actions',
-    cp_qa_review_new: 'Review New Alerts',
-    cp_qa_triage_unassigned: 'Triage Unassigned',
-    cp_qa_assign_case: 'Assign Case',
-    cp_qa_view_overdue: 'View Overdue Cases',
-    cp_qa_review_closure: 'Review Closure',
-    cp_qa_view_reports: 'View Reports',
 
     // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
     // maquette Tableau de bord) ===
@@ -1787,7 +1772,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
     cp_period_30d: '30 Days',
-    cp_last_updated: 'Last updated',
     cp_section_trend: 'Alerts Trend',
     cp_section_category: 'Alerts by Category',
     cp_section_priority: 'Alerts by Priority',
@@ -2579,13 +2563,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_in_progress: 'Em Andamento',
     cp_corrective_completed: 'Concluídas',
     cp_empty_recent_alerts: 'Nenhum alerta recente.',
-    cp_section_quick_actions: 'Ações Rápidas',
-    cp_qa_review_new: 'Analisar Novos Alertas',
-    cp_qa_triage_unassigned: 'Triagem de Não Atribuídos',
-    cp_qa_assign_case: 'Atribuir Caso',
-    cp_qa_view_overdue: 'Ver Casos Atrasados',
-    cp_qa_review_closure: 'Analisar Encerramentos',
-    cp_qa_view_reports: 'Ver Relatórios',
 
     // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
     // maquette Tableau de bord) ===
@@ -2720,7 +2697,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
     cp_period_30d: '30 dias',
-    cp_last_updated: 'Última atualização',
     cp_section_trend: 'Tendência de alertas',
     cp_section_category: 'Alertas por categoria',
     cp_section_priority: 'Alertas por prioridade',
