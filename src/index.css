@@ -57,3 +57,18 @@ textarea {
 .activa-caret-blink textarea {
   caret-animation: auto;
 }
+
+/* === AMÉLIORATION AJOUTÉE (curseur de texte confiné aux champs de saisie) ===
+   Sur demande explicite de l'utilisateur : le curseur de texte ne doit
+   clignoter que dans les « barres dédiées » prévues pour saisir une
+   information (les <input>/<textarea> ci-dessus), jamais ailleurs sur la
+   page. Or un clic sur du texte non éditable (libellé de champ, ex.
+   "IDENTIFIANT") laisse le navigateur y placer un curseur de sélection
+   visuellement identique à un caret de saisie, en dehors de toute zone
+   dédiée — c'est ce curseur errant que `user-select: none` empêche ici, en
+   le limitant aux libellés statiques (jamais utilisés pour afficher une
+   valeur copiable dans cette application — mots de passe, identifiants et
+   numéros de suivi générés restent, eux, normalement sélectionnables). */
+label {
+  user-select: none;
+}

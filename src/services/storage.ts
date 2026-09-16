@@ -952,6 +952,21 @@ class StorageService {
     saveAuditLogToCloud(entry).catch(() => {});
   }
 
+  // === AMÉLIORATION AJOUTÉE (réinitialisation de l'historique de test des
+  // notifications e-mail) === Purge ciblée : ne retire QUE les entrées
+  // EMAIL_NOTIFICATION_SENT/FAILED (bruit de test avant déploiement de la
+  // fonction serveur dédiée) — jamais le reste du journal d'audit, qui doit
+  // rester la trace fiable et complète des actions réelles sur les dossiers.
+  // La purge elle-même reste tracée par une nouvelle entrée CONFIG_UPDATED.
+  public clearEmailNotificationLogs(actor: UserProfile): void {
+    this.auditLogs = this.auditLogs.filter(
+      (l) => l.actionType !== 'EMAIL_NOTIFICATION_SENT' && l.actionType !== 'EMAIL_NOTIFICATION_FAILED'
+    );
+    this.persistAuditLogs();
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Historique des tentatives de notification e-mail réinitialisé par ${actor.name}.`, undefined, actor);
+  }
+
   // --- Active User & Roles ---
   public getActiveUser(): UserProfile {
     return this.activeUser;
