@@ -261,143 +261,14 @@ export function computeRiskEvaluation(
 // domain/permissions.ts). `active: true` pour tous les comptes existants —
 // aucun ne devient silencieusement indisponible pour le moteur
 // d'attribution (Phase 4).
-export const INITIAL_USERS: UserProfile[] = [
-  {
-    id: 'usr-functional-admin',
-    name: 'B. Y. Ekani (Point de Contact)',
-    email: 'by.ekani@group-activa.com',
-    role: 'functional_admin',
-    roleTitle: 'Responsable Conformité & Référent Éthique Groupe',
-    entity: 'ACTIVA Finance',
-    country: 'Cameroun / Maurice',
-    countries: [],
-    entities: [],
-    active: true,
-  },
-  {
-    id: 'usr-investigator-1',
-    name: 'Alain Kouassi (Investigateur DARC)',
-    email: 'a.kouassi@group-activa.com',
-    role: 'investigator',
-    roleTitle: 'Auditeur Interne Senior',
-    entity: 'ACTIVA Côte d’Ivoire',
-    country: 'Côte d’Ivoire',
-    countries: ['CI'],
-    entities: ['ci_activa'],
-    active: true,
-  },
-  {
-    id: 'usr-investigator-2',
-    name: 'Chantal Ngo (Investigatrice DARC)',
-    email: 'c.ngo@group-activa.com',
-    role: 'investigator',
-    roleTitle: 'Chargée d’Investigation Fraude & Éthique',
-    entity: 'ACTIVA Assurances',
-    country: 'Cameroun',
-    countries: ['CM'],
-    entities: ['cm_assurances'],
-    active: true,
-  },
-  {
-    id: 'usr-system-admin',
-    name: 'David Mendy (Admin Système)',
-    email: 'd.mendy@group-activa.com',
-    role: 'system_admin',
-    roleTitle: 'Administrateur Systèmes Sécurisés ATS',
-    entity: 'Africa Technology Services (ATS)',
-    country: 'Maurice',
-    countries: ['MU'],
-    entities: ['mu_ats'],
-    active: true,
-  },
-  {
-    id: 'usr-auditor',
-    name: 'Comité d’Audit (Consultation)',
-    email: 'audit-board@group-activa.com',
-    // === AMÉLIORATION AJOUTÉE (Phase 12.3) === l'ancien rôle `auditor`
-    // (5 valeurs) devient `consultation` dans le nouveau modèle RBAC à 10
-    // rôles — même comportement (lecture seule, vision globale des
-    // dossiers), voir src/services/authz.ts.
-    role: 'consultation',
-    roleTitle: 'Membre du Comité d’Audit & Conseil d’Administration',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
-    active: true,
-  },
-  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === 2 nouveaux comptes de
-  // démonstration pour les 2 rôles réellement nouveaux (security_admin,
-  // audit_committee), accessibles via le même sélecteur de profil que les
-  // 5 comptes ci-dessus — purement additif.
-  {
-    id: 'usr-security-admin',
-    name: 'Farid Haidara (Admin Sécurité)',
-    email: 'f.haidara@group-activa.com',
-    role: 'security_admin',
-    roleTitle: 'Responsable Sécurité des Systèmes d’Information',
-    entity: 'Africa Technology Services (ATS)',
-    country: 'Maurice',
-    countries: ['MU'],
-    entities: ['mu_ats'],
-    active: true,
-  },
-  {
-    id: 'usr-audit-committee',
-    name: 'Comité d’Audit Groupe',
-    email: 'comite-audit@group-activa.com',
-    role: 'audit_committee',
-    roleTitle: 'Membre indépendant, Comité d’Audit du Conseil d’Administration',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
-    active: true,
-  },
-  // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
-  // 3 nouveaux comptes de démonstration pour les 3 rôles qui n'en avaient
-  // encore aucun (déjà définis dans RoleId/ROLE_PERMISSIONS depuis la
-  // Phase 12 mais jamais sélectionnables sur l'écran de connexion) :
-  // senior_investigator et darc_compliance à vision Groupe (périmètre
-  // vide), servant de comptes "Enquêteur Groupe"/"DARC Groupe" pour la
-  // future escalade (Phase 5) ; executive à vision agrégée uniquement.
-  {
-    id: 'usr-senior-investigator',
-    name: 'Grace Mensah (Investigatrice Senior Groupe)',
-    email: 'g.mensah@group-activa.com',
-    role: 'senior_investigator',
-    roleTitle: 'Investigatrice Senior — Enquêtes Groupe',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
-    active: true,
-  },
-  {
-    id: 'usr-darc-compliance',
-    name: 'DARC Groupe (Conformité)',
-    email: 'darc-groupe@group-activa.com',
-    role: 'darc_compliance',
-    roleTitle: 'Direction Audit, Risques & Conformité — Groupe',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
-    active: true,
-  },
-  {
-    id: 'usr-executive',
-    name: 'Marc Fotso (Comité de Direction)',
-    email: 'm.fotso@group-activa.com',
-    role: 'executive',
-    roleTitle: 'Membre du Comité de Direction Groupe',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
-    active: true,
-  },
-];
+// === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de démonstration ===
+// Les 9 comptes fictifs précédemment définis ici (noms/emails inventés pour
+// la démonstration) ont été retirés sur demande explicite — l'application
+// ne doit plus embarquer d'identités fictives. Un navigateur neuf démarre
+// désormais avec un unique compte réel (voir `emergencyAdminSeed()` dans
+// storage.ts) ; tous les autres comptes sont créés par un administrateur
+// via Administration → Utilisateurs, avec de vraies adresses.
+export const INITIAL_USERS: UserProfile[] = [];
 
 // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
 // routage) === Les 2 premiers sont liés à un compte EthicAlert déjà réel
@@ -406,6 +277,11 @@ export const INITIAL_USERS: UserProfile[] = [
 // derniers (RH, DGA Groupe) n'ont volontairement PAS de compte : ils sont
 // notifiés par e-mail uniquement, jamais un accès fictif au dossier.
 export const INITIAL_ESCALATION_RECIPIENTS: EscalationRecipient[] = [
+  // === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de démonstration ===
+  // `linkedUserId` retiré (comptes fictifs correspondants supprimés de
+  // INITIAL_USERS) — ces 2 entrées basculent en "e-mail uniquement", même
+  // comportement que rec-003/rec-004 ci-dessous, jusqu'à ce qu'un
+  // administrateur les relie à un vrai compte via Administration.
   {
     id: 'rec-001',
     identifiant: 'GRP-INV-001',
@@ -413,7 +289,6 @@ export const INITIAL_ESCALATION_RECIPIENTS: EscalationRecipient[] = [
     email: 'g.mensah@group-activa.com',
     fonction: 'Responsable des Investigations Groupe',
     grade: 3,
-    linkedUserId: 'usr-senior-investigator',
     active: true,
   },
   {
@@ -423,7 +298,6 @@ export const INITIAL_ESCALATION_RECIPIENTS: EscalationRecipient[] = [
     email: 'darc-groupe@group-activa.com',
     fonction: 'Directeur Audit, Risques et Conformité Groupe',
     grade: 4,
-    linkedUserId: 'usr-darc-compliance',
     active: true,
   },
   {
@@ -515,8 +389,12 @@ export const INITIAL_ALERTS: AlertRecord[] = [
       },
     ],
     status: 'investigation',
-    assignedInvestigators: ['usr-investigator-2'],
-    assignedInvestigatorNames: ['Chantal Ngo (Investigatrice DARC)'],
+    // === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de démonstration ===
+    // Compte fictif assigné retiré (voir INITIAL_USERS) — dossier de
+    // démonstration désormais non assigné, un état déjà pleinement
+    // supporté par l'application.
+    assignedInvestigators: [],
+    assignedInvestigatorNames: [],
     internalNotes: [
       {
         id: 'not-1',
@@ -613,8 +491,8 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     witnesses: [],
     evidences: [],
     status: 'corrective_action',
-    assignedInvestigators: ['usr-investigator-1'],
-    assignedInvestigatorNames: ['Alain Kouassi (Investigateur DARC)'],
+    assignedInvestigators: [],
+    assignedInvestigatorNames: [],
     internalNotes: [
       {
         id: 'not-2',
@@ -683,8 +561,8 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     witnesses: [],
     evidences: [],
     status: 'closed',
-    assignedInvestigators: ['usr-functional-admin'],
-    assignedInvestigatorNames: ['B. Y. Ekani (Point de Contact)'],
+    assignedInvestigators: [],
+    assignedInvestigatorNames: [],
     closedAt: '2026-08-01T11:00:00Z',
     closedBy: 'B. Y. Ekani',
     closureSummary: 'Investigation clôturée après audit des appels d\'offres. Clause anti-corruption renforcée dans tous les contrats prestataires.',

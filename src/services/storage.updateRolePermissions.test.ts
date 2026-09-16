@@ -13,6 +13,7 @@ function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
     id: 'u-test',
     name: 'Test User',
     email: 't@example.com',
+    username: 'test.user',
     role: 'consultation',
     roleTitle: 'Consultation',
     entity: 'ACTIVA Finance',

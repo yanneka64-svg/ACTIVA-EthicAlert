@@ -19,6 +19,13 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  // === AMÉLIORATION AJOUTÉE (identifiant de connexion distinct de l'email) ===
+  // Sur demande explicite : les collaborateurs se connectent avec un
+  // identifiant dédié, jamais leur adresse e-mail directement (StaffLoginView.tsx
+  // / storage.ts `verifyStaffLogin`) — `email` reste l'adresse de contact
+  // réelle (notifications, "mot de passe oublié ?"), `username` est
+  // l'identifiant de connexion.
+  username: string;
   role: UserRole;
   roleTitle: string;
   entity: string;
@@ -49,11 +56,11 @@ export interface UserProfile {
   // haché exactement comme le code d'accès du lanceur d'alerte
   // (services/crypto.ts) — jamais stocké en clair. `mustChangePassword`
   // force un changement à la première connexion (StaffLoginView.tsx) ;
-  // `passwordSetAt` sert à faire expirer ce mot de passe temporaire 24h
-  // après sa génération (voir storage.ts). Tous optionnels : les comptes de
-  // démonstration existants (INITIAL_USERS, jamais passés par ce nouveau
-  // flux) n'en portent aucun — comportement de connexion inchangé pour eux
-  // (repli documenté dans `verifyStaffLogin`).
+  // `passwordSetAt` sert à faire expirer ce mot de passe temporaire 4h
+  // après sa génération (voir storage.ts). Tous optionnels : un compte sans
+  // `passwordHash` retombe sur le mot de passe fixe "demo" (repli documenté
+  // dans `verifyStaffLogin`) — cas résiduel, plus aucun compte fourni par
+  // défaut n'est dans cet état.
   passwordHash?: string;
   passwordSalt?: string;
   mustChangePassword?: boolean;
