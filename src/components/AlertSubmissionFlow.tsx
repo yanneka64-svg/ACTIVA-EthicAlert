@@ -1090,7 +1090,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           type="text"
                           value={customEntityInput}
                           onChange={(e) => setCustomEntityInput(e.target.value)}
-                          placeholder="Possibilité d'ajouter une entité (CDC 3.1.1)"
+                          placeholder="Possibilité d'ajouter une entité"
                           className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
