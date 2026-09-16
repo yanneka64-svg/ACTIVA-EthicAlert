@@ -25,11 +25,17 @@ import {
   Mail,
   // === AMÉLIORATION AJOUTÉE (Visibilité de l'état des notifications e-mail) ===
   AlertTriangle,
+  // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire) ===
+  KeyRound,
+  Copy,
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, EscalationRecipient } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { EntityDef, CategoryDef, CountryDef, HierarchyLevels } from '../data/activaConfig';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire) ===
+// Même module que le code d'accès du lanceur d'alerte (AlertSubmissionFlow.tsx).
+import { generateAccessPassword, generateSalt, hashPassword } from '../services/crypto';
 import {
   isFirebaseConfigured,
   getActiveFirebaseConfig,
@@ -278,6 +284,16 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const [userEntity, setUserEntity] = useState('');
   const [userCountry, setUserCountry] = useState('');
   const [deleteUserConfirmId, setDeleteUserConfirmId] = useState<string | null>(null);
+  // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire,
+  // expiration 24h) === identifiant + mot de passe généré, affiché UNE
+  // SEULE FOIS à l'admin (à la création d'un compte, ou après une
+  // régénération) — jamais repersisté en clair nulle part, jamais
+  // ré-affichable ensuite. `copied` pilote juste le petit retour visuel du
+  // bouton copier, même motif que ContactView.tsx.
+  const [generatedCredentials, setGeneratedCredentials] = useState<{ name: string; email: string; password: string } | null>(null);
+  const [copiedCredential, setCopiedCredential] = useState(false);
+  const [resetPasswordConfirmId, setResetPasswordConfirmId] = useState<string | null>(null);
+  const [isSavingUser, setIsSavingUser] = useState(false);
 
   const slugify = (name: string) =>
     name.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
@@ -490,9 +506,16 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     setUserCountry(u.country);
     setShowUserModal(true);
   };
-  const handleSaveUser = (e: React.FormEvent) => {
+  // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire)
+  // === handler devenu asynchrone : la création génère désormais un vrai
+  // mot de passe temporaire (salé/haché, jamais stocké en clair — même
+  // mécanisme que le code d'accès du lanceur d'alerte, AlertSubmissionFlow.tsx),
+  // affiché une seule fois à l'admin juste après. La modification d'un
+  // compte existant (`editingUserId`) ne touche jamais au mot de passe.
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userName.trim() || !userEmail.trim()) return;
+    setIsSavingUser(true);
     if (editingUserId) {
       storage.updateUser(
         editingUserId,
@@ -500,8 +523,12 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
         activeUser
       );
       flashBanner(`Compte "${userName.trim()}" mis à jour.`);
+      setShowUserModal(false);
     } else {
       const id = 'usr-' + Date.now().toString(36);
+      const tempPassword = generateAccessPassword();
+      const passwordSalt = generateSalt();
+      const passwordHash = await hashPassword(tempPassword, passwordSalt);
       storage.addUser(
         {
           id,
@@ -511,12 +538,18 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           roleTitle: userRoleTitle.trim() || userRole,
           entity: userEntity.trim() || 'Toutes entités',
           country: userCountry.trim() || 'Groupe ACTIVA',
+          passwordHash,
+          passwordSalt,
+          mustChangePassword: true,
+          passwordSetAt: new Date().toISOString(),
         },
         activeUser
       );
       flashBanner(`Compte "${userName.trim()}" créé.`);
+      setShowUserModal(false);
+      setGeneratedCredentials({ name: userName.trim(), email: userEmail.trim(), password: tempPassword });
     }
-    setShowUserModal(false);
+    setIsSavingUser(false);
   };
   const handleDeleteUser = (u: UserProfile) => {
     if (u.id === activeUser.id) {
@@ -527,6 +560,16 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     storage.deleteUser(u.id, activeUser);
     setDeleteUserConfirmId(null);
     flashBanner(`Compte "${u.name}" supprimé.`);
+  };
+
+  // === AMÉLIORATION AJOUTÉE (régénération du mot de passe temporaire) ===
+  // Recours nécessaire si le mot de passe temporaire expire (24h, voir
+  // storage.ts) avant que l'utilisateur ne se soit connecté — sans cette
+  // action, un tel compte resterait bloqué sans recours.
+  const handleResetPassword = async (u: UserProfile) => {
+    const newPassword = await storage.resetUserPassword(u.id, activeUser);
+    setResetPasswordConfirmId(null);
+    setGeneratedCredentials({ name: u.name, email: u.email, password: newPassword });
   };
 
   const handleSaveFirebaseConfig = (e: React.FormEvent) => {
@@ -1213,6 +1256,20 @@ service cloud.firestore {
                   <button onClick={() => openEditUser(u)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Modifier">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
+                  {/* === AMÉLIORATION AJOUTÉE (régénération du mot de passe
+                      temporaire) === recours si le mot de passe temporaire
+                      a expiré (24h) avant la première connexion, ou si sa
+                      transmission a échoué. */}
+                  {resetPasswordConfirmId === u.id ? (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleResetPassword(u)} className="px-1.5 py-1 rounded bg-amber-600 text-white font-bold text-[10px]">Confirmer</button>
+                      <button onClick={() => setResetPasswordConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">Annuler</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setResetPasswordConfirmId(u.id)} className="p-1.5 rounded-lg hover:bg-amber-100 text-amber-700" title="Régénérer le mot de passe">
+                      <KeyRound className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {deleteUserConfirmId === u.id ? (
                     <div className="flex items-center gap-1">
                       <button onClick={() => handleDeleteUser(u)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">Confirmer</button>
@@ -2116,11 +2173,72 @@ service cloud.firestore {
               </div>
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button type="button" onClick={() => setShowUserModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
-                <button type="submit" className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold">
-                  {editingUserId ? 'Enregistrer' : 'Ajouter'}
+                <button type="submit" disabled={isSavingUser} className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] disabled:opacity-60 text-white font-bold">
+                  {isSavingUser ? 'Enregistrement…' : editingUserId ? 'Enregistrer' : 'Ajouter'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe
+          temporaire, affiché une seule fois) === Identifiant + mot de passe
+          générés à la création (ou à une régénération) : jamais stockés en
+          clair, jamais ré-affichables une fois cette fenêtre fermée. L'admin
+          doit les transmettre à l'utilisateur, qui devra changer ce mot de
+          passe dès sa première connexion (StaffLoginView.tsx) — il expire
+          sous 24h s'il n'est pas utilisé (storage.ts). */}
+      {generatedCredentials && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-4 text-xs">
+            <div className="flex items-start gap-3">
+              <span className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <KeyRound className="w-4 h-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Mot de passe temporaire généré</h3>
+                <p className="text-slate-500 text-[11px] mt-0.5">Pour {generatedCredentials.name}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div>
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Identifiant</div>
+                <div className="font-mono text-sm text-slate-900">{generatedCredentials.email}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Mot de passe temporaire</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-sm text-slate-900 tracking-wider">{generatedCredentials.password}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${generatedCredentials.email} / ${generatedCredentials.password}`);
+                      setCopiedCredential(true);
+                      setTimeout(() => setCopiedCredential(false), 2000);
+                    }}
+                    className="p-1 rounded hover:bg-slate-200 text-slate-500"
+                    title="Copier"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  {copiedCredential && <span className="text-emerald-700 font-semibold">Copié ✓</span>}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
+              Ce mot de passe ne sera plus jamais affiché. Transmettez-le à l'utilisateur — il devra le changer dès sa première connexion. Il expire dans 24 heures s'il n'est pas utilisé.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setGeneratedCredentials(null)}
+              className="w-full px-4 py-2 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
+            >
+              J'ai transmis ces informations
+            </button>
           </div>
         </div>
       )}

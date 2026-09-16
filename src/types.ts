@@ -42,6 +42,22 @@ export interface UserProfile {
   // compatibilité d'attribution, Phase 4). Absent traité comme `true` —
   // aucun compte existant ne devient silencieusement indisponible.
   active?: boolean;
+  // === AMÉLIORATION AJOUTÉE (création de comptes par l'admin — mot de
+  // passe temporaire) === Un compte créé par un administrateur (voir
+  // AdminConfigView.tsx, storage.ts `verifyStaffLogin`/`changePassword`/
+  // `resetUserPassword`) reçoit un mot de passe temporaire généré, salé et
+  // haché exactement comme le code d'accès du lanceur d'alerte
+  // (services/crypto.ts) — jamais stocké en clair. `mustChangePassword`
+  // force un changement à la première connexion (StaffLoginView.tsx) ;
+  // `passwordSetAt` sert à faire expirer ce mot de passe temporaire 24h
+  // après sa génération (voir storage.ts). Tous optionnels : les comptes de
+  // démonstration existants (INITIAL_USERS, jamais passés par ce nouveau
+  // flux) n'en portent aucun — comportement de connexion inchangé pour eux
+  // (repli documenté dans `verifyStaffLogin`).
+  passwordHash?: string;
+  passwordSalt?: string;
+  mustChangePassword?: boolean;
+  passwordSetAt?: string;
 }
 
 export type AlertStatus = 

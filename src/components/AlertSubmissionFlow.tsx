@@ -787,7 +787,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="activa-caret-blink space-y-6">
                 {/* STEP 1: REPORT TYPE */}
                 {currentStep === 1 && (
                   <div className="space-y-6 animate-fadeIn">

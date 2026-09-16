@@ -15,6 +15,11 @@ import { canSeeAlertConfidentiality } from './authz';
 // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
 import { Permission, ROLE_PERMISSIONS } from '../domain/permissions';
 import { setRolePermissionOverrides } from '../domain/permissionOverrides';
+// === AMÉLIORATION AJOUTÉE (création de comptes par l'admin — mot de passe
+// temporaire) === même module de hachage salé déjà utilisé pour le code
+// d'accès du lanceur d'alerte (AlertSubmissionFlow.tsx/AlertTrackingView.tsx) —
+// jamais réimplémenté séparément.
+import { generateAccessPassword, generateSalt, hashPassword, verifyPassword } from './crypto';
 
 const STORAGE_KEYS = {
   ALERTS: 'activa_ethicalert_records_v1',
@@ -905,6 +910,77 @@ class StorageService {
     this.notify();
     this.logAudit('CONFIG_UPDATED', `Compte utilisateur "${target.name}" (${target.email}) supprimé par ${actor.name}.`, undefined, actor);
     return true;
+  }
+
+  // === AMÉLIORATION AJOUTÉE (création de comptes par l'admin — mot de
+  // passe temporaire, expiration 24h) ===
+  // Durée de validité d'un mot de passe temporaire (tant qu'il n'a pas été
+  // changé) : demande explicite de l'utilisateur.
+  private static readonly TEMP_PASSWORD_TTL_MS = 24 * 60 * 60 * 1000;
+
+  /**
+   * Vérifie un identifiant (email) + mot de passe pour la connexion staff.
+   * Repli explicite pour les comptes de démonstration pré-existants
+   * (INITIAL_USERS), qui n'ont jamais de `passwordHash` — mot de passe fixe
+   * "demo", comportement de connexion strictement inchangé pour eux. Un
+   * compte réellement créé par un administrateur (voir AdminConfigView.tsx)
+   * passe lui par le hachage salé réel ci-dessous.
+   */
+  public async verifyStaffLogin(
+    email: string,
+    password: string
+  ): Promise<{ ok: true; user: UserProfile; mustChangePassword: boolean } | { ok: false; reason: 'not_found' | 'wrong_password' | 'expired' }> {
+    const user = this.users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+    if (!user) return { ok: false, reason: 'not_found' };
+
+    if (!user.passwordHash || !user.passwordSalt) {
+      return password === 'demo' ? { ok: true, user, mustChangePassword: false } : { ok: false, reason: 'wrong_password' };
+    }
+
+    if (user.mustChangePassword && user.passwordSetAt) {
+      const ageMs = Date.now() - new Date(user.passwordSetAt).getTime();
+      if (ageMs > StorageService.TEMP_PASSWORD_TTL_MS) {
+        return { ok: false, reason: 'expired' };
+      }
+    }
+
+    const passwordOk = await verifyPassword(password, user.passwordSalt, user.passwordHash);
+    if (!passwordOk) return { ok: false, reason: 'wrong_password' };
+    return { ok: true, user, mustChangePassword: !!user.mustChangePassword };
+  }
+
+  /** Changement de mot de passe par l'utilisateur (première connexion ou volontaire) — lève l'obligation de changement. */
+  public async changePassword(userId: string, newPassword: string, actor: UserProfile): Promise<void> {
+    const salt = generateSalt();
+    const hash = await hashPassword(newPassword, salt);
+    this.updateUser(
+      userId,
+      { passwordHash: hash, passwordSalt: salt, mustChangePassword: false, passwordSetAt: new Date().toISOString() },
+      actor
+    );
+    this.logAudit('CONFIG_UPDATED', `Mot de passe changé par ${actor.name}.`, undefined, actor);
+  }
+
+  /**
+   * Régénère un mot de passe temporaire (admin) — utilisé à la création d'un
+   * compte, ou pour en réémettre un si le précédent a expiré sans avoir été
+   * utilisé. Retourne le mot de passe en clair UNE SEULE FOIS (jamais
+   * persisté ailleurs qu'en tant que hash) — à l'appelant de l'afficher à
+   * l'admin puis de l'oublier.
+   */
+  public async resetUserPassword(userId: string, actor: UserProfile): Promise<string> {
+    const target = this.users.find((u) => u.id === userId);
+    if (!target) throw new Error(`User ${userId} not found`);
+    const plaintext = generateAccessPassword();
+    const salt = generateSalt();
+    const hash = await hashPassword(plaintext, salt);
+    this.updateUser(
+      userId,
+      { passwordHash: hash, passwordSalt: salt, mustChangePassword: true, passwordSetAt: new Date().toISOString() },
+      actor
+    );
+    this.logAudit('CONFIG_UPDATED', `Mot de passe temporaire régénéré pour "${target.name}" par ${actor.name}.`, undefined, actor);
+    return plaintext;
   }
 
   // --- Entities API (Phase 7 — Administration CRUD) ---
