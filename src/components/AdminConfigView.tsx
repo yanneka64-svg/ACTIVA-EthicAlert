@@ -265,6 +265,15 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const [userEntity, setUserEntity] = useState('');
   const [userCountry, setUserCountry] = useState('');
   const [deleteUserConfirmId, setDeleteUserConfirmId] = useState<string | null>(null);
+  // === AMÉLIORATION AJOUTÉE (réinitialisation de l'historique de test des
+  // notifications e-mail) === même motif de confirmation en 2 temps que
+  // deleteUserConfirmId/resetPasswordConfirmId ci-dessus.
+  const [confirmClearEmailLogs, setConfirmClearEmailLogs] = useState(false);
+  const handleClearEmailNotificationLogs = () => {
+    storage.clearEmailNotificationLogs(activeUser);
+    setConfirmClearEmailLogs(false);
+    flashBanner('Historique des notifications e-mail réinitialisé.');
+  };
   // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire,
   // expiration 4h) === identifiant + mot de passe généré, affiché UNE
   // SEULE FOIS à l'admin (à la création d'un compte, ou après une
@@ -1567,10 +1576,37 @@ service cloud.firestore {
               const [neverWorkedBefore, neverWorkedAfter] = t.email_status_never_worked.split('{doc}');
               return (
                 <>
-                  <h4 className="font-bold text-slate-900 flex items-center gap-1.5 mb-2">
-                    <Mail className="w-4 h-4 text-blue-700" />
-                    {t.email_status_title}
-                  </h4>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <Mail className="w-4 h-4 text-blue-700" />
+                      {t.email_status_title}
+                    </h4>
+                    {/* === AMÉLIORATION AJOUTÉE (réinitialisation de l'historique
+                        de test des notifications e-mail) === Ne retire que les
+                        entrées EMAIL_NOTIFICATION_SENT/FAILED (voir
+                        storage.clearEmailNotificationLogs) — jamais le reste
+                        du journal d'audit. */}
+                    {total > 0 && (
+                      confirmClearEmailLogs ? (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button onClick={handleClearEmailNotificationLogs} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">
+                            {t.email_status_clear_confirm}
+                          </button>
+                          <button onClick={() => setConfirmClearEmailLogs(false)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">
+                            {t.email_status_clear_cancel}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmClearEmailLogs(true)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-700 shrink-0"
+                          title={t.email_status_clear}
+                        >
+                          <RotateCcw className="w-3 h-3" /> {t.email_status_clear}
+                        </button>
+                      )
+                    )}
+                  </div>
                   {total === 0 ? (
                     <p className="text-slate-500 text-[11px] italic">
                       {t.email_status_empty}
