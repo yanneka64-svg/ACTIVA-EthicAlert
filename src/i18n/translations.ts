@@ -66,6 +66,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
     hero_eyebrow: 'Canal éthique du Groupe ACTIVA',
     hero_anonymous_note: 'Vous pouvez effectuer un signalement de manière anonyme.',
+    // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
+    // Sur demande explicite, avec capture de référence à respecter (couleurs,
+    // barre d'accent bleue, légende sous la liste).
+    hero_value_1: 'L’écoute clients',
+    hero_value_2: 'La réactivité',
+    hero_value_3: 'Le respect des engagements',
+    hero_value_4: 'L’innovation',
+    hero_value_5: 'La disponibilité',
+    hero_values_caption: 'Des valeurs qui nous engagent',
     // === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui tourne) ===
     hero_value1_title: 'Intégrité',
     hero_value1_desc: 'Des pratiques responsables',
@@ -1103,6 +1112,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17 — homepage reorganization) ===
     hero_eyebrow: 'ACTIVA Group ethics channel',
     hero_anonymous_note: 'You can file a report anonymously.',
+    // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
+    hero_value_1: 'Customer focus',
+    hero_value_2: 'Responsiveness',
+    hero_value_3: 'Commitment to our promises',
+    hero_value_4: 'Innovation',
+    hero_value_5: 'Availability',
+    hero_values_caption: 'Values that drive us',
     // === AMÉLIORATION AJOUTÉE (Phase 22 — rotating values card) ===
     hero_value1_title: 'Integrity',
     hero_value1_desc: 'Responsible practices',
@@ -2031,6 +2047,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17 — reorganização da página inicial) ===
     hero_eyebrow: 'Canal de ética do Grupo ACTIVA',
     hero_anonymous_note: 'Pode efetuar uma denúncia de forma anónima.',
+    // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
+    hero_value_1: 'Foco no cliente',
+    hero_value_2: 'Reatividade',
+    hero_value_3: 'Cumprimento dos compromissos',
+    hero_value_4: 'Inovação',
+    hero_value_5: 'Disponibilidade',
+    hero_values_caption: 'Valores que nos comprometem',
     // === AMÉLIORATION AJOUTÉE (Phase 22 — cartão de valores rotativo) ===
     hero_value1_title: 'Integridade',
     hero_value1_desc: 'Práticas responsáveis',
