@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Settings,
   ShieldCheck,
   Building2,
   Users,
@@ -634,63 +633,35 @@ service cloud.firestore {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
-      {/* Top Banner */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Settings className="w-5 h-5 text-blue-700" />
-              <h2 className="text-xl font-bold text-slate-900">
-                {t.nav_settings}
-              </h2>
-            </div>
-            <p className="text-xs text-slate-600">
-              Paramétrage global de la plateforme réservé à l'Administrateur Système.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleResetDemoData}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Réinitialiser jeu de démonstration</span>
-            </button>
-          </div>
-        </div>
-
-        {saveBanner && (
-          <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>{saveBanner}</span>
-          </div>
-        )}
-
-        {/* === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === BUG
-            PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : cette rangée de
-            9 boutons dupliquait exactement les entrées de la barre latérale
-            Admin (StaffPortalLayout.tsx) — 5 d'entre elles y figuraient déjà
-            en double, et les 4 autres (Matrice & SLA, Entités, Catégories,
-            Base de données) n'étaient accessibles que par ici. La barre
-            latérale liste désormais les 9 sections ; `configTab` (état,
-            logique de rendu ci-dessous, tout le contenu de chaque section)
-            reste strictement inchangé — seule cette navigation redondante
-            disparaît. Un simple repère visuel remplace la rangée retirée. */}
-        <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
-          {{
-            matrix: 'Matrice des risques & Délais SLA',
-            entities: 'Entités du Groupe',
-            organization: 'Organisation (Pays)',
-            categories: "Catégories d'alerte",
-            users: 'Comptes & Habilitations',
-            roles: 'Rôles & Permissions',
-            governance: 'Gouvernance (Routage indépendant)',
-            workflow: 'Workflows & Statuts',
-            database: 'Base de données & Firebase',
-          }[configTab]}
-        </div>
+      {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bandeau
+          "Configuration Système" retiré) === Le bandeau générique (icône +
+          titre "Configuration Système" + sous-titre + repère de section en
+          majuscules dupliqué) disparaît, sur demande explicite de
+          l'utilisateur : chaque onglet affiche déjà son propre titre dans
+          son propre contenu ci-dessous (ex. "ORGANISATION (PAYS)",
+          "CATÉGORIES D'ALERTE", "GOUVERNANCE (ROUTAGE INDÉPENDANT)"...),
+          rendant ce bandeau générique purement redondant depuis la Phase
+          "Navigation Admin unifiée" (qui avait déjà retiré la rangée de 9
+          onglets qu'il remplaçait). `handleResetDemoData` (bouton
+          "Réinitialiser jeu de démonstration") et le bandeau de
+          confirmation `saveBanner` restent entièrement fonctionnels,
+          simplement sans le titre générique qui les entourait. */}
+      <div className="flex items-center justify-end">
+        <button
+          onClick={handleResetDemoData}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 bg-white text-slate-700 text-xs font-semibold shadow-xs transition"
+        >
+          <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+          <span>Réinitialiser jeu de démonstration</span>
+        </button>
       </div>
+
+      {saveBanner && (
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>{saveBanner}</span>
+        </div>
+      )}
 
       {/* 1. MATRIX & SLA TAB */}
       {configTab === 'matrix' && (
