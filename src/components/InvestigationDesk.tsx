@@ -93,7 +93,7 @@ import { AlertStatusBucket, getAlertStatusBucket, isRejectedBucket } from '../do
 // Mêmes fonctions réelles que le formulaire public (AlertSubmissionFlow.tsx)
 // pour l'évaluation de risque et la génération du code d'accès sécurisé —
 // jamais réimplémentées à la main pour cette modale.
-import { computeRiskEvaluation } from '../data/activaConfig';
+import { computeRiskEvaluation, formatCountryLabel } from '../data/activaConfig';
 import { generateSalt, hashPassword, generateAccessPassword } from '../services/crypto';
 
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
@@ -123,7 +123,7 @@ export function AssignCandidateRow({
     >
       <div>
         <div className="text-slate-900">{inv.name}</div>
-        <div className="text-[11px] text-slate-500">{inv.roleTitle} • {inv.country}</div>
+        <div className="text-[11px] text-slate-500">{inv.roleTitle} • {formatCountryLabel(storage.getCountries(), inv.country)}</div>
         <div className="text-[10px] text-slate-400 mt-0.5">
           {workload.active} dossier(s) actif(s)
           {workload.overdue > 0 && <span className="text-rose-600 font-semibold"> · {workload.overdue} en retard</span>}
@@ -2194,7 +2194,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 <Globe2 className="w-4 h-4" />
               </span>
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_country}</div>
-              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.country}>{selectedAlert.country}</div>
+              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.country}>{formatCountryLabel(storage.getCountries(), selectedAlert.country)}</div>
             </div>
             <div className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
               <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2">

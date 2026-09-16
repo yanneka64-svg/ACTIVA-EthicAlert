@@ -544,7 +544,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
               CSS (Phase 34) par la photo exacte de la maquette (main sur
               clavier, icône déjà incrustée dans l'image), servie depuis
               public/brand/confidentiality-gate-bg.jpg. */}
-          <div className="relative hidden md:flex items-center justify-center min-h-[460px] overflow-hidden">
+          {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
+              BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : cette photo
+              était la seule des 4 photos de fond de l'app à n'avoir ni
+              priorité de chargement explicite ni couleur de repli — même
+              correctif que les 3 autres (WhistleblowerHome/AlertTrackingView/
+              StaffSpaceHome), plus le préchargement ajouté dans index.html. */}
+          <div className="relative hidden md:flex items-center justify-center min-h-[460px] overflow-hidden bg-slate-100">
             {/* === AMÉLIORATION AJOUTÉE (luminosité réduite de la photo) ===
                 sur demande explicite de l'utilisateur : le flou testé
                 précédemment a été retiré (image nette d'origine) au profit
@@ -552,6 +558,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
             <img
               src="/brand/confidentiality-gate-bg.jpg"
               alt=""
+              fetchPriority="high"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover object-left brightness-75"
             />
           </div>

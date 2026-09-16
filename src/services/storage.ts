@@ -147,7 +147,20 @@ class StorageService {
       if (storedUsers) {
         const parsedUsers: UserProfile[] = JSON.parse(storedUsers);
         if (parsedUsers.length > 0) {
-          this.users = parsedUsers;
+          // === AMÉLIORATION AJOUTÉE : correctif — connexion bloquée
+          // indéfiniment sur un navigateur avec des comptes antérieurs à
+          // l'ajout de `username` === BUG RÉEL SIGNALÉ : un compte persisté
+          // AVANT l'introduction de l'identifiant de connexion (ex. l'ancien
+          // compte de secours, sans `username`) faisait planter
+          // `u.username.toLowerCase()` dans verifyStaffLogin — exception non
+          // rattrapée, promesse jamais résolue, bouton "Vérification…"
+          // bloqué indéfiniment, quel que soit le mot de passe saisi. Chaque
+          // compte chargé sans `username` reçoit désormais un identifiant de
+          // secours dérivé de son email, et l'état corrigé est repersisté —
+          // plus jamais de compte injoignable silencieusement.
+          const migrated = parsedUsers.map((u) => (u.username ? u : { ...u, username: u.email.split('@')[0] }));
+          this.users = migrated;
+          if (migrated.some((u, i) => u !== parsedUsers[i])) this.persistUsers();
         } else {
           this.users = this.emergencyAdminSeed();
           this.persistUsers();
@@ -1012,7 +1025,10 @@ class StorageService {
     username: string,
     password: string
   ): Promise<{ ok: true; user: UserProfile; mustChangePassword: boolean } | { ok: false; reason: 'not_found' | 'wrong_password' | 'expired' }> {
-    const user = this.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
+    // `u.username?.` : défense supplémentaire (voir migration dans init()) —
+    // un compte sans identifiant ne doit jamais faire planter la connexion,
+    // juste ne correspondre à aucune saisie.
+    const user = this.users.find((u) => u.username?.toLowerCase() === username.trim().toLowerCase());
     if (!user) return { ok: false, reason: 'not_found' };
 
     if (!user.passwordHash || !user.passwordSalt) {

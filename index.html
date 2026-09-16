@@ -19,6 +19,20 @@
          téléchargement de l'image EN PARALLÈLE du bundle, dès le chargement
          de la page, réduisant nettement le délai avant son affichage. -->
     <link rel="preload" as="image" href="/brand/activa-hq-hero.jpg" fetchpriority="high" />
+    <!-- === AMÉLIORATION AJOUTÉE (images de fond des autres pages lentes à
+         l'affichage) === BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur :
+         seule la photo de la page d'accueil ci-dessus était préchargée — les
+         3 autres photos de fond (suivi de signalement, espace de travail
+         staff, écran de confidentialité du formulaire) n'étaient demandées
+         qu'une fois React monté sur CETTE page précise, exactement le même
+         bug que celui déjà corrigé ci-dessus. Préchargées ici aussi, en
+         priorité basse (elles ne sont pas forcément visibles au tout premier
+         chargement, contrairement à la photo d'accueil) : déjà en cache dès
+         que l'utilisateur navigue vers l'une de ces pages, dans cette
+         session ou par lien direct. -->
+    <link rel="preload" as="image" href="/brand/track-login-bg.jpg" fetchpriority="low" />
+    <link rel="preload" as="image" href="/brand/space-home-bg.jpg" fetchpriority="low" />
+    <link rel="preload" as="image" href="/brand/confidentiality-gate-bg.jpg" fetchpriority="low" />
   </head>
   <body>
     <div id="root"></div>

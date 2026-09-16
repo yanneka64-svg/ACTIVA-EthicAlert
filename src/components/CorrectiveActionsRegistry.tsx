@@ -25,6 +25,7 @@ import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { DataTable, DataTableColumn } from './ui';
+import { formatCountryLabel } from '../data/activaConfig';
 
 interface CorrectiveActionsRegistryProps {
   lang: Language;
@@ -89,7 +90,7 @@ export const CorrectiveActionsRegistry: React.FC<CorrectiveActionsRegistryProps>
     {
       key: 'country',
       header: t.reg_col_country,
-      render: (r) => r.alert.country,
+      render: (r) => formatCountryLabel(storage.getCountries(), r.alert.country),
       hideOnMobile: true,
     },
     {
@@ -150,7 +151,7 @@ export const CorrectiveActionsRegistry: React.FC<CorrectiveActionsRegistryProps>
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-3 text-xs">
         <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700">
           <option value="all">{t.reg_filter_all_countries}</option>
-          {countries.map((c) => <option key={c} value={c}>{c}</option>)}
+          {countries.map((c) => <option key={c} value={c}>{formatCountryLabel(storage.getCountries(), c)}</option>)}
         </select>
         <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700">
           <option value="all">{t.reg_filter_all_entities}</option>

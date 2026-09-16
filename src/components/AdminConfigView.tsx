@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, EscalationRecipient } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { EntityDef, CategoryDef, CountryDef, HierarchyLevels } from '../data/activaConfig';
+import { EntityDef, CategoryDef, CountryDef, HierarchyLevels, formatCountryLabel } from '../data/activaConfig';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire) ===
 // Même module que le code d'accès du lanceur d'alerte (AlertSubmissionFlow.tsx).
@@ -1367,7 +1367,7 @@ service cloud.firestore {
                 <div className="min-w-0">
                   <div className="font-bold text-slate-900 truncate">{u.name}</div>
                   <div className="text-[11px] text-slate-500 truncate">
-                    <span className="font-mono">{u.username}</span> • {u.email} • {u.entity} ({u.country})
+                    <span className="font-mono">{u.username}</span> • {u.email} • {u.entity} ({formatCountryLabel(countries, u.country)})
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

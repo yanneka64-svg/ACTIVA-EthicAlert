@@ -86,48 +86,57 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
     }
 
     setIsVerifying(true);
-    const result = await storage.verifyStaffLogin(trimmedUsername, password);
+    // === AMÉLIORATION AJOUTÉE (correctif — écran bloqué indéfiniment sur
+    // "Vérification…") === BUG RÉEL SIGNALÉ : une exception inattendue ici
+    // (promesse rejetée) laissait `isVerifying` bloqué à `true` pour
+    // toujours, sans aucun message — le bouton restait figé, y compris avec
+    // un mot de passe erroné. `try/finally` garantit désormais qu'on sorte
+    // toujours de l'état "en cours", quoi qu'il arrive.
+    try {
+      const result = await storage.verifyStaffLogin(trimmedUsername, password);
 
-    // === AMÉLIORATION AJOUTÉE ===
-    // `=== false` plutôt que `!result.ok` : ce projet compile sans
-    // `strict`/`strictNullChecks` (tsconfig.json), sous lequel TypeScript ne
-    // rétrécit pas de façon fiable une union discriminée par un booléen
-    // littéral via la simple négation — vérifié directement (`!result.ok`
-    // provoquait une erreur de compilation malgré un code par ailleurs
-    // correct), `=== false` rétrécit correctement dans les deux cas.
-    if (result.ok === false) {
-      if (result.reason === 'expired') {
-        setLoginError('Ce mot de passe temporaire a expiré (validité 4h). Contactez un administrateur pour en obtenir un nouveau.');
-        setIsVerifying(false);
+      // === AMÉLIORATION AJOUTÉE ===
+      // `=== false` plutôt que `!result.ok` : ce projet compile sans
+      // `strict`/`strictNullChecks` (tsconfig.json), sous lequel TypeScript ne
+      // rétrécit pas de façon fiable une union discriminée par un booléen
+      // littéral via la simple négation — vérifié directement (`!result.ok`
+      // provoquait une erreur de compilation malgré un code par ailleurs
+      // correct), `=== false` rétrécit correctement dans les deux cas.
+      if (result.ok === false) {
+        if (result.reason === 'expired') {
+          setLoginError('Ce mot de passe temporaire a expiré (validité 4h). Contactez un administrateur pour en obtenir un nouveau.');
+          return;
+        }
+        const status = recordFailedAttempt(rateLimitKey);
+        // Le compte peut ne pas exister (identifiant inconnu saisi) : logAudit
+        // retombe alors sur son acteur système par défaut (4e argument omis).
+        const attemptedUser = storage.getUsers().find((u) => u.username?.toLowerCase() === trimmedUsername.toLowerCase());
+        storage.logAudit(
+          'ACCESS_DENIED',
+          `Tentative de connexion refusée (${result.reason === 'not_found' ? 'identifiant inconnu' : 'mot de passe incorrect'}) pour ${trimmedUsername}. Tentatives restantes : ${status.attemptsRemaining}.`,
+          undefined,
+          attemptedUser
+        );
+        setLoginError(
+          status.locked
+            ? `Trop de tentatives incorrectes. Accès verrouillé ${formatRemaining(status.remainingMs)}.`
+            : 'Identifiant ou mot de passe incorrect.'
+        );
         return;
       }
-      const status = recordFailedAttempt(rateLimitKey);
-      // Le compte peut ne pas exister (identifiant inconnu saisi) : logAudit
-      // retombe alors sur son acteur système par défaut (4e argument omis).
-      const attemptedUser = storage.getUsers().find((u) => u.username.toLowerCase() === trimmedUsername.toLowerCase());
-      storage.logAudit(
-        'ACCESS_DENIED',
-        `Tentative de connexion refusée (${result.reason === 'not_found' ? 'identifiant inconnu' : 'mot de passe incorrect'}) pour ${trimmedUsername}. Tentatives restantes : ${status.attemptsRemaining}.`,
-        undefined,
-        attemptedUser
-      );
-      setLoginError(
-        status.locked
-          ? `Trop de tentatives incorrectes. Accès verrouillé ${formatRemaining(status.remainingMs)}.`
-          : 'Identifiant ou mot de passe incorrect.'
-      );
+
+      clearAttempts(rateLimitKey);
+
+      if (result.mustChangePassword) {
+        setPendingUser(result.user);
+        return;
+      }
+      onLogin(result.user);
+    } catch {
+      setLoginError('Une erreur inattendue est survenue. Réessayez, ou contactez un administrateur si le problème persiste.');
+    } finally {
       setIsVerifying(false);
-      return;
     }
-
-    clearAttempts(rateLimitKey);
-    setIsVerifying(false);
-
-    if (result.mustChangePassword) {
-      setPendingUser(result.user);
-      return;
-    }
-    onLogin(result.user);
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -177,8 +186,8 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
             <span className="inline-flex w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 items-center justify-center mx-auto mb-4">
               <ShieldAlert className="w-6 h-6" />
             </span>
-            <p className="text-sm font-bold text-slate-900">Changez votre mot de passe</p>
-            <p className="text-xs text-slate-500 mt-1.5">
+            <p className="text-xs font-bold text-slate-900">Changez votre mot de passe</p>
+            <p className="text-[11px] text-slate-500 mt-1.5">
               Première connexion de {pendingUser.name} : un nouveau mot de passe est requis avant d'accéder à votre espace.
             </p>
             <div className="w-10 h-1 rounded-full bg-amber-500 mx-auto mt-3" />
@@ -186,7 +195,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
 
           <form onSubmit={handleChangePassword} className="activa-caret-blink space-y-4">
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
                 Nouveau mot de passe
               </label>
               <input
@@ -195,11 +204,11 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="8 caractères minimum"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
                 Confirmer le nouveau mot de passe
               </label>
               <input
@@ -207,19 +216,19 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 id="input-confirm-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
 
             {changeError && (
-              <p className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{changeError}</p>
+              <p className="text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{changeError}</p>
             )}
 
             <button
               type="submit"
               id="btn-submit-change-password"
               disabled={isChangingPassword}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-sm font-bold hover:bg-[#0B2545]/90 disabled:opacity-50 transition"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-xs font-bold hover:bg-[#0B2545]/90 disabled:opacity-50 transition"
             >
               {isChangingPassword ? 'Mise à jour…' : 'Définir ce mot de passe'}
             </button>
@@ -236,13 +245,13 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
           <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
             <User className="w-6 h-6" />
           </span>
-          <p className="text-sm font-bold text-slate-900">Accédez à votre espace de travail sécurisé</p>
+          <p className="text-xs font-bold text-slate-900">Accédez à votre espace de travail sécurisé</p>
           <div className="w-10 h-1 rounded-full bg-blue-500 mx-auto mt-3" />
         </div>
 
         <form onSubmit={handleSubmit} className="activa-caret-blink space-y-4">
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
+            <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
               Identifiant
             </label>
             <div className="relative">
@@ -254,21 +263,21 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="ex : y.mebadaekani"
                 autoComplete="username"
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+              <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide">
                 Mot de passe
               </label>
               {onGoToContact && (
                 <button
                   type="button"
                   onClick={onGoToContact}
-                  className="text-[11px] font-semibold text-blue-700 hover:underline"
+                  className="text-[10px] font-semibold text-blue-700 hover:underline"
                 >
                   Mot de passe oublié ?
                 </button>
@@ -281,7 +290,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
               <button
                 type="button"
@@ -295,16 +304,30 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
           </div>
 
           {loginError && (
-            <p className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{loginError}</p>
+            <p className="text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{loginError}</p>
           )}
 
+          {/* === AMÉLIORATION AJOUTÉE (bouton "Se connecter" redessiné, plus
+              professionnel) === Ombre portée + légère élévation au survol,
+              retour tactile à l'appui (scale), indicateur de chargement réel
+              (roue animée) à la place du simple changement de texte, anneau
+              de focus visible au clavier — même couleur de marque (#0B2545,
+              cohérente avec "Définir ce mot de passe" ci-dessus), juste une
+              exécution plus soignée. */}
           <button
             type="submit"
             id="btn-submit-staff-login"
             disabled={!username.trim() || !password || isVerifying}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-sm font-bold hover:bg-[#0B2545]/90 disabled:opacity-50 transition"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-xs font-bold tracking-wide shadow-md shadow-[#0B2545]/25 hover:bg-[#12294f] hover:shadow-lg hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2545]/50 focus-visible:ring-offset-2 transition-all duration-150"
           >
-            <LogIn className="w-4 h-4" />
+            {isVerifying ? (
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <LogIn className="w-4 h-4" />
+            )}
             {isVerifying ? 'Vérification…' : 'Se connecter'}
           </button>
         </form>
