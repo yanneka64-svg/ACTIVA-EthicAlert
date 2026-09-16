@@ -62,7 +62,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // une seule ligne) === `hero_desc` scindé en 2 clés sur demande
     // explicite : la question s'enroule normalement, l'appel à l'action
     // final reste groupé (voir `whitespace-nowrap` dans WhistleblowerHome.tsx).
-    hero_desc_question: 'Un comportement contraire à nos valeurs, à l’éthique ou à la réglementation ?',
+    hero_desc_question: 'Un comportement contraire à nos valeurs, à l’éthique ou à la réglementation ?',
     hero_desc_cta: 'Parlez-en. Nous vous écoutons.',
     hero_paragraph: 'L’intégrité est au cœur de notre culture d’entreprise. activa-whistleblowing vous permet de signaler, en toute confidentialité et sans crainte, tout comportement contraire à nos valeurs, à notre code d’éthique ou à la réglementation en vigueur. Chaque signalement est pris au sérieux et traité avec rigueur.',
     hero_tags: '100% CONFIDENTIEL · SÉCURISÉ · CONFORME',
