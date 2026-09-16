@@ -83,24 +83,23 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/35 to-transparent pointer-events-none" />
 
         {/* === AMÉLIORATION AJOUTÉE (voile sombre côté droit, bandeau de
-            valeurs) === Sur demande explicite, capture de référence à
-            respecter : assombrit uniquement la zone où s'affiche la liste
-            de valeurs en blanc ci-dessous, pour rester lisible sur la photo
-            — n'affecte pas le voile blanc du texte principal à gauche.
-            Masqué sous `lg` : pas de place pour ce bandeau à côté du texte
-            principal sur petit écran (même seuil que le panneau
-            lui-même). */}
-        <div className="absolute inset-0 bg-gradient-to-l from-slate-900/60 via-slate-900/5 to-transparent pointer-events-none hidden lg:block" />
+            valeurs) === Sur demande explicite : assombrit légèrement la
+            zone où flotte la carte de valeurs — reste subtil car la carte
+            porte désormais son propre fond sombre semi-transparent
+            (`bg-slate-900/35 backdrop-blur-md`) pour sa propre lisibilité.
+            N'affecte pas le voile blanc du texte principal à gauche. Masqué
+            sous `lg`, comme le panneau lui-même. */}
+        <div className="absolute inset-0 bg-gradient-to-l from-slate-900/25 via-slate-900/5 to-transparent pointer-events-none hidden lg:block" />
 
-        {/* === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
-            Sur demande explicite, capture de référence fournie à respecter
-            (couleurs, barre d'accent bleue, légende sous la liste) — les 5
-            valeurs affichées sont celles communiquées par l'utilisateur,
-            différentes de celles de la capture de référence. */}
-        <div className="hidden lg:flex flex-col gap-3 absolute right-10 xl:right-20 top-1/2 -translate-y-1/2 z-10 text-white max-w-[220px]">
+        {/* === AMÉLIORATION AJOUTÉE (bandeau de valeurs flottant, côté droit
+            du hero) === Sur demande explicite : texte non-gras (`font-bold`
+            -> `font-semibold`), et présentation en carte flottante
+            (fond sombre semi-transparent + flou, coins arrondis, ombre
+            portée) plutôt qu'en texte nu posé directement sur la photo. */}
+        <div className="hidden lg:flex flex-col gap-3 absolute right-10 xl:right-20 top-1/2 -translate-y-1/2 z-10 text-white max-w-[220px] bg-slate-900/35 backdrop-blur-md rounded-2xl shadow-xl px-6 py-6 border border-white/10">
           <ul className="space-y-2.5">
             {[t.hero_value_1, t.hero_value_2, t.hero_value_3, t.hero_value_4, t.hero_value_5].map((value) => (
-              <li key={value} className="text-xs xl:text-sm font-bold tracking-[0.2em] uppercase leading-snug">
+              <li key={value} className="text-xs xl:text-sm font-semibold tracking-[0.2em] uppercase leading-snug">
                 {value}
               </li>
             ))}
