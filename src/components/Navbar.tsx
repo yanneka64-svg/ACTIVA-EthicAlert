@@ -108,6 +108,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   // déroulant standard.
   const userMenuRef = React.useRef<HTMLDivElement>(null);
   const langMenuRef = React.useRef<HTMLDivElement>(null);
+  // === AMÉLIORATION AJOUTÉE (menu mobile — Accueil/FAQ/Contact rangés sous
+  // le logo) === Sur demande explicite : remplace la barre de bulles mobile
+  // (Accueil & Signalement / Suivre mon alerte / Connexion), désormais
+  // redondante avec le gros bouton "Suivre mon signalement" déjà présent
+  // sur l'accueil et l'icône profil (Connexion). Mêmes liens que le nav
+  // desktop (`nav-btn-home`/`faq`/`contact`), simplement rangés dans un
+  // menu déroulant ouvert au clic sur le logo, visible seulement sous `lg`
+  // (le nav desktop les affiche déjà en ligne au-delà).
+  const mobileNavMenuRef = React.useRef<HTMLDivElement>(null);
+  const [showMobileNavMenu, setShowMobileNavMenu] = React.useState(false);
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -115,6 +125,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       }
       if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
         setShowLangDropdown(false);
+      }
+      if (mobileNavMenuRef.current && !mobileNavMenuRef.current.contains(event.target as Node)) {
+        setShowMobileNavMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -166,24 +179,62 @@ export const Navbar: React.FC<NavbarProps> = ({
               la maquette d'accueil ; le bloc "EthicsAlert.Com" + sous-titre
               n'apparaît qu'en contexte portail (déjà le cas avant, la
               maquette détaillée de la fiche dossier montrant ce bloc). */}
-          <div
-            id="brand-logo"
-            onClick={() => setCurrentTab('home')}
-            className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
-          >
-            <ActivaLogo className="h-10 shrink-0" />
-            {isStaffContext && (
-              <>
-                <div className="hidden md:block w-px h-8 bg-slate-200" />
-                <div className="hidden md:block leading-tight">
-                  <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-blue-700 transition">
-                    {t.app_title}
-                  </h1>
-                  <p className="text-[11px] text-slate-500 max-w-[260px] truncate">
-                    {t.app_subtitle}
-                  </p>
-                </div>
-              </>
+          <div className="relative shrink-0" ref={mobileNavMenuRef}>
+            <div
+              id="brand-logo"
+              onClick={() => setCurrentTab('home')}
+              className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
+            >
+              <ActivaLogo className="h-10 shrink-0" />
+              {isStaffContext && (
+                <>
+                  <div className="hidden md:block w-px h-8 bg-slate-200" />
+                  <div className="hidden md:block leading-tight">
+                    <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-blue-700 transition">
+                      {t.app_title}
+                    </h1>
+                    <p className="text-[11px] text-slate-500 max-w-[260px] truncate">
+                      {t.app_subtitle}
+                    </p>
+                  </div>
+                </>
+              )}
+              {!isStaffContext && (
+                <button
+                  type="button"
+                  aria-label="Menu"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMobileNavMenu(!showMobileNavMenu);
+                  }}
+                  className="lg:hidden p-1.5 -ml-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showMobileNavMenu ? 'rotate-180' : ''}`} />
+                </button>
+              )}
+            </div>
+
+            {!isStaffContext && showMobileNavMenu && (
+              <div className="lg:hidden absolute left-0 top-full mt-1 w-48 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-xs">
+                <button
+                  onClick={() => { setCurrentTab('home'); setShowMobileNavMenu(false); }}
+                  className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'home' || currentTab === 'new_alert' || currentTab === 'track' ? 'text-blue-700' : 'text-slate-700'}`}
+                >
+                  {t.nav_public_home}
+                </button>
+                <button
+                  onClick={() => { setCurrentTab('faq'); setShowMobileNavMenu(false); }}
+                  className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'faq' ? 'text-blue-700' : 'text-slate-700'}`}
+                >
+                  {t.nav_public_faq}
+                </button>
+                <button
+                  onClick={() => { setCurrentTab('contact'); setShowMobileNavMenu(false); }}
+                  className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'contact' ? 'text-blue-700' : 'text-slate-700'}`}
+                >
+                  {t.nav_public_contact}
+                </button>
+              </div>
             )}
           </div>
 
@@ -507,43 +558,44 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Mobile secondary tab bar */}
-        <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto py-2 border-t border-slate-100 text-[11px] font-medium">
-          <button
-            onClick={() => setCurrentTab('home')}
-            className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'home' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
-          >
-            {t.nav_home}
-          </button>
-          <button
-            onClick={() => setCurrentTab('track')}
-            className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'track' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
-          >
-            {t.nav_track}
-          </button>
-          {/* === AMÉLIORATION AJOUTÉE (cohérence mobile/desktop du bouton
-              "Connexion") === Sur demande explicite : pour un visiteur
-              anonyme, ce bouton menait déjà à l'écran de connexion (via
-              `AuthenticatedRoute`, currentTab 'portal' non authentifié) mais
-              s'affichait sous le libellé "Espace Gestion DARC", incohérent
-              avec le bouton "Connexion" déjà utilisé côté desktop. Une fois
-              connecté (isStaffContext), le libellé et la navigation
-              d'origine (onglet "portal", badge de dossiers en attente)
-              restent strictement inchangés. */}
-          <button
-            onClick={() => (isStaffContext ? setCurrentTab('portal') : setCurrentTab('login'))}
-            className={`px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1 ${currentTab === 'portal' || isStaffContext ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
-          >
-            <span>{isStaffContext ? t.nav_portal : t.nav_connexion}</span>
-            {isStaffContext && pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
-          </button>
-          {/* === AMÉLIORATION AJOUTÉE (Phase 27) === bouton QR retiré de la
-              barre mobile aussi, par cohérence avec l'en-tête desktop. */}
-          {/* === AMÉLIORATION AJOUTÉE (Refonte en-tête — suppression de la
-              cloche et de l'accès Firebase) === bouton "Firebase" retiré ici
-              aussi, par cohérence avec l'en-tête desktop — écran toujours
-              atteignable via son URL directe (/lookup). */}
-        </div>
+        {/* === AMÉLIORATION AJOUTÉE (menu mobile public — retrait des bulles)
+            === Sur demande explicite : cette barre de bulles n'a plus de
+            raison d'être pour un visiteur anonyme (Accueil/FAQ/Contact sont
+            désormais dans le menu déroulant sous le logo ci-dessus,
+            "Suivre mon signalement" déjà visible en gros bouton sur
+            l'accueil, "Connexion" déjà accessible via l'icône profil) —
+            réservée à l'espace collaborateur (isStaffContext), où elle
+            reste strictement inchangée (Accueil/Suivre/Espace Gestion
+            DARC + badge de dossiers en attente). */}
+        {isStaffContext && (
+          <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto py-2 border-t border-slate-100 text-[11px] font-medium">
+            <button
+              onClick={() => setCurrentTab('home')}
+              className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'home' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
+            >
+              {t.nav_home}
+            </button>
+            <button
+              onClick={() => setCurrentTab('track')}
+              className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'track' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
+            >
+              {t.nav_track}
+            </button>
+            <button
+              onClick={() => setCurrentTab('portal')}
+              className={`px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1 bg-blue-600 text-white font-bold`}
+            >
+              <span>{t.nav_portal}</span>
+              {pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
+            </button>
+            {/* === AMÉLIORATION AJOUTÉE (Phase 27) === bouton QR retiré de la
+                barre mobile aussi, par cohérence avec l'en-tête desktop. */}
+            {/* === AMÉLIORATION AJOUTÉE (Refonte en-tête — suppression de la
+                cloche et de l'accès Firebase) === bouton "Firebase" retiré ici
+                aussi, par cohérence avec l'en-tête desktop — écran toujours
+                atteignable via son URL directe (/lookup). */}
+          </div>
+        )}
       </div>
     </header>
   );

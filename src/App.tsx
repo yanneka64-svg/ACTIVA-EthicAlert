@@ -163,17 +163,26 @@ function AppShell() {
   // scénario même que le brief section 32 veut voir bloqué — déclenche un
   // rechargement complet de la page, qui aurait sinon remis ce simple
   // useState à sa valeur par défaut et vidé la déconnexion de tout effet
-  // réel. Vaut `true` par défaut au tout premier lancement (aucune clé en
-  // storage) pour ne rien changer au confort existant, documenté depuis les
-  // premières phases de ce projet : l'app s'ouvrait déjà directement sur le
-  // profil `functional_admin`.
+  // réel.
+  // === AMÉLIORATION AJOUTÉE (BUG PRÉEXISTANT CORRIGÉ — accès direct à
+  // l'espace de travail sans connexion) === Signalé par l'utilisateur :
+  // partager le lien de l'app donnait à quiconque l'ouvre sur un appareil
+  // différent un accès DIRECT à l'espace collaborateur, sans jamais passer
+  // par l'écran de connexion. Cause : ce useState valait `true` par défaut
+  // au tout premier lancement (aucune clé en storage), pour "ne rien
+  // changer au confort existant" — mais un appareil qui n'a jamais visité
+  // l'app n'a justement AUCUNE clé en storage, donc était traité comme déjà
+  // connecté. Vaut désormais `false` par défaut (connexion requise) tant
+  // qu'aucune session n'a été explicitement établie sur cet appareil ; un
+  // appareil déjà connecté (clé déjà à 'true' en storage) n'est pas
+  // affecté. Même correctif pour le cas `localStorage` indisponible : repli
+  // fermé (connexion requise) plutôt qu'ouvert.
   const STAFF_SESSION_KEY = 'activa_staff_session_active';
   const [isStaffSessionActive, setIsStaffSessionActiveState] = useState<boolean>(() => {
     try {
-      const stored = localStorage.getItem(STAFF_SESSION_KEY);
-      return stored === null ? true : stored === 'true';
+      return localStorage.getItem(STAFF_SESSION_KEY) === 'true';
     } catch {
-      return true; // localStorage unavailable (private browsing, etc.) — fail open to the pre-existing default.
+      return false;
     }
   });
   const setIsStaffSessionActive = (active: boolean) => {
