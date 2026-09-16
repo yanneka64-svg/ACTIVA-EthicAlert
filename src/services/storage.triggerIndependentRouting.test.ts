@@ -8,7 +8,7 @@ import { storage } from './storage';
 
 describe('storage.triggerIndependentRouting', () => {
   it('is a no-op when nobody on the alert is linked to a real account', () => {
-    const target = storage.getAlerts().find((a) => a.trackingNumber === 'ACT-2026-0210')!;
+    const target = storage.getAlerts().find((a) => a.trackingNumber === 'AIIG-26-07-0001')!;
     const auditCountBefore = storage.getAuditLogs().length;
     const updatedAtBefore = target.updatedAt;
 
@@ -20,7 +20,7 @@ describe('storage.triggerIndependentRouting', () => {
   });
 
   it('excludes the accused, removes them from assignedInvestigators, and routes to a Group-scoped senior authority', () => {
-    const target = storage.getAlerts().find((a) => a.trackingNumber === 'ACT-2026-0391')!;
+    const target = storage.getAlerts().find((a) => a.trackingNumber === 'AACIV-26-08-0001')!;
     const accusedId = target.assignedInvestigators[0]; // usr-investigator-1 (Alain Kouassi), locally-scoped to Côte d'Ivoire
     expect(accusedId).toBeTruthy();
 
@@ -47,7 +47,7 @@ describe('storage.triggerIndependentRouting', () => {
   });
 
   it('marks the case as unresolved when the implicated account is the highest operational role (darc_compliance), and notifies the highest-grade active escalation recipient as a last resort', () => {
-    const target = storage.getAlerts().find((a) => a.trackingNumber === 'ACT-2026-0418')!;
+    const target = storage.getAlerts().find((a) => a.trackingNumber === 'AACMR-26-09-0001')!;
     const darcUser = storage.getUsers().find((u) => u.role === 'darc_compliance')!;
 
     storage.saveAlert({

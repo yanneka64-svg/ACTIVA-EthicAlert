@@ -380,9 +380,18 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
     setIsSubmitting(true);
 
-    // Generate unique tracking number (e.g. ACT-2026-XXXX)
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const trackingNumber = `ACT-2026-${randomSuffix}`;
+    // Concerned entity & country
+    const matchedEntity = entities.find(e => e.name === concernedEntity);
+    const country = matchedEntity ? matchedEntity.country : 'Groupe ACTIVA';
+
+    // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+    // Remplace l'ancien suffixe aléatoire ACT-2026-XXXX (Phase 26) par le
+    // schéma officiel Groupe fourni par la DARC : XX(code entité)-
+    // YY(année)-MM(mois)-XXXX(n° séquentiel, remis à 0001 chaque début de
+    // mois, par entité). `matchedEntity` provient toujours du menu
+    // déroulant (jamais du champ libre "Autre entité"), donc son `code`
+    // est toujours celui de EntityDef — jamais deviné ici.
+    const trackingNumber = storage.generateCaseNumber(matchedEntity?.code ?? 'GRP');
 
     // === AMÉLIORATION AJOUTÉE (Phase 26) === le mot de passe d'accès est
     // désormais généré automatiquement (conforme à la maquette de référence,
@@ -393,10 +402,6 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     const generatedPassword = generateAccessPassword();
     const accessCodeSalt = generateSalt();
     const accessCodeHash = await hashPassword(generatedPassword, accessCodeSalt);
-
-    // Concerned entity & country
-    const matchedEntity = entities.find(e => e.name === concernedEntity);
-    const country = matchedEntity ? matchedEntity.country : 'Groupe ACTIVA';
 
     // Target completion date based on SLA — === AMÉLIORATION AJOUTÉE (Phase 7)
     // === now reads the real, admin-editable thresholds instead of hardcoded

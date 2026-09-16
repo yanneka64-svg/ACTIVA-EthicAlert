@@ -62,7 +62,7 @@ describe('storage.escalateAlert', () => {
   // même). Doit désormais se comporter exactement comme un destinataire
   // sans compte : e-mail uniquement, aucun accès in-app fictif.
   it('escalates to a linked recipient whose clearance does not cover the case: no access granted, email-only', () => {
-    const base = storage.getAlerts().find((a) => a.trackingNumber === 'ACT-2026-0418')!; // highly_confidential
+    const base = storage.getAlerts().find((a) => a.trackingNumber === 'AACMR-26-09-0001')!; // highly_confidential
     const target = { ...base, id: 'test-alt-insufficient-clearance', status: 'investigation' as const, workflowStatus: undefined, assignedInvestigators: [] as string[], assignedInvestigatorNames: [] as string[] };
     storage.saveAlert(target);
 

@@ -153,35 +153,51 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </div>
         </div>
 
-        {/* === AMÉLIORATION AJOUTÉE (Phase 30 — messages défilants, fond
-            beaucoup plus transparent) === Remplace les deux encarts opaques
-            de la Phase 25 (carte de valeurs + bulle de citation) par un seul
-            encart qui fait défiler les 4 messages (3 valeurs + citation),
-            sur fond nettement plus transparent (bleu marine à 30% d'opacité
-            + flou, au lieu de blanc/marine à 95%) pour laisser mieux
-            transparaître la photo derrière. `key={heroMsgIndex}` redéclenche
-            le fondu à chaque changement de message (voir .activa-fade-in
-            dans index.css). */}
-        <div className="hidden sm:block absolute top-6 right-6 z-10 w-64 bg-[#0B2545]/30 backdrop-blur-md rounded-2xl shadow-lg border border-white/25 p-4">
+        {/* === AMÉLIORATION AJOUTÉE (Palette « confiance & conformité » —
+            carte de valeurs du hero) === Nouvelle palette demandée
+            explicitement (bleu profond #0B4F8A, bleu clair #3B82C4, bleu
+            translucide, blanc, blanc translucide, or « intégrité »
+            #F4C430) : un dégradé bleu profond → bleu clair, tous deux à
+            faible opacité, remplace l'aplat marine uni précédent — plus
+            "premium" qu'une seule teinte plate, tout en restant
+            suffisamment transparent pour laisser deviner la photo derrière
+            (jamais un effet de verre trop opaque). L'or reste un accent
+            sobre, réservé à l'icône et au repère de progression actif —
+            jamais la couleur dominante de la carte. Valeurs exactes en
+            style inline (hors palette Tailwind par défaut), le reste des
+            classes utilitaires est inchangé. */}
+        <div
+          className="hidden sm:block absolute top-6 right-6 z-10 w-64 backdrop-blur-md rounded-2xl shadow-lg p-4"
+          style={{
+            background: 'linear-gradient(135deg, rgba(11, 79, 138, 0.4) 0%, rgba(59, 130, 196, 0.22) 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.35)',
+          }}
+        >
           <div key={heroMsgIndex} className="flex items-start gap-3 activa-fade-in min-h-[2.75rem]">
-            <span className="w-9 h-9 rounded-full bg-white/20 text-amber-300 flex items-center justify-center shrink-0">
+            <span
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+              style={{ backgroundColor: 'rgba(255, 255, 255, 0.65)', color: '#F4C430' }}
+            >
               <ActiveHeroIcon className="w-4 h-4" />
             </span>
             <div>
               <div className="font-bold text-white text-sm leading-snug drop-shadow-sm">{activeHeroMessage.title}</div>
               {activeHeroMessage.desc && (
-                <div className="text-xs text-white/85">{activeHeroMessage.desc}</div>
+                <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{activeHeroMessage.desc}</div>
               )}
             </div>
           </div>
-          {/* Puces de progression, un point par message */}
-          <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-white/20">
+          {/* Puces de progression, un point par message — l'or (« intégrité »)
+              marque le message actif, un accent sobre plutôt qu'une couleur dominante. */}
+          <div className="flex items-center gap-1.5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.25)' }}>
             {heroMessages.map((_, i) => (
               <span
                 key={i}
-                className={`h-1 rounded-full transition-all duration-300 ${
-                  i === heroMsgIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/40'
-                }`}
+                className="h-1 rounded-full transition-all duration-300"
+                style={{
+                  width: i === heroMsgIndex ? '1rem' : '0.375rem',
+                  backgroundColor: i === heroMsgIndex ? '#F4C430' : 'rgba(255, 255, 255, 0.35)',
+                }}
               />
             ))}
           </div>

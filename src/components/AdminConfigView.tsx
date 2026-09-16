@@ -216,6 +216,11 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   const [entityName, setEntityName] = useState('');
   const [entityCountry, setEntityCountry] = useState('');
   const [entityFlag, setEntityFlag] = useState('');
+  // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+  // Code de numérotation des dossiers (préfixe du format XX-YY-MM-XXXX,
+  // voir storage.generateCaseNumber) — éditable ici car c'est la DARC
+  // Groupe, pas le code, qui fait autorité sur sa valeur officielle.
+  const [entityCode, setEntityCode] = useState('');
   const [deleteEntityConfirmId, setDeleteEntityConfirmId] = useState<string | null>(null);
 
   // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
@@ -276,6 +281,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     setEntityName('');
     setEntityCountry('');
     setEntityFlag('');
+    setEntityCode('');
   };
   const openAddEntity = () => { resetEntityForm(); setShowEntityModal(true); };
   const openEditEntity = (ent: EntityDef) => {
@@ -283,17 +289,23 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     setEntityName(ent.name);
     setEntityCountry(ent.country);
     setEntityFlag(ent.flag);
+    setEntityCode(ent.code);
     setShowEntityModal(true);
   };
   const handleSaveEntity = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!entityName.trim() || !entityCountry.trim()) return;
+    // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
+    // Validation stricte : le code alimente directement le numéro de
+    // dossier officiel (storage.generateCaseNumber) — 2 à 6 lettres
+    // majuscules uniquement, jamais vide.
+    const normalizedCode = entityCode.trim().toUpperCase();
+    if (!entityName.trim() || !entityCountry.trim() || !/^[A-Z]{2,6}$/.test(normalizedCode)) return;
     if (editingEntityId) {
-      storage.updateEntity(editingEntityId, { name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️' }, activeUser);
+      storage.updateEntity(editingEntityId, { name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️', code: normalizedCode }, activeUser);
       flashBanner(`Entité "${entityName.trim()}" mise à jour.`);
     } else {
       const id = `ent-${slugify(entityName)}-${Date.now().toString(36)}`;
-      storage.addEntity({ id, name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️' }, activeUser);
+      storage.addEntity({ id, name: entityName.trim(), country: entityCountry.trim(), flag: entityFlag.trim() || '🏳️', code: normalizedCode }, activeUser);
       flashBanner(`Entité "${entityName.trim()}" ajoutée.`);
     }
     setShowEntityModal(false);
@@ -926,7 +938,11 @@ service cloud.firestore {
                       <span>{ent.flag}</span>
                       <span className="truncate">{ent.name}</span>
                     </div>
-                    <div className="text-[11px] text-slate-500">{ent.country}</div>
+                    <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                      <span>{ent.country}</span>
+                      {/* === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) === */}
+                      <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono font-bold text-[10px]">{ent.code}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button onClick={() => openEditEntity(ent)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Modifier">
@@ -1898,6 +1914,24 @@ service cloud.firestore {
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Emoji drapeau (optionnel)</label>
                 <input type="text" value={entityFlag} onChange={(e) => setEntityFlag(e.target.value)} placeholder="🇧🇯" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" maxLength={8} />
+              </div>
+              {/* === AMÉLIORATION AJOUTÉE (numérotation officielle des
+                  dossiers) === code utilisé comme préfixe du numéro de
+                  dossier officiel (ex. AARDC-26-09-0001). */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Code entité (numérotation des dossiers) *</label>
+                <input
+                  type="text"
+                  value={entityCode}
+                  onChange={(e) => setEntityCode(e.target.value.toUpperCase())}
+                  placeholder="Ex : AARDC"
+                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg font-mono uppercase"
+                  maxLength={6}
+                  pattern="[A-Za-z]{2,6}"
+                  title="2 à 6 lettres, ex : AARDC"
+                  required
+                />
+                <p className="mt-1 text-[10px] text-slate-500">2 à 6 lettres. Préfixe des numéros de dossier de cette entité (ex : AARDC-26-09-0001).</p>
               </div>
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button type="button" onClick={() => setShowEntityModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>

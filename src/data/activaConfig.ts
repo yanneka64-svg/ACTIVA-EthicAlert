@@ -9,11 +9,20 @@ import {
   EscalationRecipient
 } from '../types';
 
+// === AMÉLIORATION AJOUTÉE : code officiel de numérotation des dossiers ===
+// `code` est le préfixe utilisé dans le numéro de dossier officiel Groupe
+// (format XX-YY-MM-XXXX, ex. AARDC-26-09-0001 — voir
+// storage.generateCaseNumber ci-dessous). Les 13 codes des entités listées
+// ci-dessous sont ceux fournis par la DARC Groupe ; les 3 entités restantes
+// (Fondation ACTIVA, ACTIVA Europe, ACTIVA Angola) n'étaient pas couvertes
+// par cette liste et reçoivent un code générique à 4 lettres, modifiable
+// dans Administration (AdminConfigView, onglet Entités).
 export interface EntityDef {
   id: string;
   name: string;
   country: string;
   flag: string;
+  code: string;
 }
 
 // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
@@ -97,22 +106,23 @@ export const ACTIVA_COUNTRIES: CountryDef[] = [
 ];
 
 export const ACTIVA_ENTITIES: EntityDef[] = [
-  { id: 'cm_assurances', name: 'ACTIVA Assurances', country: 'Cameroun', flag: '🇨🇲' },
-  { id: 'cm_vie', name: 'ACTIVA Vie', country: 'Cameroun', flag: '🇨🇲' },
-  { id: 'cd_assurances', name: 'ACTIVA Assurances RDC', country: 'RD Congo', flag: '🇨🇩' },
-  { id: 'cd_vie', name: 'ACTIVA Vie RDC', country: 'RD Congo', flag: '🇨🇩' },
-  { id: 'gn_ugar', name: 'UGAR ACTIVA', country: 'Guinée', flag: '🇬🇳' },
-  { id: 'gn_vie', name: 'ACTIVA Vie Guinée', country: 'Guinée', flag: '🇬🇳' },
-  { id: 'ci_activa', name: 'ACTIVA Côte d’Ivoire', country: 'Côte d’Ivoire', flag: '🇨🇮' },
-  { id: 'gh_activa', name: 'ACTIVA International Ghana', country: 'Ghana', flag: '🇬🇭' },
-  { id: 'lr_activa', name: 'ACTIVA International Liberia', country: 'Libéria', flag: '🇱🇷' },
-  { id: 'sl_activa', name: 'ACTIVA International Sierra Leone', country: 'Sierra Leone', flag: '🇸🇱' },
-  { id: 'mu_finance', name: 'ACTIVA Finance', country: 'Maurice', flag: '🇲🇺' },
-  { id: 'mu_re', name: 'ACTIVA Ré', country: 'Maurice', flag: '🇲🇺' },
-  { id: 'mu_ats', name: 'Africa Technology Services (ATS)', country: 'Maurice', flag: '🇲🇺' },
-  { id: 'mu_fondation', name: 'Fondation ACTIVA', country: 'Maurice', flag: '🇲🇺' },
-  { id: 'fr_europe', name: 'ACTIVA Europe', country: 'France', flag: '🇫🇷' },
-  { id: 'ao_activa', name: 'ACTIVA Angola', country: 'Angola', flag: '🇦🇴' },
+  { id: 'cm_assurances', name: 'ACTIVA Assurances', country: 'Cameroun', flag: '🇨🇲', code: 'AACMR' },
+  { id: 'cm_vie', name: 'ACTIVA Vie', country: 'Cameroun', flag: '🇨🇲', code: 'AVCMR' },
+  { id: 'cd_assurances', name: 'ACTIVA Assurances RDC', country: 'RD Congo', flag: '🇨🇩', code: 'AARDC' },
+  { id: 'cd_vie', name: 'ACTIVA Vie RDC', country: 'RD Congo', flag: '🇨🇩', code: 'AVRDC' },
+  { id: 'gn_ugar', name: 'UGAR ACTIVA', country: 'Guinée', flag: '🇬🇳', code: 'UGAR' },
+  { id: 'gn_vie', name: 'ACTIVA Vie Guinée', country: 'Guinée', flag: '🇬🇳', code: 'AVGU' },
+  { id: 'ci_activa', name: 'ACTIVA Côte d’Ivoire', country: 'Côte d’Ivoire', flag: '🇨🇮', code: 'AACIV' },
+  { id: 'gh_activa', name: 'ACTIVA International Ghana', country: 'Ghana', flag: '🇬🇭', code: 'AIIG' },
+  { id: 'lr_activa', name: 'ACTIVA International Liberia', country: 'Libéria', flag: '🇱🇷', code: 'AIIL' },
+  { id: 'sl_activa', name: 'ACTIVA International Sierra Leone', country: 'Sierra Leone', flag: '🇸🇱', code: 'AISL' },
+  { id: 'mu_finance', name: 'ACTIVA Finance', country: 'Maurice', flag: '🇲🇺', code: 'AF' },
+  { id: 'mu_re', name: 'ACTIVA Ré', country: 'Maurice', flag: '🇲🇺', code: 'AREA' },
+  { id: 'mu_ats', name: 'Africa Technology Services (ATS)', country: 'Maurice', flag: '🇲🇺', code: 'ATS' },
+  // Entités hors liste officielle DARC — code générique, à ajuster en Administration si besoin.
+  { id: 'mu_fondation', name: 'Fondation ACTIVA', country: 'Maurice', flag: '🇲🇺', code: 'AFON' },
+  { id: 'fr_europe', name: 'ACTIVA Europe', country: 'France', flag: '🇫🇷', code: 'AEUR' },
+  { id: 'ao_activa', name: 'ACTIVA Angola', country: 'Angola', flag: '🇦🇴', code: 'AANG' },
 ];
 
 export interface CategoryDef {
@@ -439,7 +449,7 @@ export const INITIAL_ESCALATION_RECIPIENTS: EscalationRecipient[] = [
 export const INITIAL_ALERTS: AlertRecord[] = [
   {
     id: 'alt-001',
-    trackingNumber: 'ACT-2026-0418',
+    trackingNumber: 'AACMR-26-09-0001',
     // === AMÉLIORATION AJOUTÉE : mot de passe démo stocké sous forme de hash salé (jamais en clair) ===
     accessCodeHash: '963328f618f6d7b271122d80c93eec1d37d84d3956ed115f185f34179ab2d306',
     accessCodeSalt: 'a1b2c3d4e5f60718',
@@ -549,7 +559,7 @@ export const INITIAL_ALERTS: AlertRecord[] = [
   },
   {
     id: 'alt-002',
-    trackingNumber: 'ACT-2026-0391',
+    trackingNumber: 'AACIV-26-08-0001',
     // === AMÉLIORATION AJOUTÉE : mot de passe démo stocké sous forme de hash salé (jamais en clair) ===
     accessCodeHash: '01f405bc3bd87150bdfa4fc5c2c9a1e71566fcd4e82fe3706a95b0ffe3e2b144',
     accessCodeSalt: '2b7e151628aed2a6',
@@ -632,7 +642,7 @@ export const INITIAL_ALERTS: AlertRecord[] = [
   },
   {
     id: 'alt-003',
-    trackingNumber: 'ACT-2026-0210',
+    trackingNumber: 'AIIG-26-07-0001',
     // === AMÉLIORATION AJOUTÉE : mot de passe démo stocké sous forme de hash salé (jamais en clair) ===
     accessCodeHash: '7fe7057524f3c5eb830295658e64aea1b718abc7dc6483da6d11ec1e0a8a5d8e',
     accessCodeSalt: '9c0e2f3a4b5d6e7f',
@@ -700,7 +710,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-001',
     alertId: 'alt-001',
-    trackingNumber: 'ACT-2026-0418',
+    trackingNumber: 'AACMR-26-09-0001',
     authorId: 'system',
     authorName: 'Système ACTIVA EthicAlert',
     authorRole: 'Système',
@@ -711,7 +721,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-002',
     alertId: 'alt-001',
-    trackingNumber: 'ACT-2026-0418',
+    trackingNumber: 'AACMR-26-09-0001',
     authorId: 'usr-functional-admin',
     authorName: 'B. Y. Ekani (Point de Contact)',
     authorRole: 'functional_admin',
@@ -722,7 +732,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-003',
     alertId: 'alt-001',
-    trackingNumber: 'ACT-2026-0418',
+    trackingNumber: 'AACMR-26-09-0001',
     authorId: 'usr-investigator-2',
     authorName: 'Chantal Ngo',
     authorRole: 'investigator',
@@ -733,7 +743,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-004',
     alertId: 'alt-002',
-    trackingNumber: 'ACT-2026-0391',
+    trackingNumber: 'AACIV-26-08-0001',
     authorId: 'usr-investigator-1',
     authorName: 'Alain Kouassi',
     authorRole: 'investigator',
@@ -744,7 +754,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-005',
     alertId: 'alt-003',
-    trackingNumber: 'ACT-2026-0210',
+    trackingNumber: 'AIIG-26-07-0001',
     authorId: 'usr-functional-admin',
     authorName: 'B. Y. Ekani (Point de Contact)',
     authorRole: 'functional_admin',
