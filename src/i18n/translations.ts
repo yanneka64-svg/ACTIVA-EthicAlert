@@ -50,7 +50,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_subcollections_note: 'Allégations, personnes, preuves, notes et échanges ne sont pas affichés ici : leur lecture nécessite une Cloud Function (non déployée, projet en forfait Spark). Voir docs/FIREBASE-SETUP.md.',
     
     // Whistleblower home
-    hero_title: 'activa-whistleblowing',
+    hero_title: 'Activa-whistleblowing',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
     // Titre du hero remplacé par un message d'action en deux lignes, sur
     // demande explicite ("le modèle que je t'ai donné"). `hero_title` reste
@@ -1089,7 +1089,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Description',
     fb_lookup_subcollections_note: 'Allegations, persons, evidence, notes and communications are not shown here: reading them requires a Cloud Function (not deployed, project on Spark plan). See docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'activa-whistleblowing',
+    hero_title: 'Activa-whistleblowing',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — matching the supplied model) ===
     hero_headline_line1: 'Report with',
     hero_headline_line2: 'complete confidence',
@@ -2013,7 +2013,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Descrição',
     fb_lookup_subcollections_note: 'Alegações, pessoas, provas, notas e comunicações não são exibidas aqui: sua leitura requer uma Cloud Function (não implantada, projeto no plano Spark). Ver docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'activa-whistleblowing',
+    hero_title: 'Activa-whistleblowing',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — fidelidade ao modelo fornecido) ===
     hero_headline_line1: 'Denuncie com',
     hero_headline_line2: 'toda a confiança',
