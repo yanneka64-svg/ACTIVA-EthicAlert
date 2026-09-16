@@ -34,7 +34,6 @@ import {
   // importé plus haut), désormais aussi présentes en barre latérale.
   Building2,
   Tag,
-  Database,
   // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) ===
   ClipboardCheck,
   Eye,
@@ -89,7 +88,10 @@ interface StaffPortalLayoutProps {
   children: React.ReactNode;
 }
 
-const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow', 'admin_entities', 'admin_categories', 'admin_database'];
+// === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de données"
+// retiré) === 'admin_database' retiré de cette liste, sur demande explicite
+// de l'utilisateur (voir aussi routing/routes.ts et App.tsx).
+const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow', 'admin_entities', 'admin_categories'];
 
 // Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
 // "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à
@@ -238,7 +240,9 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
     { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, group: '' },
-    { key: 'admin_database', label: 'Base de données', icon: <Database className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+    // données" retiré) === Entrée "Base de données" retirée d'ici, sur
+    // demande explicite de l'utilisateur.
     { key: 'settings', label: 'Paramètres système', icon: <Settings className="w-4 h-4" />, group: '' },
   ];
 

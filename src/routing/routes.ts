@@ -94,7 +94,10 @@ export const TAB_TO_PATH: Record<string, string> = {
   // StaffPortalLayout.tsx (adminItems) et App.tsx (renderStaffContent).
   admin_entities: '/admin/entities',
   admin_categories: '/admin/alert-categories',
-  admin_database: '/admin/database',
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+  // données" retiré) === `admin_database` retiré, sur demande explicite de
+  // l'utilisateur (voir App.tsx et StaffPortalLayout.tsx pour le reste du
+  // retrait de cet onglet).
 };
 
 const PATH_TO_TAB: Record<string, string> = Object.fromEntries(

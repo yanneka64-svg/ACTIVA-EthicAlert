@@ -115,7 +115,11 @@ const STAFF_TAB_KEYS = [
   // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
   'admin_workflow',
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===
-  'admin_entities', 'admin_categories', 'admin_database',
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+  // données" retiré) === 'admin_database' retiré de cette liste, sur
+  // demande explicite de l'utilisateur (voir aussi routing/routes.ts et
+  // StaffPortalLayout.tsx).
+  'admin_entities', 'admin_categories',
 ];
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
@@ -610,13 +614,13 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'admin_database') {
-      return (
-        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Base de données">
-          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="database" />
-        </PermissionGuard>
-      );
-    }
+    // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+    // données" retiré) === Branche `admin_database` retirée d'ici, sur
+    // demande explicite de l'utilisateur : `AdminConfigView` ne supporte
+    // plus `initialTab="database"` (type retiré). L'ancienne URL
+    // `/admin/database` (routing/routes.ts) n'est plus reliée à aucun
+    // écran ; une navigation directe y retombe sur `return null` ci-dessous,
+    // même comportement qu'une route staff inconnue.
     // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
     if (currentTab === 'admin_workflow') {
       return (

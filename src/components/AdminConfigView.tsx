@@ -7,11 +7,7 @@ import {
   Globe,
   Plus,
   Trash2,
-  RotateCcw,
   CheckCircle2,
-  Database,
-  Cloud,
-  Server,
   Pencil,
   X,
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
@@ -26,13 +22,6 @@ import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { EntityDef, CategoryDef, CountryDef, HierarchyLevels } from '../data/activaConfig';
 import { storage } from '../services/storage';
-import {
-  isFirebaseConfigured,
-  getActiveFirebaseConfig,
-  setCustomFirebaseConfig,
-  clearCustomFirebaseConfig,
-  fetchAlertsFromCloud
-} from '../services/firebase';
 // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
 // Read-only: this screen only imports and displays this real, already-
 // existing data — src/domain/permissions.ts itself is never modified.
@@ -57,7 +46,10 @@ interface AdminConfigViewProps {
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === 'governance'
   // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === 'workflow'
-  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow';
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+  // données" retiré) === 'database' retiré de cette union, sur demande
+  // explicite de l'utilisateur.
+  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'governance' | 'workflow';
 }
 
 export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
@@ -67,7 +59,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow'>(initialTab ?? 'matrix');
+  const [configTab, setConfigTab] = useState<'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'governance' | 'workflow'>(initialTab ?? 'matrix');
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — bug corrigé) ===
   // BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : "aucune des
   // fenêtres de cette page ne s'affiche lorsque je clique dessus excepté la
@@ -88,17 +80,6 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     setConfigTab(initialTab ?? 'matrix');
   }, [initialTab]);
   const [saveBanner, setSaveBanner] = useState('');
-
-  // Firebase connection state
-  const currentFbConfig = getActiveFirebaseConfig();
-  const [fbProjectId, setFbProjectId] = useState(currentFbConfig.projectId || 'activa-ethicalert');
-  const [fbApiKey, setFbApiKey] = useState(currentFbConfig.apiKey || '');
-  const [fbAuthDomain, setFbAuthDomain] = useState(currentFbConfig.authDomain || '');
-  const [fbStorageBucket, setFbStorageBucket] = useState(currentFbConfig.storageBucket || '');
-  const [fbAppId, setFbAppId] = useState(currentFbConfig.appId || '');
-  const [fbSnippet, setFbSnippet] = useState('');
-  const [fbSyncStatus, setFbSyncStatus] = useState<string>('');
-  const [rulesCopied, setRulesCopied] = useState(false);
 
   const users = storage.getUsers();
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) === real,
@@ -449,100 +430,15 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
     flashBanner(`Compte "${u.name}" supprimé.`);
   };
 
-  const handleSaveFirebaseConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fbApiKey.trim() || !fbProjectId.trim()) {
-      alert("Veuillez renseigner au minimum la clé d'API (apiKey) et l'ID de projet (projectId).");
-      return;
-    }
-
-    setCustomFirebaseConfig({
-      apiKey: fbApiKey.trim(),
-      projectId: fbProjectId.trim(),
-      authDomain: fbAuthDomain.trim() || `${fbProjectId.trim()}.firebaseapp.com`,
-      storageBucket: fbStorageBucket.trim() || `${fbProjectId.trim()}.appspot.com`,
-      messagingSenderId: '',
-      appId: fbAppId.trim() || '',
-    });
-
-    setSaveBanner(`Projet Firebase [${fbProjectId.trim()}] rattaché avec succès !`);
-    setTimeout(() => setSaveBanner(''), 4000);
-  };
-
-  const handleParseSnippet = () => {
-    if (!fbSnippet.trim()) return;
-    try {
-      const apiKeyMatch = fbSnippet.match(/apiKey:\s*["']([^"']+)["']/);
-      const projMatch = fbSnippet.match(/projectId:\s*["']([^"']+)["']/);
-      const authMatch = fbSnippet.match(/authDomain:\s*["']([^"']+)["']/);
-      const bucketMatch = fbSnippet.match(/storageBucket:\s*["']([^"']+)["']/);
-      const appIdMatch = fbSnippet.match(/appId:\s*["']([^"']+)["']/);
-
-      if (apiKeyMatch) setFbApiKey(apiKeyMatch[1]);
-      if (projMatch) setFbProjectId(projMatch[1]);
-      if (authMatch) setFbAuthDomain(authMatch[1]);
-      if (bucketMatch) setFbStorageBucket(bucketMatch[1]);
-      if (appIdMatch) setFbAppId(appIdMatch[1]);
-
-      setSaveBanner("Configuration extraite du code copié. Cliquez sur 'Enregistrer et Rattacher'.");
-      setTimeout(() => setSaveBanner(''), 3000);
-    } catch {
-      alert("Impossible d'extraire la configuration. Veuillez remplir les champs manuellement.");
-    }
-  };
-
-  const handleManualCloudSync = async () => {
-    setFbSyncStatus('Synchronisation en cours avec Firestore...');
-    try {
-      const alerts = storage.getAlerts();
-      const auditLogs = storage.getAuditLogs();
-      const { saveAlertToCloud, saveAuditLogToCloud } = await import('../services/firebase');
-      
-      for (const a of alerts) {
-        await saveAlertToCloud(a);
-      }
-      for (const log of auditLogs.slice(0, 20)) {
-        await saveAuditLogToCloud(log);
-      }
-
-      setFbSyncStatus(`Succès : ${alerts.length} dossiers d'alerte et journaux d'audit synchronisés dans Firestore !`);
-      setTimeout(() => setFbSyncStatus(''), 5000);
-    } catch (err: any) {
-      setFbSyncStatus(`Erreur lors de la synchronisation : ${err.message || err}`);
-    }
-  };
-
-  const handleCopyRules = () => {
-    const rulesText = `rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /alerts/{alertId} {
-      allow create: if request.resource.data.trackingNumber != null;
-      allow read, update: if true;
-      allow delete: if request.auth != null && request.auth.token.role == 'system_admin';
-    }
-    match /audit_logs/{logId} {
-      allow create, read: if true;
-      allow update, delete: if false;
-    }
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.token.role == 'system_admin';
-    }
-  }
-}`;
-    navigator.clipboard.writeText(rulesText);
-    setRulesCopied(true);
-    setTimeout(() => setRulesCopied(false), 2500);
-  };
-
-  const handleResetDemoData = () => {
-    if (confirm("Réinitialiser l'application avec le jeu d'essai standard conforme au Cahier des Charges ?")) {
-      storage.resetToFactory();
-      setSaveBanner("Données réinitialisées avec succès.");
-      setTimeout(() => setSaveBanner(''), 3000);
-    }
-  };
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+  // données" et bouton "Réinitialiser jeu de démonstration" retirés) ===
+  // `handleSaveFirebaseConfig`/`handleParseSnippet`/`handleManualCloudSync`/
+  // `handleCopyRules` (onglet "Base de données") et `handleResetDemoData`
+  // (bouton "Réinitialiser jeu de démonstration") retirés d'ici, sur
+  // demande explicite de l'utilisateur — plus aucun appelant ne les
+  // référence (vérifié). `storage.resetToFactory()` (services/storage.ts)
+  // et le service Firebase (services/firebase.ts) restent inchangés :
+  // seul ce point d'entrée dans l'écran Administration disparaît.
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
   // Structure d'affichage (groupes/libellés) au-dessus de la table réelle.
@@ -642,20 +538,12 @@ service cloud.firestore {
           "CATÉGORIES D'ALERTE", "GOUVERNANCE (ROUTAGE INDÉPENDANT)"...),
           rendant ce bandeau générique purement redondant depuis la Phase
           "Navigation Admin unifiée" (qui avait déjà retiré la rangée de 9
-          onglets qu'il remplaçait). `handleResetDemoData` (bouton
-          "Réinitialiser jeu de démonstration") et le bandeau de
-          confirmation `saveBanner` restent entièrement fonctionnels,
-          simplement sans le titre générique qui les entourait. */}
-      <div className="flex items-center justify-end">
-        <button
-          onClick={handleResetDemoData}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 bg-white text-slate-700 text-xs font-semibold shadow-xs transition"
-        >
-          <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-          <span>Réinitialiser jeu de démonstration</span>
-        </button>
-      </div>
-
+          onglets qu'il remplaçait). Le bouton "Réinitialiser jeu de
+          démonstration" qui vivait ici est lui aussi retiré (demande
+          explicite séparée). Le bandeau de confirmation `saveBanner` reste
+          entièrement fonctionnel (toujours déclenché par les autres
+          onglets — SLA, rôles, workflows...), simplement sans le titre
+          générique ni le bouton qui l'entouraient. */}
       {saveBanner && (
         <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -1258,18 +1146,15 @@ service cloud.firestore {
       {configTab === 'governance' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6 text-xs">
           <div className="border-b border-slate-100 pb-3">
+            {/* === AMÉLIORATION AJOUTÉE (Correction demandée — texte retiré) ===
+                Le paragraphe explicatif sous ce titre a été retiré, sur
+                demande explicite de l'utilisateur. Le titre et le tableau
+                (édition des niveaux + vue dérivée) ci-dessous restent
+                inchangés. */}
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <Network className="w-4 h-4 text-blue-700" />
               Routage indépendant — Niveaux hiérarchiques
             </h3>
-            <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">
-              Lorsqu'un signalement met en cause un opérateur, un enquêteur ou un administrateur (personne
-              impliquée rattachée à un compte réel, onglet Personnes d'un dossier), ce compte perd tout accès et
-              le dossier est routé vers un compte dont le rôle a un niveau strictement supérieur ci-dessous, capable
-              d'investiguer (Enquêteur/Admin fonctionnel/Conformité DARC), en priorité de même périmètre pays/entité,
-              sinon vers le Groupe. Aucune autorité disponible → intervention manuelle requise (piste d'audit,
-              indicateur "NO_INDEPENDENT_AUTHORITY_FOUND").
-            </p>
           </div>
 
           <form onSubmit={handleSaveHierarchyLevels} className="space-y-3">
@@ -1394,230 +1279,14 @@ service cloud.firestore {
         </form>
       )}
 
-      {/* 5. DATABASE & FIREBASE PERSISTENCE TAB */}
-      {configTab === 'database' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6 text-xs">
-          <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Database className="w-4 h-4 text-amber-500" />
-                Rattachement au Projet Firebase "ACTIVA EthicAlert"
-              </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Connectez directement votre projet Cloud Firestore pour la centralisation des alertes et de la piste d'audit.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className={`px-3 py-1 rounded-full font-bold text-xs flex items-center gap-1.5 ${
-                isFirebaseConfigured()
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                  : 'bg-amber-50 text-amber-800 border border-amber-200'
-              }`}>
-                <Cloud className="w-3.5 h-3.5" />
-                {isFirebaseConfigured() 
-                  ? `Connecté : ${fbProjectId}` 
-                  : 'En attente des identifiants projet'}
-              </span>
-
-              {isFirebaseConfigured() && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm("Déconnecter la configuration personnalisée Firebase ?")) {
-                      clearCustomFirebaseConfig();
-                      setFbApiKey('');
-                      setSaveBanner("Configuration réinitialisée.");
-                      setTimeout(() => setSaveBanner(''), 3000);
-                    }
-                  }}
-                  className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg font-medium text-[11px]"
-                >
-                  Déconnecter
-                </button>
-              )}
-            </div>
-          </div>
-
-          {fbSyncStatus && (
-            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 font-semibold text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-blue-600" />
-              <span>{fbSyncStatus}</span>
-            </div>
-          )}
-
-          {/* Form to connect Firebase Project */}
-          <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
-                  Identifiants de l'application Web Firebase
-                </h4>
-                <p className="text-slate-500 text-[11px]">
-                  Disponibles sur <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-blue-600 underline font-medium">console.firebase.google.com</a> &gt; Projet <strong>ACTIVA EthicAlert</strong> &gt; Paramètres du projet &gt; Vos applications (Web).
-                </p>
-              </div>
-
-              {/* Quick action: Manual Cloud Sync */}
-              {isFirebaseConfigured() && (
-                <button
-                  type="button"
-                  onClick={handleManualCloudSync}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition shadow-xs"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Synchroniser alertes vers Cloud</span>
-                </button>
-              )}
-            </div>
-
-            {/* Quick snippet paste */}
-            <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
-              <label className="block font-semibold text-slate-700 text-[11px]">
-                Option rapide : Collez ici l'objet <code className="text-blue-700 font-mono">firebaseConfig</code> de la console Firebase
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={fbSnippet}
-                  onChange={(e) => setFbSnippet(e.target.value)}
-                  placeholder="Ex: const firebaseConfig = { apiKey: 'AIza...', projectId: 'activa-ethicalert', ... };"
-                  className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={handleParseSnippet}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs whitespace-nowrap"
-                >
-                  Extraire
-                </button>
-              </div>
-            </div>
-
-            {/* Manual fields */}
-            <form onSubmit={handleSaveFirebaseConfig} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  ID de Projet Firebase (projectId) *
-                </label>
-                <input
-                  type="text"
-                  value={fbProjectId}
-                  onChange={(e) => setFbProjectId(e.target.value)}
-                  placeholder="activa-ethicalert"
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white font-mono"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Clé d'API Web (apiKey) *
-                </label>
-                <input
-                  type="text"
-                  value={fbApiKey}
-                  onChange={(e) => setFbApiKey(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white font-mono"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Domaine d'authentification (authDomain)
-                </label>
-                <input
-                  type="text"
-                  value={fbAuthDomain}
-                  onChange={(e) => setFbAuthDomain(e.target.value)}
-                  placeholder="activa-ethicalert.firebaseapp.com"
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Identifiant de l'application (appId)
-                </label>
-                <input
-                  type="text"
-                  value={fbAppId}
-                  onChange={(e) => setFbAppId(e.target.value)}
-                  placeholder="1:123456789:web:abcdef..."
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white font-mono"
-                />
-              </div>
-
-              <div className="sm:col-span-2 flex justify-end pt-2">
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold text-xs shadow-md transition"
-                >
-                  Rattacher et Activer la Synchronisation Cloud
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Security Rules & Architecture */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
-                  <Server className="w-4 h-4 text-blue-600" />
-                  <span>Règles de sécurité Firestore (Annexe CDC)</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCopyRules}
-                  className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[10px] transition"
-                >
-                  {rulesCopied ? 'Copié !' : 'Copier les règles'}
-                </button>
-              </div>
-              <pre className="p-3 bg-slate-900 text-amber-300 font-mono text-[10px] rounded-lg overflow-x-auto max-h-44">
-{`rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /alerts/{alertId} {
-      allow create: if request.resource.data.trackingNumber != null;
-      allow read, update: if true;
-      allow delete: if request.auth != null && request.auth.token.role == 'system_admin';
-    }
-    match /audit_logs/{logId} {
-      allow create, read: if true;
-      allow update, delete: if false; // Immuable
-    }
-  }
-}`}
-              </pre>
-            </div>
-
-            <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5">
-              <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Garantie de Disponibilité & Traçabilité</span>
-              </div>
-              <ul className="space-y-1.5 text-slate-600 text-[11px] leading-relaxed">
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">•</span>
-                  <span><strong>Architecture bi-couche résiliente</strong> : les signalements sont sécurisés immédiatement même en cas de coupure de connexion réseau.</span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">•</span>
-                  <span><strong>Piste d'audit inviolable (CDC 3.1.5)</strong> : chaque accès ou modification génère une écriture scellée et conservée 10 ans.</span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">•</span>
-                  <span><strong>Anonymat garanti</strong> : aucune donnée personnelle d'IP ou de géolocalisation n'est stockée dans Firestore lors d'un dépôt anonyme.</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+          données" retiré) === L'onglet "Base de données" (rattachement
+          Firebase, règles de sécurité Firestore, synchronisation manuelle)
+          disparaît d'ici, sur demande explicite de l'utilisateur. Le
+          service Firebase lui-même (src/services/firebase.ts, utilisé par
+          storage.ts pour la synchronisation Cloud en arrière-plan à chaque
+          sauvegarde) reste entièrement inchangé — seul cet écran
+          d'administration pour le configurer manuellement disparaît. */}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) === Modals */}
 
