@@ -58,7 +58,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // portail collaborateur) — seul le hero utilise désormais ces 2 clés.
     hero_headline_line1: 'Signalez en',
     hero_headline_line2: 'toute confiance',
-    hero_desc: 'Un comportement contraire à nos valeurs, à l’éthique ou à la réglementation ? Parlez-en. Nous vous écoutons.',
+    // === AMÉLIORATION AJOUTÉE (garder "Parlez-en. Nous vous écoutons." sur
+    // une seule ligne) === `hero_desc` scindé en 2 clés sur demande
+    // explicite : la question s'enroule normalement, l'appel à l'action
+    // final reste groupé (voir `whitespace-nowrap` dans WhistleblowerHome.tsx).
+    hero_desc_question: 'Un comportement contraire à nos valeurs, à l’éthique ou à la réglementation ?',
+    hero_desc_cta: 'Parlez-en. Nous vous écoutons.',
     hero_paragraph: 'L’intégrité est au cœur de notre culture d’entreprise. activa-whistleblowing vous permet de signaler, en toute confidentialité et sans crainte, tout comportement contraire à nos valeurs, à notre code d’éthique ou à la réglementation en vigueur. Chaque signalement est pris au sérieux et traité avec rigueur.',
     hero_tags: '100% CONFIDENTIEL · SÉCURISÉ · CONFORME',
     hero_how_it_works_link: 'Comment ça marche ?',
@@ -1093,7 +1098,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 23 — matching the supplied model) ===
     hero_headline_line1: 'Report with',
     hero_headline_line2: 'complete confidence',
-    hero_desc: 'Something contrary to our values, ethics, or regulations? Speak up. We’re listening.',
+    hero_desc_question: 'Something contrary to our values, ethics, or regulations?',
+    hero_desc_cta: 'Speak up. We’re listening.',
     hero_paragraph: 'Integrity is at the heart of our corporate culture. activa-whistleblowing lets you report, in full confidentiality and without fear, any behavior contrary to our values, our code of ethics, or applicable regulations. Every report is taken seriously and handled rigorously.',
     hero_tags: '100% CONFIDENTIAL · SECURE · COMPLIANT',
     hero_how_it_works_link: 'How does it work?',
@@ -2017,7 +2023,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 23 — fidelidade ao modelo fornecido) ===
     hero_headline_line1: 'Denuncie com',
     hero_headline_line2: 'toda a confiança',
-    hero_desc: 'Um comportamento contrário aos nossos valores, à ética ou à regulamentação? Fale sobre isso. Estamos a ouvir.',
+    hero_desc_question: 'Um comportamento contrário aos nossos valores, à ética ou à regulamentação?',
+    hero_desc_cta: 'Fale sobre isso. Estamos a ouvir.',
     hero_paragraph: 'A integridade está no centro da nossa cultura empresarial. O activa-whistleblowing permite-lhe reportar, em total confidencialidade e sem receio, qualquer comportamento contrário aos nossos valores, ao nosso código de ética ou à regulamentação em vigor. Cada denúncia é levada a sério e tratada com rigor.',
     hero_tags: '100% CONFIDENCIAL · SEGURO · CONFORME',
     hero_how_it_works_link: 'Como funciona?',

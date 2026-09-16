@@ -164,8 +164,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 Sur demande explicite, capture de référence à respecter. */}
             <div className="w-12 h-1 rounded-full bg-blue-600 -mt-2" />
 
+            {/* === AMÉLIORATION AJOUTÉE (garder "Parlez-en. Nous vous
+                écoutons." sur une seule ligne) === Sur demande explicite :
+                `whitespace-nowrap` sur l'appel à l'action final seul (la
+                question s'enroule normalement au-dessus) — un simple espace
+                insécable aurait laissé le navigateur couper au trait
+                d'union existant de "Parlez-en". */}
             <p className="text-base sm:text-lg font-semibold text-slate-800 leading-snug max-w-md">
-              {t.hero_desc}
+              {t.hero_desc_question}{' '}
+              <span className="whitespace-nowrap">{t.hero_desc_cta}</span>
             </p>
 
             {/* === AMÉLIORATION AJOUTÉE (réaction plus marquée des boutons du
