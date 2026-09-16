@@ -35,14 +35,10 @@ import {
   Search,
   UserPlus,
   Eye,
-  FileCheck2,
   BarChart3,
   Activity,
   LayoutDashboard,
-  Plus,
-  ListChecks,
   AlertOctagon,
-  Bell,
   CalendarRange,
   ShieldAlert,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
@@ -187,13 +183,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
 
   // --- KPIs ---
   const totalCount = visible.length;
-  const newCount = visible.filter((a) => a.status === 'new').length;
-  const unassignedCount = visible.filter((a) => a.assignedInvestigators.length === 0 && ACTIVE_STATUSES.includes(a.status)).length;
   const criticalCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'critique').length;
   const veryHighCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'tres_elevee').length;
   const lowCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'faible').length;
   const highCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'elevee').length;
-  const overdueCount = visible.filter((a) => computeSlaStatus(a) === 'overdue').length;
 
   // --- Alert management breakdown ---
   const STATUS_ORDER: AlertRecord['status'][] = ['new', 'under_review', 'investigation', 'corrective_action', 'closed', 'reopened', 'archived'];
@@ -234,17 +227,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
 
   // --- Corrective actions ---
   const allMeasures = visible.flatMap((a) => a.correctiveMeasures);
-  const correctiveOpen = allMeasures.filter((m) => m.status === 'planned').length;
-  const correctiveInProgress = allMeasures.filter((m) => m.status === 'in_progress').length;
   const correctiveCompleted = allMeasures.filter((m) => m.status === 'implemented' || m.status === 'verified').length;
-  const correctiveOverdue = allMeasures.filter((m) => (m.status === 'planned' || m.status === 'in_progress') && new Date(m.dueDate).getTime() < Date.now()).length;
-
-  // --- Recent activity (real audit_logs, scoped to what this user can see) ---
-  const visibleTrackingNumbers = new Set(visible.map((a) => a.trackingNumber));
-  const recentActivity = storage
-    .getAuditLogs()
-    .filter((log) => isGlobalViewer || (log.trackingNumber && visibleTrackingNumbers.has(log.trackingNumber)))
-    .slice(0, 8);
 
   // === AMÉLIORATION AJOUTÉE (Phase 6) === period-scoped delta for the Total
   // Alerts KPI ("+X% vs previous period") — a real comparison of alerts
@@ -585,112 +568,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
         <span className="h-px flex-1 bg-slate-200" />
       </div>
 
-      {/* Action bar */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <button
-          onClick={onNavigateToNewCase}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-extrabold shadow-sm transition cursor-pointer"
-        >
-          <Plus className="w-4 h-4" /> {t.cp_action_new_case}
-        </button>
-        <button
-          onClick={() => onNavigateToCases({ status: 'new' })}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50/40 transition shadow-2xs cursor-pointer"
-        >
-          <Inbox className="w-4 h-4 text-blue-600" /> {t.cp_qa_review_new}
-          {newCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 text-[10px] font-extrabold">
-              {newCount}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => onNavigateToCases({ unassignedOnly: true })}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:border-amber-300 hover:bg-amber-50/40 transition shadow-2xs cursor-pointer"
-        >
-          <ListChecks className="w-4 h-4 text-amber-600" /> {t.cp_action_triage}
-          {unassignedCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[10px] font-extrabold">
-              {unassignedCount}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => onNavigateToCases({ overdueOnly: true })}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:border-rose-300 hover:bg-rose-50/40 transition shadow-2xs cursor-pointer"
-        >
-          <Flame className="w-4 h-4 text-rose-600" /> {t.cp_qa_view_overdue}
-          {overdueCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 text-[10px] font-extrabold">
-              {overdueCount}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard
-          value={totalCount}
-          label={t.cp_kpi_total}
-          tone="neutral"
-          onClick={() => onNavigateToCases()}
-          icon={<Inbox className="w-3.5 h-3.5" />}
-          sub={
-            <span className={totalDeltaPct >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-              {totalDeltaPct >= 0 ? '↑' : '↓'} {Math.abs(totalDeltaPct)}% {t.cp_kpi_delta_vs_previous}
-            </span>
-          }
-        />
-        <KpiCard
-          value={newCount}
-          label={t.cp_kpi_new}
-          tone="blue"
-          onClick={() => onNavigateToCases({ status: 'new' })}
-          icon={<Bell className="w-3.5 h-3.5" />}
-          sub={<span className="text-blue-600">↑ {t.cp_kpi_sub_new}</span>}
-        />
-        <KpiCard
-          value={unassignedCount}
-          label={t.cp_kpi_unassigned}
-          tone="amber"
-          onClick={() => onNavigateToCases({ unassignedOnly: true })}
-          icon={<UserX className="w-3.5 h-3.5" />}
-          sub={<span className="text-amber-600">↑ {t.cp_kpi_sub_unassigned}</span>}
-        />
-        <KpiCard
-          value={criticalCount}
-          label={t.cp_kpi_critical}
-          tone="rose"
-          icon={<AlertOctagon className="w-3.5 h-3.5" />}
-          sub={<span className="text-rose-600">↑ {t.cp_kpi_sub_critical}</span>}
-        />
-        <KpiCard
-          value={overdueCount}
-          label={t.cp_kpi_overdue}
-          tone="rose"
-          onClick={() => onNavigateToCases({ overdueOnly: true })}
-          icon={<Clock3 className="w-3.5 h-3.5" />}
-          sub={<span className="text-rose-600">↑ {t.cp_kpi_sub_overdue}</span>}
-        />
-        <KpiCard
-          value={correctiveOpen + correctiveInProgress}
-          label={t.cp_kpi_open_corrective}
-          tone="indigo"
-          onClick={() => onNavigateToCases({ status: 'corrective_action' })}
-          icon={<FileCheck2 className="w-3.5 h-3.5" />}
-          sub={
-            correctiveOverdue > 0 ? (
-              <span className="text-rose-600">
-                ↑ {correctiveOverdue} {t.cp_kpi_sub_corrective_overdue}
-              </span>
-            ) : (
-              <span className="text-slate-400">{t.cp_kpi_sub_corrective_none}</span>
-            )
-          }
-        />
-      </div>
-
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:col-span-2">
@@ -857,28 +734,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           )}
         </section>
       </div>
-
-      {/* Recent activity */}
-      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 mb-4">
-          <Activity className="w-4 h-4 text-blue-700" />
-          {t.cp_section_activity}
-        </h3>
-        {recentActivity.length === 0 ? (
-          <EmptyState title={t.cp_empty_activity} />
-        ) : (
-          <ul className="space-y-3">
-            {recentActivity.map((log) => (
-              <li key={log.id} className="flex gap-3 text-xs">
-                <span className="text-slate-400 font-mono shrink-0 w-12">
-                  {new Date(log.timestamp).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                <span className="text-slate-700">{log.details}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       {/* Recent alerts table */}
       <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
