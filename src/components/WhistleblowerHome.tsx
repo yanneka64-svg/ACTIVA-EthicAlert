@@ -135,17 +135,20 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 casse naturelle (un essai en minuscules a été tenté puis
                 abandonné au profit de cette capture de référence). Espace
                 resserré avant le titre via `-mt-1` sur le titre ci-dessous. */}
-            {/* === AMÉLIORATION AJOUTÉE (harmonisation des couleurs de
-                l'accroche) === Sur demande explicite : le point médian
-                devient bleu (`text-blue-600`), la même couleur d'accent déjà
-                utilisée juste en dessous (barre sous le titre, "toute
-                confiance") — fait le lien visuel entre le nom de marque en
-                bleu marine et l'accroche en gris, au lieu d'un séparateur
-                neutre. Identique sur mobile et web (même composant, pas de
-                variante distincte). */}
-            <p className="text-base font-semibold text-slate-500">
-              <span className="font-extrabold text-[#0B2545]">{t.hero_title}</span>
-              <span className="text-blue-600">{' '}·{' '}</span>
+            {/* === AMÉLIORATION AJOUTÉE (couleurs de l'accroche identiques à
+                la photo) === Sur demande explicite ("les couleurs ...
+                identiques à celles de la photo ci-jointe") : les deux tons
+                sont désormais échantillonnés directement sur les pixels
+                réels de activa-hq-hero.jpg — `#2563eb` (proche de #528fec,
+                le bleu du coin haut-gauche de la photo) pour le nom de
+                marque, `#60a5fa` (proche de #74a7ef, la moyenne de la zone
+                exacte où ce texte se pose sur la photo) pour le point
+                médian et l'accroche — au lieu du bleu marine + gris neutre
+                précédents. Identique sur mobile et web (même composant, pas
+                de variante distincte). */}
+            <p className="text-base font-semibold text-blue-400">
+              <span className="font-extrabold text-blue-600">{t.hero_title}</span>
+              <span className="text-blue-400">{' '}·{' '}</span>
               {t.hero_eyebrow}
             </p>
 
