@@ -99,11 +99,11 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 Sur demande explicite (choix retenu parmi 4 propositions) :
                 "activa-whistleblowing" + "Canal éthique du Groupe ACTIVA"
                 (mêmes textes, `hero_title`/`hero_eyebrow`) tiennent sur une
-                seule ligne, séparés par un point médian. Taille légèrement
-                augmentée (text-sm -> text-base) et espace resserré avant le
-                titre (`-mb-2` ici, en plus du `-mt-3` du titre juste en
-                dessous) par rapport au premier essai, sur demande. */}
-            <p className="text-base font-semibold text-slate-500 lowercase -mb-2">
+                seule ligne, séparés par un point médian. Espace resserré
+                avant le titre via `-mt-1` sur le titre ci-dessous (un
+                premier essai plus agressif, `-mb-2` ici + `-mt-3` sur le
+                titre, s'est révélé trop serré — signalé par l'utilisateur). */}
+            <p className="text-base font-semibold text-slate-500 lowercase">
               <span className="font-extrabold text-[#0B2545] normal-case">{t.hero_title}</span>
               {' '}·{' '}
               {t.hero_eyebrow}
@@ -112,7 +112,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
                 Titre en deux lignes bicolores, comme sur la maquette de
                 référence, à la place du nom de produit utilisé jusqu'ici. */}
-            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight -mt-3">
+            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight -mt-1">
               <span className="block text-[#0B2545]">{t.hero_headline_line1}</span>
               <span className="block text-blue-600">{t.hero_headline_line2}</span>
             </h1>
