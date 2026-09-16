@@ -15,6 +15,9 @@ import { WhistleblowerHome } from './components/WhistleblowerHome';
 import { FaqView } from './components/FaqView';
 // === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) ===
 import { ContactView } from './components/ContactView';
+// === AMÉLIORATION AJOUTÉE (liens réels du pied de page) ===
+import { LegalNoticeView } from './components/LegalNoticeView';
+import { PrivacyPolicyView } from './components/PrivacyPolicyView';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
 import { AlertTrackingView } from './components/AlertTrackingView';
 import { InvestigationDesk } from './components/InvestigationDesk';
@@ -695,6 +698,10 @@ function AppShell() {
         {/* === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) === */}
         {currentTab === 'contact' && <ContactView lang={lang} />}
 
+        {/* === AMÉLIORATION AJOUTÉE (liens réels du pied de page) === */}
+        {currentTab === 'legal_notice' && <LegalNoticeView lang={lang} />}
+        {currentTab === 'privacy_policy' && <PrivacyPolicyView lang={lang} />}
+
         {currentTab === 'new_alert' && (
           <AlertSubmissionFlow
             lang={lang}
@@ -774,10 +781,14 @@ function AppShell() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* === AMÉLIORATION AJOUTÉE (Phase 20) === logo retiré du pied de page sur demande explicite (ajouté Phase 17). */}
           <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
+          {/* === AMÉLIORATION AJOUTÉE (liens réels du pied de page) === Les
+              3 boutons étaient décoratifs (aucun `onClick`, aucune
+              destination) — reliés désormais à de vrais onglets publics via
+              `goToTab`, même mécanisme que le reste de la navigation. */}
           <div className="flex items-center gap-4">
-            <button className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
-            <button className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>
-            <button className="hover:text-white hover:underline">{t.footer_contact}</button>
+            <button onClick={() => goToTab('legal_notice')} className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
+            <button onClick={() => goToTab('privacy_policy')} className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>
+            <button onClick={() => goToTab('contact')} className="hover:text-white hover:underline">{t.footer_contact}</button>
           </div>
         </div>
       </footer>

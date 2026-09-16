@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   ShieldCheck,
   UserX,
@@ -7,13 +7,9 @@ import {
   ArrowRight,
   Send,
   Search,
-  Quote,
   Lock,
   CheckCircle2,
   FileText,
-  Shield,
-  Users,
-  Leaf,
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -36,29 +32,10 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
 
-  // === AMÉLIORATION AJOUTÉE (Phase 22, révisée Phase 25, révisée à nouveau
-  // Phase 30) === La carte de valeurs et la bulle de citation étaient deux
-  // encarts statiques séparés (Phase 25). Sur nouvelle demande explicite
-  // (« je veux que les messages défilent »), ils sont fusionnés en un seul
-  // encart qui fait défiler les 3 valeurs puis la citation, un message à la
-  // fois, toutes les 4 secondes — la logique de rotation réapparaît donc
-  // volontairement ici (elle avait été retirée en Phase 25).
-  const heroMessages: { icon: React.ComponentType<{ className?: string }>; title: string; desc?: string }[] = [
-    { icon: Shield, title: t.hero_value1_title, desc: t.hero_value1_desc },
-    { icon: Users, title: t.hero_value2_title, desc: t.hero_value2_desc },
-    { icon: Leaf, title: t.hero_value3_title, desc: t.hero_value3_desc },
-    { icon: Quote, title: t.hero_quote },
-  ];
-  const [heroMsgIndex, setHeroMsgIndex] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => {
-      setHeroMsgIndex((i) => (i + 1) % heroMessages.length);
-    }, 4000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const activeHeroMessage = heroMessages[heroMsgIndex];
-  const ActiveHeroIcon = activeHeroMessage.icon;
+  // === AMÉLIORATION AJOUTÉE (retrait de la carte de valeurs flottante) ===
+  // Carte "Transparence / Une culture d'ouverture" (et les 3 autres
+  // messages défilants qu'elle affichait tour à tour) retirée du hero de
+  // l'accueil public, sur demande explicite de l'utilisateur.
 
   return (
     <div className="space-y-8 pb-6">
@@ -134,11 +111,17 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               {t.hero_desc}
             </p>
 
+            {/* === AMÉLIORATION AJOUTÉE (réaction plus marquée des boutons du
+                hero) === sur demande explicite de l'utilisateur : le simple
+                changement de couleur au survol passait inaperçu — ajout
+                d'un léger soulèvement (`hover:-translate-y-0.5`) et d'une
+                ombre plus prononcée, même logique que les bandes
+                Confidentialité/Anonymat/Pas de représailles ci-dessous. */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
               <button
                 id="hero-btn-new-alert"
                 onClick={onStartNewAlert}
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition whitespace-nowrap"
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-lg hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap"
               >
                 <Send className="w-4 h-4" />
                 <span>{t.btn_new_alert}</span>
@@ -148,7 +131,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               <button
                 id="hero-btn-track"
                 onClick={onGoToTrack}
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm border border-slate-300 transition whitespace-nowrap"
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm border border-slate-300 hover:border-slate-400 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap"
               >
                 <Search className="w-4 h-4" />
                 <span>{t.btn_track_existing}</span>
@@ -159,56 +142,6 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               <Lock className="w-4 h-4 text-blue-600 shrink-0" />
               {t.hero_anonymous_note}
             </p>
-          </div>
-        </div>
-
-        {/* === AMÉLIORATION AJOUTÉE (Palette « confiance & conformité » —
-            carte de valeurs du hero) === Nouvelle palette demandée
-            explicitement (bleu profond #0B4F8A, bleu clair #3B82C4, bleu
-            translucide, blanc, blanc translucide, or « intégrité »
-            #F4C430) : un dégradé bleu profond → bleu clair, tous deux à
-            faible opacité, remplace l'aplat marine uni précédent — plus
-            "premium" qu'une seule teinte plate, tout en restant
-            suffisamment transparent pour laisser deviner la photo derrière
-            (jamais un effet de verre trop opaque). L'or reste un accent
-            sobre, réservé à l'icône et au repère de progression actif —
-            jamais la couleur dominante de la carte. Valeurs exactes en
-            style inline (hors palette Tailwind par défaut), le reste des
-            classes utilitaires est inchangé. */}
-        <div
-          className="hidden sm:block absolute top-6 right-6 z-10 w-64 backdrop-blur-md rounded-2xl shadow-lg p-4"
-          style={{
-            background: 'linear-gradient(135deg, rgba(11, 79, 138, 0.4) 0%, rgba(59, 130, 196, 0.22) 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.35)',
-          }}
-        >
-          <div key={heroMsgIndex} className="flex items-start gap-3 activa-fade-in min-h-[2.75rem]">
-            <span
-              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-              style={{ backgroundColor: 'rgba(255, 255, 255, 0.65)', color: '#F4C430' }}
-            >
-              <ActiveHeroIcon className="w-4 h-4" />
-            </span>
-            <div>
-              <div className="font-bold text-white text-sm leading-snug drop-shadow-sm">{activeHeroMessage.title}</div>
-              {activeHeroMessage.desc && (
-                <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{activeHeroMessage.desc}</div>
-              )}
-            </div>
-          </div>
-          {/* Puces de progression, un point par message — l'or (« intégrité »)
-              marque le message actif, un accent sobre plutôt qu'une couleur dominante. */}
-          <div className="flex items-center gap-1.5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.25)' }}>
-            {heroMessages.map((_, i) => (
-              <span
-                key={i}
-                className="h-1 rounded-full transition-all duration-300"
-                style={{
-                  width: i === heroMsgIndex ? '1rem' : '0.375rem',
-                  backgroundColor: i === heroMsgIndex ? '#F4C430' : 'rgba(255, 255, 255, 0.35)',
-                }}
-              />
-            ))}
           </div>
         </div>
       </div>
@@ -230,9 +163,16 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           réaction au survol (mise à l'échelle de l'icône + fond légèrement
           teinté) se déclenche désormais en survolant N'IMPORTE OÙ sur toute
           la carte (icône + texte, via `group`/`group-hover`), pas
-          uniquement en pointant précisément l'icône. */}
+          uniquement en pointant précisément l'icône.
+          === AMÉLIORATION AJOUTÉE (réaction plus marquée de chaque bande)
+          === précision explicite de l'utilisateur : le fond légèrement
+          teinté seul passait pour "seule l'icône réagit" — chaque bande se
+          soulève désormais (`hover:-translate-y-1`) avec une ombre propre
+          (`hover:shadow-md`), même traitement que les cartes "Comment ça
+          marche ?" ci-dessous ; `relative z-10` évite que l'ombre soit
+          coupée par les séparateurs du conteneur. */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border border-slate-200 rounded-2xl bg-white shadow-sm">
-        <div className="group p-5 flex items-center gap-3 transition-colors duration-300 hover:bg-blue-50/60">
+        <div className="group relative z-0 hover:z-10 p-5 flex items-center gap-3 rounded-xl transition-all duration-300 ease-out hover:bg-blue-50/60 hover:-translate-y-1 hover:shadow-md">
           <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-blue-600/50">
             <ShieldCheck className="w-4 h-4" />
           </span>
@@ -241,7 +181,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             <div className="text-xs text-slate-500">{t.hero_feature_confidentiality_desc}</div>
           </div>
         </div>
-        <div className="group p-5 flex items-center gap-3 transition-colors duration-300 hover:bg-blue-50/60">
+        <div className="group relative z-0 hover:z-10 p-5 flex items-center gap-3 rounded-xl transition-all duration-300 ease-out hover:bg-blue-50/60 hover:-translate-y-1 hover:shadow-md">
           <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-blue-600/50">
             <UserX className="w-4 h-4" />
           </span>
@@ -250,7 +190,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             <div className="text-xs text-slate-500">{t.hero_feature_anonymity_desc}</div>
           </div>
         </div>
-        <div className="group p-5 flex items-center gap-3 transition-colors duration-300 hover:bg-blue-50/60">
+        <div className="group relative z-0 hover:z-10 p-5 flex items-center gap-3 rounded-xl transition-all duration-300 ease-out hover:bg-blue-50/60 hover:-translate-y-1 hover:shadow-md">
           <span className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-1 ring-white/40 transition-all duration-300 ease-out group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-blue-600/50">
             <HeartHandshake className="w-4 h-4" />
           </span>

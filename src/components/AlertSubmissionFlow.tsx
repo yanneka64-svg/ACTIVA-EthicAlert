@@ -544,10 +544,14 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
               clavier, icône déjà incrustée dans l'image), servie depuis
               public/brand/confidentiality-gate-bg.jpg. */}
           <div className="relative hidden md:flex items-center justify-center min-h-[460px] overflow-hidden">
+            {/* === AMÉLIORATION AJOUTÉE (luminosité réduite de la photo) ===
+                sur demande explicite de l'utilisateur : le flou testé
+                précédemment a été retiré (image nette d'origine) au profit
+                d'une simple réduction de luminosité (`brightness-75`). */}
             <img
               src="/brand/confidentiality-gate-bg.jpg"
               alt=""
-              className="absolute inset-0 w-full h-full object-cover object-left"
+              className="absolute inset-0 w-full h-full object-cover object-left brightness-75"
             />
           </div>
 
