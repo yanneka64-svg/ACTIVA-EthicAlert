@@ -720,7 +720,7 @@ function AppShell() {
         )}
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) === */}
-        {currentTab === 'login' && <StaffLoginView onLogin={handleLogin} />}
+        {currentTab === 'login' && <StaffLoginView onLogin={handleLogin} onGoToContact={() => goToTab('contact')} />}
 
         {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
             sélecteur en barre latérale) === Rendue à part, HORS de

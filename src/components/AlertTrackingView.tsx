@@ -297,6 +297,19 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) addEvidenceFiles(e.dataTransfer.files);
   };
 
+  // === AMÉLIORATION AJOUTÉE (bouton "Télécharger" sans action) === Le
+  // menu d'une pièce jointe avait un bouton "Télécharger" sans `onClick`
+  // (ne faisait rien au clic) — utilise le `dataUrl` déjà stocké sur
+  // l'EvidenceFile (même mécanisme que le dépôt de fichier), sans
+  // introduire de nouveau stockage.
+  const handleDownloadEvidence = (ev: AlertRecord['evidences'][number]) => {
+    if (!ev.dataUrl) return;
+    const link = document.createElement('a');
+    link.href = ev.dataUrl;
+    link.download = ev.name;
+    link.click();
+  };
+
   const handleDeleteEvidence = (id: string) => {
     if (!activeAlert) return;
     const updatedAlert: AlertRecord = {
@@ -1018,7 +1031,9 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                           >
                             <button
                               type="button"
-                              className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                              onClick={() => { handleDownloadEvidence(ev); setOpenFileMenuId(null); }}
+                              disabled={!ev.dataUrl}
+                              className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                             >
                               <Download className="w-3.5 h-3.5" /> Télécharger
                             </button>
