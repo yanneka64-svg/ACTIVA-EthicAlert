@@ -4,8 +4,6 @@ import {
   ChevronDown,
   Send,
   User,
-  // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
-  Settings,
   HelpCircle,
   LogOut,
   // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
@@ -21,7 +19,6 @@ import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
 import { ActivaLogo } from './ui';
-import { canManageConfiguration } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) ===
 import { computeAvailableSpaces } from '../domain/staffSpaces';
@@ -449,23 +446,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                       volontairement aucun backend d'authentification réel
                       (voir StaffLoginView.tsx) ni aucun système de
                       préférences persistées ; les ajouter aurait été une
-                      fausse fonctionnalité (brief §32). "Paramètres"
-                      n'apparaît que pour un compte ayant réellement accès à
-                      l'écran d'administration correspondant. */}
+                      fausse fonctionnalité (brief §32).
+                      === AMÉLIORATION AJOUTÉE (retrait du lien "Paramètres")
+                      === Retiré sur demande explicite : ce lien menait au
+                      même écran déjà accessible depuis la barre latérale
+                      (StaffPortalLayout.tsx), aucune fonctionnalité perdue. */}
                   {isStaffUser && (
                     <div className="px-3 py-2.5 border-b border-slate-100">
                       <p className="font-bold text-slate-900">{activeUser.name}</p>
                       <p className="text-[11px] text-slate-500">{activeUser.roleTitle}</p>
                       <p className="text-[11px] text-slate-400 truncate">{activeUser.email}</p>
                     </div>
-                  )}
-                  {isStaffUser && canManageConfiguration(activeUser) && (
-                    <button
-                      onClick={() => setCurrentTab('settings')}
-                      className="w-full flex items-center gap-2 text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium border-b border-slate-100"
-                    >
-                      <Settings className="w-3.5 h-3.5 text-slate-400" /> {t.profile_menu_settings}
-                    </button>
                   )}
                   <button
                     onClick={() => setCurrentTab('faq')}

@@ -396,7 +396,7 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
               <Settings className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">Paramètre système</p>
+              <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">Paramètres système</p>
             </div>
           </div>
         )}
