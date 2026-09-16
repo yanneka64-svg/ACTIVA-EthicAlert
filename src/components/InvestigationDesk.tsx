@@ -76,7 +76,7 @@ import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../s
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
 import type { DataTableColumn } from './ui';
 // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
-import { CaseReportPrintView, ReportModel } from './CaseReportPrintView';
+import { CaseReportPrintView } from './CaseReportPrintView';
 import { computeSlaStatus, deriveCaseStatus, applyCaseStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { isGlobalCaseViewer, userCan, canSeeAlertConfidentiality } from '../services/authz';
@@ -219,14 +219,6 @@ function PersonRow({
     </div>
   );
 }
-
-// === AMÉLIORATION AJOUTÉE (2 modèles de rapport au choix) ===
-// Le 3e modèle initialement proposé (audit/conformité anonymisé) n'a jamais
-// été redemandé après le scope-down sur la synthèse seule — retiré du menu.
-const REPORT_MODEL_OPTIONS: { key: ReportModel; label: string }[] = [
-  { key: 'summary', label: 'Synthèse (1 page)' },
-  { key: 'full', label: 'Dossier complet' },
-];
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -449,17 +441,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [investigatorMsgText, setInvestigatorMsgText] = useState<string>('');
 
   // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
-  // Dès que `printReportType` est renseigné, CaseReportPrintView.tsx (rendu
+  // Dès que `showPrintReport` passe à true, CaseReportPrintView.tsx (rendu
   // plus bas, cf. `.print-only` dans index.css) devient le SEUL contenu
   // visible dans la boîte de dialogue d'impression du navigateur — jamais
   // toute la page comme auparavant (BUG PRÉEXISTANT CORRIGÉ, signalé par
-  // l'utilisateur). `openReportMenu` identifie lequel des deux boutons
-  // "Générer le rapport" (Synthèse du dossier / Liens rapides) a ouvert son
-  // petit menu de choix de modèle (Synthèse / Dossier complet).
-  const [openReportMenu, setOpenReportMenu] = useState<'summary' | 'quicklinks' | null>(null);
-  const [printReportType, setPrintReportType] = useState<ReportModel | null>(null);
-  const reportMenuSummaryRef = useRef<HTMLDivElement>(null);
-  const reportMenuLinksRef = useRef<HTMLDivElement>(null);
+  // l'utilisateur). Un seul modèle désormais (synthèse), sur demande
+  // explicite — plus besoin du menu de choix entre plusieurs modèles.
+  const [showPrintReport, setShowPrintReport] = useState(false);
 
   // Corrective Measure form inputs
   const [showAddMeasureModal, setShowAddMeasureModal] = useState(false);
@@ -671,37 +659,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
   // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
   // Laisse React monter CaseReportPrintView (rendu conditionnellement sur
-  // `printReportType`, plus bas dans ce composant) avant d'appeler
+  // `showPrintReport`, plus bas dans ce composant) avant d'appeler
   // `window.print()`, qui n'imprime alors QUE ce contenu grâce aux règles
   // `.print-only`/`@media print` (index.css) — jamais le reste de l'app.
   useEffect(() => {
-    if (!printReportType || !selectedAlert) return;
+    if (!showPrintReport || !selectedAlert) return;
     const timer = window.setTimeout(() => {
       window.print();
-      setPrintReportType(null);
+      setShowPrintReport(false);
     }, 50);
     return () => window.clearTimeout(timer);
-  }, [printReportType, selectedAlert]);
-
-  // === AMÉLIORATION AJOUTÉE (2 modèles de rapport au choix) === Ferme le
-  // petit menu de choix de modèle au clic en dehors, même motif que les
-  // autres menus déroulants de cet écran.
-  useEffect(() => {
-    if (!openReportMenu) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const ref = openReportMenu === 'summary' ? reportMenuSummaryRef : reportMenuLinksRef;
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpenReportMenu(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [openReportMenu]);
-
-  const handleGenerateReport = (model: ReportModel) => {
-    setOpenReportMenu(null);
-    setPrintReportType(model);
-  };
+  }, [showPrintReport, selectedAlert]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
   // Candidats à l'attribution pour le dossier actuellement sélectionné —
@@ -2864,30 +2832,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       en-tête ACTIVA) === Remplace l'appel direct à
                       `window.print()` (imprimait toute la page — barre
                       latérale, navigation comprises) par le contenu réel
-                      de CaseReportPrintView.tsx, au choix entre 2 modèles. */}
-                  <div className="relative inline-block" ref={reportMenuSummaryRef}>
-                    <button
-                      onClick={() => setOpenReportMenu(openReportMenu === 'summary' ? null : 'summary')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      {t.case_btn_generate_report}
-                    </button>
-                    {openReportMenu === 'summary' && (
-                      <div className="absolute left-0 mt-1 w-48 bg-white rounded-xl border border-slate-200 shadow-lg z-20 py-1">
-                        {REPORT_MODEL_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.key}
-                            type="button"
-                            onClick={() => handleGenerateReport(opt.key)}
-                            className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                      de CaseReportPrintView.tsx. */}
+                  <button
+                    onClick={() => setShowPrintReport(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    {t.case_btn_generate_report}
+                  </button>
                 </div>
 
                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 flex items-center gap-2">
@@ -3530,29 +3482,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </h3>
               {/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête
                   ACTIVA) === Même motif que Synthèse du dossier ci-dessus. */}
-              <div className="relative" ref={reportMenuLinksRef}>
-                <button
-                  onClick={() => setOpenReportMenu(openReportMenu === 'quicklinks' ? null : 'quicklinks')}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition"
-                >
-                  <Printer className="w-3.5 h-3.5 text-blue-600" />
-                  {t.case_btn_generate_report}
-                </button>
-                {openReportMenu === 'quicklinks' && (
-                  <div className="absolute left-0 mt-1 w-48 bg-white rounded-xl border border-slate-200 shadow-lg z-20 py-1">
-                    {REPORT_MODEL_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        onClick={() => handleGenerateReport(opt.key)}
-                        className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={() => setShowPrintReport(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition"
+              >
+                <Printer className="w-3.5 h-3.5 text-blue-600" />
+                {t.case_btn_generate_report}
+              </button>
               <button
                 onClick={() => setActiveCaseTab('timeline')}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition"
@@ -3580,14 +3516,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       {/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
           Rendu inconditionnellement caché à l'écran (`.print-only`, voir
           index.css) — ne devient visible que dans la boîte de dialogue
-          d'impression du navigateur, une fois `printReportType` renseigné
+          d'impression du navigateur, une fois `showPrintReport` à true
           (voir le useEffect plus haut, qui appelle window.print() puis le
           réinitialise). */}
-      {selectedAlert && printReportType && (
+      {selectedAlert && showPrintReport && (
         <CaseReportPrintView
           alert={selectedAlert}
-          model={printReportType}
-          caseAuditLogs={storage.getAuditLogs().filter((l) => l.trackingNumber === selectedAlert.trackingNumber)}
           generatedByName={activeUser.name}
           locale={lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'}
         />
