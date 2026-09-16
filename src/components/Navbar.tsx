@@ -521,12 +521,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             {t.nav_track}
           </button>
+          {/* === AMÉLIORATION AJOUTÉE (cohérence mobile/desktop du bouton
+              "Connexion") === Sur demande explicite : pour un visiteur
+              anonyme, ce bouton menait déjà à l'écran de connexion (via
+              `AuthenticatedRoute`, currentTab 'portal' non authentifié) mais
+              s'affichait sous le libellé "Espace Gestion DARC", incohérent
+              avec le bouton "Connexion" déjà utilisé côté desktop. Une fois
+              connecté (isStaffContext), le libellé et la navigation
+              d'origine (onglet "portal", badge de dossiers en attente)
+              restent strictement inchangés. */}
           <button
-            onClick={() => setCurrentTab('portal')}
+            onClick={() => (isStaffContext ? setCurrentTab('portal') : setCurrentTab('login'))}
             className={`px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1 ${currentTab === 'portal' || isStaffContext ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
           >
-            <span>{t.nav_portal}</span>
-            {pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
+            <span>{isStaffContext ? t.nav_portal : t.nav_connexion}</span>
+            {isStaffContext && pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
           </button>
           {/* === AMÉLIORATION AJOUTÉE (Phase 27) === bouton QR retiré de la
               barre mobile aussi, par cohérence avec l'en-tête desktop. */}
