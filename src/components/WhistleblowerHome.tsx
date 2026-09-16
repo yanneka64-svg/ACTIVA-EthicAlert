@@ -135,18 +135,30 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 casse naturelle (un essai en minuscules a été tenté puis
                 abandonné au profit de cette capture de référence). Espace
                 resserré avant le titre via `-mt-1` sur le titre ci-dessous. */}
-            {/* === AMÉLIORATION AJOUTÉE (harmonisation des couleurs de
-                l'accroche) === Sur demande explicite : le point médian
-                devient bleu (`text-blue-600`), la même couleur d'accent déjà
-                utilisée juste en dessous (barre sous le titre, "toute
-                confiance") — fait le lien visuel entre le nom de marque en
-                bleu marine et l'accroche en gris, au lieu d'un séparateur
-                neutre. Identique sur mobile et web (même composant, pas de
-                variante distincte). */}
-            <p className="text-base font-semibold text-slate-500">
-              <span className="font-extrabold text-[#0B2545]">{t.hero_title}</span>
-              <span className="text-blue-600">{' '}·{' '}</span>
-              {t.hero_eyebrow}
+            {/* === AMÉLIORATION AJOUTÉE (palette premium finale + halo de
+                lisibilité) === Sur demande explicite, palette : #082B52/Bold
+                (nom de marque), `blue-800` #1e40af/Medium+Regular (point
+                médian + accroche) — un ton plus sombre que `blue-600`
+                (#2563eb), encore jugé "pas assez lisible" sur la photo
+                malgré un bleu déjà proche de "toute confiance" ci-dessous.
+                Un halo blanc léger (`text-shadow`) est aussi ajouté sur le
+                nom de marque et le point médian pour garantir leur
+                lisibilité quelle que soit la zone de la photo en dessous.
+                === AMÉLIORATION AJOUTÉE (retrait du halo sur l'accroche)
+                === Sur demande explicite : le halo donnait un effet de
+                "reflet" indésirable sur "Canal de gestion des alertes du
+                Groupe ACTIVA" — retiré uniquement sur ce texte
+                (`[text-shadow:none]`), conservé sur le nom de marque et le
+                point médian.
+                === AMÉLIORATION AJOUTÉE (contraste renforcé sur l'accroche)
+                === Sur demande explicite ("ajouter encore du contraste") :
+                `blue-900` (#1e3a8a) au lieu de `blue-800`, sans réintroduire
+                le halo qui vient d'être retiré. Identique sur mobile et
+                web (même composant, pas de variante distincte). */}
+            <p className="text-base [text-shadow:0_1px_4px_rgba(255,255,255,0.9),0_0_12px_rgba(255,255,255,0.7)]">
+              <span className="font-bold text-[#082B52]">{t.hero_title}</span>
+              <span className="font-medium text-blue-800">{' '}·{' '}</span>
+              <span className="font-normal text-blue-900 [text-shadow:none]">{t.hero_eyebrow}</span>
             </p>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
