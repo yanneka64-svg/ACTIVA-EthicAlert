@@ -169,9 +169,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 `whitespace-nowrap` sur l'appel à l'action final seul (la
                 question s'enroule normalement au-dessus) — un simple espace
                 insécable aurait laissé le navigateur couper au trait
-                d'union existant de "Parlez-en". */}
+                d'union existant de "Parlez-en".
+                === AMÉLIORATION AJOUTÉE (retour à la ligne forcé avant "à
+                l'éthique") === Sur demande explicite : `<br />` entre les 2
+                lignes de la question, pour que "à l'éthique ou à la
+                réglementation ?" retombe toujours sur sa propre ligne. */}
             <p className="text-base sm:text-lg font-semibold text-slate-800 leading-snug max-w-md">
-              {t.hero_desc_question}{' '}
+              {t.hero_desc_line1}
+              <br />
+              {t.hero_desc_line2}{' '}
               <span className="whitespace-nowrap">{t.hero_desc_cta}</span>
             </p>
 
