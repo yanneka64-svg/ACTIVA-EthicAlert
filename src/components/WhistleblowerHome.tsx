@@ -95,23 +95,24 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             l'intérieur. */}
         <div className="relative z-10 p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)]">
           <div className="max-w-xl space-y-5">
-            {/* === AMÉLIORATION AJOUTÉE (badge nom de produit + accroche) ===
-                Sur demande explicite : les 2 lignes empilées précédentes
-                (`hero_title` "activa-whistleblowing" + `hero_eyebrow`
-                "Canal éthique du Groupe ACTIVA", toujours les mêmes textes)
-                fusionnent en un seul badge — se lit comme une unité de
-                marque plutôt que 2 lignes de texte séparées. */}
-            <div className="inline-flex items-center gap-2 pl-2.5 pr-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <span className="text-xs font-extrabold text-[#0B2545]">{t.hero_title}</span>
-              <span className="w-1 h-1 rounded-full bg-blue-300 shrink-0" />
-              <span className="text-xs font-semibold text-blue-700 lowercase">{t.hero_eyebrow}</span>
-            </div>
+            {/* === AMÉLIORATION AJOUTÉE (ligne unique nom de produit + accroche) ===
+                Sur demande explicite (choix retenu parmi 4 propositions) :
+                "activa-whistleblowing" + "Canal éthique du Groupe ACTIVA"
+                (mêmes textes, `hero_title`/`hero_eyebrow`) tiennent sur une
+                seule ligne, séparés par un point médian. Taille légèrement
+                augmentée (text-sm -> text-base) et espace resserré avant le
+                titre (`-mb-2` ici, en plus du `-mt-3` du titre juste en
+                dessous) par rapport au premier essai, sur demande. */}
+            <p className="text-base font-semibold text-slate-500 lowercase -mb-2">
+              <span className="font-extrabold text-[#0B2545] normal-case">{t.hero_title}</span>
+              {' '}·{' '}
+              {t.hero_eyebrow}
+            </p>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
                 Titre en deux lignes bicolores, comme sur la maquette de
                 référence, à la place du nom de produit utilisé jusqu'ici. */}
-            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight -mt-3">
               <span className="block text-[#0B2545]">{t.hero_headline_line1}</span>
               <span className="block text-blue-600">{t.hero_headline_line2}</span>
             </h1>
