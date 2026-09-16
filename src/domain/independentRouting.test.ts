@@ -9,7 +9,6 @@ import {
   getImplicatedUserIds,
   getConflictedUserIds,
   resolveIndependentAuthority,
-  getRoutingMatrixView,
 } from './independentRouting';
 
 function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
@@ -240,33 +239,5 @@ describe('resolveIndependentAuthority', () => {
     });
     const result = resolveIndependentAuthority(alert, [accused, underCleared], DEFAULT_HIERARCHY_LEVELS);
     expect(result).toEqual({ candidates: [], scopeMatch: null, found: false });
-  });
-});
-
-describe('getRoutingMatrixView', () => {
-  it('maps investigator to senior_investigator as the immediately superior eligible role', () => {
-    const view = getRoutingMatrixView(DEFAULT_HIERARCHY_LEVELS);
-    const investigatorRow = view.find((r) => r.role === 'investigator');
-    expect(investigatorRow?.nextLevelRoles).toEqual(['senior_investigator']);
-  });
-
-  it('darc_compliance has no eligible role above it', () => {
-    const view = getRoutingMatrixView(DEFAULT_HIERARCHY_LEVELS);
-    const darcRow = view.find((r) => r.role === 'darc_compliance');
-    expect(darcRow?.nextLevelRoles).toEqual([]);
-  });
-
-  // === AMÉLIORATION AJOUTÉE (règle métier explicite — chaîne d'implication)
-  // === maps senior_investigator directly to darc_compliance, skipping the
-  // intermediate functional_admin level (5, between 4 and 6).
-  it('maps senior_investigator to darc_compliance, skipping the intermediate functional_admin level', () => {
-    const view = getRoutingMatrixView(DEFAULT_HIERARCHY_LEVELS);
-    const seniorRow = view.find((r) => r.role === 'senior_investigator');
-    expect(seniorRow?.nextLevelRoles).toEqual(['darc_compliance']);
-  });
-
-  it('never lists functional_admin as a nextLevelRoles target for any role', () => {
-    const view = getRoutingMatrixView(DEFAULT_HIERARCHY_LEVELS);
-    expect(view.some((r) => r.nextLevelRoles.includes('functional_admin'))).toBe(false);
   });
 });

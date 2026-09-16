@@ -82,6 +82,29 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
         <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/35 to-transparent pointer-events-none" />
 
+        {/* === AMÉLIORATION AJOUTÉE (voile sombre côté droit, bandeau de
+            valeurs) === Sur demande explicite : le bandeau de valeurs flotte
+            directement sur la photo (sans fond propre — essai avec carte à
+            fond flouté explicitement écarté), donc ce voile porte seul sa
+            lisibilité. N'affecte pas le voile blanc du texte principal à
+            gauche. Masqué sous `lg`, comme le panneau lui-même. */}
+        <div className="absolute inset-0 bg-gradient-to-l from-slate-900/55 via-slate-900/10 to-transparent pointer-events-none hidden lg:block" />
+
+        {/* === AMÉLIORATION AJOUTÉE (bandeau de valeurs flottant, côté droit
+            du hero) === Sur demande explicite : texte fin (`font-light`, pas
+            gras) posé directement sur la photo, sans fond ni carte. */}
+        <div className="hidden lg:flex flex-col gap-3 absolute right-10 xl:right-20 top-1/2 -translate-y-1/2 z-10 text-white max-w-[220px]">
+          <ul className="space-y-2.5">
+            {[t.hero_value_1, t.hero_value_2, t.hero_value_3, t.hero_value_4, t.hero_value_5].map((value) => (
+              <li key={value} className="text-xs xl:text-sm font-light tracking-[0.2em] uppercase leading-snug">
+                {value}
+              </li>
+            ))}
+          </ul>
+          <div className="w-10 h-0.5 rounded-full bg-blue-400" />
+          <p className="text-xs font-light text-white/90 leading-snug">{t.hero_values_caption}</p>
+        </div>
+
         {/* === AMÉLIORATION AJOUTÉE (Phase 36 — correction largeur du texte
             du hero sur grand écran) === BUG PRÉEXISTANT CORRIGÉ : le padding
             gauche de positionnement (`lg:pl-[calc((100vw-80rem)/2+2rem)]`,
@@ -96,15 +119,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         <div className="relative z-10 p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)]">
           <div className="max-w-xl space-y-5">
             {/* === AMÉLIORATION AJOUTÉE (ligne unique nom de produit + accroche) ===
-                Sur demande explicite (choix retenu parmi 4 propositions) :
-                "activa-whistleblowing" + "Canal éthique du Groupe ACTIVA"
-                (mêmes textes, `hero_title`/`hero_eyebrow`) tiennent sur une
-                seule ligne, séparés par un point médian. Espace resserré
-                avant le titre via `-mt-1` sur le titre ci-dessous (un
-                premier essai plus agressif, `-mb-2` ici + `-mt-3` sur le
-                titre, s'est révélé trop serré — signalé par l'utilisateur). */}
-            <p className="text-base font-semibold text-slate-500 lowercase">
-              <span className="font-extrabold text-[#0B2545] normal-case">{t.hero_title}</span>
+                Sur demande explicite, alignée sur la capture de référence
+                fournie : "activa-whistleblowing" + "Canal éthique du Groupe
+                ACTIVA" (mêmes textes, `hero_title`/`hero_eyebrow`) tiennent
+                sur une seule ligne, séparés par un point médian, dans leur
+                casse naturelle (un essai en minuscules a été tenté puis
+                abandonné au profit de cette capture de référence). Espace
+                resserré avant le titre via `-mt-1` sur le titre ci-dessous. */}
+            <p className="text-base font-semibold text-slate-500">
+              <span className="font-extrabold text-[#0B2545]">{t.hero_title}</span>
               {' '}·{' '}
               {t.hero_eyebrow}
             </p>
@@ -116,6 +139,10 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               <span className="block text-[#0B2545]">{t.hero_headline_line1}</span>
               <span className="block text-blue-600">{t.hero_headline_line2}</span>
             </h1>
+
+            {/* === AMÉLIORATION AJOUTÉE (barre d'accent sous le titre) ===
+                Sur demande explicite, capture de référence à respecter. */}
+            <div className="w-12 h-1 rounded-full bg-blue-600 -mt-2" />
 
             <p className="text-base sm:text-lg font-semibold text-slate-800 leading-snug max-w-md">
               {t.hero_desc}

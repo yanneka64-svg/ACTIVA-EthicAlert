@@ -72,3 +72,47 @@ textarea {
 label {
   user-select: none;
 }
+
+/* === AMÉLIORATION AJOUTÉE (icône "œil" native du navigateur en double) ===
+   Signalé par l'utilisateur : un second glyphe "œil" apparaît dans les
+   champs mot de passe dès qu'une valeur est saisie — ce n'est PAS un bug de
+   l'application, mais l'icône native de révélation du mot de passe
+   qu'Edge ajoute automatiquement (pseudo-élément `::-ms-reveal`), en plus
+   du bouton œil déjà codé à la main (StaffLoginView.tsx,
+   AlertTrackingView.tsx). Masquée ici ; sans effet dans les navigateurs qui
+   ne supportent pas ce pseudo-élément (Chrome, Firefox, Safari). */
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}
+
+/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+   BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : les boutons
+   "Générer le rapport" appelaient `window.print()` directement sur toute
+   la page affichée (barre latérale, navigation comprises) — jamais un
+   document propre. `.print-only` (CaseReportPrintView.tsx) est le SEUL
+   contenu visible à l'impression : masqué à l'écran, ces règles masquent
+   tout le RESTE de la page uniquement en contexte d'impression (jamais à
+   l'écran, où l'application continue de s'afficher normalement). */
+.print-only {
+  display: none;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+  .print-only {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  @page {
+    margin: 1.5cm;
+  }
+}

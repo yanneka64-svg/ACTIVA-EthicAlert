@@ -75,6 +75,8 @@ import { storage } from '../services/storage';
 import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
 import type { DataTableColumn } from './ui';
+// === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+import { CaseReportPrintView } from './CaseReportPrintView';
 import { computeSlaStatus, deriveCaseStatus, applyCaseStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { isGlobalCaseViewer, userCan, canSeeAlertConfidentiality } from '../services/authz';
@@ -438,6 +440,15 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [internalNoteText, setInternalNoteText] = useState<string>('');
   const [investigatorMsgText, setInvestigatorMsgText] = useState<string>('');
 
+  // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+  // Dès que `showPrintReport` passe à true, CaseReportPrintView.tsx (rendu
+  // plus bas, cf. `.print-only` dans index.css) devient le SEUL contenu
+  // visible dans la boîte de dialogue d'impression du navigateur — jamais
+  // toute la page comme auparavant (BUG PRÉEXISTANT CORRIGÉ, signalé par
+  // l'utilisateur). Un seul modèle désormais (synthèse), sur demande
+  // explicite — plus besoin du menu de choix entre plusieurs modèles.
+  const [showPrintReport, setShowPrintReport] = useState(false);
+
   // Corrective Measure form inputs
   const [showAddMeasureModal, setShowAddMeasureModal] = useState(false);
   const [measureTitle, setMeasureTitle] = useState('');
@@ -645,6 +656,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // mode (e.g. a trackingNumber deep link narrows the search to one match) —
   // in list mode there is deliberately no "current" case.
   const selectedAlert = alerts.find(a => a.id === selectedAlertId) || (viewMode === 'detail' ? visibleAlerts[0] : undefined) || null;
+
+  // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+  // Laisse React monter CaseReportPrintView (rendu conditionnellement sur
+  // `showPrintReport`, plus bas dans ce composant) avant d'appeler
+  // `window.print()`, qui n'imprime alors QUE ce contenu grâce aux règles
+  // `.print-only`/`@media print` (index.css) — jamais le reste de l'app.
+  useEffect(() => {
+    if (!showPrintReport || !selectedAlert) return;
+    const timer = window.setTimeout(() => {
+      window.print();
+      setShowPrintReport(false);
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [showPrintReport, selectedAlert]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
   // Candidats à l'attribution pour le dossier actuellement sélectionné —
@@ -2803,8 +2828,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   {selectedAlert.closureSummary && (
                     <p className="pt-2 border-t border-slate-200 text-slate-700 leading-relaxed">{selectedAlert.closureSummary}</p>
                   )}
+                  {/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec
+                      en-tête ACTIVA) === Remplace l'appel direct à
+                      `window.print()` (imprimait toute la page — barre
+                      latérale, navigation comprises) par le contenu réel
+                      de CaseReportPrintView.tsx. */}
                   <button
-                    onClick={() => window.print()}
+                    onClick={() => setShowPrintReport(true)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -3450,8 +3480,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 <Link2 className="w-3.5 h-3.5 text-slate-400" />
                 {t.case_quick_links_title}
               </h3>
+              {/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête
+                  ACTIVA) === Même motif que Synthèse du dossier ci-dessus. */}
               <button
-                onClick={() => window.print()}
+                onClick={() => setShowPrintReport(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition"
               >
                 <Printer className="w-3.5 h-3.5 text-blue-600" />
@@ -3480,6 +3512,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             </button>
           </div>
         ))}
+
+      {/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+          Rendu inconditionnellement caché à l'écran (`.print-only`, voir
+          index.css) — ne devient visible que dans la boîte de dialogue
+          d'impression du navigateur, une fois `showPrintReport` à true
+          (voir le useEffect plus haut, qui appelle window.print() puis le
+          réinitialise). */}
+      {selectedAlert && showPrintReport && (
+        <CaseReportPrintView
+          alert={selectedAlert}
+          generatedByName={activeUser.name}
+          locale={lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'}
+        />
+      )}
 
       {/* MODAL: ASSIGN INVESTIGATORS */}
       {showAssignModal && selectedAlert && (

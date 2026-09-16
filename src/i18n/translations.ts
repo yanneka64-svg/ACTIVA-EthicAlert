@@ -66,6 +66,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
     hero_eyebrow: 'Canal éthique du Groupe ACTIVA',
     hero_anonymous_note: 'Vous pouvez effectuer un signalement de manière anonyme.',
+    // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
+    // Sur demande explicite, avec capture de référence à respecter (couleurs,
+    // barre d'accent bleue, légende sous la liste).
+    hero_value_1: 'L’écoute clients',
+    hero_value_2: 'La réactivité',
+    hero_value_3: 'Le respect des engagements',
+    hero_value_4: 'L’innovation',
+    hero_value_5: 'La disponibilité',
+    hero_values_caption: 'Des valeurs qui nous engagent',
     // === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui tourne) ===
     hero_value1_title: 'Intégrité',
     hero_value1_desc: 'Des pratiques responsables',
@@ -670,13 +679,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // aucune des 3 langues — les titres d'état vide s'affichaient donc
     // vides (`undefined`).
     cp_empty_recent_alerts: 'Aucune alerte récente.',
-    cp_section_quick_actions: 'Actions rapides',
-    cp_qa_review_new: 'Examiner les nouvelles alertes',
-    cp_qa_triage_unassigned: 'Trier les dossiers non attribués',
-    cp_qa_assign_case: 'Attribuer un dossier',
-    cp_qa_view_overdue: 'Voir les dossiers en retard',
-    cp_qa_review_closure: 'Examiner les clôtures',
-    cp_qa_view_reports: 'Voir les rapports',
 
     // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
     // maquette Tableau de bord) === regroupement en 5 paniers de statut
@@ -813,11 +815,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'Aucune tâche ouverte restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign : période, graphiques, tableau) ===
-    cp_period_today: 'Aujourd’hui',
-    cp_period_7d: '7 jours',
     cp_period_30d: '30 jours',
-    cp_period_custom: 'Personnalisé',
-    cp_last_updated: 'Dernière mise à jour',
     cp_section_trend: 'Tendance des alertes',
     cp_section_category: 'Alertes par catégorie',
     cp_section_priority: 'Alertes par priorité',
@@ -1103,6 +1101,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17 — homepage reorganization) ===
     hero_eyebrow: 'ACTIVA Group ethics channel',
     hero_anonymous_note: 'You can file a report anonymously.',
+    // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
+    hero_value_1: 'Customer focus',
+    hero_value_2: 'Responsiveness',
+    hero_value_3: 'Commitment to our promises',
+    hero_value_4: 'Innovation',
+    hero_value_5: 'Availability',
+    hero_values_caption: 'Values that drive us',
     // === AMÉLIORATION AJOUTÉE (Phase 22 — rotating values card) ===
     hero_value1_title: 'Integrity',
     hero_value1_desc: 'Responsible practices',
@@ -1633,13 +1638,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_in_progress: 'In Progress',
     cp_corrective_completed: 'Completed',
     cp_empty_recent_alerts: 'No recent alerts.',
-    cp_section_quick_actions: 'Quick Actions',
-    cp_qa_review_new: 'Review New Alerts',
-    cp_qa_triage_unassigned: 'Triage Unassigned',
-    cp_qa_assign_case: 'Assign Case',
-    cp_qa_view_overdue: 'View Overdue Cases',
-    cp_qa_review_closure: 'Review Closure',
-    cp_qa_view_reports: 'View Reports',
 
     // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
     // maquette Tableau de bord) ===
@@ -1773,11 +1771,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'No open tasks remaining',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
-    cp_period_today: 'Today',
-    cp_period_7d: '7 Days',
     cp_period_30d: '30 Days',
-    cp_period_custom: 'Custom',
-    cp_last_updated: 'Last updated',
     cp_section_trend: 'Alerts Trend',
     cp_section_category: 'Alerts by Category',
     cp_section_priority: 'Alerts by Priority',
@@ -2031,6 +2025,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17 — reorganização da página inicial) ===
     hero_eyebrow: 'Canal de ética do Grupo ACTIVA',
     hero_anonymous_note: 'Pode efetuar uma denúncia de forma anónima.',
+    // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
+    hero_value_1: 'Foco no cliente',
+    hero_value_2: 'Reatividade',
+    hero_value_3: 'Cumprimento dos compromissos',
+    hero_value_4: 'Inovação',
+    hero_value_5: 'Disponibilidade',
+    hero_values_caption: 'Valores que nos comprometem',
     // === AMÉLIORATION AJOUTÉE (Phase 22 — cartão de valores rotativo) ===
     hero_value1_title: 'Integridade',
     hero_value1_desc: 'Práticas responsáveis',
@@ -2562,13 +2563,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_in_progress: 'Em Andamento',
     cp_corrective_completed: 'Concluídas',
     cp_empty_recent_alerts: 'Nenhum alerta recente.',
-    cp_section_quick_actions: 'Ações Rápidas',
-    cp_qa_review_new: 'Analisar Novos Alertas',
-    cp_qa_triage_unassigned: 'Triagem de Não Atribuídos',
-    cp_qa_assign_case: 'Atribuir Caso',
-    cp_qa_view_overdue: 'Ver Casos Atrasados',
-    cp_qa_review_closure: 'Analisar Encerramentos',
-    cp_qa_view_reports: 'Ver Relatórios',
 
     // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
     // maquette Tableau de bord) ===
@@ -2702,11 +2696,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'Nenhuma tarefa em aberto restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
-    cp_period_today: 'Hoje',
-    cp_period_7d: '7 dias',
     cp_period_30d: '30 dias',
-    cp_period_custom: 'Personalizado',
-    cp_last_updated: 'Última atualização',
     cp_section_trend: 'Tendência de alertas',
     cp_section_category: 'Alertas por categoria',
     cp_section_priority: 'Alertas por prioridade',
