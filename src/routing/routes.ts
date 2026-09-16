@@ -96,8 +96,6 @@ export const TAB_TO_PATH: Record<string, string> = {
   // Nouvelle entrée de barre latérale, partagée (pas spécifique à un
   // espace) — voir StaffPortalLayout.tsx.
   advanced_search: '/search/advanced',
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  admin_workflow: '/admin/workflow',
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === 3 sections
   // jusqu'ici seulement atteignables via la rangée d'onglets interne
   // d'AdminConfigView (retirée), jamais par une URL propre — voir
