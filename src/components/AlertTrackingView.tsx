@@ -377,8 +377,14 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     // `max-w-5xl`→`max-w-3xl`, hauteur `min-h-[460px]`→`min-h-[260px]`,
     // padding `p-10`→`p-8`, icône `w-5 h-5`→`w-4 h-4`, textes justifiés —
     // mêmes valeurs exactes que la carte "Espaces de travail". */}
+    // === AMÉLIORATION AJOUTÉE (position verticale de la carte, "page
+    // similaire" de StaffSpaceHome.tsx) === même correctif que l'accueil
+    // des espaces : `min-h-[70vh] flex items-center` centre la carte
+    // verticalement au lieu de la laisser collée en haut avec un grand vide
+    // en dessous — sur demande explicite de l'utilisateur.
     return (
-      <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
+      <div className="min-h-[70vh] flex items-center justify-center py-8 px-4 sm:px-6">
+      <div className="w-full max-w-3xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
           {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
               l'utilisateur) === Remplace la photo du siège par une photo de
@@ -399,7 +405,13 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/90 via-[#0B2545]/55 to-[#0B2545]/15" />
             <div className="relative z-10 space-y-5">
-              <p className="text-2xl font-bold leading-snug max-w-xs">{t.track_login_tagline}</p>
+              {/* === AMÉLIORATION AJOUTÉE (texte du bandeau photo) === Remplace
+                  l'accroche générique par le même texte explicatif que le
+                  formulaire ("Consultez l'avancement de votre dossier...",
+                  `t.track_subtitle`), sur demande explicite de l'utilisateur.
+                  `track_login_tagline` reste défini dans translations.ts
+                  (non supprimé) mais n'est plus utilisé ici. */}
+              <p className="text-2xl font-bold leading-snug max-w-xs">{t.track_subtitle}</p>
               <div className="w-10 h-px bg-white/40" />
               <div className="flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-white shrink-0 mt-0.5" />
@@ -417,9 +429,13 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                 espaces) === Cadenas retiré et titre aligné à gauche
                 (au lieu de centré) — même style que le titre "Espaces de
                 travail" de StaffSpaceHome.tsx, sur demande explicite. */}
-            <div className="mb-4 space-y-2">
+            {/* === AMÉLIORATION AJOUTÉE (retrait du doublon de texte) ===
+                Le sous-titre (`t.track_subtitle`) était répété ici alors
+                qu'il s'affiche désormais aussi sur le bandeau photo à
+                gauche — retiré ici sur demande explicite de l'utilisateur,
+                la clé de traduction reste inchangée et utilisée côté photo. */}
+            <div className="mb-4">
               <h2 className="text-xl font-bold text-slate-900">{t.track_title}</h2>
-              <p className="text-xs text-slate-600">{t.track_subtitle}</p>
             </div>
 
             {loginError && (
@@ -492,6 +508,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
             </button>
           </div>
         </div>
+      </div>
       </div>
     );
   }

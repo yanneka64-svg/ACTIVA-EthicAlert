@@ -166,6 +166,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const locale = localeOf(lang);
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  // === AMÉLIORATION AJOUTÉE (retour visuel bouton Actualiser) ===
+  // `lastRefreshed` n'affiche que l'heure/minute : un clic répété dans la
+  // même minute ne changeait rien à l'écran, donnant l'impression que le
+  // bouton ne fonctionnait pas. `isRefreshing` déclenche une brève
+  // animation de l'icône pour confirmer visuellement le clic à chaque fois.
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [period, setPeriod] = useState<PeriodKey>('30d');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -182,6 +188,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const handleRefresh = () => {
     setAlerts(storage.getAlerts());
     setLastRefreshed(new Date());
+    // === AMÉLIORATION AJOUTÉE : confirmation visuelle immédiate du clic ===
+    setIsRefreshing(true);
+    window.setTimeout(() => setIsRefreshing(false), 600);
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
@@ -479,7 +488,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
               onClick={handleRefresh}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-blue-600" /> {t.cp_refresh}
+              <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} /> {t.cp_refresh}
             </button>
           </div>
         </div>

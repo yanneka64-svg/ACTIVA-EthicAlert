@@ -321,7 +321,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_title_single: 'Espace de travail',
     space_home_title_plural: 'Espaces de travail',
     space_home_subtitle_single: 'Accédez à votre espace de travail pour reprendre votre activité.',
-    space_home_subtitle_plural: 'Sélectionnez votre environnement de travail pour accéder aux dossiers, à la boîte de réception et aux outils dédiés.',
+    space_home_subtitle_plural: 'Sélectionnez votre environnement de travail.',
     space_home_session_active: 'Session active',
     // === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) ===
     space_home_denied_title: 'Accès restreint',
@@ -675,6 +675,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_completed: 'Terminées',
     cp_section_activity: 'Activité récente',
     cp_empty_activity: 'Aucune activité récente.',
+    // === AMÉLIORATION AJOUTÉE (connectivité frontend) === BUG PRÉEXISTANT
+    // CORRIGÉ, signalé lors d'un audit de connectivité : ControlPanel.tsx
+    // référence `t.cp_empty_recent_alerts` à 5 endroits (tableau "Alertes
+    // récentes" + 3 graphiques vides), mais cette clé n'était définie dans
+    // aucune des 3 langues — les titres d'état vide s'affichaient donc
+    // vides (`undefined`).
+    cp_empty_recent_alerts: 'Aucune alerte récente.',
     cp_section_quick_actions: 'Actions rapides',
     cp_qa_review_new: 'Examiner les nouvelles alertes',
     cp_qa_triage_unassigned: 'Trier les dossiers non attribués',
@@ -1322,7 +1329,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_title_single: 'Workspace',
     space_home_title_plural: 'Workspaces',
     space_home_subtitle_single: 'Access your workspace to resume your activity.',
-    space_home_subtitle_plural: 'Select your workspace to access cases, the inbox and dedicated tools.',
+    space_home_subtitle_plural: 'Select your workspace.',
     space_home_session_active: 'Active session',
     // === AMÉLIORATION AJOUTÉE (access-denied window on click) ===
     space_home_denied_title: 'Access restricted',
@@ -1625,6 +1632,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_completed: 'Completed',
     cp_section_activity: 'Recent Activity',
     cp_empty_activity: 'No recent activity.',
+    cp_empty_recent_alerts: 'No recent alerts.',
     cp_section_quick_actions: 'Quick Actions',
     cp_qa_review_new: 'Review New Alerts',
     cp_qa_triage_unassigned: 'Triage Unassigned',
@@ -2243,7 +2251,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_title_single: 'Espaço de trabalho',
     space_home_title_plural: 'Espaços de trabalho',
     space_home_subtitle_single: 'Acesse seu espaço de trabalho para retomar sua atividade.',
-    space_home_subtitle_plural: 'Selecione seu ambiente de trabalho para acessar os casos, a caixa de entrada e as ferramentas dedicadas.',
+    space_home_subtitle_plural: 'Selecione seu ambiente de trabalho.',
     space_home_session_active: 'Sessão ativa',
     // === AMÉLIORATION AJOUTÉE (janela de acesso restrito ao clicar) ===
     space_home_denied_title: 'Acesso restrito',
@@ -2546,6 +2554,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_completed: 'Concluídas',
     cp_section_activity: 'Atividade Recente',
     cp_empty_activity: 'Nenhuma atividade recente.',
+    cp_empty_recent_alerts: 'Nenhum alerta recente.',
     cp_section_quick_actions: 'Ações Rápidas',
     cp_qa_review_new: 'Analisar Novos Alertas',
     cp_qa_triage_unassigned: 'Triagem de Não Atribuídos',
