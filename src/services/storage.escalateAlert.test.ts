@@ -1,5 +1,11 @@
 /**
  * === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+ *
+ * === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de démonstration ===
+ * Les comptes fictifs qui servaient de fixtures "destinataire lié à un
+ * compte réel" ont été retirés de INITIAL_USERS — les tests qui en ont
+ * besoin créent désormais leur propre compte + destinataire de test local
+ * via storage.addUser()/addEscalationRecipient().
  */
 import { describe, expect, it } from 'vitest';
 import { storage } from './storage';
@@ -25,13 +31,39 @@ describe('storage.escalateAlert', () => {
   // dossier (BUG PRÉEXISTANT CORRIGÉ : assignedInvestigators n'était
   // jamais mis à jour avant ce correctif).
   it('escalates a valid alert: sets workflowStatus, status, escalation fields, grants access to a linked recipient, and leaves country/entity untouched', () => {
+    const actor = storage.getActiveUser();
+    // Compte de test avec habilitation suffisante (rang 3 = highly_confidential,
+    // niveau du dossier alerts[0]/AACMR ci-dessous) pour recevoir un accès réel.
+    const linkedUserId = 'test-escalation-target-senior-investigator';
+    storage.addUser(
+      {
+        id: linkedUserId,
+        name: 'Destinataire de test (Groupe)',
+        email: 'test.escalation.target@group-activa.com',
+        username: 'test.escalation.target',
+        role: 'senior_investigator',
+        roleTitle: 'Responsable des Investigations Groupe',
+        entity: 'ACTIVA Finance',
+        country: 'Groupe ACTIVA',
+        countries: [],
+        entities: [],
+        active: true,
+      },
+      actor
+    );
+    const recipientId = 'test-rec-valid-escalation';
+    storage.addEscalationRecipient(
+      { id: recipientId, identifiant: 'TEST-VALID-001', nom: 'Destinataire de test (Groupe)', email: 'test.escalation.target@group-activa.com', fonction: 'Test', grade: 5, linkedUserId, active: true },
+      actor
+    );
+
     const alerts = storage.getAlerts();
     const target = alerts[0];
     const originalCountry = target.country;
     const originalEntity = target.concernedEntity;
     const originalCountryId = target.countryId;
     const originalEntityId = target.entityId;
-    const recipient = storage.getEscalationRecipients().find((r) => r.active && !!r.linkedUserId)!;
+    const recipient = storage.getEscalationRecipients().find((r) => r.id === recipientId)!;
     const auditCountBefore = storage.getAuditLogs().length;
 
     const result = storage.escalateAlert(target.id, 'Implication de la Direction', ['Implication d’un membre de la Direction'], recipient.id, storage.getActiveUser());
@@ -66,7 +98,22 @@ describe('storage.escalateAlert', () => {
     const target = { ...base, id: 'test-alt-insufficient-clearance', status: 'investigation' as const, workflowStatus: undefined, assignedInvestigators: [] as string[], assignedInvestigatorNames: [] as string[] };
     storage.saveAlert(target);
 
-    const investigatorUser = storage.getUsers().find((u) => u.role === 'investigator')!; // plafond 'confidential', insuffisant pour highly_confidential
+    // Compte de test avec un plafond 'confidential' (rang 2), insuffisant
+    // pour un dossier 'highly_confidential' (rang 3) — voir ROLE_MAX_CONFIDENTIALITY.
+    const investigatorUser = { id: 'test-investigator-insufficient-clearance', name: 'Enquêteur de test', email: 'test.investigator.clearance@group-activa.com', username: 'test.investigator.clearance' };
+    storage.addUser(
+      {
+        ...investigatorUser,
+        role: 'investigator',
+        roleTitle: 'Enquêteur',
+        entity: 'ACTIVA Finance',
+        country: 'Groupe ACTIVA',
+        countries: [],
+        entities: [],
+        active: true,
+      },
+      storage.getActiveUser()
+    );
     const recipientId = 'test-rec-insufficient-clearance';
     storage.addEscalationRecipient(
       { id: recipientId, identifiant: 'TEST-001', nom: investigatorUser.name, email: investigatorUser.email, fonction: 'Test', grade: 2, linkedUserId: investigatorUser.id, active: true },

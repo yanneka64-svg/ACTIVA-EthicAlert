@@ -33,6 +33,7 @@ const SYSTEM_ACTOR: UserProfile = {
   id: 'system-notifications',
   name: 'Système activa-whistleblowing',
   email: 'systeme@activa-hotline.internal',
+  username: 'system-notifications',
   role: 'reporter',
   roleTitle: 'Notifications automatiques',
   entity: 'Groupe ACTIVA',
@@ -94,19 +95,40 @@ export function notifyNewAlertToOperators(operators: UserProfile[], alert: CaseR
     });
 }
 
+// === AMÉLIORATION AJOUTÉE === lien direct et partageable vers un dossier
+// (`/cases/:trackingNumber`, voir routing/routes.ts — le même mécanisme que
+// les liens de dossier déjà partageables ailleurs dans l'app). Construit à
+// partir de `window.location.origin` plutôt que d'une URL codée en dur :
+// reste exact quel que soit le domaine réel de déploiement (aperçu Netlify,
+// domaine personnalisé, etc.). `undefined` hors navigateur (aucun cas réel
+// aujourd'hui, ce module n'étant appelé que depuis des gestionnaires
+// d'événements côté client, mais reste honnête plutôt que de fabriquer une
+// URL fictive).
+function caseDeepLink(alert: CaseRef): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return `${window.location.origin}/cases/${encodeURIComponent(alert.trackingNumber)}`;
+}
+
 // === AMÉLIORATION AJOUTÉE === Attribution : notifie chaque Enquêteur
 // NOUVELLEMENT attribué (jamais quelqu'un déjà attribué avant ce
 // changement précis — à l'appelant de ne passer que la différence).
 // `actor` est le vrai compte qui a effectué l'attribution (Opérateur),
-// pour que l'entrée d'audit reflète qui a déclenché la notification.
+// pour que l'entrée d'audit reflète qui a déclenché la notification. Le
+// message contient désormais un lien direct et cliquable vers le dossier
+// (sur demande explicite), pas seulement une mention du nom de la
+// plateforme — toujours suivi du même rappel de périmètre que le message
+// texte précédent.
 export function notifyAssignmentToInvestigators(newlyAssigned: UserProfile[], alert: CaseRef, actor: UserProfile): void {
+  const link = caseDeepLink(alert);
   newlyAssigned
     .filter((u) => !!u.email)
     .forEach((u) => {
       sendOne(
         u.email,
         `[activa-whistleblowing] Dossier attribué — ${alert.trackingNumber}`,
-        `Un dossier vient de vous être attribué.\n\nRéférence : ${alert.trackingNumber}\n\nConnectez-vous à activa-whistleblowing pour y accéder — vous ne pouvez consulter que les dossiers qui vous sont attribués.`
+        `Un dossier vient de vous être attribué.\n\nRéférence : ${alert.trackingNumber}\n\n` +
+          (link ? `Accédez-y directement : ${link}\n\n` : '') +
+          `Vous ne pouvez consulter que les dossiers qui vous sont attribués.`
       ).then((result) => {
         storage.logAudit(
           result.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',

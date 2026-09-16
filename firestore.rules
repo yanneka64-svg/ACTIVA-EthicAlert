@@ -2,31 +2,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Alert records
+    // === AMÉLIORATION AJOUTÉE : correctif de sécurité (revue post-déploiement) ===
+    // `alerts`/`audit_logs`/`users` étaient historiquement grands ouverts
+    // (`if true`) pour ce modèle legacy pré-Phase 3, y compris en lecture
+    // ET en écriture, sans authentification. Audit en conditions réelles :
+    // aucun code client ne LIT jamais ces 3 collections (fetchAlertsFromCloud
+    // est importé mais jamais appelé) ; la seule ÉCRITURE est le mirroring
+    // automatique best-effort de src/services/storage.ts (saveAlert /
+    // journal d'audit -> services/firebase.ts -> saveAlertToCloud /
+    // saveAuditLogToCloud, déclenché sur CHAQUE sauvegarde locale dès qu'un
+    // projet Firebase est rattaché), qui n'utilise jamais de vraie session
+    // Firebase Authentication (`request.auth` y est toujours `null`) — donc
+    // rien de légitime ne dépend d'un accès non authentifié. Résultat concret
+    // avant ce correctif : n'importe qui sur Internet, sans connexion,
+    // pouvait lire (et pour `alerts`, modifier) le contenu réel de dossiers
+    // et le journal d'audit. Fermées comme `reporter_credentials`/`counters`
+    // ci-dessous (Cloud Functions/Admin SDK uniquement) : le mirroring
+    // continue d'échouer silencieusement (déjà en `.catch(() => {})`), sans
+    // impact sur le fonctionnement réel de l'app (100 % local/localStorage).
     match /alerts/{alertId} {
-      // Any user (including unauthenticated whistleblowers) can submit a new alert
-      allow create: if request.resource.data.trackingNumber != null;
-      
-      // Read: Either authenticated staff (DARC, investigators) or via tracking number lookup
-      allow read: if true;
-      
-      // Update: Assigned investigators, DARC managers, or adding messages to case
-      allow update: if true;
-      
-      // Delete: Only root system administrators
-      allow delete: if request.auth != null && request.auth.token.role == 'system_admin';
+      allow read, write: if false;
     }
 
     // Audit logs (CDC 3.1.5: 10 years conservation, write-only immutable trail)
     match /audit_logs/{logId} {
-      allow create: if true;
-      allow read: if true;
-      allow update, delete: if false; // Immutable audit trail
+      allow read, write: if false;
     }
 
     // User profiles & directory
     match /users/{userId} {
-      allow read: if true;
+      allow read: if false;
       allow write: if request.auth != null && request.auth.token.role == 'system_admin';
     }
 

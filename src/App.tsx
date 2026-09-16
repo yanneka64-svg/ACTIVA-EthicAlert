@@ -4,7 +4,7 @@
  * @license Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Language, UserProfile } from './types';
 import { storage } from './services/storage';
@@ -257,6 +257,31 @@ function AppShell() {
     setIsStaffSessionActive(false);
     navigate(pathForTab('login'));
   };
+
+  // === AMÉLIORATION AJOUTÉE (déconnexion automatique après inactivité) ===
+  // Les espaces de travail internes se déconnectent automatiquement après
+  // 5 minutes sans interaction (souris, clavier, défilement, tactile) —
+  // aucune minuterie tant qu'aucune session interne n'est active (l'accueil
+  // public n'est jamais concerné).
+  const IDLE_LOGOUT_MS = 5 * 60 * 1000;
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    if (!isStaffSessionActive) return;
+    const resetIdleTimer = () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        handleLogout();
+      }, IDLE_LOGOUT_MS);
+    };
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'] as const;
+    activityEvents.forEach((evt) => window.addEventListener(evt, resetIdleTimer));
+    resetIdleTimer();
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      activityEvents.forEach((evt) => window.removeEventListener(evt, resetIdleTimer));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaffSessionActive]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 5) ===
   // A plain tab switch (Navbar / sidebar) clears any Control-Panel-driven

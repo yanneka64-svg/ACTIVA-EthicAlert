@@ -488,6 +488,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
         id: 'whistleblower-anonymous',
         name: isAnonymous ? 'Lanceur d’alerte (Anonyme)' : (declarantName || 'Lanceur d’alerte'),
         email: isAnonymous ? 'anonyme@declare.activa' : declarantEmail,
+        username: 'whistleblower-anonymous',
         role: 'reporter',
         roleTitle: isAnonymous ? 'Déclarant Anonyme' : 'Déclarant Identifié',
         entity: newRecord.concernedEntity,

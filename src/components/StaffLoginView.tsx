@@ -18,19 +18,20 @@
  * temporaire réel) === Le champ "Mot de passe" n'est plus décoratif : les
  * comptes créés depuis l'administration (AdminConfigView.tsx) reçoivent un
  * mot de passe temporaire réel, salé et haché (services/crypto.ts), qui
- * doit être changé à la première connexion et expire sous 24h
- * (storage.ts `verifyStaffLogin`) — voilà l'ancienne note "champ
- * décoratif" (brief section 32) devenue fausse, retirée ici plutôt que
- * laissée trompeuse. Le sélecteur "Compte" reste une simple commodité de
- * démonstration (préremplit qui l'on prétend être) ; c'est le mot de passe
- * saisi, désormais réellement vérifié, qui autorise ou non la connexion —
- * jamais d'accès accordé sur la seule sélection. Les comptes de
- * démonstration préexistants (INITIAL_USERS, jamais passés par ce nouveau
- * flux) gardent leur mot de passe fixe "demo" (repli documenté dans
- * `verifyStaffLogin`), comportement inchangé pour eux.
+ * doit être changé à la première connexion et expire sous 4h (storage.ts
+ * `verifyStaffLogin`) — voilà l'ancienne note "champ décoratif" (brief
+ * section 32) devenue fausse, retirée ici plutôt que laissée trompeuse.
+ * C'est le mot de passe saisi, réellement vérifié, qui autorise ou non la
+ * connexion.
+ *
+ * === AMÉLIORATION AJOUTÉE (identifiant de connexion distinct de l'email) ===
+ * Sur demande explicite : la connexion se fait avec un IDENTIFIANT dédié
+ * (`UserProfile.username`), jamais l'adresse e-mail directement — l'email
+ * reste l'adresse de contact réelle (notifications, "mot de passe
+ * oublié ?"), distincte de l'identifiant de connexion.
  */
 import React, { useState } from 'react';
-import { LogIn, Lock, Mail, User, Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import { UserProfile } from '../types';
 import { storage } from '../services/storage';
 import { getLockStatus, recordFailedAttempt, clearAttempts, formatRemaining } from '../services/rateLimiter';
@@ -48,10 +49,13 @@ interface StaffLoginViewProps {
 }
 
 export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToContact }) => {
-  const staffUsers = storage.getUsers();
-  const [selectedId, setSelectedId] = useState<string>(staffUsers[0]?.id ?? '');
-  const selectedUser = staffUsers.find((u) => u.id === selectedId) ?? staffUsers[0];
-
+  // === AMÉLIORATION AJOUTÉE : suppression du sélecteur "Compte" ===
+  // Le menu déroulant "Compte" (retiré) exposait publiquement, sans
+  // authentification, la liste complète du personnel (noms + fonctions) —
+  // en plus de n'être qu'une commodité de démonstration. L'identifiant est
+  // désormais un champ de saisie normal, comme sur un vrai écran de
+  // connexion.
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -71,9 +75,10 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-    if (!selectedUser) return;
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) return;
 
-    const rateLimitKey = selectedUser.email;
+    const rateLimitKey = trimmedUsername;
     const lockStatus = getLockStatus(rateLimitKey);
     if (lockStatus.locked) {
       setLoginError(`Trop de tentatives incorrectes. Réessayez dans ${formatRemaining(lockStatus.remainingMs)}.`);
@@ -81,7 +86,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
     }
 
     setIsVerifying(true);
-    const result = await storage.verifyStaffLogin(selectedUser.email, password);
+    const result = await storage.verifyStaffLogin(trimmedUsername, password);
 
     // === AMÉLIORATION AJOUTÉE ===
     // `=== false` plutôt que `!result.ok` : ce projet compile sans
@@ -92,16 +97,19 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
     // correct), `=== false` rétrécit correctement dans les deux cas.
     if (result.ok === false) {
       if (result.reason === 'expired') {
-        setLoginError('Ce mot de passe temporaire a expiré (validité 24h). Contactez un administrateur pour en obtenir un nouveau.');
+        setLoginError('Ce mot de passe temporaire a expiré (validité 4h). Contactez un administrateur pour en obtenir un nouveau.');
         setIsVerifying(false);
         return;
       }
       const status = recordFailedAttempt(rateLimitKey);
+      // Le compte peut ne pas exister (identifiant inconnu saisi) : logAudit
+      // retombe alors sur son acteur système par défaut (4e argument omis).
+      const attemptedUser = storage.getUsers().find((u) => u.username.toLowerCase() === trimmedUsername.toLowerCase());
       storage.logAudit(
         'ACCESS_DENIED',
-        `Tentative de connexion refusée (mot de passe incorrect) pour ${selectedUser.email}. Tentatives restantes : ${status.attemptsRemaining}.`,
+        `Tentative de connexion refusée (${result.reason === 'not_found' ? 'identifiant inconnu' : 'mot de passe incorrect'}) pour ${trimmedUsername}. Tentatives restantes : ${status.attemptsRemaining}.`,
         undefined,
-        selectedUser
+        attemptedUser
       );
       setLoginError(
         status.locked
@@ -235,37 +243,18 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
         <form onSubmit={handleSubmit} className="activa-caret-blink space-y-4">
           <div>
             <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
-              Compte
-            </label>
-            {staffUsers.length > 0 ? (
-              <select
-                id="login-account-select"
-                value={selectedId}
-                onChange={(e) => setSelectedId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              >
-                {staffUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} — {u.roleTitle}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-xs text-rose-600">Aucun compte de démonstration disponible.</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
-              Email
+              Identifiant
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
-                type="email"
-                value={selectedUser?.email ?? ''}
-                readOnly
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm text-slate-600"
+                type="text"
+                id="input-login-username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="ex : y.mebadaekani"
+                autoComplete="username"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
           </div>
@@ -312,7 +301,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
           <button
             type="submit"
             id="btn-submit-staff-login"
-            disabled={!selectedUser || isVerifying}
+            disabled={!username.trim() || !password || isVerifying}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-sm font-bold hover:bg-[#0B2545]/90 disabled:opacity-50 transition"
           >
             <LogIn className="w-4 h-4" />

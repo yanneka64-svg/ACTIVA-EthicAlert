@@ -53,7 +53,11 @@ class StorageService {
   private alerts: AlertRecord[] = [];
   private auditLogs: AuditLogEntry[] = [];
   private users: UserProfile[] = [];
-  private activeUser: UserProfile = INITIAL_USERS[0]; // Default to B.Y. Ekani (Point de Contact)
+  // === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de démonstration ===
+  // Simple placeholder transitoire, toujours remplacé de façon synchrone par
+  // init() (appelé depuis le constructeur juste après) — même convention que
+  // `alerts`/`auditLogs`/`users` ci-dessus (tableaux vides en placeholder).
+  private activeUser: UserProfile = {} as UserProfile;
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
   // Mutable, persisted copies of the entity/category config, seeded from
   // the static ACTIVA_ENTITIES/ALERT_CATEGORIES constants exactly like
@@ -149,7 +153,12 @@ class StorageService {
           this.persistUsers();
         }
       } else {
-        this.users = [...INITIAL_USERS];
+        // === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de
+        // démonstration === INITIAL_USERS est désormais vide (voir
+        // activaConfig.ts) — un navigateur tout neuf réamorce directement
+        // le compte de secours réel plutôt que de persister un tableau
+        // vide et attendre un rechargement pour se corriger.
+        this.users = INITIAL_USERS.length > 0 ? [...INITIAL_USERS] : this.emergencyAdminSeed();
         this.persistUsers();
       }
 
@@ -157,7 +166,12 @@ class StorageService {
       if (storedActiveUser) {
         this.activeUser = JSON.parse(storedActiveUser);
       } else {
-        this.activeUser = INITIAL_USERS[0];
+        // === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de
+        // démonstration === `INITIAL_USERS[0]` référençait directement le
+        // tableau de seed, désormais vide — `this.users[0]` est la bonne
+        // source : déjà résolu ci-dessus (comptes réels stockés, ou repli
+        // sur le compte de secours), jamais `undefined`.
+        this.activeUser = this.users[0];
       }
 
       // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
@@ -243,8 +257,12 @@ class StorageService {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
       this.alerts = [...INITIAL_ALERTS];
       this.auditLogs = [...INITIAL_AUDIT_LOGS];
-      this.users = [...INITIAL_USERS];
-      this.activeUser = INITIAL_USERS[0];
+      // === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de
+      // démonstration === même repli que le chemin localStorage ci-dessus
+      // (this.users ne doit jamais être vide, sans quoi this.activeUser
+      // serait `undefined`).
+      this.users = INITIAL_USERS.length > 0 ? [...INITIAL_USERS] : this.emergencyAdminSeed();
+      this.activeUser = this.users[0];
       this.entities = [...ACTIVA_ENTITIES];
       this.categories = [...ALERT_CATEGORIES];
       // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
@@ -384,28 +402,43 @@ class StorageService {
   }
 
   // === AMÉLIORATION AJOUTÉE (correctif — verrouillage total hors recours)
-  // === Compte de secours réamorcé UNIQUEMENT quand `this.users` serait
-  // sinon vide au chargement — jamais si au moins un compte existe déjà.
+  // === Compte admin réamorcé UNIQUEMENT quand `this.users` serait sinon
+  // vide au chargement — jamais si au moins un compte existe déjà.
   // `system_admin` (et non `functional_admin`) : c'est le seul rôle qui
   // donne accès à Utilisateurs/Rôles & Permissions, condition nécessaire
-  // pour recréer les autres comptes ensuite sans aide extérieure. Aucun
-  // `passwordHash` : repli "demo" documenté dans verifyStaffLogin, comme
-  // tout autre compte de démonstration jamais passé par le nouveau flux —
-  // une fois connecté, "Régénérer le mot de passe" (Administration →
-  // Utilisateurs) donne un vrai mot de passe temporaire pour ce compte.
+  // pour recréer les autres comptes ensuite sans aide extérieure.
+  //
+  // === AMÉLIORATION AJOUTÉE (identité réelle + mot de passe par défaut à
+  // changement obligatoire, demande explicite) === Compte réel (MEBADA
+  // EKANI Yannick, Group Forensic Analyst), plus un persona générique.
+  // `passwordHash`/`passwordSalt` ci-dessous sont le salage+hachage
+  // (services/crypto.ts, même algorithme) PRÉCALCULÉS du mot de passe par
+  // défaut `ActivaForensic2026!` — jamais stocké en clair, mais un mot de
+  // passe FIXE et connu (documenté ici et communiqué directement à
+  // l'administrateur), pas un secret aléatoire imprévisible : ce compte
+  // s'amorce sans écran admin pour en afficher un. `mustChangePassword:
+  // true` + `passwordSetAt` (calculé au moment réel de l'amorçage, jamais
+  // figé) imposent son remplacement dès la première connexion, avec la
+  // même expiration de 4h que tout autre mot de passe temporaire (voir
+  // TEMP_PASSWORD_TTL_MS) si non utilisé.
   private emergencyAdminSeed(): UserProfile[] {
     return [
       {
         id: 'usr-emergency-admin',
-        name: 'B. Y. Ekani',
+        name: 'MEBADA EKANI Yannick',
         email: 'by.ekani@group-activa.com',
+        username: 'y.mebadaekani',
         role: 'system_admin',
-        roleTitle: 'Administrateur système',
+        roleTitle: 'Group Forensic Analyst',
         entity: 'Toutes entités',
         country: 'Groupe ACTIVA',
         countries: [],
         entities: [],
         active: true,
+        passwordHash: '7d9d8d7e6cddbeb7db34cef5567a0bb0fb8cb69969e64c1215a8cb4f7d329630',
+        passwordSalt: 'a4f19e2c7b3d8106',
+        mustChangePassword: true,
+        passwordSetAt: new Date().toISOString(),
       },
     ];
   }
@@ -960,24 +993,26 @@ class StorageService {
   }
 
   // === AMÉLIORATION AJOUTÉE (création de comptes par l'admin — mot de
-  // passe temporaire, expiration 24h) ===
+  // passe temporaire, expiration 4h) ===
   // Durée de validité d'un mot de passe temporaire (tant qu'il n'a pas été
-  // changé) : demande explicite de l'utilisateur.
-  private static readonly TEMP_PASSWORD_TTL_MS = 24 * 60 * 60 * 1000;
+  // changé) : demande explicite de l'utilisateur (initialement 24h, réduite
+  // à 4h sur nouvelle demande explicite).
+  private static readonly TEMP_PASSWORD_TTL_MS = 4 * 60 * 60 * 1000;
 
   /**
-   * Vérifie un identifiant (email) + mot de passe pour la connexion staff.
-   * Repli explicite pour les comptes de démonstration pré-existants
-   * (INITIAL_USERS), qui n'ont jamais de `passwordHash` — mot de passe fixe
-   * "demo", comportement de connexion strictement inchangé pour eux. Un
-   * compte réellement créé par un administrateur (voir AdminConfigView.tsx)
-   * passe lui par le hachage salé réel ci-dessous.
+   * Vérifie un IDENTIFIANT (jamais l'adresse e-mail, demande explicite —
+   * `username`, distinct de `email`) + mot de passe pour la connexion staff.
+   * Repli explicite pour d'éventuels comptes sans `passwordHash` (aucun
+   * n'existe plus par défaut, mais un compte migré à la main pourrait en
+   * manquer) — mot de passe fixe "demo". Un compte réellement créé par un
+   * administrateur (voir AdminConfigView.tsx) passe lui par le hachage salé
+   * réel ci-dessous.
    */
   public async verifyStaffLogin(
-    email: string,
+    username: string,
     password: string
   ): Promise<{ ok: true; user: UserProfile; mustChangePassword: boolean } | { ok: false; reason: 'not_found' | 'wrong_password' | 'expired' }> {
-    const user = this.users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+    const user = this.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
     if (!user) return { ok: false, reason: 'not_found' };
 
     if (!user.passwordHash || !user.passwordSalt) {
@@ -1370,8 +1405,8 @@ class StorageService {
   public resetToFactory(): void {
     this.alerts = [...INITIAL_ALERTS];
     this.auditLogs = [...INITIAL_AUDIT_LOGS];
-    this.users = [...INITIAL_USERS];
-    this.activeUser = INITIAL_USERS[0];
+    this.users = INITIAL_USERS.length > 0 ? [...INITIAL_USERS] : this.emergencyAdminSeed();
+    this.activeUser = this.users[0];
     // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
     this.entities = [...ACTIVA_ENTITIES];
     this.categories = [...ALERT_CATEGORIES];
