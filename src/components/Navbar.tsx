@@ -378,10 +378,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                     icône-seule, son texte long ("Signaler une
                     préoccupation") restait le dernier responsable du
                     débordement sur mobile étroit (ex. 390px). */}
+                {/* === AMÉLIORATION AJOUTÉE (langue/connexion à l'extrême
+                    gauche du cluster droit sur mobile) === Sur demande
+                    explicite : `order-3 lg:order-none` repousse ce bouton
+                    après le sélecteur de langue et Connexion sur mobile
+                    (`lg:hidden` étant déjà le seuil où ce cluster droit
+                    devient visuellement le "haut de page" mobile) —
+                    inchangé à partir de `lg` (ordre naturel du DOM,
+                    cohérent avec le repositionnement desktop existant
+                    ci-dessous). */}
                 <button
                   id="nav-btn-new-alert"
                   onClick={() => setCurrentTab('new_alert')}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+                  className="order-3 lg:order-none flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">{t.btn_new_alert}</span>
@@ -395,8 +404,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 menu de compte, pour que les deux se retrouvent groupés
                 tout à droite de la barre — au lieu de vivre avant les
                 boutons d'action publics ("Suivre mon signalement" /
-                "Signaler une préoccupation"), sur demande explicite. */}
-            <div className="relative" ref={langMenuRef}>
+                "Signaler une préoccupation"), sur demande explicite.
+                === AMÉLIORATION AJOUTÉE (langue/connexion à l'extrême
+                gauche du cluster droit sur mobile) === Sur demande
+                explicite, uniquement sur mobile (`order-1`, neutralisé par
+                `lg:order-none`) : la répartition "tout à droite" de la
+                barre desktop ci-dessus reste inchangée à partir de `lg`. */}
+            <div className="order-1 lg:order-none relative" ref={langMenuRef}>
               <button
                 id="btn-language-selector"
                 onClick={() => setShowLangDropdown(!showLangDropdown)}
@@ -441,8 +455,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Account menu */}
-            <div className="relative" ref={userMenuRef}>
+            {/* Account menu === AMÉLIORATION AJOUTÉE (langue/connexion à
+                l'extrême gauche du cluster droit sur mobile) === `order-2
+                lg:order-none`, même motif que le sélecteur de langue
+                ci-dessus. */}
+            <div className="order-2 lg:order-none relative" ref={userMenuRef}>
               {/* === AMÉLIORATION AJOUTÉE (page de connexion plein cadre,
                   sur maquette fournie) === Sur les pages publiques, le
                   bouton "Connexion" ouvre désormais le véritable écran de
