@@ -14,7 +14,6 @@ import {
   Calendar,
   Building2,
   Info,
-  Save,
   ArrowRight,
   ArrowLeft,
   // === AMÉLIORATION AJOUTÉE (Phase 26 — icônes du formulaire en 6 étapes) ===
@@ -99,7 +98,6 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
   // Step control (1 to 5 = form, 6 = acknowledgment)
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [saveStatus, setSaveStatus] = useState<string>('');
 
   // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité avant le
   // formulaire) === Affichée systématiquement à l'ouverture du formulaire de
@@ -259,12 +257,14 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   });
 
   // Auto-save form changes
+  // === AMÉLIORATION AJOUTÉE (sauvegarde silencieuse du brouillon) === Sur
+  // demande explicite : l'enregistrement automatique du brouillon reste
+  // réel (storage.saveDraft), mais ne s'affiche plus à l'écran — plus de
+  // badge "Brouillon sauvegardé" dans la barre latérale.
   useEffect(() => {
     if (submittedAlert) return;
     const timer = setTimeout(() => {
       storage.saveDraft(buildDraftObject());
-      setSaveStatus(lang === 'en' ? 'Draft saved' : lang === 'pt' ? 'Rascunho salvo' : 'Brouillon sauvegardé');
-      setTimeout(() => setSaveStatus(''), 2000);
     }, 1000);
 
     return () => clearTimeout(timer);
@@ -623,12 +623,6 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-bold text-slate-900">{t.wizard_sidebar_title}</h2>
-              {saveStatus && (
-                <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 shrink-0">
-                  <Save className="w-3 h-3" />
-                  {saveStatus}
-                </span>
-              )}
             </div>
             <ol className="space-y-1">
               {wizardSteps.map((s) => {
