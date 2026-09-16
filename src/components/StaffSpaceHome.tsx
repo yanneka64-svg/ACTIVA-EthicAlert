@@ -116,7 +116,15 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
         max-w-5xl → max-w-4xl, puis max-w-4xl → max-w-3xl, sur demandes
         explicites successives de l'utilisateur — reste centrée
         (`mx-auto`, inchangé). */}
-    <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
+    {/* === AMÉLIORATION AJOUTÉE (position verticale de la carte) === La
+        carte étant désormais plus compacte (réductions successives), elle
+        restait collée en haut de l'écran avec un grand vide en dessous sur
+        les résolutions hautes. `min-h-[70vh] flex items-center` la
+        centre verticalement dans l'espace disponible, la faisant
+        "descendre" au lieu de laisser le vide uniquement en bas — sur
+        demande explicite de l'utilisateur. */}
+    <div className="min-h-[70vh] flex items-center justify-center py-8 px-4 sm:px-6">
+    <div className="w-full max-w-3xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
         {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
             l'utilisateur) === Remplace la photo du siège par une photo de
@@ -172,14 +180,6 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
                 Bienvenue sur activa-whistleblowing
               </p>
             </div>
-
-            {/* === AMÉLIORATION AJOUTÉE (justification du texte) === sur
-                demande explicite de l'utilisateur. */}
-            <div className="text-xs sm:text-sm text-slate-100/90 leading-relaxed space-y-2.5">
-              <p>
-                Un espace sécurisé pour gérer les alertes, les enquêtes et promouvoir une culture d’éthique.
-              </p>
-            </div>
           </div>
         </div>
 
@@ -229,7 +229,6 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
                   </span>
                   <span className="flex-1 min-w-0">
                     <span className="block text-xs font-bold text-[#0B2545]">{content.title}</span>
-                    <span className="block text-[10px] text-slate-500 leading-snug mt-0.5">{content.desc}</span>
                     {content.stat && (
                       <span className="inline-block mt-1.5 px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[10.5px] font-bold">
                         {content.stat}
@@ -243,6 +242,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     {/* === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) === */}

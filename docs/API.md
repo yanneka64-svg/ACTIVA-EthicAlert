@@ -11,7 +11,7 @@ of truth.
 | | Status |
 |---|---|
 | `CaseRepository` interface (~24 operations) | Fully specified in TypeScript. Fully implemented twice: `LocalCaseRepository` (localStorage, used by nothing in the shipped UI yet) and `FirestoreAdminCaseRepository` (Admin SDK, used by the one-off seed/migration scripts). Both pass the same behavior (see `docs/PHASES.md` Phase 2/2b). |
-| Cloud Functions (the real network-callable API) | **All 18 mutation-shaped `CaseRepository` operations implemented and type-checked**, including `addEvidence`/`getEvidenceDownloadUrl`, plus `removePersonLink` (added by a post-hoc security fix, not part of the original `CaseRepository` interface — see below). Only the read-side callables (`getCase`/`listCases`) remain unbuilt — blocked on Firestore's list-query wall, a different problem entirely (see below). **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). `addEvidence`/`getEvidenceDownloadUrl` additionally depend on Cloud Storage for Firebase, which is a **harder** wall than the rest: verified directly against the real project, its default Storage bucket does not exist at all yet (SERVICE_DISABLED — see `storage.rules`' header comment). Nothing below is reachable over the network right now. |
+| Cloud Functions (the real network-callable API) | **All 18 mutation-shaped `CaseRepository` operations implemented and type-checked**, including `addEvidence`/`getEvidenceDownloadUrl`, plus `removePersonLink` and `recordFunctionalReviewSignOff` (both added by post-hoc fixes, not part of the original `CaseRepository` interface — see below). Only the read-side callables (`getCase`/`listCases`) remain unbuilt — blocked on Firestore's list-query wall, a different problem entirely (see below). **Not deployed** — see `docs/FIREBASE-SETUP.md` for the exact, final reason (Cloud Build/Artifact Registry require the Blaze billing plan; the project has made an explicit, documented decision to stay on Spark). `addEvidence`/`getEvidenceDownloadUrl` additionally depend on Cloud Storage for Firebase, which is a **harder** wall than the rest: verified directly against the real project, its default Storage bucket does not exist at all yet (SERVICE_DISABLED — see `storage.rules`' header comment). Nothing below is reachable over the network right now. |
 | Reads | Not a Cloud Function today — direct Firestore reads via `firestore.rules`, single-document `getDoc` only (see `docs/PERMISSIONS.md`/`docs/FIREBASE-SETUP.md` — list queries are blocked outright by Firestore itself, a Cloud Function is the architecturally-required fix, same billing blocker as above). |
 
 This document describes the API **as designed and as far as it is built**,
@@ -102,6 +102,36 @@ thrown, so a pattern of repeated rejected attempts is visible in
 `to === 'archived'` — `archivedAt`. A `STATUS_<from>_TO_<to>` timeline event
 and a `STATUS_CHANGED` audit entry (with `previousValue`/`newValue` as the
 old/new status) are always written on success.
+
+**Fix (real correctness bug, found writing the first automated tests for
+this layer):** `checkTransition`'s 4th closure-gating branch — "Functional
+review sign-off is required before closure" — was implemented and unit
+tested in `workflow.test.ts` since Phase 2, but neither this callable, nor
+`LocalCaseRepository.changeCaseStatus`, nor `FirestoreAdminCaseRepository`'s
+copy ever supplied `hasFunctionalReviewSignOff` in the context object. Since
+`closed` is only reachable from `functional_review` in `ALLOWED_TRANSITIONS`,
+this meant **closure was structurally impossible for every case**,
+regardless of how complete its allegations/corrective actions were — a real
+integration gap between a fully-tested pure function and every caller of
+it. All three call sites now read the real, persisted
+`Case.functionalReviewSignedOffAt` field instead. See
+`recordFunctionalReviewSignOff` below, the new write path for that field.
+
+### `recordFunctionalReviewSignOff`
+
+| | |
+|---|---|
+| Permission required | `cases.close` — the same permission that closing itself requires; signing off is the act that authorizes it, not a separate grant |
+| Request | `{ caseId }` |
+| Response | `{ ok: true }` |
+| Errors | `unauthenticated`, `invalid-argument` (missing `caseId`), `not-found`, `permission-denied` |
+
+Sets `Case.functionalReviewSignedOffAt`/`functionalReviewSignedOffBy` from
+the verified caller's own token — never accepted from `request.data`, same
+identity-spoofing discipline as `addCommunication`/`declareConflictOfInterest`.
+Writes a `FUNCTIONAL_REVIEW_SIGNED_OFF` timeline event and audit entry.
+This is the only way `changeCaseStatus` will ever allow a transition to
+`closed`, once allegations and corrective actions are also resolved.
 
 ### `addAllegation`, `setAllegationFinding`, `addPerson`
 

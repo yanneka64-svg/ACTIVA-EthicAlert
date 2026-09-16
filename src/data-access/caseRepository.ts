@@ -81,6 +81,12 @@ export interface CaseRepository {
   listCases(filter: CaseListFilter, requestingUser: AppUser, limit?: number, offset?: number): Promise<Page<Case>>;
   changeCaseStatus(caseId: string, to: CaseStatus, actor: AppUser, reason?: string): Promise<{ case: Case; result: TransitionCheckResult }>;
   assignCase(caseId: string, assignee: string, additional: string[], actor: AppUser): Promise<Case>;
+  // === AMÉLIORATION AJOUTÉE (correctif — cadenas de revue fonctionnelle) ===
+  // Voir caseTypes.ts, Case.functionalReviewSignedOffAt/By — la précondition
+  // que `changeCaseStatus` vérifie désormais réellement avant `closed`.
+  // Requiert `cases.close` (même habilitation que la clôture elle-même :
+  // signer la revue est le geste qui l'autorise).
+  recordFunctionalReviewSignOff(caseId: string, actor: AppUser): Promise<Case>;
 
   addAllegation(caseId: string, input: Pick<Allegation, 'category' | 'subcategory' | 'description'>, actor: AppUser): Promise<Allegation>;
   setAllegationFinding(allegationId: string, finding: FindingOutcome, rationale: string, actor: AppUser): Promise<Allegation>;
@@ -274,7 +280,15 @@ export class LocalCaseRepository implements CaseRepository {
 
     const allegations = loadArray<Allegation>(KEYS.allegations).filter((a) => a.caseId === caseId);
     const correctiveActions = loadArray<CorrectiveAction>(KEYS.correctiveActions).filter((a) => a.caseId === caseId);
-    const result = checkTransition(kase.status, to, { allegations, correctiveActions });
+    // === AMÉLIORATION AJOUTÉE (correctif — cadenas de revue fonctionnelle
+    // jamais réellement câblé) === voir caseTypes.ts pour le détail : sans
+    // ce champ, la clôture était structurellement impossible pour tout
+    // dossier, quel que soit l'état réel des allégations/mesures.
+    const result = checkTransition(kase.status, to, {
+      allegations,
+      correctiveActions,
+      hasFunctionalReviewSignOff: !!kase.functionalReviewSignedOffAt,
+    });
 
     if (!result.allowed) {
       await this.appendAudit({
@@ -328,6 +342,29 @@ export class LocalCaseRepository implements CaseRepository {
 
     await this.appendTimeline(caseId, 'ASSIGNED', actor.userId, `Assignee: ${assignee}`);
     await this.appendAudit({ actorId: actor.userId, action: 'CASE_ASSIGNED', caseId, previousValue: previous, newValue: { assignee, additional } });
+    return updated;
+  }
+
+  // === AMÉLIORATION AJOUTÉE (correctif — cadenas de revue fonctionnelle) ===
+  async recordFunctionalReviewSignOff(caseId: string, actor: AppUser): Promise<Case> {
+    const cases = loadArray<Case>(KEYS.cases);
+    const idx = cases.findIndex((c) => c.caseId === caseId);
+    if (idx === -1) throw new Error(`Case ${caseId} not found`);
+    const kase = cases[idx];
+    await this.assertCaseAccess(kase, actor, 'cases.close');
+
+    const updated: Case = {
+      ...kase,
+      functionalReviewSignedOffAt: nowIso(),
+      functionalReviewSignedOffBy: actor.userId,
+      updatedAt: nowIso(),
+      updatedBy: actor.userId,
+    };
+    cases[idx] = updated;
+    saveArray(KEYS.cases, cases);
+
+    await this.appendTimeline(caseId, 'FUNCTIONAL_REVIEW_SIGNED_OFF', actor.userId);
+    await this.appendAudit({ actorId: actor.userId, action: 'FUNCTIONAL_REVIEW_SIGNED_OFF', caseId });
     return updated;
   }
 

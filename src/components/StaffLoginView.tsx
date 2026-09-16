@@ -33,9 +33,15 @@ import { storage } from '../services/storage';
 
 interface StaffLoginViewProps {
   onLogin: (user: UserProfile) => void;
+  // === AMÉLIORATION AJOUTÉE (bouton "Mot de passe oublié ?" sans action) ===
+  // Optionnel : sans backend d'authentification réel (voir note ci-dessus),
+  // aucun vrai mécanisme de réinitialisation n'existe — plutôt que de
+  // fabriquer un flux fictif, le bouton renvoie vers le canal de contact
+  // réel du Groupe ACTIVA (même prop/pattern que AlertTrackingView.onGoToContact).
+  onGoToContact?: () => void;
 }
 
-export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin }) => {
+export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToContact }) => {
   const staffUsers = storage.getUsers();
   const [selectedId, setSelectedId] = useState<string>(staffUsers[0]?.id ?? '');
   const selectedUser = staffUsers.find((u) => u.id === selectedId) ?? staffUsers[0];
@@ -121,9 +127,15 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin }) => {
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">
                 Mot de passe
               </label>
-              <button type="button" className="text-[11px] font-semibold text-blue-700 hover:underline">
-                Mot de passe oublié ?
-              </button>
+              {onGoToContact && (
+                <button
+                  type="button"
+                  onClick={onGoToContact}
+                  className="text-[11px] font-semibold text-blue-700 hover:underline"
+                >
+                  Mot de passe oublié ?
+                </button>
+              )}
             </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />

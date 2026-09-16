@@ -321,7 +321,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_title_single: 'Espace de travail',
     space_home_title_plural: 'Espaces de travail',
     space_home_subtitle_single: 'Accédez à votre espace de travail pour reprendre votre activité.',
-    space_home_subtitle_plural: 'Sélectionnez votre environnement de travail pour accéder aux dossiers, à la boîte de réception et aux outils dédiés.',
+    space_home_subtitle_plural: 'Sélectionnez votre environnement de travail.',
     space_home_session_active: 'Session active',
     // === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) ===
     space_home_denied_title: 'Accès restreint',
@@ -675,6 +675,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_completed: 'Terminées',
     cp_section_activity: 'Activité récente',
     cp_empty_activity: 'Aucune activité récente.',
+    // === AMÉLIORATION AJOUTÉE (connectivité frontend) === BUG PRÉEXISTANT
+    // CORRIGÉ, signalé lors d'un audit de connectivité : ControlPanel.tsx
+    // référence `t.cp_empty_recent_alerts` à 5 endroits (tableau "Alertes
+    // récentes" + 3 graphiques vides), mais cette clé n'était définie dans
+    // aucune des 3 langues — les titres d'état vide s'affichaient donc
+    // vides (`undefined`).
+    cp_empty_recent_alerts: 'Aucune alerte récente.',
     cp_section_quick_actions: 'Actions rapides',
     cp_qa_review_new: 'Examiner les nouvelles alertes',
     cp_qa_triage_unassigned: 'Trier les dossiers non attribués',
@@ -1026,6 +1033,41 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     process_step4_desc: 'Votre signalement est analysé de manière sérieuse et traité par les équipes compétentes.',
     footer_legal_notice: 'Mentions légales',
     footer_privacy_policy: 'Politique de confidentialité',
+
+    // === AMÉLIORATION AJOUTÉE (pages Mentions légales / Politique de
+    // confidentialité, liens réels du pied de page) === Contenu-type de
+    // départ (adresse, hébergeur, etc. en placeholders) à adapter aux
+    // informations légales réelles du Groupe ACTIVA — voir
+    // LegalNoticeView.tsx / PrivacyPolicyView.tsx.
+    legal_title: 'Mentions légales',
+    legal_subtitle: 'Informations légales relatives à l’édition et à l’hébergement de cette plateforme.',
+    legal_editor_heading: 'Éditeur du site',
+    legal_editor_body: 'Cette plateforme est éditée par le Groupe ACTIVA.\nSiège social : [Adresse du siège social]\nRegistre du commerce : [Numéro RCCM]\nReprésentant légal : [Nom du représentant légal]',
+    legal_hosting_heading: 'Hébergement',
+    legal_hosting_body: 'Ce site est hébergé par [Nom de l’hébergeur], [Adresse de l’hébergeur].',
+    legal_ip_heading: 'Propriété intellectuelle',
+    legal_ip_body: 'L’ensemble des contenus (textes, logos, éléments graphiques) de cette plateforme est protégé par le droit de la propriété intellectuelle. Toute reproduction, même partielle, est interdite sans autorisation préalable du Groupe ACTIVA.',
+    legal_liability_heading: 'Responsabilité',
+    legal_liability_body: 'Le Groupe ACTIVA s’efforce d’assurer l’exactitude des informations diffusées sur cette plateforme, sans garantie d’exhaustivité. Le Groupe ACTIVA ne saurait être tenu responsable des erreurs ou omissions constatées.',
+    legal_contact_heading: 'Contact',
+    legal_contact_body: 'Pour toute question relative aux présentes mentions légales, vous pouvez nous contacter à l’adresse suivante :',
+
+    privacy_title: 'Politique de confidentialité',
+    privacy_subtitle: 'Comment le Groupe ACTIVA collecte, utilise et protège les données transmises via cette plateforme.',
+    privacy_controller_heading: 'Responsable du traitement',
+    privacy_controller_body: 'Le responsable du traitement des données collectées via cette plateforme est le Groupe ACTIVA, à travers sa Direction Audit, Risques & Conformité (DARC).',
+    privacy_data_heading: 'Données collectées',
+    privacy_data_body: 'Selon les informations que vous choisissez de transmettre : le contenu de votre signalement, les pièces jointes éventuelles, ainsi que vos coordonnées si vous ne souhaitez pas rester anonyme.',
+    privacy_purpose_heading: 'Finalité du traitement',
+    privacy_purpose_body: 'Ces données sont collectées dans le seul but de recevoir, instruire et traiter les signalements relatifs à des faits contraires à l’éthique, à la réglementation ou au Code de conduite du Groupe ACTIVA.',
+    privacy_retention_heading: 'Durée de conservation',
+    privacy_retention_body: 'Les données sont conservées pendant la durée nécessaire au traitement du signalement, puis archivées ou supprimées conformément aux obligations légales applicables.',
+    privacy_recipients_heading: 'Destinataires des données',
+    privacy_recipients_body: 'Seules les personnes habilitées (opérateurs, enquêteurs et administrateurs autorisés) ont accès aux données, selon des droits d’accès strictement limités à leur rôle. Vos données ne sont jamais transmises à des tiers non autorisés.',
+    privacy_rights_heading: 'Vos droits',
+    privacy_rights_body: 'Conformément à la réglementation applicable en matière de protection des données, vous disposez d’un droit d’accès, de rectification, d’effacement et d’opposition concernant vos données personnelles. Vous pouvez exercer ces droits en nous contactant à l’adresse suivante :',
+    privacy_security_heading: 'Sécurité',
+    privacy_security_body: 'Le Groupe ACTIVA met en œuvre les mesures techniques et organisationnelles appropriées pour protéger la confidentialité et la sécurité des données transmises via cette plateforme.',
   },
   en: {
     // app_title/app_subtitle are defined further below, in the "Phase 11" block.
@@ -1322,7 +1364,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_title_single: 'Workspace',
     space_home_title_plural: 'Workspaces',
     space_home_subtitle_single: 'Access your workspace to resume your activity.',
-    space_home_subtitle_plural: 'Select your workspace to access cases, the inbox and dedicated tools.',
+    space_home_subtitle_plural: 'Select your workspace.',
     space_home_session_active: 'Active session',
     // === AMÉLIORATION AJOUTÉE (access-denied window on click) ===
     space_home_denied_title: 'Access restricted',
@@ -1625,6 +1667,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_completed: 'Completed',
     cp_section_activity: 'Recent Activity',
     cp_empty_activity: 'No recent activity.',
+    cp_empty_recent_alerts: 'No recent alerts.',
     cp_section_quick_actions: 'Quick Actions',
     cp_qa_review_new: 'Review New Alerts',
     cp_qa_triage_unassigned: 'Triage Unassigned',
@@ -1946,6 +1989,36 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     process_step4_desc: 'Your report is reviewed seriously and handled by the competent teams.',
     footer_legal_notice: 'Legal notice',
     footer_privacy_policy: 'Privacy policy',
+
+    legal_title: 'Legal notice',
+    legal_subtitle: 'Legal information about the publisher and host of this platform.',
+    legal_editor_heading: 'Site publisher',
+    legal_editor_body: 'This platform is published by ACTIVA Group.\nRegistered office: [Registered office address]\nRegistration number: [Company registration number]\nLegal representative: [Legal representative name]',
+    legal_hosting_heading: 'Hosting',
+    legal_hosting_body: 'This site is hosted by [Hosting provider name], [Hosting provider address].',
+    legal_ip_heading: 'Intellectual property',
+    legal_ip_body: 'All content on this platform (text, logos, graphic elements) is protected by intellectual property law. Any reproduction, even partial, is prohibited without prior authorization from ACTIVA Group.',
+    legal_liability_heading: 'Liability',
+    legal_liability_body: 'ACTIVA Group strives to ensure the accuracy of the information published on this platform, without guaranteeing its completeness. ACTIVA Group cannot be held liable for any errors or omissions.',
+    legal_contact_heading: 'Contact',
+    legal_contact_body: 'For any question regarding this legal notice, you may contact us at the following address:',
+
+    privacy_title: 'Privacy policy',
+    privacy_subtitle: 'How ACTIVA Group collects, uses and protects the data submitted through this platform.',
+    privacy_controller_heading: 'Data controller',
+    privacy_controller_body: 'The controller for data collected through this platform is ACTIVA Group, through its Audit, Risk & Compliance Directorate (DARC).',
+    privacy_data_heading: 'Data collected',
+    privacy_data_body: 'Depending on what you choose to share: the content of your report, any attachments, and your contact details if you choose not to remain anonymous.',
+    privacy_purpose_heading: 'Purpose of processing',
+    privacy_purpose_body: 'This data is collected solely to receive, review and handle reports of conduct contrary to ethics, regulations or the ACTIVA Group Code of Conduct.',
+    privacy_retention_heading: 'Retention period',
+    privacy_retention_body: 'Data is kept for as long as necessary to process the report, then archived or deleted in accordance with applicable legal obligations.',
+    privacy_recipients_heading: 'Data recipients',
+    privacy_recipients_body: 'Only authorized personnel (operators, investigators and authorized administrators) can access the data, with access rights strictly limited to their role. Your data is never shared with unauthorized third parties.',
+    privacy_rights_heading: 'Your rights',
+    privacy_rights_body: 'In accordance with applicable data protection regulations, you have the right to access, rectify, erase and object to the processing of your personal data. You can exercise these rights by contacting us at:',
+    privacy_security_heading: 'Security',
+    privacy_security_body: 'ACTIVA Group implements appropriate technical and organizational measures to protect the confidentiality and security of data submitted through this platform.',
   },
   pt: {
     // app_title/app_subtitle são definidos mais abaixo, no bloco "Phase 11".
@@ -2243,7 +2316,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_title_single: 'Espaço de trabalho',
     space_home_title_plural: 'Espaços de trabalho',
     space_home_subtitle_single: 'Acesse seu espaço de trabalho para retomar sua atividade.',
-    space_home_subtitle_plural: 'Selecione seu ambiente de trabalho para acessar os casos, a caixa de entrada e as ferramentas dedicadas.',
+    space_home_subtitle_plural: 'Selecione seu ambiente de trabalho.',
     space_home_session_active: 'Sessão ativa',
     // === AMÉLIORATION AJOUTÉE (janela de acesso restrito ao clicar) ===
     space_home_denied_title: 'Acesso restrito',
@@ -2546,6 +2619,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_corrective_completed: 'Concluídas',
     cp_section_activity: 'Atividade Recente',
     cp_empty_activity: 'Nenhuma atividade recente.',
+    cp_empty_recent_alerts: 'Nenhum alerta recente.',
     cp_section_quick_actions: 'Ações Rápidas',
     cp_qa_review_new: 'Analisar Novos Alertas',
     cp_qa_triage_unassigned: 'Triagem de Não Atribuídos',
@@ -2866,5 +2940,35 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     process_step4_desc: 'A sua denúncia é analisada de forma séria e tratada pelas equipas competentes.',
     footer_legal_notice: 'Aviso legal',
     footer_privacy_policy: 'Política de privacidade',
+
+    legal_title: 'Aviso legal',
+    legal_subtitle: 'Informações legais sobre o editor e o alojamento desta plataforma.',
+    legal_editor_heading: 'Editor do site',
+    legal_editor_body: 'Esta plataforma é publicada pelo Grupo ACTIVA.\nSede social: [Endereço da sede social]\nNúmero de registo: [Número de registo comercial]\nRepresentante legal: [Nome do representante legal]',
+    legal_hosting_heading: 'Alojamento',
+    legal_hosting_body: 'Este site é alojado por [Nome do fornecedor de alojamento], [Endereço do fornecedor de alojamento].',
+    legal_ip_heading: 'Propriedade intelectual',
+    legal_ip_body: 'Todo o conteúdo desta plataforma (textos, logótipos, elementos gráficos) está protegido pelo direito de propriedade intelectual. Qualquer reprodução, mesmo parcial, é proibida sem autorização prévia do Grupo ACTIVA.',
+    legal_liability_heading: 'Responsabilidade',
+    legal_liability_body: 'O Grupo ACTIVA esforça-se por garantir a exatidão das informações publicadas nesta plataforma, sem garantir a sua exaustividade. O Grupo ACTIVA não pode ser responsabilizado por eventuais erros ou omissões.',
+    legal_contact_heading: 'Contacto',
+    legal_contact_body: 'Para qualquer questão relativa a este aviso legal, pode contactar-nos através do seguinte endereço:',
+
+    privacy_title: 'Política de privacidade',
+    privacy_subtitle: 'Como o Grupo ACTIVA recolhe, utiliza e protege os dados submetidos através desta plataforma.',
+    privacy_controller_heading: 'Responsável pelo tratamento',
+    privacy_controller_body: 'O responsável pelo tratamento dos dados recolhidos através desta plataforma é o Grupo ACTIVA, através da sua Direção de Auditoria, Risco e Conformidade (DARC).',
+    privacy_data_heading: 'Dados recolhidos',
+    privacy_data_body: 'Consoante as informações que optar por partilhar: o conteúdo do seu relato, eventuais anexos, e os seus dados de contacto caso opte por não permanecer anónimo.',
+    privacy_purpose_heading: 'Finalidade do tratamento',
+    privacy_purpose_body: 'Estes dados são recolhidos exclusivamente para receber, analisar e tratar relatos de condutas contrárias à ética, à regulamentação ou ao Código de Conduta do Grupo ACTIVA.',
+    privacy_retention_heading: 'Prazo de conservação',
+    privacy_retention_body: 'Os dados são conservados pelo tempo necessário ao tratamento do relato, sendo depois arquivados ou eliminados em conformidade com as obrigações legais aplicáveis.',
+    privacy_recipients_heading: 'Destinatários dos dados',
+    privacy_recipients_body: 'Apenas pessoas habilitadas (operadores, investigadores e administradores autorizados) têm acesso aos dados, com direitos de acesso estritamente limitados à sua função. Os seus dados nunca são partilhados com terceiros não autorizados.',
+    privacy_rights_heading: 'Os seus direitos',
+    privacy_rights_body: 'Em conformidade com a regulamentação aplicável em matéria de proteção de dados, tem o direito de acesso, retificação, apagamento e oposição relativamente aos seus dados pessoais. Pode exercer estes direitos contactando-nos através de:',
+    privacy_security_heading: 'Segurança',
+    privacy_security_body: 'O Grupo ACTIVA implementa as medidas técnicas e organizacionais adequadas para proteger a confidencialidade e a segurança dos dados submetidos através desta plataforma.',
   }
 };

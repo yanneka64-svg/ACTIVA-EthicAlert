@@ -99,6 +99,19 @@ supplies (`allegations`, `correctiveActions`, `hasFunctionalReviewSignOff`)
 Cloud Function) is responsible for loading the real child-collection data
 before calling `checkTransition`.
 
+**Fix (real bug, closed after this document first noted the risk without
+catching it):** since check 4 always applies when closing (as this section
+already observed), and every caller of `checkTransition` — both
+`CaseRepository` implementations and the `changeCaseStatus` Cloud
+Function — never actually passed `hasFunctionalReviewSignOff`, closure was
+**structurally impossible for every case**, independent of checks 1–3, from
+Phase 2 until the automated tests for `data-access/caseRepository.ts` were
+written and caught it. `Case` now carries a real, persisted
+`functionalReviewSignedOffAt`/`By` pair (`domain/caseTypes.ts`), written by
+`CaseRepository.recordFunctionalReviewSignOff` (see `docs/API.md`), and all
+three callers pass `hasFunctionalReviewSignOff: !!kase.functionalReviewSignedOffAt`
+instead of leaving it `undefined`.
+
 ## Derived finding (never set by hand)
 
 `deriveOverallFinding(allegations)` computes `Case.overallFinding` **only**
