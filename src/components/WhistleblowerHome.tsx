@@ -103,10 +103,10 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 auparavant occupée par `hero_eyebrow`, qui passe juste en
                 dessous — même texte "Canal éthique du Groupe ACTIVA"
                 qu'avant, simplement en second plan désormais. */}
-            <span className="block text-sm font-extrabold tracking-wider text-[#0B2545]">
+            <span className="block text-base font-extrabold tracking-wider text-[#0B2545]">
               {t.hero_title}
             </span>
-            <span className="block text-xs font-bold tracking-wider text-blue-700 uppercase -mt-3">
+            <span className="block text-xs font-bold tracking-wider text-blue-700 lowercase -mt-3">
               {t.hero_eyebrow}
             </span>
 
