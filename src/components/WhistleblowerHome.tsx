@@ -95,7 +95,18 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             l'intérieur. */}
         <div className="relative z-10 p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)]">
           <div className="max-w-xl space-y-5">
-            <span className="block text-xs font-bold tracking-wider text-blue-700 uppercase">
+            {/* === AMÉLIORATION AJOUTÉE (nom de produit visible dans le hero) ===
+                Sur demande explicite : `activa-whistleblowing` (déjà
+                traduit de façon identique dans les 3 langues via
+                `hero_title`, orpheline depuis la Phase 23 ci-dessus qui l'a
+                remplacée par le titre bicolore) reprend la position
+                auparavant occupée par `hero_eyebrow`, qui passe juste en
+                dessous — même texte "Canal éthique du Groupe ACTIVA"
+                qu'avant, simplement en second plan désormais. */}
+            <span className="block text-sm font-extrabold tracking-wider text-[#0B2545]">
+              {t.hero_title}
+            </span>
+            <span className="block text-xs font-bold tracking-wider text-blue-700 uppercase -mt-3">
               {t.hero_eyebrow}
             </span>
 
