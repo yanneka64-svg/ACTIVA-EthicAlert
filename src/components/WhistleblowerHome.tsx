@@ -95,20 +95,18 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             l'intérieur. */}
         <div className="relative z-10 p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)]">
           <div className="max-w-xl space-y-5">
-            {/* === AMÉLIORATION AJOUTÉE (nom de produit visible dans le hero) ===
-                Sur demande explicite : `activa-whistleblowing` (déjà
-                traduit de façon identique dans les 3 langues via
-                `hero_title`, orpheline depuis la Phase 23 ci-dessus qui l'a
-                remplacée par le titre bicolore) reprend la position
-                auparavant occupée par `hero_eyebrow`, qui passe juste en
-                dessous — même texte "Canal éthique du Groupe ACTIVA"
-                qu'avant, simplement en second plan désormais. */}
-            <span className="block text-base font-extrabold tracking-wider text-[#0B2545]">
-              {t.hero_title}
-            </span>
-            <span className="block text-xs font-bold tracking-wider text-blue-700 lowercase -mt-3">
-              {t.hero_eyebrow}
-            </span>
+            {/* === AMÉLIORATION AJOUTÉE (badge nom de produit + accroche) ===
+                Sur demande explicite : les 2 lignes empilées précédentes
+                (`hero_title` "activa-whistleblowing" + `hero_eyebrow`
+                "Canal éthique du Groupe ACTIVA", toujours les mêmes textes)
+                fusionnent en un seul badge — se lit comme une unité de
+                marque plutôt que 2 lignes de texte séparées. */}
+            <div className="inline-flex items-center gap-2 pl-2.5 pr-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span className="text-xs font-extrabold text-[#0B2545]">{t.hero_title}</span>
+              <span className="w-1 h-1 rounded-full bg-blue-300 shrink-0" />
+              <span className="text-xs font-semibold text-blue-700 lowercase">{t.hero_eyebrow}</span>
+            </div>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
                 Titre en deux lignes bicolores, comme sur la maquette de
