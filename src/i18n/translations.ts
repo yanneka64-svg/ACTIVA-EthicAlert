@@ -319,10 +319,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_investigator_stat: '{n} dossier(s) à traiter',
     // === AMÉLIORATION AJOUTÉE (Correction demandée — renommage du titre) ===
     // "Administration" remplacé par "Paramètres Utilisateur et
-    // Configuration", sur demande explicite de l'utilisateur, en cohérence
-    // avec le même renommage du bloc titre de la barre latérale Admin
+    // Configuration", puis par "Panneau de configuration", sur 2 demandes
+    // explicites successives de l'utilisateur, en cohérence avec le même
+    // renommage du bloc titre de la barre latérale Admin
     // (StaffPortalLayout.tsx).
-    space_home_admin_title: 'Paramètres Utilisateur et Configuration',
+    space_home_admin_title: 'Panneau de configuration',
     space_home_admin_desc: 'Comptes, rôles, configuration et gouvernance de la plateforme.',
     space_home_general_title: 'Vue d’ensemble & Rapports',
     space_home_general_desc: 'Consultation en lecture seule de l’activité et des rapports DARC.',
@@ -1223,7 +1224,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_investigator_title: 'Investigator Space',
     space_home_investigator_desc: 'Cases assigned to you, hearings and instructions.',
     space_home_investigator_stat: '{n} case(s) to process',
-    space_home_admin_title: 'User Settings & Configuration',
+    space_home_admin_title: 'Control Panel',
     space_home_admin_desc: 'Accounts, roles, configuration and platform governance.',
     space_home_general_title: 'Overview & Reports',
     space_home_general_desc: 'Read-only view of DARC activity and reports.',
@@ -2064,7 +2065,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_investigator_title: 'Espaço Investigador',
     space_home_investigator_desc: 'Casos atribuídos a você, audições e instruções.',
     space_home_investigator_stat: '{n} caso(s) a tratar',
-    space_home_admin_title: 'Definições de Utilizador e Configuração',
+    space_home_admin_title: 'Painel de Controlo',
     space_home_admin_desc: 'Contas, funções, configuração e governança da plataforma.',
     space_home_general_title: 'Visão geral & Relatórios',
     space_home_general_desc: 'Consulta somente leitura da atividade e dos relatórios DARC.',

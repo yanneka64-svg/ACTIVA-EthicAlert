@@ -385,7 +385,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
             elle-même.
             === AMÉLIORATION AJOUTÉE (Correction demandée — renommage du
             titre) === "Administration" remplacé par "Paramètres
-            Utilisateur et Configuration", sur demande explicite de
+            Utilisateur et Configuration", puis par "Panneau de
+            configuration", sur 2 demandes explicites successives de
             l'utilisateur. Le sous-titre ci-dessous reste inchangé. */}
         {selectedSpace === 'admin' && (
           <div className="flex items-center gap-2.5 px-3.5 pt-4 pb-1">
@@ -393,7 +394,7 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
               <Settings className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <p className="font-extrabold text-slate-900 text-sm leading-tight">Paramètres Utilisateur et Configuration</p>
+              <p className="font-extrabold text-slate-900 text-sm leading-tight">Panneau de configuration</p>
               <p className="text-[10px] text-slate-500 leading-snug">Paramètres, utilisateurs et configuration</p>
             </div>
           </div>
