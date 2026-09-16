@@ -141,15 +141,20 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 médian + accroche) — un ton plus sombre que `blue-600`
                 (#2563eb), encore jugé "pas assez lisible" sur la photo
                 malgré un bleu déjà proche de "toute confiance" ci-dessous.
-                Un halo blanc léger (`text-shadow`) est aussi ajouté sur
-                tout le bloc pour garantir la lisibilité quelle que soit la
-                zone de la photo en dessous, plutôt que de ne compter que
-                sur la teinte. Identique sur mobile et web (même composant,
+                Un halo blanc léger (`text-shadow`) est aussi ajouté sur le
+                nom de marque et le point médian pour garantir leur
+                lisibilité quelle que soit la zone de la photo en dessous.
+                === AMÉLIORATION AJOUTÉE (retrait du halo sur l'accroche)
+                === Sur demande explicite : le halo donnait un effet de
+                "reflet" indésirable sur "Canal de gestion des alertes du
+                Groupe ACTIVA" — retiré uniquement sur ce texte
+                (`[text-shadow:none]`), conservé sur le nom de marque et le
+                point médian. Identique sur mobile et web (même composant,
                 pas de variante distincte). */}
             <p className="text-base [text-shadow:0_1px_4px_rgba(255,255,255,0.9),0_0_12px_rgba(255,255,255,0.7)]">
               <span className="font-bold text-[#082B52]">{t.hero_title}</span>
               <span className="font-medium text-blue-800">{' '}·{' '}</span>
-              <span className="font-normal text-blue-800">{t.hero_eyebrow}</span>
+              <span className="font-normal text-blue-800 [text-shadow:none]">{t.hero_eyebrow}</span>
             </p>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
