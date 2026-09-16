@@ -18,8 +18,6 @@ import {
   Network,
   // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
   SlidersHorizontal,
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  GitBranch,
   // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
   Inbox,
   UserPlus,
@@ -90,7 +88,7 @@ interface StaffPortalLayoutProps {
   children: React.ReactNode;
 }
 
-const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow', 'admin_entities', 'admin_categories', 'admin_database'];
+const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_entities', 'admin_categories', 'admin_database'];
 
 // Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
 // "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à
@@ -242,7 +240,6 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'admin_organization', label: 'Organisation', icon: <Globe2 className="w-4 h-4" />, group: '' },
     { key: 'admin_entities', label: 'Entités du Groupe', icon: <Building2 className="w-4 h-4" />, group: '' },
     { key: 'admin_categories', label: 'Catégories', icon: <Tag className="w-4 h-4" />, group: '' },
-    { key: 'admin_workflow', label: 'Workflows & Statuts', icon: <GitBranch className="w-4 h-4" />, group: '' },
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
     { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, group: '' },

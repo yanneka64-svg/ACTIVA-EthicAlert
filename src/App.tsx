@@ -115,8 +115,6 @@ const STAFF_TAB_KEYS = [
   'admin_governance',
   // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
   'advanced_search',
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  'admin_workflow',
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===
   'admin_entities', 'admin_categories', 'admin_database',
 ];
@@ -625,7 +623,7 @@ function AppShell() {
     // (AdminConfigView les rendait déjà, uniquement via sa rangée d'onglets
     // interne retirée) — même garde, même composant, seul l'onglet de
     // départ diffère, exactement le motif déjà suivi par admin_organization/
-    // admin_governance/admin_workflow ci-dessus.
+    // admin_governance ci-dessus.
     if (currentTab === 'admin_entities') {
       return (
         <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Entités du Groupe">
@@ -647,15 +645,6 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-    if (currentTab === 'admin_workflow') {
-      return (
-        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Workflows & Statuts">
-          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="workflow" />
-        </PermissionGuard>
-      );
-    }
-
     return null;
   };
 

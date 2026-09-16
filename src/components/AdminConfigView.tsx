@@ -14,10 +14,6 @@ import {
   Server,
   Pencil,
   X,
-  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
-  Network,
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  GitBranch,
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
   Search,
   Folder,
@@ -34,7 +30,7 @@ import {
 } from 'lucide-react';
 import { Language, UserProfile, UserRole, EscalationRecipient } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { EntityDef, CategoryDef, CountryDef, HierarchyLevels, formatCountryLabel } from '../data/activaConfig';
+import { EntityDef, CategoryDef, CountryDef, formatCountryLabel } from '../data/activaConfig';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire) ===
 // Même module que le code d'accès du lanceur d'alerte (AlertSubmissionFlow.tsx).
@@ -50,11 +46,7 @@ import {
 // Read-only: this screen only imports and displays this real, already-
 // existing data — src/domain/permissions.ts itself is never modified.
 import { Permission } from '../domain/permissions';
-import { RoleId, CaseStatus } from '../domain/caseTypes';
-// === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
-import { getRoutingMatrixView } from '../domain/independentRouting';
-// === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-import { CASE_STATUS_LABELS } from '../domain/workflow';
+import { RoleId } from '../domain/caseTypes';
 
 interface AdminConfigViewProps {
   lang: Language;
@@ -69,8 +61,7 @@ interface AdminConfigViewProps {
   // navigable, exactement comme avant.
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) === 'governance'
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === 'workflow'
-  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow';
+  initialTab?: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance';
 }
 
 export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
@@ -93,7 +84,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   // navigation depuis la suppression de l'ancienne rangée d'onglets interne
   // — voir plus bas) : `configTab` peut donc être dérivé directement de la
   // prop à chaque rendu, sans état local du tout.
-  const configTab: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' | 'workflow' = initialTab ?? 'matrix';
+  const configTab: 'matrix' | 'entities' | 'organization' | 'categories' | 'users' | 'roles' | 'database' | 'governance' = initialTab ?? 'matrix';
   const [saveBanner, setSaveBanner] = useState('');
 
   // Firebase connection state
@@ -147,23 +138,6 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
-  // --- Hierarchy levels state (routage indépendant) --- même motif
-  // seed-then-edit-then-save que la configuration SLA ci-dessus : une
-  // copie locale éditée puis sauvegardée explicitement, jamais écrite
-  // directement dans storage.ts à chaque frappe.
-  const [hierarchyLevelsDraft, setHierarchyLevelsDraft] = useState<HierarchyLevels>(storage.getHierarchyLevels());
-  // === AMÉLIORATION AJOUTÉE (page Gouvernance moins touffue) === sur
-  // demande explicite de l'utilisateur : la "Vue dérivée" (information
-  // calculée, lecture seule, jamais la table éditée elle-même) reste
-  // repliée par défaut — elle n'apporte rien à quelqu'un qui vient juste
-  // ajuster un niveau hiérarchique.
-  const [showDerivedRoutingView, setShowDerivedRoutingView] = useState(false);
-  const handleSaveHierarchyLevels = (e: React.FormEvent) => {
-    e.preventDefault();
-    storage.updateHierarchyLevels(hierarchyLevelsDraft, activeUser);
-    flashBanner('Niveaux hiérarchiques de routage indépendant mis à jour.');
-  };
-
   // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
   // --- Role permissions state --- même motif seed-then-edit-then-save que
   // la configuration SLA/gouvernance ci-dessus. `rolePermissionsDraft` est
@@ -222,46 +196,6 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
       }
     }
     flashBanner(changedCount > 0 ? `Permissions mises à jour pour ${changedCount} rôle(s).` : 'Aucune modification à enregistrer.');
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  // --- Workflow transitions state --- même motif seed-then-edit-then-save
-  // que rolePermissionsDraft ci-dessus : une copie locale éditée par cases
-  // à cocher (colonnes = statuts CIBLES accessibles depuis la ligne =
-  // statut SOURCE), sauvegardée uniquement pour les statuts dont la liste
-  // a changé.
-  const [workflowTransitionsDraft, setWorkflowTransitionsDraft] = useState<Record<CaseStatus, CaseStatus[]>>(storage.getWorkflowTransitions());
-  const toggleWorkflowTransitionDraft = (status: CaseStatus, target: CaseStatus) => {
-    if (status === target) return; // une transition vers soi-même n'a jamais de sens (isStructurallyValidTransition la refuse de toute façon)
-    setWorkflowTransitionsDraft((prev) => {
-      const current = prev[status] ?? [];
-      const next = current.includes(target) ? current.filter((s) => s !== target) : [...current, target];
-      return { ...prev, [status]: next };
-    });
-  };
-  // === AMÉLIORATION AJOUTÉE (matrice de transitions moins touffue) === sur
-  // demande explicite de l'utilisateur : la grille 13×13 toujours visible
-  // (169 cases à cocher à l'écran en permanence) est remplacée par une
-  // ligne compacte par statut de départ (puces des statuts d'arrivée déjà
-  // autorisés) ; la case à cocher complète pour un statut donné ne
-  // s'affiche que dans une fenêtre dédiée, ouverte au clic sur "Modifier".
-  // Édite toujours le même `workflowTransitionsDraft` — "Enregistrer les
-  // transitions" (inchangé) reste le seul geste qui persiste réellement.
-  const [editingTransitionsFor, setEditingTransitionsFor] = useState<CaseStatus | null>(null);
-  const handleSaveWorkflowTransitions = (e: React.FormEvent) => {
-    e.preventDefault();
-    const saved = storage.getWorkflowTransitions();
-    let changedCount = 0;
-    for (const status of ALL_CASE_STATUSES) {
-      const before = [...(saved[status] ?? [])].sort();
-      const after = [...(workflowTransitionsDraft[status] ?? [])].sort();
-      const unchanged = before.length === after.length && before.every((s, i) => s === after[i]);
-      if (!unchanged) {
-        storage.updateWorkflowTransitions(status, workflowTransitionsDraft[status], activeUser);
-        changedCount += 1;
-      }
-    }
-    flashBanner(changedCount > 0 ? `Transitions mises à jour pour ${changedCount} statut(s).` : 'Aucune modification à enregistrer.');
   };
 
   // --- Entities CRUD state ---
@@ -338,7 +272,17 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   // ré-affichable ensuite. `copied` pilote juste le petit retour visuel du
   // bouton copier, même motif que ContactView.tsx.
   const [generatedCredentials, setGeneratedCredentials] = useState<{ name: string; username: string; password: string } | null>(null);
-  const [copiedCredential, setCopiedCredential] = useState(false);
+  // === AMÉLIORATION AJOUTÉE (refonte de la fenêtre d'identifiants générés) ===
+  // Remplace l'unique booléen `copiedCredential` par un suivi par champ, pour
+  // que chacun des 3 boutons de copie (identifiant seul / mot de passe seul /
+  // les deux) affiche son propre retour visuel "Copié" indépendamment des
+  // autres — comportement de copie inchangé, seul l'affichage est plus riche.
+  const [copiedField, setCopiedField] = useState<'username' | 'password' | 'both' | null>(null);
+  const copyCredentialField = (field: 'username' | 'password' | 'both', text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField((current) => (current === field ? null : current)), 2000);
+  };
   const [resetPasswordConfirmId, setResetPasswordConfirmId] = useState<string | null>(null);
   const [isSavingUser, setIsSavingUser] = useState(false);
 
@@ -757,15 +701,6 @@ service cloud.firestore {
   // d'affichage : il énumère TOUTES les valeurs possibles, y compris
   // celles qu'aucun compte de démonstration n'utilise encore.
   const ALL_ROLE_IDS: RoleId[] = ['reporter', 'investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation', 'system_admin', 'security_admin', 'audit_committee', 'executive'];
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  // Les 14 valeurs de CaseStatus (domain/caseTypes.ts), dans l'ordre du
-  // pipeline décrit par CASE_STATUS_LABELS/domain/workflow.ts (NEW → ... →
-  // ARCHIVED, puis les 2 statuts annexes DUPLICATE/OUT_OF_SCOPE).
-  const ALL_CASE_STATUSES: CaseStatus[] = [
-    'new', 'triage', 'under_review', 'assigned', 'investigation', 'pending_information',
-    'escalated', 'conclusion_pending', 'functional_review', 'closed', 'reopened', 'archived',
-    'duplicate', 'out_of_scope',
-  ];
   const ROLE_ID_LABELS: Record<RoleId, string> = {
     reporter: 'Lanceur d’alerte',
     investigator: 'Investigateur',
@@ -1507,87 +1442,25 @@ service cloud.firestore {
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
-          GOUVERNANCE TAB — hiérarchie PAR RÔLE (jamais codée en dur, brief
-          §47-68) utilisée par domain/independentRouting.ts pour trouver une
-          autorité indépendante de niveau strictement supérieur, + vue
-          dérivée en LECTURE SEULE (getRoutingMatrixView) : jamais une
-          seconde table à maintenir à la main, qui pourrait diverger de la
-          table de niveaux éditée ci-dessous. */}
+          GOUVERNANCE TAB. La hiérarchie par rôle utilisée par
+          domain/independentRouting.ts (niveaux + vue dérivée en lecture
+          seule) a été retirée de cet écran sur demande explicite — les
+          niveaux restent en place côté données (storage.getHierarchyLevels,
+          toujours utilisés par le moteur de routage indépendant), seul cet
+          écran d'édition disparaît. */}
       {configTab === 'governance' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6 text-xs">
-          {/* === AMÉLIORATION AJOUTÉE (suppression du texte explicatif) ===
-              sur demande explicite de l'utilisateur : le paragraphe
-              descriptif sous ce titre est retiré (le titre seul suffit). */}
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-              <Network className="w-4 h-4 text-blue-700" />
-              Routage indépendant — Niveaux hiérarchiques
-            </h3>
-          </div>
-
-          <form onSubmit={handleSaveHierarchyLevels} className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {ALL_ROLE_IDS.map((r) => (
-                <label key={r} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200">
-                  <span className="font-semibold text-slate-700">{ROLE_ID_LABELS[r]}</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={hierarchyLevelsDraft[r]}
-                    onChange={(e) =>
-                      setHierarchyLevelsDraft((prev) => ({ ...prev, [r]: Number(e.target.value) || 0 }))
-                    }
-                    className="w-20 px-2.5 py-1.5 border border-slate-300 rounded-lg text-right font-mono"
-                  />
-                </label>
-              ))}
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition"
-              >
-                Enregistrer les niveaux
-              </button>
-            </div>
-          </form>
-
-          <div className="pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setShowDerivedRoutingView((v) => !v)}
-              className="w-full flex items-center gap-1.5 font-bold text-slate-900 mb-2 hover:text-slate-700"
-            >
-              {showDerivedRoutingView ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              Vue dérivée — autorité de repli par rôle (lecture seule)
-            </button>
-            {showDerivedRoutingView && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {getRoutingMatrixView(hierarchyLevelsDraft).map((row) => (
-                <div key={row.role} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2">
-                  <span className="text-slate-700 font-medium">{ROLE_ID_LABELS[row.role]} (niveau {row.level})</span>
-                  <span className="text-slate-500 text-right">
-                    {row.nextLevelRoles.length > 0
-                      ? row.nextLevelRoles.map((r) => ROLE_ID_LABELS[r]).join(', ')
-                      : 'Aucune — intervention manuelle'}
-                  </span>
-                </div>
-              ))}
-            </div>
-            )}
-          </div>
-
           {/* === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade
               et de routage) === Source réelle des destinataires proposés
               par "Escalader le dossier" (InvestigationDesk.tsx) et du
               dernier recours notifié quand le routage indépendant
-              ci-dessus ne trouve aucune autorité interne (grade le plus
+              ne trouve aucune autorité interne (grade le plus
               élevé, actif) — REMPLACE le filtre par rôle codé en dur
               (senior_investigator/darc_compliance uniquement) qui
               existait avant. Un destinataire "Compte lié" obtient un
               accès in-app réel au dossier ; sans compte, seule une vraie
               notification e-mail est envoyée — jamais d'accès fictif. */}
-          <div className="pt-4 border-t border-slate-100">
+          <div>
             <div className="flex items-center justify-between gap-3 mb-2">
               <div>
                 <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
@@ -1736,129 +1609,6 @@ service cloud.firestore {
                 </>
               );
             })()}
-          </div>
-        </div>
-      )}
-
-      {/* === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-          WORKFLOW TAB — matrice d'adjacence des 14 statuts CaseStatus
-          (domain/caseTypes.ts), jusqu'ici codée en dur dans
-          domain/workflow.ts (ALLOWED_TRANSITIONS) sans aucun écran pour
-          l'éditer. Même mécanique que la matrice Rôles & Permissions
-          ci-dessus : cases à cocher réelles, sauvegarde uniquement des
-          lignes modifiées, effet immédiat sur checkTransition() via
-          domain/workflow.ts (setWorkflowTransitions). */}
-      {configTab === 'workflow' && (
-        <form onSubmit={handleSaveWorkflowTransitions} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
-          <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                <GitBranch className="w-4 h-4 text-blue-700" />
-                Workflows & Statuts — Transitions autorisées
-              </h3>
-              {/* === AMÉLIORATION AJOUTÉE (suppression du texte explicatif)
-                  === sur demande explicite de l'utilisateur, le titre seul
-                  suffit. Rappel toujours vrai bien que non affiché : chaque
-                  ligne est un statut de départ, "Enregistrer les
-                  transitions" applique le changement immédiatement
-                  (storage.transitionStatus / escalateAlert), et cette table
-                  ne gouverne que la structure du parcours — les conditions
-                  métier de clôture restent appliquées ailleurs. */}
-            </div>
-            <button
-              type="submit"
-              className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
-            >
-              Enregistrer les transitions
-            </button>
-          </div>
-
-          <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
-            {ALL_CASE_STATUSES.map((source) => {
-              const targets = (workflowTransitionsDraft[source] ?? []);
-              return (
-                <div key={source} className="p-3 flex items-center gap-3 hover:bg-slate-50">
-                  <div className="w-40 shrink-0 font-bold text-slate-900">{CASE_STATUS_LABELS[source].fr}</div>
-                  <div className="flex-1 flex flex-wrap items-center gap-1.5 min-w-0">
-                    {targets.length === 0 ? (
-                      <span className="text-slate-400 italic">Statut terminal — aucune transition autorisée</span>
-                    ) : (
-                      targets.map((t) => (
-                        <span key={t} className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 font-semibold text-[10.5px] whitespace-nowrap">
-                          {CASE_STATUS_LABELS[t].fr}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditingTransitionsFor(source)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-slate-200 text-slate-600 font-semibold shrink-0"
-                  >
-                    <Pencil className="w-3.5 h-3.5" /> Modifier
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </form>
-      )}
-
-      {/* === AMÉLIORATION AJOUTÉE (matrice de transitions moins touffue) ===
-          Fenêtre dédiée : les cases à cocher complètes pour UN SEUL statut de
-          départ, plutôt que la grille entière en permanence. */}
-      {editingTransitionsFor && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                  <GitBranch className="w-4 h-4 text-blue-700" />
-                  Transitions depuis "{CASE_STATUS_LABELS[editingTransitionsFor].fr}"
-                </h3>
-                <p className="text-slate-500 text-[11px] mt-0.5">Statuts d'arrivée autorisés depuis ce statut.</p>
-              </div>
-              <button type="button" onClick={() => setEditingTransitionsFor(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {ALL_CASE_STATUSES.map((target) => {
-                const isSelf = editingTransitionsFor === target;
-                const checked = !isSelf && (workflowTransitionsDraft[editingTransitionsFor] ?? []).includes(target);
-                return (
-                  <label
-                    key={target}
-                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${
-                      isSelf ? 'opacity-30 cursor-not-allowed border-slate-100' : 'border-slate-200 hover:bg-slate-50 cursor-pointer'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={isSelf}
-                      onChange={() => toggleWorkflowTransitionDraft(editingTransitionsFor, target)}
-                      className="accent-blue-600 w-3.5 h-3.5"
-                    />
-                    {CASE_STATUS_LABELS[target].fr}
-                  </label>
-                );
-              })}
-            </div>
-
-            <p className="text-slate-400 pt-2 border-t border-slate-100">
-              Fermer cette fenêtre ne perd rien — cliquez ensuite sur "Enregistrer les transitions" pour appliquer les changements.
-            </p>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setEditingTransitionsFor(null)}
-                className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
-              >
-                Fermer
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -2383,40 +2133,52 @@ service cloud.firestore {
           sous 4h s'il n'est pas utilisé (storage.ts). */}
       {generatedCredentials && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          {/* === AMÉLIORATION AJOUTÉE (refonte de la fenêtre d'identifiants
+              générés) === Mêmes données (generatedCredentials.name/username/
+              password) et même fermeture (setGeneratedCredentials(null)) que
+              la version précédente — seule la présentation change : copie
+              individuelle de chaque champ en plus de la copie groupée déjà
+              existante, retour visuel "Copié" propre à chaque bouton, mise en
+              page un peu plus aérée. */}
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-4 text-xs">
             <div className="flex items-start gap-3">
-              <span className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                <KeyRound className="w-4 h-4" />
+              <span className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <KeyRound className="w-4.5 h-4.5" />
               </span>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Mot de passe temporaire généré</h3>
+                <h3 className="text-sm font-bold text-slate-900">Identifiants temporaires générés</h3>
                 <p className="text-slate-500 text-[11px] mt-0.5">Pour {generatedCredentials.name}</p>
               </div>
             </div>
 
-            <div className="space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Identifiant</div>
-                <div className="font-mono text-sm text-slate-900">{generatedCredentials.username}</div>
-              </div>
-              <div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Mot de passe temporaire</div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-sm text-slate-900 tracking-wider">{generatedCredentials.password}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${generatedCredentials.username} / ${generatedCredentials.password}`);
-                      setCopiedCredential(true);
-                      setTimeout(() => setCopiedCredential(false), 2000);
-                    }}
-                    className="p-1 rounded hover:bg-slate-200 text-slate-500"
-                    title="Copier"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                  {copiedCredential && <span className="text-emerald-700 font-semibold">Copié ✓</span>}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Identifiant</div>
+                  <div className="font-mono text-sm text-slate-900 truncate">{generatedCredentials.username}</div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => copyCredentialField('username', generatedCredentials.username)}
+                  className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 shrink-0"
+                  title="Copier l'identifiant"
+                >
+                  {copiedField === 'username' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Mot de passe temporaire</div>
+                  <div className="font-mono font-bold text-sm text-slate-900 tracking-wider truncate">{generatedCredentials.password}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyCredentialField('password', generatedCredentials.password)}
+                  className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 shrink-0"
+                  title="Copier le mot de passe"
+                >
+                  {copiedField === 'password' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
               </div>
             </div>
 
@@ -2424,13 +2186,34 @@ service cloud.firestore {
               Ce mot de passe ne sera plus jamais affiché. Transmettez-le à l'utilisateur — il devra le changer dès sa première connexion. Il expire dans 4 heures s'il n'est pas utilisé.
             </p>
 
-            <button
-              type="button"
-              onClick={() => setGeneratedCredentials(null)}
-              className="w-full px-4 py-2 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
-            >
-              J'ai transmis ces informations
-            </button>
+            {/* === AMÉLIORATION AJOUTÉE (libellés raccourcis, boutons sur une
+                seule ligne) === Mêmes actions qu'avant (copie groupée puis
+                fermeture), juste des libellés à 1-2 mots côte à côte plutôt
+                qu'empilés en pleine largeur. */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => copyCredentialField('both', `${generatedCredentials.username} / ${generatedCredentials.password}`)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition"
+              >
+                {copiedField === 'both' ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Copié
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" /> Copier tout
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setGeneratedCredentials(null); setCopiedField(null); }}
+                className="px-4 py-2 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
+              >
+                Terminé
+              </button>
+            </div>
           </div>
         </div>
       )}
