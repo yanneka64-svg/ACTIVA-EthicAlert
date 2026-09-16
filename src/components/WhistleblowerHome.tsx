@@ -95,25 +95,24 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             l'intérieur. */}
         <div className="relative z-10 p-8 sm:p-12 lg:pl-[calc((100vw-80rem)/2+2rem)]">
           <div className="max-w-xl space-y-5">
-            {/* === AMÉLIORATION AJOUTÉE (nom de produit visible dans le hero) ===
-                Sur demande explicite : `activa-whistleblowing` (déjà
-                traduit de façon identique dans les 3 langues via
-                `hero_title`, orpheline depuis la Phase 23 ci-dessus qui l'a
-                remplacée par le titre bicolore) reprend la position
-                auparavant occupée par `hero_eyebrow`, qui passe juste en
-                dessous — même texte "Canal éthique du Groupe ACTIVA"
-                qu'avant, simplement en second plan désormais. */}
-            <span className="block text-base font-extrabold tracking-wider text-[#0B2545]">
-              {t.hero_title}
-            </span>
-            <span className="block text-xs font-bold tracking-wider text-blue-700 lowercase -mt-3">
+            {/* === AMÉLIORATION AJOUTÉE (ligne unique nom de produit + accroche) ===
+                Sur demande explicite (choix retenu parmi 4 propositions) :
+                "activa-whistleblowing" + "Canal éthique du Groupe ACTIVA"
+                (mêmes textes, `hero_title`/`hero_eyebrow`) tiennent sur une
+                seule ligne, séparés par un point médian. Taille légèrement
+                augmentée (text-sm -> text-base) et espace resserré avant le
+                titre (`-mb-2` ici, en plus du `-mt-3` du titre juste en
+                dessous) par rapport au premier essai, sur demande. */}
+            <p className="text-base font-semibold text-slate-500 lowercase -mb-2">
+              <span className="font-extrabold text-[#0B2545] normal-case">{t.hero_title}</span>
+              {' '}·{' '}
               {t.hero_eyebrow}
-            </span>
+            </p>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
                 Titre en deux lignes bicolores, comme sur la maquette de
                 référence, à la place du nom de produit utilisé jusqu'ici. */}
-            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight -mt-3">
               <span className="block text-[#0B2545]">{t.hero_headline_line1}</span>
               <span className="block text-blue-600">{t.hero_headline_line2}</span>
             </h1>
