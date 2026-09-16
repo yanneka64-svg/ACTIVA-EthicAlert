@@ -35,3 +35,25 @@ html {
     animation: none;
   }
 }
+
+/* === AMÉLIORATION AJOUTÉE (curseur de texte non clignotant hors espaces
+   dédiés) === Sur demande explicite de l'utilisateur : le curseur de texte
+   (caret) des champs de saisie ne clignote plus par défaut nulle part dans
+   l'application (recherche, filtres, formulaires d'administration courts,
+   notes/messages au sein des tableaux de bord...) — seuls les écrans
+   entièrement dédiés à une saisie principale (signalement, connexion)
+   restaurent le clignotement normal via `.activa-caret-blink`.
+   `caret-animation` est une propriété CSS récente (Chrome 131+, Interop
+   2025) : dans les navigateurs qui ne la reconnaissent pas encore, ces
+   règles n'ont simplement aucun effet et le curseur continue de clignoter
+   normalement partout — dégradation sans casse, jamais un curseur invisible
+   ou un champ inutilisable. */
+input,
+textarea {
+  caret-animation: manual;
+}
+.activa-caret-blink,
+.activa-caret-blink input,
+.activa-caret-blink textarea {
+  caret-animation: auto;
+}

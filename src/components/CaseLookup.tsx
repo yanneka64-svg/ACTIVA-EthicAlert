@@ -216,7 +216,7 @@ export const CaseLookup: React.FC<CaseLookupProps> = ({ lang }) => {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="activa-caret-blink space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">{t.fb_lookup_login_email}</label>
               <input
