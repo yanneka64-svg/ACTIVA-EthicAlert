@@ -876,120 +876,134 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                       <p className="text-sm text-slate-600 mt-1">{t.wizard_step2_hint}</p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_first_name}</label>
-                        <input
-                          type="text"
-                          value={declarantFirstName}
-                          onChange={(e) => setDeclarantFirstName(e.target.value)}
-                          placeholder="Ex: Jean"
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_last_name}</label>
-                        <input
-                          type="text"
-                          value={declarantLastName}
-                          onChange={(e) => setDeclarantLastName(e.target.value)}
-                          placeholder="Ex: Dupont"
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_job_title}</label>
-                        <input
-                          type="text"
-                          value={declarantJob}
-                          onChange={(e) => setDeclarantJob(e.target.value)}
-                          placeholder="Ex: Auditeur interne, Chef de section..."
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_department}</label>
-                        <input
-                          type="text"
-                          value={declarantDept}
-                          onChange={(e) => setDeclarantDept(e.target.value)}
-                          placeholder="Ex: Sinistres, Comptabilité, IT..."
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_declarant_type}</label>
-                        <select
-                          value={declarantType}
-                          onChange={(e: any) => setDeclarantType(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                        >
-                          <option value="Employé">Employé(e) du Groupe ACTIVA</option>
-                          <option value="Consultant">Consultant(e)</option>
-                          <option value="Prestataire">Prestataire / Fournisseur</option>
-                          <option value="Client">Client / Partenaire assuré</option>
-                          <option value="Autre">Autre tiers</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_entity}</label>
-                        <select
-                          value={declarantEntity}
-                          onChange={(e) => setDeclarantEntity(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                        >
-                          {entities.map((ent) => (
-                            <option key={ent.id} value={ent.name}>
-                              {ent.flag} {ent.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_country}</label>
-                        <select
-                          value={declarantCountry}
-                          onChange={(e) => setDeclarantCountry(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                        >
-                          <option value="">—</option>
-                          {ACTIVA_COUNTRIES.map((c) => (
-                            <option key={c.code} value={c.name}>
-                              {c.flag} {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_email}</label>
-                        <input
-                          type="email"
-                          value={declarantEmail}
-                          onChange={(e) => setDeclarantEmail(e.target.value)}
-                          placeholder="votre.email@group-activa.com"
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_phone}</label>
-                        <div className="flex gap-2">
-                          <span className="flex items-center px-3 py-2 text-xs border border-slate-300 rounded-lg bg-slate-50 text-slate-600 shrink-0">
-                            {ACTIVA_COUNTRIES.find((c) => c.name === declarantCountry)?.flag || '🌍'}
-                          </span>
+                    {/* === AMÉLIORATION AJOUTÉE (organisation du formulaire —
+                        sections visuelles) === Sur demande explicite : les
+                        champs regroupés en deux sections (Identité /
+                        Coordonnées & contexte) au lieu d'une seule grille
+                        indifférenciée, même convention que l'étape 3
+                        ci-dessous — aucun champ, aucune logique modifié.
+                        Le bandeau "Vous pouvez rester anonyme..." qui
+                        suivait la grille est retiré : il répétait mot pour
+                        mot `wizard_step2_hint` déjà affiché juste sous le
+                        titre de l'étape. */}
+                    <div className="space-y-4">
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Identité</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_first_name}</label>
                           <input
-                            type="tel"
-                            value={declarantPhone}
-                            onChange={(e) => setDeclarantPhone(e.target.value)}
-                            placeholder="+237 ... ou +225 ..."
-                            className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            type="text"
+                            value={declarantFirstName}
+                            onChange={(e) => setDeclarantFirstName(e.target.value)}
+                            placeholder="Ex: Jean"
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_last_name}</label>
+                          <input
+                            type="text"
+                            value={declarantLastName}
+                            onChange={(e) => setDeclarantLastName(e.target.value)}
+                            placeholder="Ex: Dupont"
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_job_title}</label>
+                          <input
+                            type="text"
+                            value={declarantJob}
+                            onChange={(e) => setDeclarantJob(e.target.value)}
+                            placeholder="Ex: Auditeur interne, Chef de section..."
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_department}</label>
+                          <input
+                            type="text"
+                            value={declarantDept}
+                            onChange={(e) => setDeclarantDept(e.target.value)}
+                            placeholder="Ex: Sinistres, Comptabilité, IT..."
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_declarant_type}</label>
+                          <select
+                            value={declarantType}
+                            onChange={(e: any) => setDeclarantType(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                          >
+                            <option value="Employé">Employé(e) du Groupe ACTIVA</option>
+                            <option value="Consultant">Consultant(e)</option>
+                            <option value="Prestataire">Prestataire / Fournisseur</option>
+                            <option value="Client">Client / Partenaire assuré</option>
+                            <option value="Autre">Autre tiers</option>
+                          </select>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-3">
-                      <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                      <p>{t.wizard_step2_hint}</p>
+                    <div className="space-y-4 pt-2 border-t border-slate-100">
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Coordonnées & contexte</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_entity}</label>
+                          <select
+                            value={declarantEntity}
+                            onChange={(e) => setDeclarantEntity(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                          >
+                            {entities.map((ent) => (
+                              <option key={ent.id} value={ent.name}>
+                                {ent.flag} {ent.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_country}</label>
+                          <select
+                            value={declarantCountry}
+                            onChange={(e) => setDeclarantCountry(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                          >
+                            <option value="">—</option>
+                            {ACTIVA_COUNTRIES.map((c) => (
+                              <option key={c.code} value={c.name}>
+                                {c.flag} {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_email}</label>
+                          <input
+                            type="email"
+                            value={declarantEmail}
+                            onChange={(e) => setDeclarantEmail(e.target.value)}
+                            placeholder="votre.email@group-activa.com"
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_phone}</label>
+                          <div className="flex gap-2">
+                            <span className="flex items-center px-3 py-2 text-xs border border-slate-300 rounded-lg bg-slate-50 text-slate-600 shrink-0">
+                              {ACTIVA_COUNTRIES.find((c) => c.name === declarantCountry)?.flag || '🌍'}
+                            </span>
+                            <input
+                              type="tel"
+                              value={declarantPhone}
+                              onChange={(e) => setDeclarantPhone(e.target.value)}
+                              placeholder="+237 ... ou +225 ..."
+                              className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap justify-between items-center gap-3 pt-4">
@@ -1033,60 +1047,69 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                       <p className="text-sm text-slate-600 mt-1">{t.wizard_step3_desc}</p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                          {t.label_dates} *
-                        </label>
-                        <input
-                          type="text"
-                          value={incidentDates}
-                          onChange={(e) => setIncidentDates(e.target.value)}
-                          placeholder="Ex: Du 10 au 25 août 2026, ou Date précise"
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                        <p className="text-[10px] text-slate-500 mt-0.5">{t.no_future_dates_warning}</p>
+                    {/* === AMÉLIORATION AJOUTÉE (organisation du formulaire —
+                        sections visuelles) === Sur demande explicite : les
+                        champs de contexte (date/lieu/entité) sont regroupés
+                        sous un même intitulé, même convention que "Personnes
+                        impliquées"/"Témoins éventuels" plus bas — aucun
+                        champ, aucune logique n'est modifié. */}
+                    <div className="space-y-4">
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Contexte de l'incident</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                            {t.label_dates} *
+                          </label>
+                          <input
+                            type="text"
+                            value={incidentDates}
+                            onChange={(e) => setIncidentDates(e.target.value)}
+                            placeholder="Ex: Du 10 au 25 août 2026, ou Date précise"
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                          <p className="text-[10px] text-slate-500 mt-0.5">{t.no_future_dates_warning}</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_location} *</label>
+                          <input
+                            type="text"
+                            value={incidentLocation}
+                            onChange={(e) => setIncidentLocation(e.target.value)}
+                            placeholder="Ex: Siège Douala, Agence Plateau Abidjan, Entrepôt..."
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_location} *</label>
-                        <input
-                          type="text"
-                          value={incidentLocation}
-                          onChange={(e) => setIncidentLocation(e.target.value)}
-                          placeholder="Ex: Siège Douala, Agence Plateau Abidjan, Entrepôt..."
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                          <Building2 className="w-3.5 h-3.5 text-blue-700" />
-                          {t.label_entity} *
-                        </label>
-                        <select
-                          value={concernedEntity}
-                          onChange={(e) => setConcernedEntity(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white font-medium"
-                        >
-                          {entities.map((ent) => (
-                            <option key={ent.id} value={ent.name}>
-                              {ent.flag} {ent.name} ({ent.country})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">Autre entité (si non listée)</label>
-                        <input
-                          type="text"
-                          value={customEntityInput}
-                          onChange={(e) => setCustomEntityInput(e.target.value)}
-                          placeholder="Possibilité d'ajouter une entité"
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                            <Building2 className="w-3.5 h-3.5 text-blue-700" />
+                            {t.label_entity} *
+                          </label>
+                          <select
+                            value={concernedEntity}
+                            onChange={(e) => setConcernedEntity(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white font-medium"
+                          >
+                            {entities.map((ent) => (
+                              <option key={ent.id} value={ent.name}>
+                                {ent.flag} {ent.name} ({ent.country})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Autre entité (si non listée)</label>
+                          <input
+                            type="text"
+                            value={customEntityInput}
+                            onChange={(e) => setCustomEntityInput(e.target.value)}
+                            placeholder="Possibilité d'ajouter une entité"
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -1238,7 +1261,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                       )}
                     </div>
 
-                    <div>
+                    {/* === AMÉLIORATION AJOUTÉE (organisation du formulaire —
+                        sections visuelles) === Séparateur avant la
+                        description, cohérent avec les sections ci-dessus/
+                        dessous — le libellé du champ reste suffisamment
+                        explicite pour ne pas dupliquer un intitulé de
+                        section ici. */}
+                    <div className="pt-2 border-t border-slate-100">
                       <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_description} *</label>
                       <textarea
                         rows={5}
@@ -1249,85 +1278,93 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_incident_category} *</label>
-                        <select
-                          value={selectedSubCategory}
-                          onChange={(e) => setSelectedSubCategory(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                        >
-                          {currentCategoryDef?.subCategories.map((sub, idx) => (
-                            <option key={idx} value={sub}>
-                              {sub}
-                            </option>
-                          ))}
-                        </select>
+                    {/* === AMÉLIORATION AJOUTÉE (organisation du formulaire —
+                        sections visuelles) === Catégorie/Impact/mesure
+                        financière/situation en cours regroupés sous un même
+                        intitulé "Qualification" — même convention que les
+                        sections ci-dessus. */}
+                    <div className="space-y-4 pt-2 border-t border-slate-100">
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Qualification de l'incident</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_incident_category} *</label>
+                          <select
+                            value={selectedSubCategory}
+                            onChange={(e) => setSelectedSubCategory(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                          >
+                            {currentCategoryDef?.subCategories.map((sub, idx) => (
+                              <option key={idx} value={sub}>
+                                {sub}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_impact_potential}</label>
+                          <select
+                            value={impactType}
+                            onChange={(e) => setImpactType(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white"
+                          >
+                            {IMPACT_TYPES.map((imp, idx) => (
+                              <option key={idx} value={imp}>
+                                {imp}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_impact_potential}</label>
-                        <select
-                          value={impactType}
-                          onChange={(e) => setImpactType(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white"
-                        >
-                          {IMPACT_TYPES.map((imp, idx) => (
-                            <option key={idx} value={imp}>
-                              {imp}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
 
-                    {selectedCategory.includes('Autres') && (
+                      {selectedCategory.includes('Autres') && (
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_custom_violation}</label>
+                          <input
+                            type="text"
+                            value={customViolation}
+                            onChange={(e) => setCustomViolation(e.target.value)}
+                            placeholder="Explicitez le type spécifique de manquement constaté"
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      )}
+
                       <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.label_custom_violation}</label>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Impact financier ou préjudice estimé
+                        </label>
                         <input
                           type="text"
-                          value={customViolation}
-                          onChange={(e) => setCustomViolation(e.target.value)}
-                          placeholder="Explicitez le type spécifique de manquement constaté"
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          value={estimatedImpactValue}
+                          onChange={(e) => setEstimatedImpactValue(e.target.value)}
+                          placeholder="Ex: 15 000 €, 10M FCFA, Perte d'agrément..."
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
                         />
                       </div>
-                    )}
 
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Impact financier ou préjudice estimé
-                      </label>
-                      <input
-                        type="text"
-                        value={estimatedImpactValue}
-                        onChange={(e) => setEstimatedImpactValue(e.target.value)}
-                        placeholder="Ex: 15 000 €, 10M FCFA, Perte d'agrément..."
-                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
-                      />
-                    </div>
-
-                    {/* Toggle « situation en cours » — nouveau champ additif (Phase 26) */}
-                    <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50">
-                      <div>
-                        <div className="text-xs font-semibold text-slate-800">{t.label_situation_ongoing}</div>
-                        <div className="text-[11px] text-slate-500">{t.label_situation_ongoing_desc}</div>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={isOngoing}
-                        id="toggle-situation-ongoing"
-                        onClick={() => setIsOngoing(!isOngoing)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition shrink-0 ${
-                          isOngoing ? 'bg-blue-600' : 'bg-slate-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                            isOngoing ? 'translate-x-6' : 'translate-x-1'
+                      {/* Toggle « situation en cours » — nouveau champ additif (Phase 26) */}
+                      <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <div>
+                          <div className="text-xs font-semibold text-slate-800">{t.label_situation_ongoing}</div>
+                          <div className="text-[11px] text-slate-500">{t.label_situation_ongoing_desc}</div>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={isOngoing}
+                          id="toggle-situation-ongoing"
+                          onClick={() => setIsOngoing(!isOngoing)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition shrink-0 ${
+                            isOngoing ? 'bg-blue-600' : 'bg-slate-300'
                           }`}
-                        />
-                      </button>
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                              isOngoing ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
 
                     {/* === AMÉLIORATION AJOUTÉE : matrice de risque DARC (Annexe

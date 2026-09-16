@@ -687,7 +687,18 @@ function AppShell() {
         onOpenQrModal={() => setShowQrModal(true)}
         pendingAlertsCount={pendingAlertsCount}
         onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
-        isStaffContext={isStaffTab || currentTab === 'firebase_lookup'}
+        // === AMÉLIORATION AJOUTÉE (en-tête cohérent sur l'écran "Connexion
+        // requise") === BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur
+        // (capture d'écran) : un visiteur non connecté qui ouvrait un lien
+        // direct vers un écran interne voyait quand même l'en-tête "espace
+        // collaborateur" (avatar, barre de bulles "Espace Gestion DARC")
+        // au-dessus du mur "Connexion requise" — `isStaffContext` ne
+        // dépendait que de l'onglet visé, jamais de l'état réel de
+        // connexion. Exige désormais aussi `isStaffSessionActive` : tant
+        // que la connexion n'est pas faite, l'en-tête public normal
+        // s'affiche (logo, Signaler/Suivre, Connexion), cohérent avec le
+        // mur affiché juste en dessous.
+        isStaffContext={(isStaffTab || currentTab === 'firebase_lookup') && isStaffSessionActive}
         isStaffSessionActive={isStaffSessionActive}
         onLogout={handleLogout}
       />
