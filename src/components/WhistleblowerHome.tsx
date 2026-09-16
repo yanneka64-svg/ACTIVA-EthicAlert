@@ -135,20 +135,16 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 casse naturelle (un essai en minuscules a été tenté puis
                 abandonné au profit de cette capture de référence). Espace
                 resserré avant le titre via `-mt-1` sur le titre ci-dessous. */}
-            {/* === AMÉLIORATION AJOUTÉE (couleurs de l'accroche identiques à
-                la photo) === Sur demande explicite ("les couleurs ...
-                identiques à celles de la photo ci-jointe") : les deux tons
-                sont désormais échantillonnés directement sur les pixels
-                réels de activa-hq-hero.jpg — `#2563eb` (proche de #528fec,
-                le bleu du coin haut-gauche de la photo) pour le nom de
-                marque, `#60a5fa` (proche de #74a7ef, la moyenne de la zone
-                exacte où ce texte se pose sur la photo) pour le point
-                médian et l'accroche — au lieu du bleu marine + gris neutre
-                précédents. Identique sur mobile et web (même composant, pas
-                de variante distincte). */}
-            <p className="text-base font-semibold text-blue-400">
-              <span className="font-extrabold text-blue-600">{t.hero_title}</span>
-              <span className="text-blue-400">{' '}·{' '}</span>
+            {/* === AMÉLIORATION AJOUTÉE (variante premium, couleurs
+                explicites) === Sur demande explicite, palette précise à 3
+                tons : #123B63 (nom de marque, bleu nuit sobre), #3B82F6
+                (point médian, accent vif) et #64748B (accroche, gris
+                ardoise discret) — remplace la tentative précédente basée
+                sur un échantillonnage de la photo. Identique sur mobile et
+                web (même composant, pas de variante distincte). */}
+            <p className="text-base font-semibold text-[#64748B]">
+              <span className="font-extrabold text-[#123B63]">{t.hero_title}</span>
+              <span className="text-[#3B82F6]">{' '}·{' '}</span>
               {t.hero_eyebrow}
             </p>
 
