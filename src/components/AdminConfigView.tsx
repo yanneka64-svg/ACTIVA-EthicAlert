@@ -528,7 +528,17 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   ];
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+    // === AMÉLIORATION AJOUTÉE (Correction demandée — alignement avec la
+    // barre latérale) === BUG PRÉEXISTANT CORRIGÉ, signalé par
+    // l'utilisateur : `py-8` (haut ET bas) s'ajoutait au `lg:py-6` déjà
+    // posé par la colonne de contenu (StaffPortalLayout.tsx, `{children}`)
+    // — exactement le même espacement que `mt-6` sur la barre latérale
+    // elle-même. Ce cumul décalait les cartes de formulaire ~32px plus bas
+    // que le haut de la barre latérale. `pt-0` aligne désormais les deux
+    // sur le même espacement fourni par la colonne ; `pb-8` (bas
+    // uniquement) est conservé pour garder l'espace existant avant le pied
+    // de page.
+    <div className="max-w-7xl mx-auto pt-0 pb-8 px-4 sm:px-6 lg:px-8 space-y-6">
       {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bandeau
           "Configuration Système" retiré) === Le bandeau générique (icône +
           titre "Configuration Système" + sous-titre + repère de section en
