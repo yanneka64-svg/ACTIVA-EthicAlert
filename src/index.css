@@ -85,3 +85,34 @@ input[type='password']::-ms-reveal,
 input[type='password']::-ms-clear {
   display: none;
 }
+
+/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+   BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : les boutons
+   "Générer le rapport" appelaient `window.print()` directement sur toute
+   la page affichée (barre latérale, navigation comprises) — jamais un
+   document propre. `.print-only` (CaseReportPrintView.tsx) est le SEUL
+   contenu visible à l'impression : masqué à l'écran, ces règles masquent
+   tout le RESTE de la page uniquement en contexte d'impression (jamais à
+   l'écran, où l'application continue de s'afficher normalement). */
+.print-only {
+  display: none;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+  .print-only {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  @page {
+    margin: 1.5cm;
+  }
+}
