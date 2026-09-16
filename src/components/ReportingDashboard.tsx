@@ -522,7 +522,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         <div id="report-anchor-category" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Répartition par catégorie de manquement (CDC 2.0)
+              Répartition par catégorie de manquement
             </h3>
             <span className="text-[11px] text-slate-500 font-medium">{Object.keys(categoryCounts).length} catégories</span>
           </div>

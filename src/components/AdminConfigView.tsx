@@ -1283,7 +1283,7 @@ service cloud.firestore {
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
-                Profils et Habilitations (CDC 3.2.3)
+                Profils et Habilitations
               </h3>
             </div>
             <button
@@ -1720,7 +1720,7 @@ service cloud.firestore {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
                   <Server className="w-4 h-4 text-blue-600" />
-                  <span>Règles de sécurité Firestore (Annexe CDC)</span>
+                  <span>Règles de sécurité Firestore</span>
                 </div>
                 <button
                   type="button"
@@ -1760,7 +1760,7 @@ service cloud.firestore {
                 </li>
                 <li className="flex items-start gap-1.5">
                   <span className="text-emerald-600 font-bold">•</span>
-                  <span><strong>Piste d'audit inviolable (CDC 3.1.5)</strong> : chaque accès ou modification génère une écriture scellée et conservée 10 ans.</span>
+                  <span><strong>Piste d'audit inviolable</strong> : chaque accès ou modification génère une écriture scellée et conservée 10 ans.</span>
                 </li>
                 <li className="flex items-start gap-1.5">
                   <span className="text-emerald-600 font-bold">•</span>

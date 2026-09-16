@@ -1162,7 +1162,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     if (!selectedAlert) return;
 
     if (selectedAlert.correctiveMeasures.length === 0) {
-      alert("Conformément au CDC 3.1.2 et 3.1.3, la documentation préalable d'au moins une mesure corrective est obligatoire avant toute clôture de dossier.");
+      alert("La documentation préalable d'au moins une mesure corrective est obligatoire avant toute clôture de dossier.");
       setActiveCaseTab('corrective');
       setShowCloseModal(false);
       return;
@@ -3775,7 +3775,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 Modifier la classification et les délais de traitement
               </h3>
               <p className="text-slate-500 text-[11px] mt-0.5">
-                CDC 3.1.2 : Le point de contact peut ajuster la priorité et les délais préconfigurés.
+                Le point de contact peut ajuster la priorité et les délais préconfigurés.
               </p>
             </div>
 
@@ -3841,7 +3841,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 Documenter une mesure corrective
               </h3>
               <p className="text-slate-500 text-[11px] mt-0.5">
-                Exigence obligatoire avant toute clôture de dossier (CDC 3.1.2).
+                Exigence obligatoire avant toute clôture de dossier.
               </p>
             </div>
 
@@ -4121,7 +4121,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 Clôturer formellement le dossier {selectedAlert.trackingNumber}
               </h3>
               <p className="text-slate-500 text-[11px] mt-0.5">
-                Vérification de complétude et information du lanceur d'alerte (CDC 3.1.3).
+                Vérification de complétude et information du lanceur d'alerte.
               </p>
             </div>
 
@@ -4189,7 +4189,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Message officiel transmis au lanceur d'alerte (CDC 3.1.2 & 3.1.3)
+                Message officiel transmis au lanceur d'alerte
               </label>
               <textarea
                 rows={3}
@@ -4230,7 +4230,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 Rouvrir le dossier {selectedAlert.trackingNumber}
               </h3>
               <p className="text-slate-500 text-[11px] mt-0.5">
-                Règle stricte CDC 3.1.3 : Motif de réouverture obligatoire consigné en piste d'audit.
+                Règle stricte : Motif de réouverture obligatoire consigné en piste d'audit.
               </p>
             </div>
 

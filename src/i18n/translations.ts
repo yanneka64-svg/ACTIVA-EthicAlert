@@ -440,7 +440,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_archive_case: 'Archiver le dossier',
     
     // Corrective measures
-    corrective_required_note: 'La documentation des mesures correctives est obligatoire avant toute clôture de dossier (CDC 3.1.2).',
+    corrective_required_note: 'La documentation des mesures correctives est obligatoire avant toute clôture de dossier.',
     btn_add_measure: '+ Documenter une mesure corrective',
     
     // Reports
@@ -1441,7 +1441,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_reopen_case: 'Reopen Case (Reason Required)',
     btn_archive_case: 'Archive Case',
 
-    corrective_required_note: 'Documenting corrective measures is mandatory before closing any case (Spec 3.1.2).',
+    corrective_required_note: 'Documenting corrective measures is mandatory before closing any case.',
     btn_add_measure: '+ Document corrective measure',
 
     reporting_title: 'DARC Analytics & Dashboards',

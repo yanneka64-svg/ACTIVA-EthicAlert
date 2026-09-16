@@ -73,7 +73,7 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
             <div className="flex items-center gap-2 mb-1">
               <History className="w-5 h-5 text-purple-700" />
               <h2 className="text-xl font-bold text-slate-900">
-                Piste d’Audit Immuable & Traçabilité (CDC 3.1.5)
+                Piste d’Audit Immuable & Traçabilité
               </h2>
             </div>
             <p className="text-xs text-slate-600">
