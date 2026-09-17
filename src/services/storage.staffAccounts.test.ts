@@ -229,7 +229,12 @@ describe('storage — comptes staff (identifiant + mot de passe)', () => {
       const wrongDemo = await freshStorage.verifyStaffLogin('y.mebadaekani', 'demo');
       expect(wrongDemo).toEqual({ ok: false, reason: 'wrong_password' });
 
-      const login = await freshStorage.verifyStaffLogin('y.mebadaekani', 'ActivaForensic2026!');
+      // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+      // Mot de passe temporaire mis à jour en cohérence avec le nouveau
+      // hash/sel de `emergencyAdminSeed()` (storage.ts) — l'ancien mot de
+      // passe n'est plus documenté en clair dans le code source de
+      // l'application, seulement ici pour ce test unitaire.
+      const login = await freshStorage.verifyStaffLogin('y.mebadaekani', 'ij@KvmaH5qvbWS@u');
       expect(login.ok).toBe(true);
       if (login.ok) expect(login.mustChangePassword).toBe(true);
 

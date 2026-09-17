@@ -399,29 +399,55 @@ function AppShell() {
     // seulement pour ces comptes précis (tout compte avec cases.edit ou
     // cases.assign garde exactement l'écran "Dossiers" d'avant).
     if (currentTab === 'portal') {
+      // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+      // BUG PRÉEXISTANT CORRIGÉ : cet écran (et 19 autres, voir les
+      // `PermissionGuard` ajoutés dans ce fichier) n'était protégé par
+      // AUCUNE permission — seul `AuthenticatedRoute` vérifiait qu'une
+      // session était active, pas que ce compte précis avait le droit de
+      // voir des dossiers. `cases.read` est la permission de base pour
+      // toute visibilité de dossier (domain/permissions.ts) — l'absence
+      // volontaire de ce droit pour `system_admin`/`security_admin`
+      // ("System Administrator ≠ Case Access", brief section 30) n'était
+      // jusqu'ici pas réellement appliquée pour cet écran.
       const isReadOnlyCaseViewer = !userCan(activeUser, 'cases.edit') && !userCan(activeUser, 'cases.assign');
-      if (isReadOnlyCaseViewer && !effectiveCaseFilter?.trackingNumber) {
-        return (
-          <OperatorCaseDesk
-            key="portal-readonly-list"
-            lang={lang}
-            activeUser={activeUser}
-            mode="my_cases"
-            titleOverride="Dossiers"
-            subtitleOverride="Consultez et suivez l'ensemble des dossiers signalés dans le cadre d'activa-whistleblowing."
-            emptyOverride="Aucun dossier à afficher pour le moment."
-            onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
-          />
-        );
-      }
-      return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner simplifiedFilters />;
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Dossiers">
+          {isReadOnlyCaseViewer && !effectiveCaseFilter?.trackingNumber ? (
+            <OperatorCaseDesk
+              key="portal-readonly-list"
+              lang={lang}
+              activeUser={activeUser}
+              mode="my_cases"
+              titleOverride="Dossiers"
+              subtitleOverride="Consultez et suivez l'ensemble des dossiers signalés dans le cadre d'activa-whistleblowing."
+              emptyOverride="Aucun dossier à afficher pour le moment."
+              onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
+            />
+          ) : (
+            <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner simplifiedFilters />
+          )}
+        </PermissionGuard>
+      );
     }
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
     // écran de détail, mêmes actions) avec un `initialFilter` préréglé
     // différent — pas une copie, un préréglage — exactement comme le
     // Centre de Pilotage le fait déjà pour ses propres cartes KPI.
-    if (currentTab === 'triage') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    // Les 8 écrans ci-dessous n'avaient jusqu'ici AUCUN `PermissionGuard` —
+    // voir la note complète sur l'onglet 'portal' plus haut. Chacun est
+    // désormais gardé par la permission minimale réellement nécessaire pour
+    // afficher un contenu pertinent (domain/permissions.ts) : `cases.read`
+    // pour les vues de dossiers, `evidence.read`/`communications.read`/
+    // `reports.read` pour les 3 registres transverses dédiés.
+    if (currentTab === 'triage') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Nouveaux signalements">
+          <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />
+        </PermissionGuard>
+      );
+    }
     if (currentTab === 'assignment') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
@@ -429,13 +455,55 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'my_cases') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'investigations') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'investigation' }} />;
-    if (currentTab === 'tasks') return <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'corrective_actions') return <CorrectiveActionsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
+    if (currentTab === 'my_cases') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Mes dossiers">
+          <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'investigations') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Investigations">
+          <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'investigation' }} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'tasks') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Suivi des investigations">
+          <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'evidence') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'evidence.read')} label="Preuves">
+          <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'communications') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'communications.read')} label="Communications">
+          <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'corrective_actions') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Suivi des recommandations">
+          <CorrectiveActionsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'reports') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'reports.read')} label="Rapports">
+          <ReportingDashboard lang={lang} activeUser={activeUser} />
+        </PermissionGuard>
+      );
+    }
     if (currentTab === 'executive') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Vue Exécutive">
@@ -524,8 +592,25 @@ function AppShell() {
     // `excludeClosed`/`assignedOnly` qu'avant). La fiche dossier complète
     // (InvestigationDesk, strictement inchangée) reste à un clic via
     // `onOpenCase`/`navigateToCases`.
-    if (currentTab === 'op_inbox') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'op_pending_info') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    // Ces 5 écrans Opérateur n'avaient aucun `PermissionGuard`, contrairement
+    // à leurs 2 écrans frères déjà gardés (op_assign/op_dashboard,
+    // `isGlobalViewer`) — même garde appliquée ici, pour une cohérence
+    // totale au sein de l'espace Opérateur.
+    if (currentTab === 'op_inbox') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Boîte de réception">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'op_pending_info') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="En attente d’infos">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     if (currentTab === 'op_assign') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
@@ -533,12 +618,30 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'op_processed') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="assigned" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'op_processed') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Dossiers ouverts">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="assigned" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
     // envoyés en revue) ===
-    if (currentTab === 'op_review') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="review" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'op_review') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="En revue">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="review" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
-    if (currentTab === 'op_closed') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="closed" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'op_closed') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Dossiers clôturés">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="closed" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
     // morts) === `op_search`/`op_reports`/`op_communications` (Phase 6)
     // supprimés d'ici : ils rendaient exactement `advanced_search`/
@@ -580,7 +683,17 @@ function AppShell() {
     // conservait son bandeau, comme le vrai Tableau de bord Opérateur
     // (ControlPanel) — hors périmètre de la refonte Opérateur v2, qui ne
     // concernait que les 4 écrans nommés explicitement.
-    if (currentTab === 'inv_dashboard') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inv_inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    // Les 5 écrans Enquêteur ci-dessous n'avaient aucun `PermissionGuard` —
+    // `cases.read`, la permission de base pour toute visibilité de dossier
+    // (déjà utilisée pour 'portal'/'triage'/'my_cases' ci-dessus).
+    if (currentTab === 'inv_dashboard') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Boîte de réception">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inv_inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
     // Enquêteur) === même remplacement par `OperatorCaseDesk` que côté
     // Opérateur (voir plus haut) — `myCasesOnly` n'a plus besoin d'être
@@ -590,10 +703,34 @@ function AppShell() {
     // `in_progress` n'ont besoin d'exprimer que la nuance de statut propre à
     // chaque écran. "En attente" réutilise le mode `pending_info` existant
     // (même règle, même action "Relancer"), avec son libellé propre.
-    if (currentTab === 'inv_my_cases') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="my_cases" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'inv_to_process') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="to_process" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'inv_in_progress') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="in_progress" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'inv_pending') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" titleOverride={t.sidebar_inv_pending} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'inv_my_cases') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Mes dossiers">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="my_cases" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'inv_to_process') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="À traiter">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="to_process" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'inv_in_progress') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="En cours">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="in_progress" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'inv_pending') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="En attente">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" titleOverride={t.sidebar_inv_pending} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
     // morts) === `inv_tasks`/`inv_evidence`/`inv_communications`/
     // `inv_reports`/`inv_search` (Phase 6) supprimés d'ici, même motif que
@@ -601,7 +738,14 @@ function AppShell() {
     // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === entrée de
     // barre latérale partagée (pas propre à un espace) — useVisibleAlerts
     // limite déjà correctement le périmètre pour n'importe quel rôle.
-    if (currentTab === 'advanced_search') return <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    if (currentTab === 'advanced_search') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Recherche avancée">
+          <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
 
     if (currentTab === 'admin_audit') {
       return (
