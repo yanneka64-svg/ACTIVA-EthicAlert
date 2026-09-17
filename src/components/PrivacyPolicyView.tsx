@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserCog, Database, Target, Clock, Users, ShieldCheck, Lock, Mail } from 'lucide-react';
+import { UserCog, Database, Target, Clock, Users, ShieldCheck, Lock, Mail, UserCheck } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 
@@ -8,6 +8,9 @@ interface PrivacyPolicyViewProps {
 }
 
 const CONTACT_EMAIL = 'activa.whistleblowing@group-activa.com';
+// === AMÉLIORATION AJOUTÉE (Audit frontend — contact DPO dédié, coordonnées
+// réelles communiquées par l'utilisateur) ===
+const DPO_EMAIL = 'it.security@group-activa.com';
 
 /**
  * === AMÉLIORATION AJOUTÉE (page "Politique de confidentialité" réelle) ===
@@ -62,6 +65,21 @@ export const PrivacyPolicyView: React.FC<PrivacyPolicyViewProps> = ({ lang }) =>
           <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:underline break-all">
             <Mail className="w-4 h-4 shrink-0" />
             {CONTACT_EMAIL}
+          </a>
+        </div>
+      </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Audit frontend — contact DPO dédié) === */}
+      <div className="flex items-start gap-4 p-6 rounded-2xl border border-slate-200 bg-white">
+        <span className="w-11 h-11 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+          <UserCheck className="w-5 h-5" />
+        </span>
+        <div className="space-y-1.5">
+          <h2 className="text-base font-bold text-slate-900">{t.privacy_dpo_heading}</h2>
+          <p className="text-sm text-slate-600 leading-relaxed">{t.privacy_dpo_body}</p>
+          <a href={`mailto:${DPO_EMAIL}`} className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:underline break-all">
+            <Mail className="w-4 h-4 shrink-0" />
+            {DPO_EMAIL}
           </a>
         </div>
       </div>

@@ -10,9 +10,22 @@
  * close/reassign/reopen/delete-evidence confirmations), so they're
  * consistent with each other from the start instead of each reinventing
  * the wrapper.
+ *
+ * === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, accessibilité) ===
+ * BUG PRÉEXISTANT CORRIGÉ : aucune des fenêtres modales de l'application
+ * (celle-ci comprise) ne gérait la touche Échap, ne piégeait le focus
+ * clavier à l'intérieur, ni n'annonçait son rôle aux lecteurs d'écran.
+ * Ce composant n'ayant encore aucun appelant réel (vérifié — jamais
+ * importé ailleurs que dans ce fichier), il est renforcé ici sans risque
+ * de régression visuelle sur un écran existant : `role="dialog"` +
+ * `aria-modal` + `aria-labelledby`, fermeture au clavier (Échap), focus
+ * posé sur le bouton par défaut à l'ouverture et restitué au déclencheur
+ * à la fermeture. Utilise aussi le nouveau composant `<Button>` et les
+ * tokens de couleur de `index.css` plutôt que des classes ad hoc.
  */
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { Button } from './Button';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -29,6 +42,8 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
+let dialogIdCounter = 0;
+
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   open,
   title,
@@ -43,15 +58,48 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const titleId = useRef(`confirm-dialog-title-${++dialogIdCounter}`).current;
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const triggerElementRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    // Mémorise l'élément qui avait le focus avant l'ouverture, pour le lui
+    // restituer à la fermeture (comportement standard des modales
+    // accessibles — sans quoi le focus clavier "disparaît" dans la page).
+    triggerElementRef.current = document.activeElement as HTMLElement | null;
+    cancelRef.current?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      triggerElementRef.current?.focus();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   if (!open) return null;
   const confirmDisabled = requireReason && reason.trim().length === 0;
-  const confirmColor = tone === 'danger' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-blue-600 hover:bg-blue-700';
+  const reasonId = `${titleId}-reason`;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs"
+      >
         <div className="border-b border-slate-100 pb-3">
-          <h3 className={`text-sm font-bold flex items-center gap-1.5 ${tone === 'danger' ? 'text-rose-700' : 'text-slate-900'}`}>
+          <h3 id={titleId} className={`text-sm font-bold flex items-center gap-1.5 ${tone === 'danger' ? 'text-critical' : 'text-slate-900'}`}>
             {tone === 'danger' && <AlertTriangle className="w-4 h-4" />}
             {title}
           </h3>
@@ -60,8 +108,13 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
         {requireReason && (
           <div>
-            {reasonLabel && <label className="block font-semibold text-slate-700 mb-1">{reasonLabel}</label>}
+            {reasonLabel && (
+              <label htmlFor={reasonId} className="block font-semibold text-slate-700 mb-1">
+                {reasonLabel}
+              </label>
+            )}
             <textarea
+              id={reasonId}
               rows={4}
               value={reason}
               onChange={(e) => onReasonChange?.(e.target.value)}
@@ -72,16 +125,18 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         )}
 
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onCancel} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50">
+          <Button ref={cancelRef} type="button" variant="secondary" size="sm" onClick={onCancel}>
             {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
+          </Button>
+          <Button
+            type="button"
+            variant={tone === 'danger' ? 'danger' : 'primary'}
+            size="sm"
             disabled={confirmDisabled}
-            className={`px-4 py-2 rounded-lg text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${confirmColor}`}
+            onClick={onConfirm}
           >
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

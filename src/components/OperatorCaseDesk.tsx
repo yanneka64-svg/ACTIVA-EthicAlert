@@ -63,7 +63,7 @@ import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngi
 import { computeWorkload } from '../domain/workloadCalc';
 import { computeSlaStatus } from '../services/statusMapping';
 import { searchAlerts, AdvancedSearchCriteria, effectivePriority } from '../domain/advancedSearch';
-import { KpiCard, PriorityBadge, DataTable, EmptyState } from './ui';
+import { Button, KpiCard, PriorityBadge, DataTable, EmptyState } from './ui';
 import type { DataTableColumn, KpiTone } from './ui';
 // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === réutilise exactement
 // le même balisage checkbox + charge de travail que la modale d'attribution
@@ -397,6 +397,13 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   const waitingLongCount = modeAlerts.filter((a) => Date.now() - new Date(a.updatedAt).getTime() > 7 * 24 * 3600 * 1000).length;
   const receivedTodayCount = modeAlerts.filter((a) => isToday(a.createdAt)).length;
 
+  // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, cohérence design
+  // system) === BUG PRÉEXISTANT CORRIGÉ : "Urgents / critiques" (même
+  // libellé exact, même donnée `urgentCount`) était en ton `rose` dans 4
+  // des modes ci-dessous et `amber` dans les 6 autres — dérive de
+  // copier-coller sans raison fonctionnelle. Uniformisé sur `rose`,
+  // cohérent avec le reste de l'application (rose = urgent/critique
+  // partout ailleurs : StatusBadge, PriorityBadge, ConfirmDialog danger).
   const kpis: { value: number | string; label: string; tone: KpiTone }[] =
     mode === 'inbox'
       ? [
@@ -417,7 +424,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: modeAlerts.length, label: 'Total en attente', tone: 'purple' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
           { value: waitingLongCount, label: 'En attente > 7 jours', tone: 'orange' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
         ]
       : mode === 'assigned'
       ? // === AMÉLIORATION AJOUTÉE (Dossiers ouverts) === "Clôturés"
@@ -429,14 +436,14 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: modeAlerts.length, label: 'Total ouverts', tone: 'blue' },
           { value: inProgressCount, label: 'En cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
         ]
       : mode === 'review'
       ? [
           { value: modeAlerts.length, label: 'Total en revue', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
           { value: waitingLongCount, label: 'En attente > 7 jours', tone: 'orange' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
         ]
       : mode === 'closed'
       ? [
@@ -462,14 +469,14 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: modeAlerts.length, label: 'Total mes dossiers', tone: 'blue' },
           { value: inProgressCount, label: 'En cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
         ]
       : mode === 'to_process'
       ? [
           { value: modeAlerts.length, label: 'Total à traiter', tone: 'blue' },
           { value: modeAlerts.filter((a) => a.status === 'under_review').length, label: "En attente d’infos", tone: 'purple' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
         ]
       : mode === 'inv_inbox'
       ? // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
@@ -488,7 +495,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: modeAlerts.length, label: 'Total en cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
           { value: waitingLongCount, label: 'Sans mise à jour > 7 jours', tone: 'orange' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
         ];
 
   // Sélection multiple
@@ -676,32 +683,35 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       <span className="font-semibold text-blue-900">{selectedIds.size} dossier(s) sélectionné(s)</span>
       <div className="flex items-center gap-2">
         {cfg.rowAction === 'assign' && canAssign && (
-          <button
+          <Button
+            size="sm"
+            icon={<UserPlus className="w-3.5 h-3.5" />}
             onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white font-bold hover:bg-[#123a63]"
           >
-            <UserPlus className="w-3.5 h-3.5" /> Attribuer
-          </button>
+            Attribuer
+          </Button>
         )}
         {cfg.rowAction === 'reassign' && canAssign && (
-          <button
+          <Button
+            size="sm"
+            icon={<UserCog className="w-3.5 h-3.5" />}
             onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white font-bold hover:bg-[#123a63]"
           >
-            <UserCog className="w-3.5 h-3.5" /> Réattribuer
-          </button>
+            Réattribuer
+          </Button>
         )}
         {cfg.rowAction === 'followup' && (
-          <button
+          <Button
+            size="sm"
+            icon={<Send className="w-3.5 h-3.5" />}
             onClick={() => { setFollowupTargetIds(Array.from(selectedIds)); setFollowupText(''); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white font-bold hover:bg-[#123a63]"
           >
-            <Send className="w-3.5 h-3.5" /> Relancer
-          </button>
+            Relancer
+          </Button>
         )}
-        <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 font-semibold hover:bg-white">
+        <Button variant="secondary" size="sm" onClick={() => setSelectedIds(new Set())}>
           Désélectionner
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -976,12 +986,13 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                     {panelAlert.assignedInvestigatorNames.length > 0 ? `Attribué à : ${panelAlert.assignedInvestigatorNames.join(', ')}` : 'Non attribué'}
                   </span>
                   {canAssign && (
-                    <button
+                    <Button
+                      size="sm"
+                      icon={<UserPlus className="w-3.5 h-3.5" />}
                       onClick={() => { setAssignTargetIds([panelAlert.id]); setAssignSelectedInvestigatorIds(panelAlert.assignedInvestigators); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white text-xs font-bold hover:bg-[#123a63]"
                     >
-                      <UserPlus className="w-3.5 h-3.5" /> Attribuer
-                    </button>
+                      Attribuer
+                    </Button>
                   )}
                 </div>
 
@@ -995,7 +1006,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                       placeholder="Message confidentiel..."
                       className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm"
                     />
-                    <button onClick={handleQuickReply} disabled={!replyText.trim()} className="p-2.5 rounded-xl bg-[#0B2545] text-white disabled:opacity-40 hover:bg-[#123a63]">
+                    <button onClick={handleQuickReply} disabled={!replyText.trim()} className="p-2.5 rounded-xl bg-brand text-white disabled:opacity-40 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 transition">
                       <Send className="w-4 h-4" />
                     </button>
                   </div>
@@ -1095,14 +1106,14 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button onClick={() => setAssignTargetIds(null)} className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Annuler</button>
-              <button
+              <Button variant="secondary" size="sm" onClick={() => setAssignTargetIds(null)}>Annuler</Button>
+              <Button
+                size="sm"
                 disabled={assignSelectedInvestigatorIds.length === 0}
                 onClick={handleConfirmAssign}
-                className="px-4 py-1.5 text-xs font-bold text-white bg-[#0B2545] rounded-lg disabled:opacity-40 hover:bg-[#123a63]"
               >
                 Confirmer l'attribution
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -1125,10 +1136,10 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
               className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setFollowupTargetIds(null)} className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Annuler</button>
-              <button onClick={handleConfirmFollowup} className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-[#0B2545] rounded-lg hover:bg-[#123a63]">
-                <Send className="w-3.5 h-3.5" /> Envoyer
-              </button>
+              <Button variant="secondary" size="sm" onClick={() => setFollowupTargetIds(null)}>Annuler</Button>
+              <Button size="sm" icon={<Send className="w-3.5 h-3.5" />} onClick={handleConfirmFollowup}>
+                Envoyer
+              </Button>
             </div>
           </div>
         </div>
