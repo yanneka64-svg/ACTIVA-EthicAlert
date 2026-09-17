@@ -689,12 +689,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign : période, graphiques, tableau) ===
     // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
-    // `cp_period_30d` renommée : le bouton n'a jamais réellement limité
-    // l'affichage à 30 jours (seul le delta d'une carte KPI l'utilisait) —
-    // "30 jours" était donc trompeur. Devient le libellé par défaut
-    // "toute la période", cohérent avec le comportement réel une fois le
-    // filtre de période étendu à tout l'écran (voir ControlPanel.tsx).
-    cp_period_all_time: 'Toute la période',
+    // `cp_period_30d` (bouton "30 jours", trompeur — n'a jamais réellement
+    // limité l'affichage) puis `cp_period_all_time` (libellé "Toute la
+    // période" du bouton/popover qui l'a remplacé) ont toutes deux été
+    // retirées sur demande explicite : les champs de date Du/Au sont
+    // désormais affichés directement, sans bouton ni libellé de repli
+    // (voir ControlPanel.tsx).
     cp_year_all: 'Toutes les années',
     cp_btn_download_csv: 'Télécharger (CSV)',
     cp_section_trend: 'Tendance des alertes',
@@ -1523,7 +1523,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'No open tasks remaining',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
-    cp_period_all_time: 'All time',
     cp_year_all: 'All years',
     cp_btn_download_csv: 'Download (CSV)',
     cp_section_trend: 'Alerts Trend',
@@ -2298,7 +2297,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'Nenhuma tarefa em aberto restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
-    cp_period_all_time: 'Todo o período',
     cp_year_all: 'Todos os anos',
     cp_btn_download_csv: 'Baixar (CSV)',
     cp_section_trend: 'Tendência de alertas',
