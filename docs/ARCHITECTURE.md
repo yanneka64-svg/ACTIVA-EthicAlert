@@ -5,24 +5,44 @@
 
 ## A. Architecture actuelle (au 2026-09, avant Phase 2)
 
+> **Nettoyage hygiène — mise à jour de ce diagramme** : ce diagramme date
+> d'avant l'ajout du routage par URL (`react-router-dom`, `src/routing/`)
+> et d'avant la Phase 3 (voir `docs/FIREBASE-SETUP.md`), qui a réellement
+> déployé Firebase Authentication et des règles Firestore restrictives
+> pour le nouveau modèle `cases/{caseId}/...`. Corrigé ci-dessous sur ces
+> deux points précis ; le reste du document (sections B/C/D) n'a pas été
+> ré-audité au-delà de ce qui est cité explicitement.
+
 ```text
 Browser
   │
-  ├── React 19 + TypeScript + Vite + Tailwind 4 (SPA, pas de routeur)
+  ├── React 19 + TypeScript + Vite + Tailwind 4 (SPA, routée par URL via
+  │      react-router-dom — src/routing/routes.ts, src/routing/guards.tsx)
   │      App.tsx ──► Navbar / StaffPortalLayout ──► Views (components/*.tsx)
   │
-  ├── services/storage.ts  (source de vérité = localStorage du navigateur)
+  ├── services/storage.ts  (source de vérité = localStorage du navigateur,
+  │      pour TOUT ce que l'UI actuelle affiche et modifie)
   │      └── best-effort, fire-and-forget sync vers Firestore si configuré
+  │         (voir services/firebase.ts ci-dessous — désormais bloquée en
+  │         écriture par les règles Firestore déployées, voir plus bas)
   │
   ├── services/firebase.ts (SDK initialisé seulement si l'utilisateur colle
-  │      un firebaseConfig dans l'écran Admin ; jamais utilisé pour Auth)
+  │      un firebaseConfig dans l'écran Admin ; jamais utilisé pour Auth ;
+  │      écran retiré de la navigation Admin sur demande explicite —
+  │      atteignable seulement via /admin/database)
   │
   ├── services/crypto.ts, services/rateLimiter.ts (durcissements ajoutés
   │      en Phase 1 : hash salé du mot de passe lanceur d'alerte, verrou
   │      anti-brute-force — tout deux côté client uniquement)
   │
-  └── AUCUN backend applicatif (pas de Cloud Functions, pas d'API, pas
-         d'authentification réelle, pas de règles Firestore restrictives)
+  └── Backend applicatif RÉEL mais NON branché sur cette UI (voir
+         docs/FIREBASE-SETUP.md) : Firebase Auth (5 comptes staff réels)
+         et règles Firestore restrictives déployées et vérifiées en
+         conditions réelles pour le modèle `cases/{caseId}/...` cible ;
+         Cloud Functions écrites mais non déployées (plan Spark, Cloud
+         Build indisponible) — aucune mutation métier réelle possible
+         tant que ce blocage n'est pas levé. L'UI ci-dessus (localStorage)
+         et ce backend restent deux systèmes étanches l'un à l'autre.
 ```
 
 **Limitations structurelles** (détaillées dans l'audit livré avant cette phase) :
