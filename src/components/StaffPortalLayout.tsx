@@ -432,7 +432,13 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
             return (
               <React.Fragment key={`${item.key}-${item.label}`}>
                 {showGroupHeader && (
-                  <div className="px-3 pt-3.5 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
+                  // BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core :
+                  // text-slate-400 à cette taille ne passe pas le seuil WCAG
+                  // AA (2.63:1, minimum 4.5:1) — text-slate-600 y remédie
+                  // (text-slate-500 seul restait tout juste insuffisant,
+                  // 4.46:1, sur le fond légèrement teinté de la sidebar).
+                  <div className="px-3 pt-3.5 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">
                     {item.group}
                   </div>
                 )}

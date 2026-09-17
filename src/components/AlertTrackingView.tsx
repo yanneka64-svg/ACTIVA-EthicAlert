@@ -514,7 +514,11 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-[11px] text-slate-400 uppercase font-semibold">{t.track_divider_or}</span>
+              {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
+                  BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core : text-slate-400
+                  sur fond blanc à cette taille ne passe pas le seuil WCAG AA
+                  (2.63:1, minimum 4.5:1) — text-slate-500 y remédie. */}
+              <span className="text-[11px] text-slate-500 uppercase font-semibold">{t.track_divider_or}</span>
               <div className="flex-1 h-px bg-slate-200" />
             </div>
 

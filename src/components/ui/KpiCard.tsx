@@ -66,7 +66,12 @@ export const KpiCard: React.FC<KpiCardProps> = ({ value, label, tone = 'neutral'
       className={`p-3 sm:p-4 rounded-xl border text-center w-full ${style.bg} ${style.border} ${interactive}`}
     >
       <div className={`text-xl sm:text-2xl font-extrabold ${style.text}`}>{value}</div>
-      <div className="text-[11px] text-slate-500 mt-0.5">{label}</div>
+      {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
+          BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core : text-slate-500 sur
+          les fonds teintés (blue-50/rose-50...) de certains tons passe tout
+          juste sous le seuil WCAG AA (4.33-4.37:1, minimum 4.5:1) —
+          text-slate-600 y remédie sur tous les tons, tinté ou non. */}
+      <div className="text-[11px] text-slate-600 mt-0.5">{label}</div>
     </Tag>
   );
 };

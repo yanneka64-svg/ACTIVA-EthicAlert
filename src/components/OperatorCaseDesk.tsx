@@ -945,7 +945,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                         <PriorityBadge priority={effectivePriority(a)} label={URGENCY_LABELS[effectivePriority(a)]} size="sm" />
                       </div>
                       <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{a.category} — {a.concernedEntity}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{new Date(a.createdAt).toLocaleDateString(dateLocale)} · {CHANNEL_LABELS[a.channel]}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{new Date(a.createdAt).toLocaleDateString(dateLocale)} · {CHANNEL_LABELS[a.channel]}</p>
                     </div>
                   </button>
                 ))}
@@ -997,7 +997,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                 </div>
 
                 <div className="border-t border-slate-100 pt-3">
-                  <label className="text-[10px] font-bold uppercase text-slate-400 mb-1.5 block">Répondre au lanceur d'alerte</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block">Répondre au lanceur d'alerte</label>
                   <div className="flex items-end gap-2">
                     <textarea
                       value={replyText}
@@ -1074,7 +1074,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
               <div className="space-y-3">
                 {assignCandidates.compatible.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1.5">Enquêteurs compatibles (même périmètre)</p>
+                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">Enquêteurs compatibles (même périmètre)</p>
                     <div className="space-y-1.5">
                       {assignCandidates.compatible.map((c) => (
                         <AssignCandidateRow
@@ -1089,7 +1089,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                 )}
                 {assignCandidates.groupAuthorized.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1.5">Autorisés Groupe</p>
+                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">Autorisés Groupe</p>
                     <div className="space-y-1.5">
                       {assignCandidates.groupAuthorized.map((c) => (
                         <AssignCandidateRow

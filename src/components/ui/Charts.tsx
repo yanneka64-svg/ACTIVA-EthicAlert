@@ -60,9 +60,13 @@ export const MiniLineChart: React.FC<MiniLineChartProps> = ({ data, color = '#25
           <circle key={i} cx={p.x} cy={p.y} r={3.5} fill="#fff" stroke={color} strokeWidth={2} />
         ))}
       </svg>
+      {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
+          BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core : text-slate-400 à
+          cette taille ne passe pas le seuil WCAG AA (2.63:1, minimum
+          4.5:1) — text-slate-500 y remédie. */}
       <div className="flex justify-between mt-1 px-0.5">
         {data.map((d, i) => (
-          <span key={i} className="text-[9px] text-slate-400 font-medium">
+          <span key={i} className="text-[9px] text-slate-500 font-medium">
             {d.label}
           </span>
         ))}
