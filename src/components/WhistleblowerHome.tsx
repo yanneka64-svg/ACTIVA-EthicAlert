@@ -14,6 +14,90 @@ import {
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 
+// === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip 3D)
+// === Sur demande explicite : chaque carte pivote à 180° au clic/tap pour
+// révéler une explication plus détaillée au dos, avec un bouton "← Retour".
+// Technique CSS `backface-visibility` + `transform-style: preserve-3d` +
+// `rotateY(180deg)`, standard et sans dépendance — la face avant reprend
+// EXACTEMENT le balisage/classes d'origine (dimensions, couleurs, icône,
+// typographie, survol), seule la face arrière est nouvelle. Les deux
+// faces partagent la même cellule de grille (`[grid-area:1/1]`) plutôt
+// qu'un positionnement `absolute` : le conteneur s'ajuste naturellement à
+// la plus haute des deux faces, sans mesure JS ni saut de mise en page,
+// et reste responsive à toutes les tailles d'écran par construction.
+interface HowItWorksCardProps {
+  idx: number;
+  Icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  toneClass: string;
+  category: string;
+  backTitle: string;
+  backDesc: string;
+  backButtonLabel: string;
+}
+
+function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle, backDesc, backButtonLabel }: HowItWorksCardProps) {
+  const [flipped, setFlipped] = React.useState(false);
+
+  return (
+    <div
+      className="group [perspective:1200px] cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-pressed={flipped}
+      onClick={() => setFlipped((f) => !f)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setFlipped((f) => !f);
+        }
+      }}
+    >
+      <div
+        className="grid transition-transform duration-500 ease-in-out [transform-style:preserve-3d]"
+        style={{ transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+      >
+        {/* Face avant — balisage identique à l'origine */}
+        <div className="[grid-area:1/1] [backface-visibility:hidden] bg-white p-6 border border-slate-200 shadow-sm space-y-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-slate-300">
+          <div className="flex items-center gap-2.5">
+            <span className="w-6 h-6 bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center shrink-0">
+              {idx + 1}
+            </span>
+            <span className={`w-10 h-10 flex items-center justify-center shrink-0 transition-all duration-300 ease-out group-hover:scale-110 ${toneClass}`}>
+              <Icon className="w-5 h-5" />
+            </span>
+          </div>
+          <h4 className="font-bold text-slate-900 text-sm">{title}</h4>
+          <p className="text-xs text-slate-600 leading-relaxed text-justify">{desc}</p>
+        </div>
+
+        {/* Face arrière */}
+        <div
+          className="[grid-area:1/1] [backface-visibility:hidden] bg-white p-6 border border-slate-200 shadow-sm flex flex-col gap-2"
+          style={{ transform: 'rotateY(180deg)' }}
+        >
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Étape {idx + 1} · {category}
+          </span>
+          <h4 className="font-bold text-slate-900 text-sm">{backTitle}</h4>
+          <p className="text-xs text-slate-600 leading-relaxed flex-1 text-justify">{backDesc}</p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFlipped(false);
+            }}
+            className="self-start px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition"
+          >
+            {backButtonLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface WhistleblowerHomeProps {
   lang: Language;
   onStartNewAlert: () => void;
@@ -295,12 +379,23 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
-            { icon: FileText, title: t.process_step1_title, desc: t.process_step1_desc, tone: 'blue' as const },
-            { icon: Lock, title: t.process_step2_title, desc: t.process_step2_desc, tone: 'amber' as const },
-            { icon: Search, title: t.process_step3_title, desc: t.process_step3_desc, tone: 'purple' as const },
-            { icon: CheckCircle2, title: t.process_step4_title, desc: t.process_step4_desc, tone: 'emerald' as const },
+            {
+              icon: FileText, title: t.process_step1_title, desc: t.process_step1_desc, tone: 'blue' as const,
+              category: t.process_step1_category, backTitle: t.process_step1_back_title, backDesc: t.process_step1_back_desc,
+            },
+            {
+              icon: Lock, title: t.process_step2_title, desc: t.process_step2_desc, tone: 'amber' as const,
+              category: t.process_step2_category, backTitle: t.process_step2_back_title, backDesc: t.process_step2_back_desc,
+            },
+            {
+              icon: Search, title: t.process_step3_title, desc: t.process_step3_desc, tone: 'purple' as const,
+              category: t.process_step3_category, backTitle: t.process_step3_back_title, backDesc: t.process_step3_back_desc,
+            },
+            {
+              icon: CheckCircle2, title: t.process_step4_title, desc: t.process_step4_desc, tone: 'emerald' as const,
+              category: t.process_step4_category, backTitle: t.process_step4_back_title, backDesc: t.process_step4_back_desc,
+            },
           ].map((step, idx) => {
-            const Icon = step.icon;
             // === AMÉLIORATION AJOUTÉE (éclat + réaction au survol des
             // bulles) === sur demande explicite de l'utilisateur : dégradé +
             // ombre portée colorée (par teinte) au lieu du fond plat
@@ -317,18 +412,18 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               emerald: 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 shadow-sm shadow-emerald-300/50 group-hover:shadow-md group-hover:shadow-emerald-400/60',
             };
             return (
-              <div key={idx} className="group bg-white p-6 border border-slate-200 shadow-sm space-y-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-slate-300">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center shrink-0">
-                    {idx + 1}
-                  </span>
-                  <span className={`w-10 h-10 flex items-center justify-center shrink-0 transition-all duration-300 ease-out group-hover:scale-110 ${toneClasses[step.tone]}`}>
-                    <Icon className="w-5 h-5" />
-                  </span>
-                </div>
-                <h4 className="font-bold text-slate-900 text-sm">{step.title}</h4>
-                <p className="text-xs text-slate-600 leading-relaxed">{step.desc}</p>
-              </div>
+              <HowItWorksCard
+                key={idx}
+                idx={idx}
+                Icon={step.icon}
+                title={step.title}
+                desc={step.desc}
+                toneClass={toneClasses[step.tone]}
+                category={step.category}
+                backTitle={step.backTitle}
+                backDesc={step.backDesc}
+                backButtonLabel={t.process_back_button}
+              />
             );
           })}
         </div>

@@ -606,7 +606,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // dur dans le composant, exactement comme AdvancedSearchView.tsx (même
     // précédent déjà établi dans ce code pour un écran transverse de ce
     // type).
-    ocd_inbox_subtitle: 'Tous les signalements reçus du public — triez-les et échangez avec le lanceur d’alerte avant attribution.',
+    ocd_inbox_subtitle: 'Tous les signalements reçus du public.',
     ocd_to_assign_subtitle: 'Dossiers nouveaux et en cours, classés par pays, entité, nature, criticité, sévérité et urgence — attribuez-les à un enquêteur.',
     ocd_pending_info_subtitle: 'Dossiers en cours nécessitant des informations complémentaires du lanceur d’alerte.',
     // === AMÉLIORATION AJOUTÉE (Dossiers ouverts — exclut désormais les
@@ -939,6 +939,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_review: 'En revue',
     // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
     sidebar_op_closed: 'Dossiers clôturés',
+    // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+    // Remplace le libellé "Tableau de bord" de l'onglet `inv_dashboard` :
+    // cet écran (InvestigationDesk, `initialFilter={{ myCasesOnly: true }}`)
+    // affiche déjà uniquement les dossiers attribués à l'enquêteur connecté
+    // — clé de code et écran inchangés, seul le libellé de menu devient
+    // "Boîte de réception", sur demande explicite de l'utilisateur.
+    sidebar_inv_inbox: 'Boîte de réception',
     sidebar_inv_my_cases: 'Mes dossiers',
     sidebar_inv_to_process: 'À traiter',
     sidebar_inv_in_progress: 'En cours',
@@ -1017,6 +1024,23 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17) === libellé aligné sur la maquette adoptée ("Nous traitons").
     process_step4_title: 'Nous traitons',
     process_step4_desc: 'Votre signalement est analysé de manière sérieuse et traité par les équipes compétentes.',
+    // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip)
+    // === Sur demande explicite, contenu de la face arrière de chaque
+    // carte (catégorie affichée à côté de "ÉTAPE N", titre détaillé,
+    // explication plus longue) — voir WhistleblowerHome.tsx.
+    process_step1_category: 'Déposer un signalement',
+    process_step1_back_title: 'Signalez en toute simplicité',
+    process_step1_back_desc: 'Décrivez les faits aussi précisément que possible, ajoutez les informations ou documents utiles et choisissez, si vous le souhaitez, de rester anonyme. Votre identité n’est pas nécessaire pour transmettre une alerte.',
+    process_step2_category: 'Accès sécurisé',
+    process_step2_back_title: 'Conservez vos identifiants',
+    process_step2_back_desc: 'Après l’enregistrement de votre signalement, un identifiant unique et un code d’accès vous permettent de retrouver votre dossier. Conservez-les précieusement : ils vous permettront de consulter les mises à jour sans révéler votre identité.',
+    process_step3_category: 'Suivi du dossier',
+    process_step3_back_title: 'Restez informé de l’avancement',
+    process_step3_back_desc: 'Votre espace sécurisé vous permet de consulter le statut de votre signalement, de prendre connaissance des demandes d’informations complémentaires et, lorsque cela est nécessaire, d’échanger avec l’équipe en charge du dossier.',
+    process_step4_category: 'Analyse et traitement',
+    process_step4_back_title: 'Votre signalement est pris en charge',
+    process_step4_back_desc: 'Chaque signalement fait l’objet d’une analyse selon les procédures applicables. Les éléments pertinents sont examinés par les personnes habilitées afin de déterminer les suites appropriées, dans le respect de la confidentialité.',
+    process_back_button: '← Retour',
     footer_legal_notice: 'Mentions légales',
     footer_privacy_policy: 'Politique de confidentialité',
 
@@ -1581,7 +1605,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_recommendations_title: 'Recommendations Tracking',
     reg_recommendations_subtitle: 'Corrective measures for every case, by country, entity, severity and status.',
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) ===
-    ocd_inbox_subtitle: 'All reports received from the public — triage them and message the reporter before assignment.',
+    ocd_inbox_subtitle: 'All reports received from the public.',
     ocd_to_assign_subtitle: 'New and in-progress cases, classified by country, entity, nature, criticality, severity and urgency — assign them to an investigator.',
     ocd_pending_info_subtitle: 'In-progress cases awaiting additional information from the reporter.',
     ocd_assigned_subtitle: 'Cases assigned to an investigator, not yet closed.',
@@ -1882,6 +1906,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_processed: 'Open Cases',
     sidebar_op_review: 'Under Review',
     sidebar_op_closed: 'Closed Cases',
+    sidebar_inv_inbox: 'Inbox',
     sidebar_inv_my_cases: 'My Cases',
     sidebar_inv_to_process: 'To Process',
     sidebar_inv_in_progress: 'In Progress',
@@ -1948,6 +1973,19 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17) === label aligned with the adopted mockup ("We handle it").
     process_step4_title: 'We handle it',
     process_step4_desc: 'Your report is reviewed seriously and handled by the competent teams.',
+    process_step1_category: 'File a report',
+    process_step1_back_title: 'Report with total ease',
+    process_step1_back_desc: 'Describe the facts as precisely as possible, add any useful information or documents, and choose to stay anonymous if you wish. Your identity is not required to submit a report.',
+    process_step2_category: 'Secure access',
+    process_step2_back_title: 'Keep your credentials safe',
+    process_step2_back_desc: 'Once your report is registered, a unique ID and access code let you retrieve your case. Keep them safe: they let you check for updates without revealing your identity.',
+    process_step3_category: 'Case follow-up',
+    process_step3_back_title: 'Stay informed of progress',
+    process_step3_back_desc: 'Your secure space lets you check your report’s status, review requests for additional information and, when needed, exchange messages with the team handling your case.',
+    process_step4_category: 'Review and handling',
+    process_step4_back_title: 'Your report is being handled',
+    process_step4_back_desc: 'Every report is reviewed under the applicable procedures. Relevant elements are examined by authorized staff to determine appropriate next steps, in full confidentiality.',
+    process_back_button: '← Back',
     footer_legal_notice: 'Legal notice',
     footer_privacy_policy: 'Privacy policy',
 
@@ -2508,7 +2546,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_recommendations_title: 'Acompanhamento das recomendações',
     reg_recommendations_subtitle: 'Medidas corretivas de todos os casos, por país, entidade, gravidade e estatuto.',
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) ===
-    ocd_inbox_subtitle: 'Todas as denúncias recebidas do público — triadas e trocando mensagens com o denunciante antes da atribuição.',
+    ocd_inbox_subtitle: 'Todas as denúncias recebidas do público.',
     ocd_to_assign_subtitle: 'Casos novos e em curso, classificados por país, entidade, natureza, criticidade, gravidade e urgência — atribua-os a um investigador.',
     ocd_pending_info_subtitle: 'Casos em curso que aguardam informações complementares do denunciante.',
     ocd_assigned_subtitle: 'Casos atribuídos a um investigador, ainda não encerrados.',
@@ -2809,6 +2847,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_processed: 'Casos em aberto',
     sidebar_op_review: 'Em revisão',
     sidebar_op_closed: 'Casos encerrados',
+    sidebar_inv_inbox: 'Caixa de entrada',
     sidebar_inv_my_cases: 'Meus casos',
     sidebar_inv_to_process: 'A processar',
     sidebar_inv_in_progress: 'Em curso',
@@ -2874,6 +2913,19 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17) === rótulo alinhado com a maquete adotada ("Tratamos").
     process_step4_title: 'Tratamos',
     process_step4_desc: 'A sua denúncia é analisada de forma séria e tratada pelas equipas competentes.',
+    process_step1_category: 'Apresentar uma denúncia',
+    process_step1_back_title: 'Denuncie com toda a simplicidade',
+    process_step1_back_desc: 'Descreva os factos com a maior precisão possível, adicione as informações ou documentos úteis e escolha, se assim o desejar, permanecer anónimo. A sua identidade não é necessária para enviar uma denúncia.',
+    process_step2_category: 'Acesso seguro',
+    process_step2_back_title: 'Guarde as suas credenciais',
+    process_step2_back_desc: 'Após o registo da sua denúncia, um identificador único e um código de acesso permitem-lhe recuperar o seu processo. Guarde-os com cuidado: permitem-lhe consultar as atualizações sem revelar a sua identidade.',
+    process_step3_category: 'Acompanhamento do processo',
+    process_step3_back_title: 'Mantenha-se informado sobre o andamento',
+    process_step3_back_desc: 'O seu espaço seguro permite-lhe consultar o estado da sua denúncia, tomar conhecimento de pedidos de informações adicionais e, quando necessário, trocar mensagens com a equipa responsável pelo processo.',
+    process_step4_category: 'Análise e tratamento',
+    process_step4_back_title: 'A sua denúncia está a ser tratada',
+    process_step4_back_desc: 'Cada denúncia é objeto de uma análise segundo os procedimentos aplicáveis. Os elementos pertinentes são examinados pelas pessoas habilitadas para determinar as diligências adequadas, no respeito pela confidencialidade.',
+    process_back_button: '← Voltar',
     footer_legal_notice: 'Aviso legal',
     footer_privacy_policy: 'Política de privacidade',
 

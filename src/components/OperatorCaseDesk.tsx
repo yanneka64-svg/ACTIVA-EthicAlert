@@ -96,7 +96,7 @@ import { AssignCandidateRow } from './InvestigationDesk';
 // fait sur la fiche dossier complète via `onOpenCase`, qui réutilise telle
 // quelle la validation déjà existante (handleCloseAlert — au moins une
 // mesure corrective documentée) plutôt que de la dupliquer.
-export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'review' | 'closed' | 'my_cases' | 'to_process' | 'in_progress';
+export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'review' | 'closed' | 'my_cases' | 'to_process' | 'in_progress' | 'inv_inbox';
 
 interface OperatorCaseDeskProps {
   lang: Language;
@@ -156,7 +156,7 @@ interface ModeConfig {
   icon: React.ComponentType<{ className?: string }>;
   titleKey:
     | 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed' | 'sidebar_op_review' | 'sidebar_op_closed'
-    | 'sidebar_inv_my_cases' | 'sidebar_inv_to_process' | 'sidebar_inv_in_progress';
+    | 'sidebar_inv_my_cases' | 'sidebar_inv_to_process' | 'sidebar_inv_in_progress' | 'sidebar_inv_inbox';
   subtitleKey:
     | 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle' | 'ocd_review_subtitle' | 'ocd_closed_subtitle'
     | 'ocd_my_cases_subtitle' | 'ocd_to_process_subtitle' | 'ocd_in_progress_subtitle';
@@ -256,6 +256,26 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
   my_cases: {
     icon: FolderOpen,
     titleKey: 'sidebar_inv_my_cases',
+    subtitleKey: 'ocd_my_cases_subtitle',
+    emptyKey: 'ocd_empty_my_cases',
+    predicate: () => true,
+    rowAction: 'none',
+  },
+  // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+  // Nouvel onglet d'accueil de l'espace Enquêteur (`inv_dashboard`, voir
+  // App.tsx) : même périmètre exact que `my_cases` ci-dessus (tous les
+  // dossiers attribués à l'enquêteur connecté, `useVisibleAlerts` s'en
+  // charge déjà) — seule la présentation change, avec le panneau liste +
+  // détail/réponse côte à côte de la Boîte de réception Opérateur (voir
+  // `mode === 'inbox' || mode === 'inv_inbox'` plus bas), sur demande
+  // explicite de l'utilisateur ("appliquer les éléments de la boite de
+  // réception opérateur excepté la première partie [les cartes KPI]").
+  // Jamais de case à cocher ni de bouton Attribuer (`rowAction: 'none'`,
+  // même raison que `my_cases`/`to_process`/`in_progress` : un enquêteur
+  // n'a pas à s'auto-attribuer ses propres dossiers).
+  inv_inbox: {
+    icon: Inbox,
+    titleKey: 'sidebar_inv_inbox',
     subtitleKey: 'ocd_my_cases_subtitle',
     emptyKey: 'ocd_empty_my_cases',
     predicate: () => true,
@@ -377,7 +397,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   const waitingLongCount = modeAlerts.filter((a) => Date.now() - new Date(a.updatedAt).getTime() > 7 * 24 * 3600 * 1000).length;
   const receivedTodayCount = modeAlerts.filter((a) => isToday(a.createdAt)).length;
 
-  const kpis: { value: number; label: string; tone: KpiTone }[] =
+  const kpis: { value: number | string; label: string; tone: KpiTone }[] =
     mode === 'inbox'
       ? [
           { value: modeAlerts.length, label: 'Total à trier', tone: 'blue' },
@@ -450,6 +470,19 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: modeAlerts.filter((a) => a.status === 'under_review').length, label: "En attente d’infos", tone: 'purple' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
           { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+        ]
+      : mode === 'inv_inbox'
+      ? // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+        // Cartes KPI conservées à l'identique de l'ancien écran "Tableau de
+        // bord" Enquêteur (InvestigationDesk, mêmes 4 libellés/mêmes
+        // formules — `alerts` non filtré, comme là-bas) sur demande
+        // explicite de l'utilisateur ("conserver les bulles de la
+        // précédente capture").
+        [
+          { value: alerts.length, label: t.portal_total_alerts, tone: 'neutral' },
+          { value: alerts.filter((a) => a.status === 'new' || a.status === 'investigation').length, label: t.portal_pending, tone: 'blue' },
+          { value: alerts.filter((a) => a.riskEvaluation.nocaThreshold === 'NOCA 3' || a.riskEvaluation.nocaThreshold === 'NOCA 4').length, label: t.portal_urgent, tone: 'rose' },
+          { value: `${alerts.length > 0 ? Math.round((alerts.filter((a) => a.status === 'closed').length / alerts.length) * 100) : 0}%`, label: t.portal_closed_rate, tone: 'emerald' },
         ]
       : [
           { value: modeAlerts.length, label: 'Total en cours', tone: 'indigo' },
@@ -856,12 +889,18 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       {filterBar}
       {bulkBar}
 
-      {mode === 'inbox' ? (
+      {mode === 'inbox' || mode === 'inv_inbox' ? (
         // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — Boîte de
         // réception) === panneau liste + détail/attribution côte à côte :
         // la liste sélectionne (jamais ne navigue), le panneau de droite
         // permet de répondre au lanceur d'alerte et d'attribuer sans quitter
         // l'écran ; "Ouvrir le dossier complet" reste le seul lien vers la
+        // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+        // `mode === 'inv_inbox'` réutilise ce même panneau tel quel : le
+        // bouton "Attribuer" reste conditionné à `canAssign` (déjà faux pour
+        // un enquêteur simple, `domain/permissions.ts`) et la case à cocher
+        // à `canActOnRows` (déjà faux ici, `rowAction: 'none'`) — rien de
+        // spécifique à ajouter pour ce nouveau mode.
         // fiche dossier entière (mêmes 9 onglets qu'avant, inchangés).
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">

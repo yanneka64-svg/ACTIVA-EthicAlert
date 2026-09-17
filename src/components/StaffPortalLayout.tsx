@@ -205,7 +205,14 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   ];
 
   const investigatorItems: NavItem[] = [
-    { key: 'inv_dashboard', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+    // "Tableau de bord" remplacé par "Boîte de réception" sur demande
+    // explicite de l'utilisateur : l'écran cible (`inv_dashboard` →
+    // InvestigationDesk, `initialFilter={{ myCasesOnly: true }}`, voir
+    // App.tsx) montre déjà uniquement les dossiers attribués à l'enquêteur
+    // connecté — seuls le libellé et l'icône changent, clé de routage et
+    // écran inchangés (route '/investigator/dashboard' conservée).
+    { key: 'inv_dashboard', label: t.sidebar_inv_inbox, icon: <Inbox className="w-4 h-4" />, group: '' },
     { key: 'inv_my_cases', label: t.sidebar_inv_my_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' },
     { key: 'inv_to_process', label: t.sidebar_inv_to_process, icon: <ListChecks className="w-4 h-4" />, group: '' },
     { key: 'inv_in_progress', label: t.sidebar_inv_in_progress, icon: <Search className="w-4 h-4" />, group: '' },

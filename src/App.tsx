@@ -563,18 +563,24 @@ function AppShell() {
     // - "En cours" (inv_in_progress) : reste un raccourci plus étroit que
     //   "À traiter" (même principe que "En attente d'infos" à côté
     //   d'"À attribuer" côté Opérateur) — filtre inchangé, bandeau retiré.
-    // Tableau de bord (inv_dashboard) conserve son bandeau, comme le vrai
-    // Tableau de bord Opérateur (ControlPanel) — hors périmètre de cette
-    // refonte, qui ne concernait que les 4 écrans nommés explicitement.
-    // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Tableau de bord"
-    // Enquêteur, capture de référence) === BUG PRÉEXISTANT CORRIGÉ, signalé
-    // par l'utilisateur : le bandeau reste (décision ci-dessus, toujours
-    // valable), mais la barre de filtres se simplifie à Recherche + Entité
-    // (`simplifiedFilters`, comme "Dossiers") et la rangée d'onglets par
-    // panier de statut + bouton "+ Nouveau" disparaît (`hideStatusTabsBar`)
-    // — ce Tableau de bord a déjà ses propres cartes KPI juste au-dessus,
-    // cette rangée y faisait doublon.
-    if (currentTab === 'inv_dashboard') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} simplifiedFilters hideStatusTabsBar />;
+    // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+    // "Tableau de bord" (bandeau KPI + simple liste, décision ci-dessous
+    // historique) remplacé par un vrai panneau liste + détail/réponse,
+    // sur demande explicite de l'utilisateur, qui a fourni une capture de
+    // référence (Boîte de réception Opérateur) en précisant vouloir en
+    // reprendre tous les éléments SAUF les cartes KPI, conservées à
+    // l'identique (voir `OperatorCaseDesk` mode `inv_inbox`, mêmes 4
+    // libellés/formules que l'ancien bandeau `InvestigationDesk`
+    // ci-dessous). Périmètre inchangé : mêmes dossiers que "Mes dossiers"
+    // (`useVisibleAlerts` restreint déjà un enquêteur non global-viewer à
+    // ses seuls dossiers assignés).
+    //
+    // Ancienne décision (conservée pour mémoire, plus appliquée ici depuis
+    // le remplacement ci-dessus) : Tableau de bord (inv_dashboard)
+    // conservait son bandeau, comme le vrai Tableau de bord Opérateur
+    // (ControlPanel) — hors périmètre de la refonte Opérateur v2, qui ne
+    // concernait que les 4 écrans nommés explicitement.
+    if (currentTab === 'inv_dashboard') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inv_inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
     // Enquêteur) === même remplacement par `OperatorCaseDesk` que côté
     // Opérateur (voir plus haut) — `myCasesOnly` n'a plus besoin d'être
