@@ -480,7 +480,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 {isStaffContext ? (
                   <>
-                    <span className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
+                    {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3,
+                        contraste) === BUG PRÉEXISTANT CORRIGÉ, mesuré via
+                        axe-core : texte blanc en gras sur bg-amber-500 ne
+                        passe pas le seuil WCAG AA (2.13:1, minimum 4.5:1) —
+                        bg-amber-700 y remédie. */}
+                    <span className="w-8 h-8 rounded-full bg-amber-700 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
                       {initials}
                     </span>
                     <span className="hidden sm:block text-left leading-tight">

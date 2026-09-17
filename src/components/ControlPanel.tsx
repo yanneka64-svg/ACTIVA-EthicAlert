@@ -476,7 +476,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           icon={<Inbox className="w-3.5 h-3.5" />}
           onClick={() => onNavigateToCases()}
           sub={
-            <span className={totalDeltaPct >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+            <span className={totalDeltaPct >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
               {totalDeltaPct >= 0 ? '↑' : '↓'} {Math.abs(totalDeltaPct)}%
             </span>
           }
@@ -488,7 +488,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           icon={<Search className="w-3.5 h-3.5" />}
           onClick={() => onNavigateToCases({ status: 'investigation' })}
           sub={
-            <span className={bucketDeltaPct('en_cours') >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+            <span className={bucketDeltaPct('en_cours') >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
               {bucketDeltaPct('en_cours') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('en_cours'))}%
             </span>
           }
@@ -500,7 +500,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           icon={<Clock3 className="w-3.5 h-3.5" />}
           onClick={() => onNavigateToCases({ status: 'corrective_action' })}
           sub={
-            <span className={bucketDeltaPct('en_attente') >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+            <span className={bucketDeltaPct('en_attente') >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
               {bucketDeltaPct('en_attente') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('en_attente'))}%
             </span>
           }
@@ -512,7 +512,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           icon={<CheckCircle2 className="w-3.5 h-3.5" />}
           onClick={() => onNavigateToCases({ status: 'closed' })}
           sub={
-            <span className={bucketDeltaPct('clotures') >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+            <span className={bucketDeltaPct('clotures') >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
               {bucketDeltaPct('clotures') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('clotures'))}%
             </span>
           }
@@ -564,7 +564,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
 
       <div className="flex items-center gap-2">
         <span className="h-px flex-1 bg-slate-200" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t.db_advanced_section_title}</span>
+        {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
+            text-slate-400 à cette taille ne passe pas le seuil WCAG AA
+            (mesuré via axe-core) ; text-slate-500 restait tout juste
+            insuffisant (4.46:1, minimum 4.5:1) — text-slate-600 y remédie. */}
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">{t.db_advanced_section_title}</span>
         <span className="h-px flex-1 bg-slate-200" />
       </div>
 
@@ -581,7 +585,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
                 <button
                   key={r}
                   onClick={() => setTrendRange(r)}
-                  className={`px-2 py-1 rounded-md text-[10px] font-bold transition ${trendRange === r ? 'bg-white shadow-sm text-blue-700' : 'text-slate-400'}`}
+                  className={`px-2 py-1 rounded-md text-[10px] font-bold transition ${trendRange === r ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500'}`}
                 >
                   {r === '7d' ? t.cp_trend_7d : r === '30d' ? t.cp_trend_30d : t.cp_trend_12m}
                 </button>
@@ -659,7 +663,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
             <KpiCard value={slaOverdue} label={t.cp_sla_overdue} tone="rose" />
             <KpiCard value={slaEscalated} label={t.cp_sla_escalated} tone="purple" />
           </div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">{t.cp_section_urgent}</p>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">{t.cp_section_urgent}</p>
           {urgentCases.length === 0 ? (
             <EmptyState title={t.cp_empty_urgent} />
           ) : (
@@ -671,7 +675,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
                     className="w-full flex items-center justify-between gap-2 text-[11px] hover:bg-slate-50 rounded-lg px-1.5 py-1 -mx-1.5 transition text-left"
                   >
                     <span className="font-bold text-blue-700 truncate">{a.trackingNumber}</span>
-                    <span className="text-slate-400 shrink-0">
+                    <span className="text-slate-500 shrink-0">
                       {a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '—'}
                     </span>
                   </button>
@@ -725,7 +729,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
                           {t[`priority_${p}` as keyof typeof t]}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{receivedAgoLabel(a.createdAt)}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{receivedAgoLabel(a.createdAt)}</p>
                     </button>
                   </li>
                 );
