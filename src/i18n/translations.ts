@@ -606,7 +606,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // dur dans le composant, exactement comme AdvancedSearchView.tsx (même
     // précédent déjà établi dans ce code pour un écran transverse de ce
     // type).
-    ocd_inbox_subtitle: 'Tous les signalements reçus du public — triez-les et échangez avec le lanceur d’alerte avant attribution.',
+    ocd_inbox_subtitle: 'Tous les signalements reçus du public.',
     ocd_to_assign_subtitle: 'Dossiers nouveaux et en cours, classés par pays, entité, nature, criticité, sévérité et urgence — attribuez-les à un enquêteur.',
     ocd_pending_info_subtitle: 'Dossiers en cours nécessitant des informations complémentaires du lanceur d’alerte.',
     // === AMÉLIORATION AJOUTÉE (Dossiers ouverts — exclut désormais les
@@ -1605,7 +1605,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_recommendations_title: 'Recommendations Tracking',
     reg_recommendations_subtitle: 'Corrective measures for every case, by country, entity, severity and status.',
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) ===
-    ocd_inbox_subtitle: 'All reports received from the public — triage them and message the reporter before assignment.',
+    ocd_inbox_subtitle: 'All reports received from the public.',
     ocd_to_assign_subtitle: 'New and in-progress cases, classified by country, entity, nature, criticality, severity and urgency — assign them to an investigator.',
     ocd_pending_info_subtitle: 'In-progress cases awaiting additional information from the reporter.',
     ocd_assigned_subtitle: 'Cases assigned to an investigator, not yet closed.',
@@ -2546,7 +2546,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_recommendations_title: 'Acompanhamento das recomendações',
     reg_recommendations_subtitle: 'Medidas corretivas de todos os casos, por país, entidade, gravidade e estatuto.',
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) ===
-    ocd_inbox_subtitle: 'Todas as denúncias recebidas do público — triadas e trocando mensagens com o denunciante antes da atribuição.',
+    ocd_inbox_subtitle: 'Todas as denúncias recebidas do público.',
     ocd_to_assign_subtitle: 'Casos novos e em curso, classificados por país, entidade, natureza, criticidade, gravidade e urgência — atribua-os a um investigador.',
     ocd_pending_info_subtitle: 'Casos em curso que aguardam informações complementares do denunciante.',
     ocd_assigned_subtitle: 'Casos atribuídos a um investigador, ainda não encerrados.',
