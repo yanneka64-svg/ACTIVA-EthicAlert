@@ -24,7 +24,7 @@
  */
 import React from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'accent';
 export type ButtonSize = 'sm' | 'md';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -38,6 +38,11 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-brand hover:bg-brand-hover text-white focus-visible:ring-brand',
   secondary: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 focus-visible:ring-slate-400',
   danger: 'bg-critical hover:bg-critical-hover text-white focus-visible:ring-critical',
+  // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — migration ConfirmDialog) ===
+  // Reprend exactement la couleur du bouton "Demander des informations"
+  // existant (bg-purple-600 hover:bg-purple-700), pour permettre à ce
+  // modal de migrer vers ConfirmDialog sans changement visuel.
+  accent: 'bg-purple-600 hover:bg-purple-700 text-white focus-visible:ring-purple-500',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
