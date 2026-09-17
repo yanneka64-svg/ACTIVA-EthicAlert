@@ -38,8 +38,8 @@ import {
   ShieldAlert,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
   CheckCircle2,
-  // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
-  Download,
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
+  FileSpreadsheet,
 } from 'lucide-react';
 import { AlertRecord, Language, PriorityLevel, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -181,6 +181,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [trendRange, setTrendRange] = useState<TrendRange>('7d');
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
+  // Remplace l'ancien bouton "Télécharger (CSV)" (mono-format) par un
+  // bouton "Exporter" ouvrant le choix CSV/PDF — même modale/logique que
+  // ReportingDashboard.tsx (mêmes clés i18n `export_modal_*`, jamais
+  // dupliquées), adaptée aux données réellement affichées sur CET écran.
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   useEffect(() => {
     const unsub = storage.subscribe(() => {
@@ -429,11 +436,16 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     new Set([new Date().getFullYear(), ...visible.map((a) => new Date(a.createdAt).getFullYear())])
   ).sort((a, b) => b - a);
 
-  // Exporte exactement les dossiers actuellement affichés (`scopedVisible`
-  // — tout l'historique par défaut, ou la plage/année sélectionnée),
-  // mêmes colonnes que le tableau "Dossiers récents" ci-dessus, jamais
-  // limité aux 8 lignes affichées à l'écran (`recentAlerts`).
-  const handleDownloadCsv = () => {
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter, fusion
+  // avec `main`) === Export CSV des dossiers actuellement affichés
+  // (`scopedVisible` — tout l'historique par défaut, ou la plage/année
+  // sélectionnée), mêmes colonnes que le tableau "Dossiers récents"
+  // ci-dessus, jamais limité aux 8 lignes affichées à l'écran
+  // (`recentAlerts`). Proposé désormais au sein de la modale "Exporter"
+  // (CSV/PDF, voir plus bas) plutôt que comme bouton dédié mono-format
+  // "Télécharger (CSV)", sur demande explicite de l'utilisateur — voir
+  // `handlePrint` ci-dessous pour l'option PDF.
+  const handleExportCSV = () => {
     const headers = ['Dossier', 'Date', 'Catégorie', 'Pays', 'Entité', 'Priorité', 'Score de risque', 'Statut', 'Investigateur(s)', 'Échéance SLA'];
     const rows = scopedVisible
       .slice()
@@ -468,10 +480,15 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
 
     storage.logAudit(
       'REPORT_GENERATED',
-      `Téléchargement CSV des dossiers du Centre de Pilotage (${rows.length} dossier(s), période : ${periodLabel}) par ${activeUser.name}.`,
+      `Génération d'un export CSV du Centre de Pilotage (${rows.length} dossier(s), période : ${periodLabel}) par ${activeUser.name}.`,
       undefined,
       activeUser
     );
+  };
+
+  const handlePrint = () => {
+    storage.logAudit('REPORT_GENERATED', `Impression / Export PDF du Centre de Pilotage par ${activeUser.name}.`, undefined, activeUser);
+    window.print();
   };
 
   return (
@@ -545,16 +562,78 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
               className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-800 shadow-2xs"
             />
           </div>
-
-          <button
-            onClick={handleDownloadCsv}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-blue-600" />
-            <span>{t.cp_btn_download_csv}</span>
-          </button>
+          {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bouton
+              Exporter, fusion avec `main`) === Remplace l'ancien bouton
+              "Télécharger (CSV)" mono-format par un bouton "Exporter"
+              ouvrant le choix CSV/PDF (modale ci-dessous), sur demande
+              explicite de l'utilisateur. Le bouton "Actualiser"
+              (lastRefreshed/handleRefresh) qui vivait ici a été retiré
+              indépendamment par `main` lors de son propre refactor du
+              filtre de période (remplacé par la mise à jour déjà continue
+              via storage.subscribe) — aligné avec cet état actuel plutôt
+              que réintroduit lors de cette fusion. */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs transition cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-300" /> {t.cp_btn_export}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
+          Modale de choix de format, même structure/clés i18n que celle de
+          ReportingDashboard.tsx (`export_modal_*`) — jamais dupliquée sous
+          un autre nom, seul le contenu exporté diffère (les dossiers
+          visibles sur CET écran plutôt que le registre complet des
+          rapports). */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <h3 className="text-sm font-bold text-slate-900">{t.export_modal_title}</h3>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_format}</label>
+              <div className="flex gap-1.5">
+                {(['csv', 'pdf'] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    type="button"
+                    onClick={() => setExportFormat(fmt)}
+                    className={`flex-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border transition ${
+                      exportFormat === fmt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                    }`}
+                  >
+                    {fmt === 'csv' ? t.export_modal_format_csv : t.export_modal_format_pdf}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button type="button" onClick={() => setShowExportModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
+                {t.btn_cancel}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // === AMÉLIORATION AJOUTÉE (fusion avec `main`) === Ferme
+                  // cette modale AVANT d'exporter/imprimer (plutôt qu'après),
+                  // même correction que ReportingDashboard.tsx : sinon elle
+                  // restait visible derrière la boîte de dialogue
+                  // d'impression du navigateur.
+                  setShowExportModal(false);
+                  if (exportFormat === 'csv') handleExportCSV();
+                  else handlePrint();
+                }}
+                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
+              >
+                {t.export_modal_export}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
           Reproduction fidèle de la maquette de référence : 4 cartes KPI

@@ -293,7 +293,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_investigator_title: 'Espace Enquêteur',
     space_home_investigator_desc: 'Dossiers qui vous sont assignés, auditions et instructions.',
     space_home_investigator_stat: '{n} dossier(s) à traiter',
-    space_home_admin_title: 'Espace Administrateur',
+    // === AMÉLIORATION AJOUTÉE (Correction demandée — renommage du titre) ===
+    // "Administration" remplacé par "Paramètres Utilisateur et
+    // Configuration", puis par "Panneau de configuration", sur 2 demandes
+    // explicites successives de l'utilisateur, en cohérence avec le même
+    // renommage du bloc titre de la barre latérale Admin
+    // (StaffPortalLayout.tsx). Description alignée sur la mise à jour
+    // apportée entre-temps sur `main`.
+    space_home_admin_title: 'Panneau de configuration',
     space_home_admin_desc: 'Configuration, gestion des utilisateurs et suivi global de la plateforme.',
     space_home_general_title: 'Espace Consultant',
     space_home_general_desc: 'Accès aux dossiers partagés et appui technique.',
@@ -416,7 +423,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
     export_modal_title: 'Exporter les résultats',
     export_modal_format: 'Format',
-    export_modal_format_excel: 'Excel (.xlsx)',
+    // === AMÉLIORATION AJOUTÉE (Correction demandée — retour au CSV) ===
+    // Clé renommée depuis `export_modal_format_excel` ('Excel (.xlsx)'),
+    // sur demande explicite de l'utilisateur : CSV et PDF redeviennent les
+    // deux seuls formats proposés (voir ReportingDashboard.tsx,
+    // `handleExportCSV`, jamais supprimée, simplement re-branchée ici).
+    export_modal_format_csv: 'CSV',
     export_modal_format_pdf: 'PDF',
     export_modal_fields: 'Champs à inclure',
     export_modal_export: 'Exporter',
@@ -427,7 +439,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // n'est plus modifiable (toujours activée, jamais un recul de
     // confidentialité) et le format PDF n'a jamais changé de mécanisme
     // (`window.print()`, inchangé).
-    report_btn_export: 'Exporter (PDF / Excel)',
+    report_btn_export: 'Exporter (PDF / CSV)',
 
     // Role switcher
     // === AMÉLIORATION AJOUTÉE (Phase 4 — centre de notifications) ===
@@ -688,15 +700,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'Aucune tâche ouverte restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign : période, graphiques, tableau) ===
+    cp_kpi_delta_vs_previous: 'vs période précédente',
+    cp_kpi_sub_new: 'Nécessite un tri',
+    cp_kpi_sub_unassigned: 'Nécessite une action',
+    cp_kpi_sub_critical: 'Attention immédiate',
+    cp_kpi_sub_overdue: 'SLA dépassé',
+    cp_kpi_open_corrective: 'Mesures correctives ouvertes',
+    cp_kpi_sub_corrective_overdue: 'en retard',
+    cp_kpi_sub_corrective_none: 'Aucune en retard',
     // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
-    // `cp_period_30d` (bouton "30 jours", trompeur — n'a jamais réellement
-    // limité l'affichage) puis `cp_period_all_time` (libellé "Toute la
-    // période" du bouton/popover qui l'a remplacé) ont toutes deux été
-    // retirées sur demande explicite : les champs de date Du/Au sont
+    // `cp_period_today/7d/30d/quarter/custom` (anciens libellés de boutons
+    // de période) retirés ici, sur `main` : les champs de date Du/Au sont
     // désormais affichés directement, sans bouton ni libellé de repli
     // (voir ControlPanel.tsx).
     cp_year_all: 'Toutes les années',
-    cp_btn_download_csv: 'Télécharger (CSV)',
+    // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
+    // Remplace `cp_btn_download_csv` ("Télécharger (CSV)", mono-format) par
+    // un bouton "Exporter" ouvrant le choix CSV/PDF, sur demande explicite
+    // de l'utilisateur — voir ControlPanel.tsx.
+    cp_btn_export: 'Exporter',
+    cp_action_new_case: 'Nouveau dossier',
+    cp_action_triage: 'Trier',
     cp_section_trend: 'Tendance des alertes',
     cp_section_category: 'Alertes par catégorie',
     cp_section_priority: 'Alertes par priorité',
@@ -1191,7 +1215,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_investigator_title: 'Investigator Space',
     space_home_investigator_desc: 'Cases assigned to you, hearings and instructions.',
     space_home_investigator_stat: '{n} case(s) to process',
-    space_home_admin_title: 'Administrator Space',
+    space_home_admin_title: 'Control Panel',
     space_home_admin_desc: 'Configuration, user management and platform oversight.',
     space_home_general_title: 'Consultant Space',
     space_home_general_desc: 'Access to shared cases and technical support.',
@@ -1295,11 +1319,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
     export_modal_title: 'Export Results',
     export_modal_format: 'Format',
-    export_modal_format_excel: 'Excel (.xlsx)',
+    export_modal_format_csv: 'CSV',
     export_modal_format_pdf: 'PDF',
     export_modal_fields: 'Fields to Include',
     export_modal_export: 'Export',
-    report_btn_export: 'Export (PDF / Excel)',
+    report_btn_export: 'Export (PDF / CSV)',
 
     // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
@@ -1523,8 +1547,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'No open tasks remaining',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
+    cp_kpi_delta_vs_previous: 'vs previous period',
+    cp_kpi_sub_new: 'Requires triage',
+    cp_kpi_sub_unassigned: 'Requires action',
+    cp_kpi_sub_critical: 'Immediate attention',
+    cp_kpi_sub_overdue: 'SLA breached',
+    cp_kpi_open_corrective: 'Open corrective actions',
+    cp_kpi_sub_corrective_overdue: 'overdue',
+    cp_kpi_sub_corrective_none: 'None overdue',
     cp_year_all: 'All years',
-    cp_btn_download_csv: 'Download (CSV)',
+    cp_btn_export: 'Export',
+    cp_action_new_case: 'New Case',
+    cp_action_triage: 'Triage',
     cp_section_trend: 'Alerts Trend',
     cp_section_category: 'Alerts by Category',
     cp_section_priority: 'Alerts by Priority',
@@ -1965,7 +1999,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_investigator_title: 'Espaço Investigador',
     space_home_investigator_desc: 'Casos atribuídos a você, audições e instruções.',
     space_home_investigator_stat: '{n} caso(s) a tratar',
-    space_home_admin_title: 'Espaço Administrador',
+    space_home_admin_title: 'Painel de Controlo',
     space_home_admin_desc: 'Configuração, gestão de utilizadores e supervisão da plataforma.',
     space_home_general_title: 'Espaço Consultor',
     space_home_general_desc: 'Acesso aos casos partilhados e apoio técnico.',
@@ -2069,11 +2103,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
     export_modal_title: 'Exportar resultados',
     export_modal_format: 'Formato',
-    export_modal_format_excel: 'Excel (.xlsx)',
+    export_modal_format_csv: 'CSV',
     export_modal_format_pdf: 'PDF',
     export_modal_fields: 'Campos a incluir',
     export_modal_export: 'Exportar',
-    report_btn_export: 'Exportar (PDF / Excel)',
+    report_btn_export: 'Exportar (PDF / CSV)',
 
     // === AMÉLIORATION AJOUTÉE (Phase 4 — central de notificações) ===
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
@@ -2297,8 +2331,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'Nenhuma tarefa em aberto restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
+    cp_kpi_delta_vs_previous: 'vs período anterior',
+    cp_kpi_sub_new: 'Requer triagem',
+    cp_kpi_sub_unassigned: 'Requer ação',
+    cp_kpi_sub_critical: 'Atenção imediata',
+    cp_kpi_sub_overdue: 'SLA ultrapassado',
+    cp_kpi_open_corrective: 'Ações corretivas abertas',
+    cp_kpi_sub_corrective_overdue: 'em atraso',
+    cp_kpi_sub_corrective_none: 'Nenhuma em atraso',
     cp_year_all: 'Todos os anos',
-    cp_btn_download_csv: 'Baixar (CSV)',
+    cp_btn_export: 'Exportar',
+    cp_action_new_case: 'Novo caso',
+    cp_action_triage: 'Triagem',
     cp_section_trend: 'Tendência de alertas',
     cp_section_category: 'Alertas por categoria',
     cp_section_priority: 'Alertas por prioridade',

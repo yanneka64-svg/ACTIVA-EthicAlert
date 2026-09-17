@@ -126,7 +126,11 @@ const STAFF_TAB_KEYS = [
   // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
   'advanced_search',
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===
-  'admin_entities', 'admin_categories', 'admin_database',
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+  // données" retiré) === 'admin_database' retiré de cette liste, sur
+  // demande explicite de l'utilisateur (voir aussi routing/routes.ts et
+  // StaffPortalLayout.tsx).
+  'admin_entities', 'admin_categories',
 ];
 
 // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, découpage de code) ===
@@ -825,13 +829,24 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'admin_database') {
-      return (
-        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Base de données">
-          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="database" />
-        </PermissionGuard>
-      );
-    }
+    // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+    // données" retiré) === Branche `admin_database` retirée d'ici, sur
+    // demande explicite de l'utilisateur : `AdminConfigView` ne supporte
+    // plus `initialTab="database"` (type retiré sur cette branche ; sur
+    // `main`, la même prop pointe désormais vers `DatabaseFirebaseTab`, un
+    // composant extrait, sans lien de menu — voir la fusion ci-dessous).
+    // L'ancienne URL `/admin/database` (routing/routes.ts) n'est plus
+    // reliée à aucun écran ; une navigation directe y retombe sur
+    // `return null` ci-dessous, même comportement qu'une route staff
+    // inconnue.
+    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === Branche
+    // `admin_workflow` retirée en fusionnant avec `main`, dont le propre
+    // refactor d'AdminConfigView.tsx (extraction par onglet, voir
+    // src/components/admin/) n'a jamais réextrait d'onglet Workflow — ce
+    // type d'onglet n'existe donc plus dans `AdminConfigView`. Le backend
+    // (`storage.getWorkflowTransitions`/`updateWorkflowTransitions`) reste
+    // intact, seul cet accès UI disparaît.
+
     return null;
   };
 

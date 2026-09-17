@@ -88,7 +88,15 @@ interface StaffPortalLayoutProps {
   children: React.ReactNode;
 }
 
-const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_entities', 'admin_categories', 'admin_database'];
+// === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de données"
+// retiré) === 'admin_database' retiré de cette liste, sur demande explicite
+// de l'utilisateur (voir aussi routing/routes.ts et App.tsx). `admin_workflow`
+// retiré ici en fusionnant avec `main`, qui n'a jamais extrait de composant
+// d'onglet Workflow lors de son propre refactor d'AdminConfigView.tsx (voir
+// App.tsx) — le backend (`storage.getWorkflowTransitions`/
+// `updateWorkflowTransitions`) reste intact, seule cette entrée de menu vers
+// un écran qui n'existe plus dans la nouvelle structure disparaît.
+const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_entities', 'admin_categories'];
 
 // Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
 // "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à
@@ -250,18 +258,17 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
     { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, group: '' },
-    // === AMÉLIORATION AJOUTÉE (suppression de l'onglet Base de données) ===
-    // Retiré de la navigation sur demande explicite de l'utilisateur. L'écran
-    // (rattachement Firebase, AdminConfigView.tsx, `configTab === 'database'`)
-    // et sa route ('/admin/database') restent en place — seul ce lien de
-    // menu disparaît, aucune fonctionnalité n'est supprimée.
+    // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
+    // données" retiré) === Entrée "Base de données" retirée d'ici, sur
+    // demande explicite de l'utilisateur — l'écran (rattachement Firebase)
+    // et sa route restent en place, seul le lien de menu disparaît.
     // === AMÉLIORATION AJOUTÉE (suppression du lien "Paramètres système") ===
-    // Retiré sur demande explicite de l'utilisateur : ce lien était
-    // redondant avec le titre "Paramètre système" désormais affiché en tête
-    // de la sidebar ci-dessous. L'écran qu'il ciblait ('settings' → route
-    // '/admin', `configTab` par défaut 'matrix') reste l'écran d'accueil
-    // naturel de l'espace Admin — atteint dès l'entrée dans l'espace, sans
-    // avoir besoin d'un lien de menu dédié.
+    // Retiré sur `main`, sur demande explicite de l'utilisateur : ce lien
+    // était redondant avec le titre affiché en tête de la sidebar
+    // ci-dessous. L'écran qu'il ciblait ('settings' → route '/admin',
+    // `configTab` par défaut 'matrix') reste l'écran d'accueil naturel de
+    // l'espace Admin — atteint dès l'entrée dans l'espace, sans avoir
+    // besoin d'un lien de menu dédié.
   ];
 
   // === AMÉLIORATION AJOUTÉE (Espace Consultation — Audit interne &
@@ -372,8 +379,19 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
           entière. App.tsx a été restructuré pour que l'en-tête vive hors
           de la zone désormais seule scrollable (qui commence déjà juste
           en dessous de lui) — cette sidebar colle donc naturellement au
-          bon endroit dès `top-0`, relatif à ce nouveau conteneur. */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-0 lg:z-30 lg:self-start bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6">
+          bon endroit dès `top-0`, relatif à ce nouveau conteneur.
+          === AMÉLIORATION AJOUTÉE (Correction bug — la barre de navigation
+          s'arrête bien avant le pied de page) === BUG PRÉEXISTANT CORRIGÉ,
+          signalé par l'utilisateur, capture de référence à l'appui :
+          `lg:self-start` limitait la hauteur de cette carte à son seul
+          contenu, plus courte que la colonne de contenu à droite dès qu'un
+          écran est un peu long. `lg:self-stretch`, réservé à
+          `selectedSpace === 'admin'`, étire la carte à la hauteur réelle
+          de la ligne ; `<nav>` porte déjà `flex-1` et pousse donc
+          naturellement la carte "Besoin d'aide ?" tout en bas. Les espaces
+          Opérateur/Enquêteur (tableaux de bord bien plus longs que leur
+          propre menu) gardent `lg:self-start`. */}
+      <aside className={`hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-0 lg:z-30 ${selectedSpace === 'admin' ? 'lg:self-stretch' : 'lg:self-start'} bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6`}>
         {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
             sélecteur en barre latérale) === Le petit bloc "ESPACES" qui
             vivait ici (2-3 boutons empilés en haut de la sidebar) est
@@ -387,23 +405,24 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
             Pour changer d'espace après coup, voir le lien "Changer
             d'espace" du menu Profil (Navbar.tsx). */}
         {/* === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — retours
-            visuels sur capture de référence) === Bloc titre "Configuration"
-            en tête de la barre latérale, propre à l'espace Admin (fidèle à
-            la référence) — purement visuel, ne change ni `navItems` ni la
-            navigation elle-même.
-            === AMÉLIORATION AJOUTÉE (renommage du bloc titre) === sur
-            demande explicite de l'utilisateur : "Administration" devient
-            "Configuration" puis "Paramètres", puis enfin "Paramètre
-            système" (remplace aussi le lien de menu du même nom, retiré
-            juste au-dessus) — le sous-texte ("Paramètres, utilisateurs et
-            configuration") reste retiré. */}
+            visuels sur capture de référence) === Bloc titre en tête de la
+            barre latérale, propre à l'espace Admin (fidèle à la référence)
+            — purement visuel, ne change ni `navItems` ni la navigation
+            elle-même.
+            === AMÉLIORATION AJOUTÉE (renommages successifs du titre) ===
+            "Administration" → "Configuration"/"Paramètres Utilisateur et
+            Configuration" → "Panneau de configuration", sur plusieurs
+            demandes explicites successives de l'utilisateur (le lien de
+            menu "Paramètres système" du même nom, devenu redondant, a été
+            retiré juste au-dessus). Le sous-texte ("Paramètres,
+            utilisateurs et configuration") reste retiré. */}
         {selectedSpace === 'admin' && (
           <div className="flex items-center gap-2.5 px-3.5 pt-4 pb-1">
             <span className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 shrink-0">
               <Settings className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">Paramètres système</p>
+              <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">Panneau de configuration</p>
             </div>
           </div>
         )}
