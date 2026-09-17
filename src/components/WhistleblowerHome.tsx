@@ -69,7 +69,7 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
             </span>
           </div>
           <h4 className="font-bold text-slate-900 text-sm">{title}</h4>
-          <p className="text-xs text-slate-600 leading-relaxed">{desc}</p>
+          <p className="text-xs text-slate-600 leading-relaxed text-justify">{desc}</p>
         </div>
 
         {/* Face arrière */}
@@ -81,7 +81,7 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
             Étape {idx + 1} · {category}
           </span>
           <h4 className="font-bold text-slate-900 text-sm">{backTitle}</h4>
-          <p className="text-xs text-slate-600 leading-relaxed flex-1">{backDesc}</p>
+          <p className="text-xs text-slate-600 leading-relaxed flex-1 text-justify">{backDesc}</p>
           <button
             type="button"
             onClick={(e) => {
