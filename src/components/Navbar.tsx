@@ -4,8 +4,6 @@ import {
   ChevronDown,
   Send,
   User,
-  // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
-  Settings,
   HelpCircle,
   LogOut,
   // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
@@ -19,10 +17,8 @@ import {
 // fois `NOTIFICATION_ICONS`/le centre de notifications retirés ci-dessous.
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
 import { ActivaLogo } from './ui';
-import { canManageConfiguration } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) ===
 import { computeAvailableSpaces } from '../domain/staffSpaces';
@@ -100,10 +96,43 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const t = TRANSLATIONS[lang];
-  const allUsers = storage.getUsers();
   const [showUserDropdown, setShowUserDropdown] = React.useState(false);
   const [showLangDropdown, setShowLangDropdown] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
+
+  // === AMÉLIORATION AJOUTÉE (menu profil — fermeture au clic extérieur) ===
+  // Les deux menus déroulants (profil, langue) ne se refermaient jusqu'ici
+  // qu'en cliquant À L'INTÉRIEUR d'eux-mêmes — un clic ailleurs sur la page
+  // les laissait ouverts. Un écouteur global les referme désormais dès
+  // qu'un clic a lieu en dehors de leur zone respective, comme un menu
+  // déroulant standard.
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
+  const langMenuRef = React.useRef<HTMLDivElement>(null);
+  // === AMÉLIORATION AJOUTÉE (menu mobile — Accueil/FAQ/Contact rangés sous
+  // le logo) === Sur demande explicite : remplace la barre de bulles mobile
+  // (Accueil & Signalement / Suivre mon alerte / Connexion), désormais
+  // redondante avec le gros bouton "Suivre mon signalement" déjà présent
+  // sur l'accueil et l'icône profil (Connexion). Mêmes liens que le nav
+  // desktop (`nav-btn-home`/`faq`/`contact`), simplement rangés dans un
+  // menu déroulant ouvert au clic sur le logo, visible seulement sous `lg`
+  // (le nav desktop les affiche déjà en ligne au-delà).
+  const mobileNavMenuRef = React.useRef<HTMLDivElement>(null);
+  const [showMobileNavMenu, setShowMobileNavMenu] = React.useState(false);
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false);
+      }
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+        setShowLangDropdown(false);
+      }
+      if (mobileNavMenuRef.current && !mobileNavMenuRef.current.contains(event.target as Node)) {
+        setShowMobileNavMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
   // Remplace l'ancienne comparaison à 3 rôles codée en dur par la vraie
@@ -132,7 +161,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-40">
+    // === AMÉLIORATION AJOUTÉE (Ascenseur sous l'en-tête) === `sticky
+    // top-0` devenu inutile : App.tsx a été restructuré pour que ce
+    // `<header>` vive hors de la zone désormais seule scrollable de la
+    // page — il reste donc déjà visible en permanence sans "coller" à
+    // rien. `shrink-0` évite qu'un flex-parent ne le rétrécisse jamais ;
+    // `z-40` reste nécessaire pour que les menus déroulants (langue,
+    // compte) de ce header s'affichent au-dessus du contenu en dessous.
+    <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm shrink-0 relative z-40">
       {/* === AMÉLIORATION AJOUTÉE (Phase 24) === bande utilitaire (Phase 23)
           retirée sur demande explicite. */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -143,31 +179,72 @@ export const Navbar: React.FC<NavbarProps> = ({
               la maquette d'accueil ; le bloc "EthicsAlert.Com" + sous-titre
               n'apparaît qu'en contexte portail (déjà le cas avant, la
               maquette détaillée de la fiche dossier montrant ce bloc). */}
-          <div
-            id="brand-logo"
-            onClick={() => setCurrentTab('home')}
-            className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
-          >
-            <ActivaLogo className="h-10 shrink-0" />
-            {isStaffContext && (
-              <>
-                <div className="hidden md:block w-px h-8 bg-slate-200" />
-                <div className="hidden md:block leading-tight">
-                  <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-blue-700 transition">
-                    {t.app_title}
-                  </h1>
-                  <p className="text-[11px] text-slate-500 max-w-[260px] truncate">
-                    {t.app_subtitle}
-                  </p>
-                </div>
-              </>
+          <div className="relative shrink-0" ref={mobileNavMenuRef}>
+            <div
+              id="brand-logo"
+              onClick={() => setCurrentTab('home')}
+              className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
+            >
+              <ActivaLogo className="h-10 shrink-0" />
+              {isStaffContext && (
+                <>
+                  <div className="hidden md:block w-px h-8 bg-slate-200" />
+                  <div className="hidden md:block leading-tight">
+                    <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-blue-700 transition">
+                      {t.app_title}
+                    </h1>
+                    <p className="text-[11px] text-slate-500 max-w-[260px] truncate">
+                      {t.app_subtitle}
+                    </p>
+                  </div>
+                </>
+              )}
+              {!isStaffContext && (
+                <button
+                  type="button"
+                  aria-label="Menu"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMobileNavMenu(!showMobileNavMenu);
+                  }}
+                  className="lg:hidden p-1.5 -ml-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showMobileNavMenu ? 'rotate-180' : ''}`} />
+                </button>
+              )}
+            </div>
+
+            {!isStaffContext && showMobileNavMenu && (
+              <div className="lg:hidden absolute left-0 top-full mt-1 w-48 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-xs">
+                <button
+                  onClick={() => { setCurrentTab('home'); setShowMobileNavMenu(false); }}
+                  className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'home' || currentTab === 'new_alert' || currentTab === 'track' ? 'text-blue-700' : 'text-slate-700'}`}
+                >
+                  {t.nav_public_home}
+                </button>
+                <button
+                  onClick={() => { setCurrentTab('faq'); setShowMobileNavMenu(false); }}
+                  className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'faq' ? 'text-blue-700' : 'text-slate-700'}`}
+                >
+                  {t.nav_public_faq}
+                </button>
+                <button
+                  onClick={() => { setCurrentTab('contact'); setShowMobileNavMenu(false); }}
+                  className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'contact' ? 'text-blue-700' : 'text-slate-700'}`}
+                >
+                  {t.nav_public_contact}
+                </button>
+              </div>
             )}
           </div>
 
           {isStaffContext ? (
             <>
-              {/* Search bar (staff portal) */}
-              <form onSubmit={handleSearchSubmit} className="flex-1 hidden md:block max-w-xl">
+              {/* Search bar (staff portal) === AMÉLIORATION AJOUTÉE
+                  (correctif débordement en-tête) === même correctif que le
+                  nav public ci-dessous : aligné sur `lg` pour ne jamais se
+                  superposer à la barre mobile de repli (`lg:hidden`). */}
+              <form onSubmit={handleSearchSubmit} className="flex-1 hidden lg:block max-w-xl">
                 <div className="relative">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -188,7 +265,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 FAQ / Nous contacter. Les trois derniers font défiler la page
                 d'accueil jusqu'à la section correspondante (id posé dans
                 WhistleblowerHome.tsx) plutôt que de changer d'écran. */
-            <nav className="hidden md:flex items-center gap-1 flex-1">
+            /* === AMÉLIORATION AJOUTÉE (correctif débordement en-tête) ===
+                BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur ("la barre
+                de navigation traverse le topbar") : ce nav desktop
+                apparaissait dès `md` (768px) alors que la barre mobile de
+                repli ci-dessous ne disparaît qu'à `lg` (1024px) — entre les
+                deux, les deux barres s'affichaient en même temps et le
+                cumul logo + nav + cluster droit dépassait la largeur
+                disponible, poussant "FR"/"Connexion" hors du cadre visible
+                de l'en-tête. Aligné sur `lg`, exactement le seuil où la
+                barre mobile disparaît (`lg:hidden` plus bas). */
+            <nav className="hidden lg:flex items-center gap-1 flex-1">
               <button
                 id="nav-btn-home"
                 onClick={() => setCurrentTab('home')}
@@ -262,8 +349,68 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* === AMÉLIORATION AJOUTÉE (Phase 27) === Icône QR Code retirée
                 de l'en-tête public sur demande explicite. */}
 
-            {/* Language Selector */}
-            <div className="relative">
+            {!isStaffContext && (
+              /* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
+                  fourni) === "Suivre mon signalement" reprend le style
+                  large façon barre de recherche de la maquette (icône +
+                  texte dans un encadré large, coins arrondis) plutôt qu'un
+                  simple bouton contour ; "Signaler une préoccupation" passe
+                  en coins arrondis, comme le reste du modèle. */
+              <>
+                {/* === AMÉLIORATION AJOUTÉE (correctif débordement en-tête)
+                    === `sm` (640px) → `md` (768px) : entre 640 et ~728px, ce
+                    bouton + le séparateur redevenaient visibles alors que le
+                    nav desktop était déjà masqué, mais la largeur cumulée
+                    (logo + bouton + séparateur + reste du cluster droit) ne
+                    tenait toujours pas dans le viewport, coupant
+                    "Connexion" à droite. */}
+                <button
+                  id="nav-btn-track"
+                  onClick={() => setCurrentTab('track')}
+                  className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold transition whitespace-nowrap"
+                >
+                  <Search className="w-4 h-4 shrink-0" />
+                  <span>{t.btn_track_existing}</span>
+                </button>
+                {/* === AMÉLIORATION AJOUTÉE (correctif débordement en-tête)
+                    === Libellé masqué sous `sm` (comme "Connexion" juste en
+                    dessous) : seul bouton toujours visible sans repli
+                    icône-seule, son texte long ("Signaler une
+                    préoccupation") restait le dernier responsable du
+                    débordement sur mobile étroit (ex. 390px). */}
+                {/* === AMÉLIORATION AJOUTÉE (langue/connexion à l'extrême
+                    gauche du cluster droit sur mobile) === Sur demande
+                    explicite : `order-3 lg:order-none` repousse ce bouton
+                    après le sélecteur de langue et Connexion sur mobile
+                    (`lg:hidden` étant déjà le seuil où ce cluster droit
+                    devient visuellement le "haut de page" mobile) —
+                    inchangé à partir de `lg` (ordre naturel du DOM,
+                    cohérent avec le repositionnement desktop existant
+                    ci-dessous). */}
+                <button
+                  id="nav-btn-new-alert"
+                  onClick={() => setCurrentTab('new_alert')}
+                  className="order-3 lg:order-none flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t.btn_new_alert}</span>
+                </button>
+                <div className="hidden md:block w-px h-6 bg-slate-200" />
+              </>
+            )}
+
+            {/* === AMÉLIORATION AJOUTÉE (repositionnement en-tête) ===
+                Sélecteur de langue déplacé ici, juste avant Connexion/le
+                menu de compte, pour que les deux se retrouvent groupés
+                tout à droite de la barre — au lieu de vivre avant les
+                boutons d'action publics ("Suivre mon signalement" /
+                "Signaler une préoccupation"), sur demande explicite.
+                === AMÉLIORATION AJOUTÉE (langue/connexion à l'extrême
+                gauche du cluster droit sur mobile) === Sur demande
+                explicite, uniquement sur mobile (`order-1`, neutralisé par
+                `lg:order-none`) : la répartition "tout à droite" de la
+                barre desktop ci-dessus reste inchangée à partir de `lg`. */}
+            <div className="order-1 lg:order-none relative" ref={langMenuRef}>
               <button
                 id="btn-language-selector"
                 onClick={() => setShowLangDropdown(!showLangDropdown)}
@@ -308,47 +455,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {!isStaffContext && (
-              /* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
-                  fourni) === "Suivre mon signalement" reprend le style
-                  large façon barre de recherche de la maquette (icône +
-                  texte dans un encadré large, coins arrondis) plutôt qu'un
-                  simple bouton contour ; "Signaler une préoccupation" passe
-                  en coins arrondis, comme le reste du modèle. */
-              <>
-                <button
-                  id="nav-btn-track"
-                  onClick={() => setCurrentTab('track')}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold transition whitespace-nowrap"
-                >
-                  <Search className="w-4 h-4 shrink-0" />
-                  <span>{t.btn_track_existing}</span>
-                </button>
-                <button
-                  id="nav-btn-new-alert"
-                  onClick={() => setCurrentTab('new_alert')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{t.btn_new_alert}</span>
-                </button>
-                <div className="hidden sm:block w-px h-6 bg-slate-200" />
-              </>
-            )}
-
-            {/* Account / role-switcher menu (role-switching stays crucial for demo & CDC 3.2.3 access testing) */}
-            <div className="relative">
-              {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle
-                  fourni) === Sur les pages publiques, le déclencheur reprend
-                  l'apparence "Connexion" (icône + libellé) de la maquette au
-                  lieu de l'avatar/nom — mais ouvre exactement le même menu
-                  de changement de profil en dessous : rien n'est perdu, la
-                  fonction de test des rôles (CDC 3.2.3) reste entière. Dans
-                  l'espace collaborateur, l'avatar + nom + rôle reste affiché
-                  (contexte où savoir "qui est connecté" a du sens). */}
+            {/* Account menu === AMÉLIORATION AJOUTÉE (langue/connexion à
+                l'extrême gauche du cluster droit sur mobile) === `order-2
+                lg:order-none`, même motif que le sélecteur de langue
+                ci-dessus. */}
+            <div className="order-2 lg:order-none relative" ref={userMenuRef}>
+              {/* === AMÉLIORATION AJOUTÉE (page de connexion plein cadre,
+                  sur maquette fournie) === Sur les pages publiques, le
+                  bouton "Connexion" ouvre désormais le véritable écran de
+                  connexion (deux volets, photo + formulaire) plutôt que ce
+                  menu de changement de profil — cohérent avec la maquette,
+                  qui montre un écran dédié, pas un menu déroulant. Dans
+                  l'espace collaborateur (isStaffContext), rien ne change :
+                  l'avatar + nom + rôle ouvre toujours ce même menu, la
+                  fonction de test des rôles (CDC 3.2.3) reste entière. */}
               <button
                 id="btn-role-switcher"
-                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                onClick={() => (isStaffContext ? setShowUserDropdown(!showUserDropdown) : setCurrentTab('login'))}
                 className={
                   isStaffContext
                     ? 'flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 border border-transparent hover:border-slate-200 transition'
@@ -357,7 +480,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 {isStaffContext ? (
                   <>
-                    <span className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
+                    {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3,
+                        contraste) === BUG PRÉEXISTANT CORRIGÉ, mesuré via
+                        axe-core : texte blanc en gras sur bg-amber-500 ne
+                        passe pas le seuil WCAG AA (2.13:1, minimum 4.5:1) —
+                        bg-amber-700 y remédie. */}
+                    <span className="w-8 h-8 rounded-full bg-amber-700 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
                       {initials}
                     </span>
                     <span className="hidden sm:block text-left leading-tight">
@@ -371,7 +499,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 )}
                 {!isStaffContext && <span className="hidden sm:block text-xs font-bold">{t.nav_connexion}</span>}
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+                {/* Le chevron n'a de sens que pour le menu déroulant (espace
+                    collaborateur) — "Connexion" ouvre désormais un écran,
+                    pas un menu. */}
+                {isStaffContext && <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />}
               </button>
 
               {showUserDropdown && (
@@ -388,23 +519,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                       volontairement aucun backend d'authentification réel
                       (voir StaffLoginView.tsx) ni aucun système de
                       préférences persistées ; les ajouter aurait été une
-                      fausse fonctionnalité (brief §32). "Paramètres"
-                      n'apparaît que pour un compte ayant réellement accès à
-                      l'écran d'administration correspondant. */}
+                      fausse fonctionnalité (brief §32).
+                      === AMÉLIORATION AJOUTÉE (retrait du lien "Paramètres")
+                      === Retiré sur demande explicite : ce lien menait au
+                      même écran déjà accessible depuis la barre latérale
+                      (StaffPortalLayout.tsx), aucune fonctionnalité perdue. */}
                   {isStaffUser && (
                     <div className="px-3 py-2.5 border-b border-slate-100">
                       <p className="font-bold text-slate-900">{activeUser.name}</p>
                       <p className="text-[11px] text-slate-500">{activeUser.roleTitle}</p>
                       <p className="text-[11px] text-slate-400 truncate">{activeUser.email}</p>
                     </div>
-                  )}
-                  {isStaffUser && canManageConfiguration(activeUser) && (
-                    <button
-                      onClick={() => setCurrentTab('settings')}
-                      className="w-full flex items-center gap-2 text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium border-b border-slate-100"
-                    >
-                      <Settings className="w-3.5 h-3.5 text-slate-400" /> {t.profile_menu_settings}
-                    </button>
                   )}
                   <button
                     onClick={() => setCurrentTab('faq')}
@@ -429,49 +554,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
-                  <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">
-                    <p className="font-semibold text-slate-600">{t.switch_role}</p>
-                    <p className="text-[11px] text-slate-500">Testez les accès selon le profil (CDC 3.2.3)</p>
-                  </div>
-
-                  {allUsers.map((u) => (
-                    <button
-                      key={u.id}
-                      onClick={() => {
-                        setActiveUser(u);
-                        storage.setActiveUser(u);
-                      }}
-                      className={`w-full text-left px-3 py-2 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 ${
-                        activeUser.id === u.id ? 'bg-blue-50/80 font-semibold' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-slate-900">{u.name}</span>
-                        <span className="text-[10px] text-slate-500">{u.country}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 truncate">{u.roleTitle}</div>
-                    </button>
-                  ))}
-
-                  {/* Option to simulate pure anonymous whistleblower */}
-                  <button
-                    onClick={() => {
-                      const wbUser: UserProfile = {
-                        id: 'usr-whistleblower',
-                        name: 'Lanceur d’alerte (Visiteur)',
-                        email: 'anonyme@declare.activa',
-                        role: 'reporter',
-                        roleTitle: 'Déclarant externe ou employé',
-                        entity: 'Toutes entités',
-                        country: 'Groupe ACTIVA',
-                      };
-                      setActiveUser(wbUser);
-                      storage.setActiveUser(wbUser);
-                    }}
-                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-800 font-medium"
-                  >
-                    👤 Mode Lanceur d’alerte (Public)
-                  </button>
+                  {/* === AMÉLIORATION AJOUTÉE (menu profil — recentré sur
+                      l'identité connectée) === Le sélecteur "Changer de rôle
+                      pour tester" (liste de tous les comptes) et le "Mode
+                      Lanceur d'alerte (Public)" sont retirés de ce menu, sur
+                      demande explicite : seuls le nom et les identifiants du
+                      compte réellement connecté doivent y figurer. */}
 
                   {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne
                       dédiée) === Déconnexion réelle de la session
@@ -492,34 +580,44 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Mobile secondary tab bar */}
-        <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto py-2 border-t border-slate-100 text-[11px] font-medium">
-          <button
-            onClick={() => setCurrentTab('home')}
-            className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'home' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
-          >
-            {t.nav_home}
-          </button>
-          <button
-            onClick={() => setCurrentTab('track')}
-            className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'track' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
-          >
-            {t.nav_track}
-          </button>
-          <button
-            onClick={() => setCurrentTab('portal')}
-            className={`px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1 ${currentTab === 'portal' || isStaffContext ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
-          >
-            <span>{t.nav_portal}</span>
-            {pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
-          </button>
-          {/* === AMÉLIORATION AJOUTÉE (Phase 27) === bouton QR retiré de la
-              barre mobile aussi, par cohérence avec l'en-tête desktop. */}
-          {/* === AMÉLIORATION AJOUTÉE (Refonte en-tête — suppression de la
-              cloche et de l'accès Firebase) === bouton "Firebase" retiré ici
-              aussi, par cohérence avec l'en-tête desktop — écran toujours
-              atteignable via son URL directe (/lookup). */}
-        </div>
+        {/* === AMÉLIORATION AJOUTÉE (menu mobile public — retrait des bulles)
+            === Sur demande explicite : cette barre de bulles n'a plus de
+            raison d'être pour un visiteur anonyme (Accueil/FAQ/Contact sont
+            désormais dans le menu déroulant sous le logo ci-dessus,
+            "Suivre mon signalement" déjà visible en gros bouton sur
+            l'accueil, "Connexion" déjà accessible via l'icône profil) —
+            réservée à l'espace collaborateur (isStaffContext), où elle
+            reste strictement inchangée (Accueil/Suivre/Espace Gestion
+            DARC + badge de dossiers en attente). */}
+        {isStaffContext && (
+          <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto py-2 border-t border-slate-100 text-[11px] font-medium">
+            <button
+              onClick={() => setCurrentTab('home')}
+              className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'home' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
+            >
+              {t.nav_home}
+            </button>
+            <button
+              onClick={() => setCurrentTab('track')}
+              className={`px-2.5 py-1 rounded-full whitespace-nowrap ${currentTab === 'track' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600'}`}
+            >
+              {t.nav_track}
+            </button>
+            <button
+              onClick={() => setCurrentTab('portal')}
+              className={`px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1 bg-blue-600 text-white font-bold`}
+            >
+              <span>{t.nav_portal}</span>
+              {pendingAlertsCount > 0 && <span className="bg-amber-400 text-slate-950 px-1 rounded-full text-[9px]">{pendingAlertsCount}</span>}
+            </button>
+            {/* === AMÉLIORATION AJOUTÉE (Phase 27) === bouton QR retiré de la
+                barre mobile aussi, par cohérence avec l'en-tête desktop. */}
+            {/* === AMÉLIORATION AJOUTÉE (Refonte en-tête — suppression de la
+                cloche et de l'accès Firebase) === bouton "Firebase" retiré ici
+                aussi, par cohérence avec l'en-tête desktop — écran toujours
+                atteignable via son URL directe (/lookup). */}
+          </div>
+        )}
       </div>
     </header>
   );

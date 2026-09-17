@@ -1,9 +1,8 @@
 import React from 'react';
-import { Briefcase, Search, Settings, BarChart3, ChevronRight, ShieldCheck, History, Info, User } from 'lucide-react';
+import { Briefcase, Search, Settings, Users, ChevronRight, ShieldOff, X } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
-import { getRoleBadge } from './Navbar';
 import { computeAvailableSpaces, computeGeneralDashboardTab, SPACE_DASHBOARD_TAB, SpaceKey } from '../domain/staffSpaces';
 
 interface StaffSpaceHomeProps {
@@ -21,11 +20,9 @@ interface StaffSpaceHomeProps {
  * affichée pour TOUTE connexion (App.tsx, `handleLogin`) — y compris un
  * compte à un seul espace réel, ou à aucun des 3 (repli "vision globale") —
  * pas seulement les comptes à 2 espaces ou plus comme lors d'une première
- * itération. Habillage aligné sur la référence fournie par l'utilisateur :
- * badge "Dispositif d'Alerte Éthique & Déontologie", panneau photo avec
- * indicateurs Confidentialité/Traçabilité, avatar générique, titre
- * singulier/pluriel selon le nombre d'espaces, bloc "Session active" en bas
- * du panneau de choix.
+ * itération. Habillage aligné sur la référence fournie par l'utilisateur.
+ * Le bloc "Session active" qui vivait en bas du panneau de choix a été
+ * retiré sur demande explicite.
  *
  * L'identifiant/mot de passe (StaffLoginView.tsx, `/login`) reste
  * strictement inchangé et reste le seul point de connexion — cet écran
@@ -34,15 +31,36 @@ interface StaffSpaceHomeProps {
  */
 export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser, setCurrentTab }) => {
   const t = TRANSLATIONS[lang];
-  const badge = getRoleBadge(activeUser.role);
 
-  // === AMÉLIORATION AJOUTÉE === un compte sans aucun des 3 espaces réels
-  // (consultation/executive/audit_committee/security_admin) reçoit
-  // désormais, lui aussi, une carte — l'unique espace "general" de repli,
-  // au lieu d'être envoyé directement sans jamais voir cet accueil.
+  // === AMÉLIORATION AJOUTÉE (retrait du libellé de fonction dans la
+  // salutation) === `UserProfile.name` porte parfois la fonction entre
+  // parenthèses (ex. "B. Y. Ekani (Point de Contact)") — utile dans les
+  // en-têtes/menus compacts pour identifier le compte, mais redondant ici
+  // à côté de "Bienvenue sur EthicsAlert". Ne modifie que l'affichage de
+  // cette salutation, jamais `activeUser.name` lui-même (toujours utilisé
+  // tel quel ailleurs — Navbar, audit, etc.).
+  const greetingName = activeUser.name.replace(/\s*\([^)]*\)\s*$/, '');
+
+  // === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) === Sur
+  // demande explicite : cliquer sur un espace non permis n'emmène plus vers
+  // l'écran "Accès restreint" (PermissionGuard, routing/guards.tsx) — qui
+  // reste la protection réelle si l'écran est atteint autrement (lien
+  // profond, retour navigateur...) — mais affiche une fenêtre de message
+  // directement ici, sans quitter l'accueil des espaces. Jamais un accès
+  // fictif : le clic ne navigue simplement pas.
+  const [deniedSpace, setDeniedSpace] = React.useState<SpaceKey | null>(null);
+
+  // === AMÉLIORATION AJOUTÉE (conforme à la maquette "Espaces de travail")
+  // === Les 4 espaces canoniques sont désormais TOUJOURS affichés, quel que
+  // soit le compte connecté — plus seulement ceux réellement permis. Un
+  // espace auquel le compte n'a pas droit reste cliquable mais renvoie
+  // honnêtement vers l'écran "Accès restreint" existant (PermissionGuard,
+  // App.tsx) au lieu d'être masqué : jamais un accès fictif, juste une
+  // liste complète et cohérente d'un profil à l'autre. `realSpaces` sert
+  // uniquement à distinguer visuellement les espaces réellement accessibles
+  // (mis en avant) des autres.
   const realSpaces = computeAvailableSpaces(activeUser);
-  const spaces: SpaceKey[] = realSpaces.length > 0 ? realSpaces : ['general'];
-  const isSingle = spaces.length === 1;
+  const spaces: SpaceKey[] = ['operator', 'investigator', 'admin', 'general'];
 
   const targetTabFor = (space: SpaceKey): string =>
     space === 'general' ? computeGeneralDashboardTab(activeUser) : SPACE_DASHBOARD_TAB[space];
@@ -55,121 +73,213 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
   const newAlertsCount = alerts.filter((a) => a.status === 'new').length;
   const myNewCasesCount = alerts.filter((a) => a.status === 'new' && a.assignedInvestigators.includes(activeUser.id)).length;
 
-  const SPACE_CONTENT: Record<SpaceKey, { icon: React.ReactNode; title: string; desc: string; stat?: string }> = {
+  // === AMÉLIORATION AJOUTÉE (habillage aligné sur la maquette "Espaces de
+  // travail") === Une icône et une couleur distinctes par espace (au lieu
+  // d'un unique bleu uniforme) — Opérateur/Enquêteur/Administrateur/
+  // Consultant, cohérent avec le sélecteur de profil de l'écran de
+  // connexion (StaffLoginView.tsx).
+  const SPACE_CONTENT: Record<SpaceKey, { icon: React.ReactNode; title: string; desc: string; stat?: string; tone: string }> = {
     operator: {
-      icon: <Briefcase className="w-5 h-5" />,
+      icon: <Users className="w-4 h-4" />,
       title: t.space_home_operator_title,
       desc: t.space_home_operator_desc,
       stat: newAlertsCount > 0 ? t.space_home_operator_stat.replace('{n}', String(newAlertsCount)) : undefined,
+      tone: 'bg-blue-600 text-white',
     },
     investigator: {
-      icon: <Search className="w-5 h-5" />,
+      icon: <Search className="w-4 h-4" />,
       title: t.space_home_investigator_title,
       desc: t.space_home_investigator_desc,
       stat: myNewCasesCount > 0 ? t.space_home_investigator_stat.replace('{n}', String(myNewCasesCount)) : undefined,
+      tone: 'bg-indigo-100 text-indigo-600',
     },
     admin: {
-      icon: <Settings className="w-5 h-5" />,
+      icon: <Settings className="w-4 h-4" />,
       title: t.space_home_admin_title,
       desc: t.space_home_admin_desc,
+      tone: 'bg-emerald-100 text-emerald-600',
     },
     general: {
-      icon: <BarChart3 className="w-5 h-5" />,
+      icon: <Briefcase className="w-4 h-4" />,
       title: t.space_home_general_title,
       desc: t.space_home_general_desc,
+      tone: 'bg-amber-100 text-amber-600',
     },
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
+    <>
+    {/* === AMÉLIORATION AJOUTÉE (élargissement de la fenêtre) === max-w-3xl →
+        max-w-5xl, sur demande explicite de l'utilisateur (trop d'espace vide
+        de part et d'autre sur grand écran).
+        === AMÉLIORATION AJOUTÉE (réduction de la largeur de la carte) ===
+        max-w-5xl → max-w-4xl, puis max-w-4xl → max-w-3xl, sur demandes
+        explicites successives de l'utilisateur — reste centrée
+        (`mx-auto`, inchangé). */}
+    {/* === AMÉLIORATION AJOUTÉE (position verticale de la carte) === La
+        carte étant désormais plus compacte (réductions successives), elle
+        restait collée en haut de l'écran avec un grand vide en dessous sur
+        les résolutions hautes. `min-h-[70vh] flex items-center` la
+        centre verticalement dans l'espace disponible, la faisant
+        "descendre" au lieu de laisser le vide uniquement en bas — sur
+        demande explicite de l'utilisateur. */}
+    <div className="min-h-[70vh] flex items-center justify-center py-8 px-4 sm:px-6">
+    <div className="w-full max-w-3xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
-        {/* Photo panel — même photo/dégradé que l'écran de connexion du suivi de signalement (AlertTrackingView.tsx) */}
-        <div className="relative hidden lg:flex flex-col justify-end p-8 min-h-[520px] text-white overflow-hidden">
+        {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
+            l'utilisateur) === Remplace la photo du siège par une photo de
+            bureau avec vue sur skyline (heure dorée), servie depuis
+            public/brand/space-home-bg.jpg. */}
+        {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
+            BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : couleur de
+            repli (`bg-[#0B2545]`, même teinte que le voile ci-dessous) le
+            temps du chargement au lieu d'un flash blanc, + priorité de
+            chargement explicite sur l'image. */}
+        {/* === AMÉLIORATION AJOUTÉE (centrage vertical, aligné à gauche)
+            === sur demande explicite de l'utilisateur : `justify-end`
+            (bloc de texte collé en bas) → `justify-center` (centré
+            verticalement dans la carte) ; reste aligné à gauche (aucun
+            `items-center`, comportement par défaut déjà conservé).
+            === AMÉLIORATION AJOUTÉE (réduction de la hauteur de la carte)
+            === `min-h-[460px]` → `min-h-[340px]` → `min-h-[260px]`, sur
+            demandes explicites successives de l'utilisateur ; padding
+            `p-10`→`p-8` également resserré. */}
+        <div className="relative hidden lg:flex flex-col justify-center p-6 sm:p-8 min-h-[260px] text-white overflow-hidden bg-[#0B2545]">
+          {/* === AMÉLIORATION AJOUTÉE (flou léger) === sur demande
+              explicite de l'utilisateur : léger flou (`blur-[2px]`) sur la
+              photo, pour un rendu plus ambiant/discret derrière le texte.
+              `scale-105` évite de révéler un bord net/transparent que le
+              flou ferait apparaître sur les contours de l'image. */}
           <img
-            src="/brand/activa-hq.jpg"
-            alt="Siège du Groupe ACTIVA"
-            className="absolute inset-0 w-full h-full object-cover"
+            src="/brand/space-home-bg.jpg"
+            alt="Espace de travail avec vue sur la ville"
+            fetchPriority="high"
+            decoding="async"
+            className="absolute inset-0 w-full h-full object-cover object-left blur-[2px] scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/90 via-[#0B2545]/55 to-[#0B2545]/15" />
-          <div className="relative z-10 space-y-5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-white/15 border border-white/25 backdrop-blur-sm">
-              <ShieldCheck className="w-3.5 h-3.5" /> {t.space_home_badge}
-            </span>
-            <div>
-              <p className="text-2xl font-bold leading-snug">{t.space_home_hello}, {activeUser.name}</p>
-              <p className="text-sm font-semibold text-white/90 mt-1">{t.space_home_tagline}</p>
-            </div>
-            <div className="w-10 h-px bg-white/40" />
-            <p className="text-xs text-white/80 leading-relaxed max-w-sm">{t.space_home_body}</p>
-            <div className="flex items-center gap-5 pt-1">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-white/90 shrink-0" />
-                <span className="text-[11px] font-semibold text-white/90">{t.space_home_confidentiality}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-white/90 shrink-0" />
-                <span className="text-[11px] font-semibold text-white/90">{t.space_home_traceability}</span>
-              </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/95 via-[#0B2545]/70 to-[#0B2545]/35" />
+          {/* === AMÉLIORATION AJOUTÉE (retrait du label et de la rangée de
+              valeurs, nom sur sa propre ligne) === sur demande explicite de
+              l'utilisateur : le repère "ACTIVA-WHISTLEBLOWING" au-dessus de
+              "Bonjour" et la rangée Confidentialité/Intégrité/Responsabilité
+              sont retirés ; le nom passe sur sa propre ligne, sous
+              "Bonjour".
+              === AMÉLIORATION AJOUTÉE (police alignée sur la référence) ===
+              `tracking-tight` ajouté, même traitement typographique que le
+              titre "Signalez en toute confiance" de la page d'accueil
+              (WhistleblowerHome.tsx) donné en référence par l'utilisateur —
+              même famille de police (aucune police custom dans l'app),
+              même graisse `font-extrabold` déjà présente, seul le
+              resserrement des lettres manquait. */}
+          <div className="relative z-10 space-y-3">
+            <div className="space-y-1.5">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight tracking-tight">
+                Bonjour<br />M. {greetingName}
+              </h2>
+              <p className="text-lg font-semibold text-blue-200">
+                Bienvenue sur activa-whistleblowing
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Content panel */}
-        <div id="staff-space-home-panel" className="bg-white p-6 sm:p-10 flex flex-col justify-center">
-          <div className="text-center mb-6">
-            <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600 text-white mx-auto mb-3">
-              <User className="w-6 h-6" />
-            </span>
-            <h1 className="text-xl font-bold text-slate-900">
-              {isSingle ? t.space_home_title_single : t.space_home_title_plural}
-            </h1>
-            <p className="text-xs text-slate-600 mt-2 max-w-sm mx-auto">
-              {isSingle ? t.space_home_subtitle_single : t.space_home_subtitle_plural}
-            </p>
+        {/* === AMÉLIORATION AJOUTÉE (réduction de la hauteur de la carte,
+            suite) === le panneau gauche (image) n'était pas la contrainte
+            de hauteur réelle : la colonne CSS Grid s'étire pour matcher la
+            colonne la plus haute, ici ce panneau de droite (espacement
+            entre les 4 boutons). Resserré ici aussi pour que la réduction
+            de hauteur demandée soit visible : `p-10`→`p-8`, `mb-6`→`mb-4`
+            →`mb-3`, boutons `py-3.5`→`py-3`→`py-2.5`, écart entre boutons
+            `space-y-2.5`→`space-y-2`→`space-y-1.5`, bulles d'icône
+            `w-10 h-10`→`w-8 h-8` (glyphe `w-5 h-5`→`w-4 h-4`), textes
+            resserrés (`text-sm`→`text-xs`, `text-[11px]`→`text-[10px]`) —
+            sur demandes explicites successives de l'utilisateur. */}
+        <div id="staff-space-home-panel" className="bg-white p-6 sm:p-8 flex flex-col justify-center">
+          <div className="mb-3">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[#0B2545]">{t.space_home_title_plural}</h1>
+            {/* === AMÉLIORATION AJOUTÉE (justification du texte) === */}
+            <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-sm">{t.space_home_subtitle_plural}</p>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-1.5">
             {spaces.map((space) => {
               const content = SPACE_CONTENT[space];
+              // Mis en avant visuellement seulement si le compte y a
+              // réellement accès (`computeAvailableSpaces`) — jamais pour
+              // un espace qu'il ne peut pas ouvrir.
+              const highlighted = realSpaces.includes(space);
+              // === AMÉLIORATION AJOUTÉE (boutons réactifs au survol) ===
+              // sur demande explicite de l'utilisateur : légère montée +
+              // ombre sur tout le bouton, icône mise à l'échelle
+              // (`group-hover`), au survol de N'IMPORTE QUELLE partie du
+              // bouton — même traitement que les bulles de la page d'accueil.
               return (
                 <button
                   key={space}
                   id={`space-home-choice-${space}`}
-                  onClick={() => setCurrentTab(targetTabFor(space))}
-                  className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl border border-blue-200 bg-blue-50/50 hover:bg-blue-50 transition text-left"
+                  onClick={() => (highlighted ? setCurrentTab(targetTabFor(space)) : setDeniedSpace(space))}
+                  className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-300 text-left hover:shadow-md hover:-translate-y-0.5 ${
+                    highlighted
+                      ? 'border-blue-300 bg-blue-50 hover:bg-blue-100'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
                 >
-                  <span className="w-9 h-9 rounded-lg bg-white border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
+                  <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 ${content.tone}`}>
                     {content.icon}
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-bold text-blue-900">{content.title}</span>
-                    <span className="block text-[11px] text-blue-700/80 leading-snug mt-0.5">{content.desc}</span>
+                    <span className="block text-xs font-bold text-[#0B2545]">{content.title}</span>
                     {content.stat && (
                       <span className="inline-block mt-1.5 px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[10.5px] font-bold">
                         {content.stat}
                       </span>
                     )}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-blue-400 shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                 </button>
               );
             })}
           </div>
-
-          {/* === AMÉLIORATION AJOUTÉE === bloc "Session active", données déjà
-              réelles du compte (roleTitle/country existent sur UserProfile
-              depuis l'origine) — jamais un résumé fabriqué. */}
-          <div className="mt-6 p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-            <div className="text-[11px] leading-snug">
-              <p className="font-bold text-slate-700">{t.space_home_session_active}</p>
-              <p className="text-slate-500 mt-0.5">
-                {activeUser.name} • {badge?.label ?? activeUser.roleTitle} • {activeUser.country}
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
+    </div>
+
+    {/* === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) === */}
+    {deniedSpace && (
+      <div
+        className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={() => setDeniedSpace(null)}
+      >
+        <div
+          className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => setDeniedSpace(null)}
+            aria-label={t.space_home_denied_close}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto mb-4 text-rose-600">
+            <ShieldOff className="w-7 h-7" />
+          </div>
+          <h2 className="text-lg font-bold text-slate-900">{t.space_home_denied_title}</h2>
+          <p className="text-xs text-slate-600 mt-2">
+            {t.space_home_denied_body.replace('{space}', SPACE_CONTENT[deniedSpace].title)}
+          </p>
+          <button
+            type="button"
+            onClick={() => setDeniedSpace(null)}
+            className="mt-5 w-full px-4 py-2.5 rounded-xl bg-[#0B2545] text-white text-xs font-bold hover:bg-[#0B2545]/90 transition"
+          >
+            {t.space_home_denied_close}
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 };

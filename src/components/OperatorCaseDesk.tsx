@@ -44,6 +44,11 @@ import {
   Lock,
   X,
   ArrowLeft,
+  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
+  Archive,
+  // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+  // envoyés en revue) ===
+  Eye,
 } from 'lucide-react';
 import { AlertRecord, Language, UserProfile, PriorityLevel, SeverityLevel, NocaThreshold, CaseMessage } from '../types';
 import { ConfidentialityLevel } from '../domain/caseTypes';
@@ -51,19 +56,20 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { userCan } from '../services/authz';
+import { formatCountryLabel } from '../data/activaConfig';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { notifyAssignmentToInvestigators } from '../services/emailNotify';
 import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
 import { computeSlaStatus } from '../services/statusMapping';
 import { searchAlerts, AdvancedSearchCriteria, effectivePriority } from '../domain/advancedSearch';
-import { KpiCard, PriorityBadge, DataTable, EmptyState } from './ui';
+import { Button, KpiCard, PriorityBadge, DataTable, EmptyState } from './ui';
 import type { DataTableColumn, KpiTone } from './ui';
 // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === réutilise exactement
 // le même balisage checkbox + charge de travail que la modale d'attribution
 // d'InvestigationDesk.tsx (composant désormais exporté depuis ce fichier
 // pour cette seule raison, aucun autre changement).
-import { AssignCandidateRow } from './InvestigationDesk';
+import { AssignCandidateRow } from './investigation/AssignCandidateRow';
 
 // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace Enquêteur) ===
 // 3 nouveaux modes purement additifs : `my_cases`/`to_process`/`in_progress`
@@ -76,7 +82,21 @@ import { AssignCandidateRow } from './InvestigationDesk';
 // `pending_info` existant (règle et action "Relancer" identiques), avec ses
 // libellés surchargés via `titleOverride`/`subtitleOverride`/`emptyOverride`
 // ci-dessous plutôt qu'un 5e mode dupliqué.
-export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'my_cases' | 'to_process' | 'in_progress';
+// === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === `closed`,
+// juste en dessous de `assigned` ("Dossiers attribués") dans la barre
+// latérale (StaffPortalLayout.tsx) : les dossiers attribués ET clôturés,
+// en lecture seule (`rowAction: 'none'`, comme les 3 écrans Enquêteur
+// "de travail" ci-dessus) — jamais de réattribution sur un dossier déjà
+// clos.
+// === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers envoyés
+// en revue) === `review`, entre `assigned` et `closed` : dossiers dont le
+// rapport d'investigation a été envoyé en revue (workflowStatus
+// conclusion_pending/functional_review, InvestigationDesk.handleSendToReview)
+// — en lecture seule ici aussi (`rowAction: 'none'`), la clôture réelle se
+// fait sur la fiche dossier complète via `onOpenCase`, qui réutilise telle
+// quelle la validation déjà existante (handleCloseAlert — au moins une
+// mesure corrective documentée) plutôt que de la dupliquer.
+export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'review' | 'closed' | 'my_cases' | 'to_process' | 'in_progress' | 'inv_inbox';
 
 interface OperatorCaseDeskProps {
   lang: Language;
@@ -135,13 +155,13 @@ type RowAction = 'assign' | 'reassign' | 'followup' | 'none';
 interface ModeConfig {
   icon: React.ComponentType<{ className?: string }>;
   titleKey:
-    | 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed'
-    | 'sidebar_inv_my_cases' | 'sidebar_inv_to_process' | 'sidebar_inv_in_progress';
+    | 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed' | 'sidebar_op_review' | 'sidebar_op_closed'
+    | 'sidebar_inv_my_cases' | 'sidebar_inv_to_process' | 'sidebar_inv_in_progress' | 'sidebar_inv_inbox';
   subtitleKey:
-    | 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle'
+    | 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle' | 'ocd_review_subtitle' | 'ocd_closed_subtitle'
     | 'ocd_my_cases_subtitle' | 'ocd_to_process_subtitle' | 'ocd_in_progress_subtitle';
   emptyKey:
-    | 'ocd_empty_inbox' | 'ocd_empty_to_assign' | 'ocd_empty_pending_info' | 'ocd_empty_assigned'
+    | 'ocd_empty_inbox' | 'ocd_empty_to_assign' | 'ocd_empty_pending_info' | 'ocd_empty_assigned' | 'ocd_empty_review' | 'ocd_empty_closed'
     | 'ocd_empty_my_cases' | 'ocd_empty_to_process' | 'ocd_empty_in_progress';
   predicate: (a: AlertRecord) => boolean;
   rowAction: RowAction;
@@ -174,15 +194,57 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
     predicate: (a) => a.status === 'under_review',
     rowAction: 'followup',
   },
-  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === inverse exact de
-  // "non attribués" — même règle que l'ancien `assignedOnly`.
+  // === AMÉLIORATION AJOUTÉE (Dossiers ouverts, ex-"Dossiers attribués") ===
+  // Renommé sur demande explicite, maintenant que les dossiers clôturés ont
+  // leur propre onglet dédié (`closed`, ci-dessous) : exclut désormais les
+  // dossiers déjà clôturés, pour ne plus faire doublon avec ce nouvel
+  // onglet — inverse exact de "non attribués" restreint aux dossiers
+  // encore ouverts.
   assigned: {
     icon: FolderCheck,
     titleKey: 'sidebar_op_processed',
     subtitleKey: 'ocd_assigned_subtitle',
     emptyKey: 'ocd_empty_assigned',
-    predicate: (a) => a.assignedInvestigators.length > 0,
+    predicate: (a) => a.assignedInvestigators.length > 0 && a.status !== 'closed',
     rowAction: 'reassign',
+  },
+  // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+  // envoyés en revue) === Se base sur `workflowStatus` (moteur riche,
+  // InvestigationDesk.handleSendToReview) plutôt que sur le statut legacy
+  // `corrective_action` : ce dernier est aussi atteint par l'ancien
+  // mécanisme "Mesure corrective ajoutée", sans rapport avec un envoi en
+  // revue — les deux ne doivent pas être confondus ici. Exclut closed/
+  // archived explicitement : `handleCloseAlert` ne remet pas `workflowStatus`
+  // à jour, donc un dossier clôturé depuis cet état y resterait sinon
+  // indéfiniment visible.
+  review: {
+    icon: Eye,
+    titleKey: 'sidebar_op_review',
+    subtitleKey: 'ocd_review_subtitle',
+    emptyKey: 'ocd_empty_review',
+    predicate: (a) =>
+      (a.workflowStatus === 'conclusion_pending' || a.workflowStatus === 'functional_review') &&
+      a.status !== 'closed' &&
+      a.status !== 'archived',
+    rowAction: 'none',
+  },
+  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === même
+  // périmètre que `assigned` (dossiers réellement attribués), restreint aux
+  // dossiers clôturés — jamais de réattribution possible sur ceux-ci
+  // (`rowAction: 'none'`), colonnes dédiées ci-dessous (Réf./Nature/Pays/
+  // Entité/Reçu le/Clôturé le/Résumé).
+  closed: {
+    icon: Archive,
+    titleKey: 'sidebar_op_closed',
+    subtitleKey: 'ocd_closed_subtitle',
+    emptyKey: 'ocd_empty_closed',
+    // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+    // périmètre) === Un dossier classé "Doublon"/"Hors périmètre"
+    // (storage.transitionStatus) n'a par nature jamais d'investigateur
+    // assigné — sans cette clause, il resterait invisible de cet onglet
+    // (et de fait de toute l'interface Opérateur) une fois clôturé.
+    predicate: (a) => a.status === 'closed' && (a.assignedInvestigators.length > 0 || a.workflowStatus === 'duplicate' || a.workflowStatus === 'out_of_scope'),
+    rowAction: 'none',
   },
   // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
   // Enquêteur) === 3 modes ci-dessous : mêmes règles exactes que les
@@ -194,6 +256,26 @@ const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
   my_cases: {
     icon: FolderOpen,
     titleKey: 'sidebar_inv_my_cases',
+    subtitleKey: 'ocd_my_cases_subtitle',
+    emptyKey: 'ocd_empty_my_cases',
+    predicate: () => true,
+    rowAction: 'none',
+  },
+  // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+  // Nouvel onglet d'accueil de l'espace Enquêteur (`inv_dashboard`, voir
+  // App.tsx) : même périmètre exact que `my_cases` ci-dessus (tous les
+  // dossiers attribués à l'enquêteur connecté, `useVisibleAlerts` s'en
+  // charge déjà) — seule la présentation change, avec le panneau liste +
+  // détail/réponse côte à côte de la Boîte de réception Opérateur (voir
+  // `mode === 'inbox' || mode === 'inv_inbox'` plus bas), sur demande
+  // explicite de l'utilisateur ("appliquer les éléments de la boite de
+  // réception opérateur excepté la première partie [les cartes KPI]").
+  // Jamais de case à cocher ni de bouton Attribuer (`rowAction: 'none'`,
+  // même raison que `my_cases`/`to_process`/`in_progress` : un enquêteur
+  // n'a pas à s'auto-attribuer ses propres dossiers).
+  inv_inbox: {
+    icon: Inbox,
+    titleKey: 'sidebar_inv_inbox',
     subtitleKey: 'ocd_my_cases_subtitle',
     emptyKey: 'ocd_empty_my_cases',
     predicate: () => true,
@@ -311,12 +393,18 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   const unassignedCount = modeAlerts.filter((a) => a.assignedInvestigators.length === 0).length;
   const urgentCount = modeAlerts.filter((a) => effectivePriority(a) === 'critique' || effectivePriority(a) === 'tres_elevee').length;
   const overdueCount = modeAlerts.filter((a) => computeSlaStatus(a) === 'overdue').length;
-  const closedCount = modeAlerts.filter((a) => a.status === 'closed' || a.status === 'archived').length;
   const inProgressCount = modeAlerts.filter((a) => a.status === 'investigation').length;
   const waitingLongCount = modeAlerts.filter((a) => Date.now() - new Date(a.updatedAt).getTime() > 7 * 24 * 3600 * 1000).length;
   const receivedTodayCount = modeAlerts.filter((a) => isToday(a.createdAt)).length;
 
-  const kpis: { value: number; label: string; tone: KpiTone }[] =
+  // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, cohérence design
+  // system) === BUG PRÉEXISTANT CORRIGÉ : "Urgents / critiques" (même
+  // libellé exact, même donnée `urgentCount`) était en ton `rose` dans 4
+  // des modes ci-dessous et `amber` dans les 6 autres — dérive de
+  // copier-coller sans raison fonctionnelle. Uniformisé sur `rose`,
+  // cohérent avec le reste de l'application (rose = urgent/critique
+  // partout ailleurs : StatusBadge, PriorityBadge, ConfirmDialog danger).
+  const kpis: { value: number | string; label: string; tone: KpiTone }[] =
     mode === 'inbox'
       ? [
           { value: modeAlerts.length, label: 'Total à trier', tone: 'blue' },
@@ -336,34 +424,78 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: modeAlerts.length, label: 'Total en attente', tone: 'purple' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
           { value: waitingLongCount, label: 'En attente > 7 jours', tone: 'orange' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
         ]
       : mode === 'assigned'
-      ? [
-          { value: modeAlerts.length, label: 'Total attribués', tone: 'blue' },
+      ? // === AMÉLIORATION AJOUTÉE (Dossiers ouverts) === "Clôturés"
+        // retiré : `modeAlerts` exclut désormais les dossiers clôturés
+        // (voir MODE_CONFIG.assigned.predicate), ce chiffre serait toujours
+        // à 0 — remplacé par "Urgents / critiques", cohérent avec les
+        // autres écrans "de travail".
+        [
+          { value: modeAlerts.length, label: 'Total ouverts', tone: 'blue' },
           { value: inProgressCount, label: 'En cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: closedCount, label: 'Clôturés', tone: 'emerald' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+        ]
+      : mode === 'review'
+      ? [
+          { value: modeAlerts.length, label: 'Total en revue', tone: 'indigo' },
+          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
+          { value: waitingLongCount, label: 'En attente > 7 jours', tone: 'orange' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+        ]
+      : mode === 'closed'
+      ? [
+          { value: modeAlerts.length, label: 'Total clôturés', tone: 'emerald' },
+          { value: modeAlerts.filter((a) => a.closedAt && isToday(a.closedAt)).length, label: 'Clôturés aujourd’hui', tone: 'blue' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          {
+            value: (() => {
+              const withDates = modeAlerts.filter((a) => a.closedAt);
+              if (withDates.length === 0) return 0;
+              const totalDays = withDates.reduce(
+                (sum, a) => sum + (new Date(a.closedAt!).getTime() - new Date(a.createdAt).getTime()) / (24 * 3600 * 1000),
+                0
+              );
+              return Math.round(totalDays / withDates.length);
+            })(),
+            label: 'Délai moyen (jours)',
+            tone: 'indigo',
+          },
         ]
       : mode === 'my_cases'
       ? [
           { value: modeAlerts.length, label: 'Total mes dossiers', tone: 'blue' },
           { value: inProgressCount, label: 'En cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
         ]
       : mode === 'to_process'
       ? [
           { value: modeAlerts.length, label: 'Total à traiter', tone: 'blue' },
           { value: modeAlerts.filter((a) => a.status === 'under_review').length, label: "En attente d’infos", tone: 'purple' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+        ]
+      : mode === 'inv_inbox'
+      ? // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+        // Cartes KPI conservées à l'identique de l'ancien écran "Tableau de
+        // bord" Enquêteur (InvestigationDesk, mêmes 4 libellés/mêmes
+        // formules — `alerts` non filtré, comme là-bas) sur demande
+        // explicite de l'utilisateur ("conserver les bulles de la
+        // précédente capture").
+        [
+          { value: alerts.length, label: t.portal_total_alerts, tone: 'neutral' },
+          { value: alerts.filter((a) => a.status === 'new' || a.status === 'investigation').length, label: t.portal_pending, tone: 'blue' },
+          { value: alerts.filter((a) => a.riskEvaluation.nocaThreshold === 'NOCA 3' || a.riskEvaluation.nocaThreshold === 'NOCA 4').length, label: t.portal_urgent, tone: 'rose' },
+          { value: `${alerts.length > 0 ? Math.round((alerts.filter((a) => a.status === 'closed').length / alerts.length) * 100) : 0}%`, label: t.portal_closed_rate, tone: 'emerald' },
         ]
       : [
           { value: modeAlerts.length, label: 'Total en cours', tone: 'indigo' },
           { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
           { value: waitingLongCount, label: 'Sans mise à jour > 7 jours', tone: 'orange' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'amber' },
+          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
         ];
 
   // Sélection multiple
@@ -551,32 +683,35 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       <span className="font-semibold text-blue-900">{selectedIds.size} dossier(s) sélectionné(s)</span>
       <div className="flex items-center gap-2">
         {cfg.rowAction === 'assign' && canAssign && (
-          <button
+          <Button
+            size="sm"
+            icon={<UserPlus className="w-3.5 h-3.5" />}
             onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white font-bold hover:bg-[#123a63]"
           >
-            <UserPlus className="w-3.5 h-3.5" /> Attribuer
-          </button>
+            Attribuer
+          </Button>
         )}
         {cfg.rowAction === 'reassign' && canAssign && (
-          <button
+          <Button
+            size="sm"
+            icon={<UserCog className="w-3.5 h-3.5" />}
             onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white font-bold hover:bg-[#123a63]"
           >
-            <UserCog className="w-3.5 h-3.5" /> Réattribuer
-          </button>
+            Réattribuer
+          </Button>
         )}
         {cfg.rowAction === 'followup' && (
-          <button
+          <Button
+            size="sm"
+            icon={<Send className="w-3.5 h-3.5" />}
             onClick={() => { setFollowupTargetIds(Array.from(selectedIds)); setFollowupText(''); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white font-bold hover:bg-[#123a63]"
           >
-            <Send className="w-3.5 h-3.5" /> Relancer
-          </button>
+            Relancer
+          </Button>
         )}
-        <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 font-semibold hover:bg-white">
+        <Button variant="secondary" size="sm" onClick={() => setSelectedIds(new Set())}>
           Désélectionner
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -594,7 +729,57 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   // réception a sa propre liste + panneau plus bas. `select`/`action` sont
   // omises quand l'écran n'a réellement aucune action à proposer
   // (`canActOnRows`), voir `rowAction` ci-dessus.
-  const columns: DataTableColumn<AlertRecord>[] = [
+  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === colonnes
+  // dédiées demandées explicitement (Réf./Nature/Pays/Entité/Reçu le/
+  // Clôturé le/Résumé) — écran strictement en lecture (`rowAction: 'none'`),
+  // aucune case à cocher ni colonne d'action, donc `canActOnRows` est
+  // toujours faux ici (voir `cfg.rowAction` ci-dessus).
+  const closedColumns: DataTableColumn<AlertRecord>[] = [
+    {
+      key: 'id',
+      header: 'Réf.',
+      render: (a) => (
+        <div className="whitespace-nowrap">
+          <span className="font-mono font-bold text-[#0B2545] block">{a.trackingNumber}</span>
+          <ConfidentialityBadge level={a.confidentialityLevel} />
+        </div>
+      ),
+    },
+    { key: 'nature', header: 'Nature', render: (a) => <span className="truncate max-w-[160px] inline-block">{a.category}</span>, hideOnMobile: true },
+    { key: 'country', header: 'Pays', render: (a) => a.country, hideOnMobile: true },
+    {
+      key: 'entity',
+      header: 'Entité',
+      render: (a) => (
+        <span className="flex items-center gap-1 truncate max-w-[160px] text-slate-800">
+          <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+          {a.concernedEntity}
+        </span>
+      ),
+      hideOnMobile: true,
+    },
+    {
+      key: 'received',
+      header: 'Reçu le',
+      render: (a) => new Date(a.createdAt).toLocaleDateString(dateLocale),
+    },
+    {
+      key: 'closed',
+      header: 'Clôturé le',
+      render: (a) => (a.closedAt ? new Date(a.closedAt).toLocaleDateString(dateLocale) : '—'),
+    },
+    {
+      key: 'summary',
+      header: 'Résumé',
+      render: (a) => (
+        <span className="block max-w-xs truncate text-slate-600" title={a.closureSummary || a.detailedDescription}>
+          {a.closureSummary || a.detailedDescription}
+        </span>
+      ),
+    },
+  ];
+
+  const columns: DataTableColumn<AlertRecord>[] = mode === 'closed' ? closedColumns : [
     ...(canActOnRows
       ? [
           {
@@ -631,7 +816,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
             {a.concernedEntity}
           </span>
-          <span className="text-[11px] text-slate-500">{a.country}</span>
+          <span className="text-[11px] text-slate-500">{formatCountryLabel(storage.getCountries(), a.country)}</span>
         </div>
       ),
       hideOnMobile: true,
@@ -714,12 +899,18 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       {filterBar}
       {bulkBar}
 
-      {mode === 'inbox' ? (
+      {mode === 'inbox' || mode === 'inv_inbox' ? (
         // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — Boîte de
         // réception) === panneau liste + détail/attribution côte à côte :
         // la liste sélectionne (jamais ne navigue), le panneau de droite
         // permet de répondre au lanceur d'alerte et d'attribuer sans quitter
         // l'écran ; "Ouvrir le dossier complet" reste le seul lien vers la
+        // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+        // `mode === 'inv_inbox'` réutilise ce même panneau tel quel : le
+        // bouton "Attribuer" reste conditionné à `canAssign` (déjà faux pour
+        // un enquêteur simple, `domain/permissions.ts`) et la case à cocher
+        // à `canActOnRows` (déjà faux ici, `rowAction: 'none'`) — rien de
+        // spécifique à ajouter pour ce nouveau mode.
         // fiche dossier entière (mêmes 9 onglets qu'avant, inchangés).
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -754,7 +945,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                         <PriorityBadge priority={effectivePriority(a)} label={URGENCY_LABELS[effectivePriority(a)]} size="sm" />
                       </div>
                       <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{a.category} — {a.concernedEntity}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{new Date(a.createdAt).toLocaleDateString(dateLocale)} · {CHANNEL_LABELS[a.channel]}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{new Date(a.createdAt).toLocaleDateString(dateLocale)} · {CHANNEL_LABELS[a.channel]}</p>
                     </div>
                   </button>
                 ))}
@@ -774,7 +965,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                       <ConfidentialityBadge level={panelAlert.confidentialityLevel} />
                     </div>
                     <p className="text-xs text-slate-600 mt-1">{panelAlert.category} — {panelAlert.subCategory}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1"><Building2 className="w-3 h-3" /> {panelAlert.concernedEntity} ({panelAlert.country})</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1"><Building2 className="w-3 h-3" /> {panelAlert.concernedEntity} ({formatCountryLabel(storage.getCountries(), panelAlert.country)})</p>
                   </div>
                   <button onClick={() => setPanelAlertId(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 lg:hidden">
                     <ArrowLeft className="w-4 h-4" />
@@ -795,17 +986,18 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                     {panelAlert.assignedInvestigatorNames.length > 0 ? `Attribué à : ${panelAlert.assignedInvestigatorNames.join(', ')}` : 'Non attribué'}
                   </span>
                   {canAssign && (
-                    <button
+                    <Button
+                      size="sm"
+                      icon={<UserPlus className="w-3.5 h-3.5" />}
                       onClick={() => { setAssignTargetIds([panelAlert.id]); setAssignSelectedInvestigatorIds(panelAlert.assignedInvestigators); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B2545] text-white text-xs font-bold hover:bg-[#123a63]"
                     >
-                      <UserPlus className="w-3.5 h-3.5" /> Attribuer
-                    </button>
+                      Attribuer
+                    </Button>
                   )}
                 </div>
 
                 <div className="border-t border-slate-100 pt-3">
-                  <label className="text-[10px] font-bold uppercase text-slate-400 mb-1.5 block">Répondre au lanceur d'alerte</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block">Répondre au lanceur d'alerte</label>
                   <div className="flex items-end gap-2">
                     <textarea
                       value={replyText}
@@ -814,7 +1006,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                       placeholder="Message confidentiel..."
                       className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm"
                     />
-                    <button onClick={handleQuickReply} disabled={!replyText.trim()} className="p-2.5 rounded-xl bg-[#0B2545] text-white disabled:opacity-40 hover:bg-[#123a63]">
+                    <button onClick={handleQuickReply} disabled={!replyText.trim()} className="p-2.5 rounded-xl bg-brand text-white disabled:opacity-40 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 transition">
                       <Send className="w-4 h-4" />
                     </button>
                   </div>
@@ -882,7 +1074,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
               <div className="space-y-3">
                 {assignCandidates.compatible.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1.5">Enquêteurs compatibles (même périmètre)</p>
+                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">Enquêteurs compatibles (même périmètre)</p>
                     <div className="space-y-1.5">
                       {assignCandidates.compatible.map((c) => (
                         <AssignCandidateRow
@@ -897,7 +1089,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                 )}
                 {assignCandidates.groupAuthorized.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1.5">Autorisés Groupe</p>
+                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">Autorisés Groupe</p>
                     <div className="space-y-1.5">
                       {assignCandidates.groupAuthorized.map((c) => (
                         <AssignCandidateRow
@@ -914,14 +1106,14 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button onClick={() => setAssignTargetIds(null)} className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Annuler</button>
-              <button
+              <Button variant="secondary" size="sm" onClick={() => setAssignTargetIds(null)}>Annuler</Button>
+              <Button
+                size="sm"
                 disabled={assignSelectedInvestigatorIds.length === 0}
                 onClick={handleConfirmAssign}
-                className="px-4 py-1.5 text-xs font-bold text-white bg-[#0B2545] rounded-lg disabled:opacity-40 hover:bg-[#123a63]"
               >
                 Confirmer l'attribution
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -944,10 +1136,10 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
               className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setFollowupTargetIds(null)} className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Annuler</button>
-              <button onClick={handleConfirmFollowup} className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-[#0B2545] rounded-lg hover:bg-[#123a63]">
-                <Send className="w-3.5 h-3.5" /> Envoyer
-              </button>
+              <Button variant="secondary" size="sm" onClick={() => setFollowupTargetIds(null)}>Annuler</Button>
+              <Button size="sm" icon={<Send className="w-3.5 h-3.5" />} onClick={handleConfirmFollowup}>
+                Envoyer
+              </Button>
             </div>
           </div>
         </div>

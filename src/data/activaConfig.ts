@@ -5,14 +5,24 @@ import {
   UserProfile,
   PriorityLevel,
   NocaThreshold,
-  UserRole
+  UserRole,
+  EscalationRecipient
 } from '../types';
 
+// === AMÉLIORATION AJOUTÉE : code officiel de numérotation des dossiers ===
+// `code` est le préfixe utilisé dans le numéro de dossier officiel Groupe
+// (format XX-YY-MM-XXXX, ex. AARDC-26-09-0001 — voir
+// storage.generateCaseNumber ci-dessous). Les 13 codes des entités listées
+// ci-dessous sont ceux fournis par la DARC Groupe ; les 3 entités restantes
+// (Fondation ACTIVA, ACTIVA Europe, ACTIVA Angola) n'étaient pas couvertes
+// par cette liste et reçoivent un code générique à 4 lettres, modifiable
+// dans Administration (AdminConfigView, onglet Entités).
 export interface EntityDef {
   id: string;
   name: string;
   country: string;
   flag: string;
+  code: string;
 }
 
 // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
@@ -50,13 +60,18 @@ export const DEFAULT_SLA_CONFIG: SlaConfig = {
 // strictement supérieur" échouerait silencieusement). Vérifié contre
 // ROLE_PERMISSIONS (domain/permissions.ts) : un investigator mis en cause
 // trouve un senior_investigator au-dessus ; un senior_investigator mis en
-// cause trouve functional_admin/darc_compliance ; darc_compliance (le rôle
-// opérationnel le plus élevé) mis en cause ne trouve légitimement AUCUNE
-// autorité indépendante — cas NO_INDEPENDENT_AUTHORITY_FOUND prévu par
-// conception, pas un bug. Les rôles au niveau 7 (executive/consultation/
-// audit_committee) n'ont ni cases.edit ni cases.assign et ne sont donc
-// jamais éligibles comme cible de routage, quel que soit leur niveau —
-// confirme le §63 "privilège technique ≠ autorité d'investigation".
+// cause saute le niveau 5 (functional_admin/system_admin/security_admin,
+// ex æquo) pour trouver darc_compliance au niveau 6 — functional_admin a
+// techniquement cases.edit/cases.assign mais est explicitement exclu comme
+// CIBLE de routage (voir isRoutingEligibleRole, domain/independentRouting.ts,
+// "chaîne d'implication") ; system_admin/security_admin n'ont ni l'un ni
+// l'autre. darc_compliance (le rôle opérationnel le plus élevé) mis en
+// cause ne trouve légitimement AUCUNE autorité indépendante — cas
+// NO_INDEPENDENT_AUTHORITY_FOUND prévu par conception, pas un bug. Les
+// rôles au niveau 7 (executive/consultation/audit_committee) n'ont ni
+// cases.edit ni cases.assign et ne sont donc jamais éligibles comme cible
+// de routage, quel que soit leur niveau — confirme le §63 "privilège
+// technique ≠ autorité d'investigation".
 export type HierarchyLevels = Record<UserRole, number>;
 
 export const DEFAULT_HIERARCHY_LEVELS: HierarchyLevels = {
@@ -95,23 +110,45 @@ export const ACTIVA_COUNTRIES: CountryDef[] = [
   { code: 'AO', name: 'Angola', flag: '🇦🇴' },
 ];
 
+// === AMÉLIORATION AJOUTÉE (drapeaux devant le nom des pays, partout où il
+// s'affiche) === Recherche par NOM (c'est ce que les dossiers/comptes
+// stockent, jamais le code) dans la liste réelle passée en argument — pas
+// uniquement ACTIVA_COUNTRIES en dur, pour rester correct même si un
+// administrateur a ajouté un pays personnalisé (Administration → Pays).
+// Retourne '' (jamais une exception) si le nom est absent/inconnu — un
+// affichage sans drapeau plutôt qu'un plantage.
+export function getCountryFlag(countries: CountryDef[], name: string | undefined): string {
+  if (!name) return '';
+  return countries.find((c) => c.name === name)?.flag ?? '';
+}
+
+// Nom de pays préfixé de son drapeau ("🇨🇲 Cameroun"), sans espace parasite
+// quand le nom est absent/inconnu (ex. "Groupe ACTIVA", un libellé Groupe et
+// non un vrai pays) — à utiliser plutôt que de composer `${getCountryFlag(...)} ${name}`
+// soi-même à chaque site d'affichage.
+export function formatCountryLabel(countries: CountryDef[], name: string | undefined): string {
+  const flag = getCountryFlag(countries, name);
+  return flag ? `${flag} ${name}` : name ?? '';
+}
+
 export const ACTIVA_ENTITIES: EntityDef[] = [
-  { id: 'cm_assurances', name: 'ACTIVA Assurances', country: 'Cameroun', flag: '🇨🇲' },
-  { id: 'cm_vie', name: 'ACTIVA Vie', country: 'Cameroun', flag: '🇨🇲' },
-  { id: 'cd_assurances', name: 'ACTIVA Assurances RDC', country: 'RD Congo', flag: '🇨🇩' },
-  { id: 'cd_vie', name: 'ACTIVA Vie RDC', country: 'RD Congo', flag: '🇨🇩' },
-  { id: 'gn_ugar', name: 'UGAR ACTIVA', country: 'Guinée', flag: '🇬🇳' },
-  { id: 'gn_vie', name: 'ACTIVA Vie Guinée', country: 'Guinée', flag: '🇬🇳' },
-  { id: 'ci_activa', name: 'ACTIVA Côte d’Ivoire', country: 'Côte d’Ivoire', flag: '🇨🇮' },
-  { id: 'gh_activa', name: 'ACTIVA International Ghana', country: 'Ghana', flag: '🇬🇭' },
-  { id: 'lr_activa', name: 'ACTIVA International Liberia', country: 'Libéria', flag: '🇱🇷' },
-  { id: 'sl_activa', name: 'ACTIVA International Sierra Leone', country: 'Sierra Leone', flag: '🇸🇱' },
-  { id: 'mu_finance', name: 'ACTIVA Finance', country: 'Maurice', flag: '🇲🇺' },
-  { id: 'mu_re', name: 'ACTIVA Ré', country: 'Maurice', flag: '🇲🇺' },
-  { id: 'mu_ats', name: 'Africa Technology Services (ATS)', country: 'Maurice', flag: '🇲🇺' },
-  { id: 'mu_fondation', name: 'Fondation ACTIVA', country: 'Maurice', flag: '🇲🇺' },
-  { id: 'fr_europe', name: 'ACTIVA Europe', country: 'France', flag: '🇫🇷' },
-  { id: 'ao_activa', name: 'ACTIVA Angola', country: 'Angola', flag: '🇦🇴' },
+  { id: 'cm_assurances', name: 'ACTIVA Assurances', country: 'Cameroun', flag: '🇨🇲', code: 'AACMR' },
+  { id: 'cm_vie', name: 'ACTIVA Vie', country: 'Cameroun', flag: '🇨🇲', code: 'AVCMR' },
+  { id: 'cd_assurances', name: 'ACTIVA Assurances RDC', country: 'RD Congo', flag: '🇨🇩', code: 'AARDC' },
+  { id: 'cd_vie', name: 'ACTIVA Vie RDC', country: 'RD Congo', flag: '🇨🇩', code: 'AVRDC' },
+  { id: 'gn_ugar', name: 'UGAR ACTIVA', country: 'Guinée', flag: '🇬🇳', code: 'UGAR' },
+  { id: 'gn_vie', name: 'ACTIVA Vie Guinée', country: 'Guinée', flag: '🇬🇳', code: 'AVGU' },
+  { id: 'ci_activa', name: 'ACTIVA Côte d’Ivoire', country: 'Côte d’Ivoire', flag: '🇨🇮', code: 'AACIV' },
+  { id: 'gh_activa', name: 'ACTIVA International Ghana', country: 'Ghana', flag: '🇬🇭', code: 'AIIG' },
+  { id: 'lr_activa', name: 'ACTIVA International Liberia', country: 'Libéria', flag: '🇱🇷', code: 'AIIL' },
+  { id: 'sl_activa', name: 'ACTIVA International Sierra Leone', country: 'Sierra Leone', flag: '🇸🇱', code: 'AISL' },
+  { id: 'mu_finance', name: 'ACTIVA Finance', country: 'Maurice', flag: '🇲🇺', code: 'AF' },
+  { id: 'mu_re', name: 'ACTIVA Ré', country: 'Maurice', flag: '🇲🇺', code: 'AREA' },
+  { id: 'mu_ats', name: 'Africa Technology Services (ATS)', country: 'Maurice', flag: '🇲🇺', code: 'ATS' },
+  // Entités hors liste officielle DARC — code générique, à ajuster en Administration si besoin.
+  { id: 'mu_fondation', name: 'Fondation ACTIVA', country: 'Maurice', flag: '🇲🇺', code: 'AFON' },
+  { id: 'fr_europe', name: 'ACTIVA Europe', country: 'France', flag: '🇫🇷', code: 'AEUR' },
+  { id: 'ao_activa', name: 'ACTIVA Angola', country: 'Angola', flag: '🇦🇴', code: 'AANG' },
 ];
 
 export interface CategoryDef {
@@ -250,140 +287,71 @@ export function computeRiskEvaluation(
 // domain/permissions.ts). `active: true` pour tous les comptes existants —
 // aucun ne devient silencieusement indisponible pour le moteur
 // d'attribution (Phase 4).
-export const INITIAL_USERS: UserProfile[] = [
+// === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de démonstration ===
+// Les 9 comptes fictifs précédemment définis ici (noms/emails inventés pour
+// la démonstration) ont été retirés sur demande explicite — l'application
+// ne doit plus embarquer d'identités fictives. Un navigateur neuf démarre
+// désormais avec un unique compte réel (voir `emergencyAdminSeed()` dans
+// storage.ts) ; tous les autres comptes sont créés par un administrateur
+// via Administration → Utilisateurs, avec de vraies adresses.
+export const INITIAL_USERS: UserProfile[] = [];
+
+// === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+// routage) === Les 2 premiers sont liés à un compte EthicAlert déjà réel
+// ci-dessus (usr-senior-investigator/usr-darc-compliance) — l'escalade ou
+// le routage vers eux leur donne un accès in-app réel au dossier. Les 2
+// derniers (RH, DGA Groupe) n'ont volontairement PAS de compte : ils sont
+// notifiés par e-mail uniquement, jamais un accès fictif au dossier.
+export const INITIAL_ESCALATION_RECIPIENTS: EscalationRecipient[] = [
+  // === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de démonstration ===
+  // `linkedUserId` retiré (comptes fictifs correspondants supprimés de
+  // INITIAL_USERS) — ces 2 entrées basculent en "e-mail uniquement", même
+  // comportement que rec-003/rec-004 ci-dessous, jusqu'à ce qu'un
+  // administrateur les relie à un vrai compte via Administration.
+  //
+  // === AMÉLIORATION AJOUTÉE (retrait des noms fictifs, ordre de dernier
+  // recours) === Sur demande explicite : `nom` porte désormais un intitulé
+  // générique par fonction (même motif que "DARC Groupe", déjà ainsi),
+  // plus aucun nom de personne fictif — e-mails alignés en conséquence.
+  // rec-003 (RH Groupe) est désormais listé AVANT rec-002 (DARC Groupe) :
+  // à grade égal (4), storage.triggerIndependentRouting() choisit le
+  // dernier recours via `.sort((a, b) => b.grade - a.grade)[0]`, un tri
+  // stable qui retient le premier du tableau en cas d'égalité — RH Groupe
+  // l'emporte désormais sur DARC Groupe dans ce cas précis, sur demande.
   {
-    id: 'usr-functional-admin',
-    name: 'B. Y. Ekani (Point de Contact)',
-    email: 'by.ekani@group-activa.com',
-    role: 'functional_admin',
-    roleTitle: 'Responsable Conformité & Référent Éthique Groupe',
-    entity: 'ACTIVA Finance',
-    country: 'Cameroun / Maurice',
-    countries: [],
-    entities: [],
+    id: 'rec-001',
+    identifiant: 'GRP-INV-001',
+    nom: 'Investigations Groupe',
+    email: 'investigations-groupe@group-activa.com',
+    fonction: 'Responsable des Investigations Groupe',
+    grade: 3,
     active: true,
   },
   {
-    id: 'usr-investigator-1',
-    name: 'Alain Kouassi (Investigateur DARC)',
-    email: 'a.kouassi@group-activa.com',
-    role: 'investigator',
-    roleTitle: 'Auditeur Interne Senior',
-    entity: 'ACTIVA Côte d’Ivoire',
-    country: 'Côte d’Ivoire',
-    countries: ['CI'],
-    entities: ['ci_activa'],
+    id: 'rec-003',
+    identifiant: 'GRP-RH-001',
+    nom: 'RH Groupe',
+    email: 'rh-groupe@group-activa.com',
+    fonction: 'Directeur des Ressources Humaines',
+    grade: 4,
     active: true,
   },
   {
-    id: 'usr-investigator-2',
-    name: 'Chantal Ngo (Investigatrice DARC)',
-    email: 'c.ngo@group-activa.com',
-    role: 'investigator',
-    roleTitle: 'Chargée d’Investigation Fraude & Éthique',
-    entity: 'ACTIVA Assurances',
-    country: 'Cameroun',
-    countries: ['CM'],
-    entities: ['cm_assurances'],
-    active: true,
-  },
-  {
-    id: 'usr-system-admin',
-    name: 'David Mendy (Admin Système)',
-    email: 'd.mendy@group-activa.com',
-    role: 'system_admin',
-    roleTitle: 'Administrateur Systèmes Sécurisés ATS',
-    entity: 'Africa Technology Services (ATS)',
-    country: 'Maurice',
-    countries: ['MU'],
-    entities: ['mu_ats'],
-    active: true,
-  },
-  {
-    id: 'usr-auditor',
-    name: 'Comité d’Audit (Consultation)',
-    email: 'audit-board@group-activa.com',
-    // === AMÉLIORATION AJOUTÉE (Phase 12.3) === l'ancien rôle `auditor`
-    // (5 valeurs) devient `consultation` dans le nouveau modèle RBAC à 10
-    // rôles — même comportement (lecture seule, vision globale des
-    // dossiers), voir src/services/authz.ts.
-    role: 'consultation',
-    roleTitle: 'Membre du Comité d’Audit & Conseil d’Administration',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
-    active: true,
-  },
-  // === AMÉLIORATION AJOUTÉE (Phase 12.3) === 2 nouveaux comptes de
-  // démonstration pour les 2 rôles réellement nouveaux (security_admin,
-  // audit_committee), accessibles via le même sélecteur de profil que les
-  // 5 comptes ci-dessus — purement additif.
-  {
-    id: 'usr-security-admin',
-    name: 'Farid Haidara (Admin Sécurité)',
-    email: 'f.haidara@group-activa.com',
-    role: 'security_admin',
-    roleTitle: 'Responsable Sécurité des Systèmes d’Information',
-    entity: 'Africa Technology Services (ATS)',
-    country: 'Maurice',
-    countries: ['MU'],
-    entities: ['mu_ats'],
-    active: true,
-  },
-  {
-    id: 'usr-audit-committee',
-    name: 'Comité d’Audit Groupe',
-    email: 'comite-audit@group-activa.com',
-    role: 'audit_committee',
-    roleTitle: 'Membre indépendant, Comité d’Audit du Conseil d’Administration',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
-    active: true,
-  },
-  // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
-  // 3 nouveaux comptes de démonstration pour les 3 rôles qui n'en avaient
-  // encore aucun (déjà définis dans RoleId/ROLE_PERMISSIONS depuis la
-  // Phase 12 mais jamais sélectionnables sur l'écran de connexion) :
-  // senior_investigator et darc_compliance à vision Groupe (périmètre
-  // vide), servant de comptes "Enquêteur Groupe"/"DARC Groupe" pour la
-  // future escalade (Phase 5) ; executive à vision agrégée uniquement.
-  {
-    id: 'usr-senior-investigator',
-    name: 'Grace Mensah (Investigatrice Senior Groupe)',
-    email: 'g.mensah@group-activa.com',
-    role: 'senior_investigator',
-    roleTitle: 'Investigatrice Senior — Enquêtes Groupe',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
-    active: true,
-  },
-  {
-    id: 'usr-darc-compliance',
-    name: 'DARC Groupe (Conformité)',
+    id: 'rec-002',
+    identifiant: 'GRP-DARC-001',
+    nom: 'DARC Groupe',
     email: 'darc-groupe@group-activa.com',
-    role: 'darc_compliance',
-    roleTitle: 'Direction Audit, Risques & Conformité — Groupe',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
+    fonction: 'Directeur Audit, Risques et Conformité Groupe',
+    grade: 4,
     active: true,
   },
   {
-    id: 'usr-executive',
-    name: 'Marc Fotso (Comité de Direction)',
-    email: 'm.fotso@group-activa.com',
-    role: 'executive',
-    roleTitle: 'Membre du Comité de Direction Groupe',
-    entity: 'ACTIVA Finance',
-    country: 'Maurice',
-    countries: [],
-    entities: [],
+    id: 'rec-004',
+    identifiant: 'GRP-DGA-001',
+    nom: 'DGA Groupe',
+    email: 'dga-groupe@group-activa.com',
+    fonction: 'Directeur Général Adjoint Groupe',
+    grade: 5,
     active: true,
   },
 ];
@@ -391,7 +359,7 @@ export const INITIAL_USERS: UserProfile[] = [
 export const INITIAL_ALERTS: AlertRecord[] = [
   {
     id: 'alt-001',
-    trackingNumber: 'ACT-2026-0418',
+    trackingNumber: 'AACMR-26-09-0001',
     // === AMÉLIORATION AJOUTÉE : mot de passe démo stocké sous forme de hash salé (jamais en clair) ===
     accessCodeHash: '963328f618f6d7b271122d80c93eec1d37d84d3956ed115f185f34179ab2d306',
     accessCodeSalt: 'a1b2c3d4e5f60718',
@@ -457,8 +425,12 @@ export const INITIAL_ALERTS: AlertRecord[] = [
       },
     ],
     status: 'investigation',
-    assignedInvestigators: ['usr-investigator-2'],
-    assignedInvestigatorNames: ['Chantal Ngo (Investigatrice DARC)'],
+    // === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de démonstration ===
+    // Compte fictif assigné retiré (voir INITIAL_USERS) — dossier de
+    // démonstration désormais non assigné, un état déjà pleinement
+    // supporté par l'application.
+    assignedInvestigators: [],
+    assignedInvestigatorNames: [],
     internalNotes: [
       {
         id: 'not-1',
@@ -501,7 +473,7 @@ export const INITIAL_ALERTS: AlertRecord[] = [
   },
   {
     id: 'alt-002',
-    trackingNumber: 'ACT-2026-0391',
+    trackingNumber: 'AACIV-26-08-0001',
     // === AMÉLIORATION AJOUTÉE : mot de passe démo stocké sous forme de hash salé (jamais en clair) ===
     accessCodeHash: '01f405bc3bd87150bdfa4fc5c2c9a1e71566fcd4e82fe3706a95b0ffe3e2b144',
     accessCodeSalt: '2b7e151628aed2a6',
@@ -555,8 +527,8 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     witnesses: [],
     evidences: [],
     status: 'corrective_action',
-    assignedInvestigators: ['usr-investigator-1'],
-    assignedInvestigatorNames: ['Alain Kouassi (Investigateur DARC)'],
+    assignedInvestigators: [],
+    assignedInvestigatorNames: [],
     internalNotes: [
       {
         id: 'not-2',
@@ -584,7 +556,7 @@ export const INITIAL_ALERTS: AlertRecord[] = [
   },
   {
     id: 'alt-003',
-    trackingNumber: 'ACT-2026-0210',
+    trackingNumber: 'AIIG-26-07-0001',
     // === AMÉLIORATION AJOUTÉE : mot de passe démo stocké sous forme de hash salé (jamais en clair) ===
     accessCodeHash: '7fe7057524f3c5eb830295658e64aea1b718abc7dc6483da6d11ec1e0a8a5d8e',
     accessCodeSalt: '9c0e2f3a4b5d6e7f',
@@ -625,8 +597,8 @@ export const INITIAL_ALERTS: AlertRecord[] = [
     witnesses: [],
     evidences: [],
     status: 'closed',
-    assignedInvestigators: ['usr-functional-admin'],
-    assignedInvestigatorNames: ['B. Y. Ekani (Point de Contact)'],
+    assignedInvestigators: [],
+    assignedInvestigatorNames: [],
     closedAt: '2026-08-01T11:00:00Z',
     closedBy: 'B. Y. Ekani',
     closureSummary: 'Investigation clôturée après audit des appels d\'offres. Clause anti-corruption renforcée dans tous les contrats prestataires.',
@@ -652,9 +624,9 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-001',
     alertId: 'alt-001',
-    trackingNumber: 'ACT-2026-0418',
+    trackingNumber: 'AACMR-26-09-0001',
     authorId: 'system',
-    authorName: 'Système ACTIVA EthicAlert',
+    authorName: 'Système activa-whistleblowing',
     authorRole: 'Système',
     actionType: 'ALERT_SUBMITTED',
     details: 'Signalement anonyme soumis pour ACTIVA Assurances (Cameroun). Classification automatique : NOCA 3 (Enquête urgente).',
@@ -663,7 +635,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-002',
     alertId: 'alt-001',
-    trackingNumber: 'ACT-2026-0418',
+    trackingNumber: 'AACMR-26-09-0001',
     authorId: 'usr-functional-admin',
     authorName: 'B. Y. Ekani (Point de Contact)',
     authorRole: 'functional_admin',
@@ -674,7 +646,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-003',
     alertId: 'alt-001',
-    trackingNumber: 'ACT-2026-0418',
+    trackingNumber: 'AACMR-26-09-0001',
     authorId: 'usr-investigator-2',
     authorName: 'Chantal Ngo',
     authorRole: 'investigator',
@@ -685,7 +657,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-004',
     alertId: 'alt-002',
-    trackingNumber: 'ACT-2026-0391',
+    trackingNumber: 'AACIV-26-08-0001',
     authorId: 'usr-investigator-1',
     authorName: 'Alain Kouassi',
     authorRole: 'investigator',
@@ -696,7 +668,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'aud-005',
     alertId: 'alt-003',
-    trackingNumber: 'ACT-2026-0210',
+    trackingNumber: 'AIIG-26-07-0001',
     authorId: 'usr-functional-admin',
     authorName: 'B. Y. Ekani (Point de Contact)',
     authorRole: 'functional_admin',

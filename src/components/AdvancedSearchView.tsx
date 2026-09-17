@@ -23,6 +23,7 @@ import { storage } from '../services/storage';
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { AdvancedSearchCriteria, hasActiveCriteria, searchAlerts } from '../domain/advancedSearch';
 import { DataTable, DataTableColumn, PriorityBadge, StatusBadge, BadgeStatus } from './ui';
+import { formatCountryLabel } from '../data/activaConfig';
 
 interface AdvancedSearchViewProps {
   lang: Language;
@@ -114,7 +115,7 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
       render: (a) => (
         <div>
           <div className="text-slate-800">{a.concernedEntity}</div>
-          <div className="text-[11px] text-slate-500">{a.country}</div>
+          <div className="text-[11px] text-slate-500">{formatCountryLabel(storage.getCountries(), a.country)}</div>
         </div>
       ),
       hideOnMobile: true,

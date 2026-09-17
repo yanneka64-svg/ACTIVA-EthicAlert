@@ -16,6 +16,7 @@ function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
     id: 'u-1',
     name: 'Test User',
     email: 't@example.com',
+    username: 'test.user',
     role: 'investigator',
     roleTitle: 'Investigateur',
     entity: 'ACTIVA Assurances',

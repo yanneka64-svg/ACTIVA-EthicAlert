@@ -43,6 +43,7 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { getPhase4Firebase, isPhase4Configured } from '../services/firebaseClient';
 import { Case } from '../domain/caseTypes';
 import { CASE_STATUS_LABELS } from '../domain/workflow';
+import { ACTIVA_COUNTRIES, formatCountryLabel } from '../data/activaConfig';
 
 interface CaseLookupProps {
   lang: Language;
@@ -216,7 +217,7 @@ export const CaseLookup: React.FC<CaseLookupProps> = ({ lang }) => {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="activa-caret-blink space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">{t.fb_lookup_login_email}</label>
               <input
@@ -358,7 +359,7 @@ export const CaseLookup: React.FC<CaseLookupProps> = ({ lang }) => {
                       <Building2 className="w-3 h-3" /> {t.fb_lookup_field_location}
                     </span>
                     <span className="font-semibold text-slate-800">
-                      {searchResult.entity} ({searchResult.country})
+                      {searchResult.entity} ({formatCountryLabel(ACTIVA_COUNTRIES, searchResult.country)})
                     </span>
                   </div>
                   <div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart3,
   ShieldCheck,
@@ -24,6 +24,8 @@ import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 // n'utilisent jamais — même motif que le chargement dynamique déjà réel de
 // `services/firebase` ailleurs dans l'app.
 import type ExcelJS from 'exceljs';
+// === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de bord Statistiques) ===
+import { ReportingPrintView } from './ReportingPrintView';
 
 interface ReportingDashboardProps {
   lang: Language;
@@ -140,6 +142,13 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   // `handleExportCSV` ci-dessous (jamais supprimée, simplement re-branchée).
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   const [exportFields, setExportFields] = useState<Set<ExportFieldGroupKey>>(new Set(EXPORT_FIELD_GROUPS.map((g) => g.key)));
+  // === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de bord
+  // Statistiques) === Dès que `showPrintReport` passe à true,
+  // ReportingPrintView.tsx (rendu plus bas, cf. `.print-only` dans
+  // index.css) devient le SEUL contenu visible dans la boîte de dialogue
+  // d'impression du navigateur — jamais toute la page (barre latérale,
+  // filtres, boutons) comme auparavant (BUG PRÉEXISTANT CORRIGÉ).
+  const [showPrintReport, setShowPrintReport] = useState(false);
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — filtres réels période/pays/entité/catégorie/statut) ===
   // Real filters applied to the same live storage.getAlerts() data — every
@@ -239,7 +248,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `ACTIVA_EthicAlert_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `activa-whistleblowing_Report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -269,7 +278,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     const ExcelJSModule = await import('exceljs');
     const Excel = (ExcelJSModule.default ?? ExcelJSModule) as typeof ExcelJS;
     const workbook = new Excel.Workbook();
-    workbook.creator = 'ACTIVA EthicAlert';
+    workbook.creator = 'activa-whistleblowing';
     workbook.created = new Date();
     const sheet = workbook.addWorksheet('Rapport');
     sheet.addRow(headers).font = { bold: true };
@@ -290,7 +299,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ACTIVA_EthicAlert_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+    link.download = `activa-whistleblowing_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -312,8 +321,23 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
       undefined,
       activeUser
     );
-    window.print();
+    setShowPrintReport(true);
   };
+
+  // === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de bord
+  // Statistiques) === Laisse React monter ReportingPrintView (rendu
+  // conditionnellement sur `showPrintReport`, plus bas) avant d'appeler
+  // `window.print()`, qui n'imprime alors QUE ce contenu grâce aux règles
+  // `.print-only`/`@media print` (index.css) — même mécanisme que
+  // CaseReportPrintView.tsx (InvestigationDesk.tsx).
+  useEffect(() => {
+    if (!showPrintReport) return;
+    const timer = window.setTimeout(() => {
+      window.print();
+      setShowPrintReport(false);
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [showPrintReport]);
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
@@ -525,7 +549,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         <div id="report-anchor-category" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Répartition par catégorie de manquement (CDC 2.0)
+              Répartition par catégorie de manquement
             </h3>
             <span className="text-[11px] text-slate-500 font-medium">{Object.keys(categoryCounts).length} catégories</span>
           </div>
@@ -687,9 +711,15 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  // === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de
+                  // bord Statistiques) === Ferme cette modale AVANT
+                  // d'imprimer (plutôt qu'après) : sinon elle restait
+                  // visible derrière la boîte de dialogue d'impression du
+                  // navigateur, source de confusion signalée par
+                  // l'utilisateur.
+                  setShowExportModal(false);
                   if (exportFormat === 'csv') handleExportCSV(exportFields);
                   else handlePrint();
-                  setShowExportModal(false);
                 }}
                 disabled={exportFormat === 'csv' && exportFields.size === 0}
                 className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold"
@@ -699,6 +729,37 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de bord
+          Statistiques) === Rendu inconditionnellement caché à l'écran
+          (`.print-only`, voir index.css) — ne devient visible que dans la
+          boîte de dialogue d'impression du navigateur, une fois
+          `showPrintReport` à true (voir le useEffect plus haut, qui
+          appelle window.print() puis le réinitialise). */}
+      {showPrintReport && (
+        <ReportingPrintView
+          generatedByName={activeUser.name}
+          locale={lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'}
+          totalAlerts={totalAlerts}
+          activeAlerts={activeAlerts}
+          closedAlerts={closedAlerts}
+          resolutionRate={resolutionRate}
+          avgResolutionDays={avgResolutionDays}
+          anonymousCount={anonymousCount}
+          identifiedCount={identifiedCount}
+          anonymousPct={anonymousPct}
+          noca4Count={noca4Count}
+          noca3Count={noca3Count}
+          noca2Count={noca2Count}
+          noca1Count={noca1Count}
+          categoryCounts={categoryCounts}
+          countryCounts={countryCounts}
+          visibleCountries={visibleCountries}
+          webChannelCount={webChannelCount}
+          qrChannelCount={qrChannelCount}
+          filtersActive={filtersActive}
+        />
       )}
     </div>
   );

@@ -44,8 +44,17 @@ export function DataTable<T>({ columns, rows, getRowKey, onRowClick, emptyTitle,
         <table className="min-w-full divide-y divide-slate-200 text-xs">
           <thead className="bg-slate-50">
             <tr>
+              {/* === AMÉLIORATION AJOUTÉE (alignement des tableaux) === BUG
+                  PRÉEXISTANT CORRIGÉ : un en-tête plus long que les autres
+                  (ex. "Clôturé le") passait sur 2 lignes alors que ses
+                  voisins restaient sur 1, désalignant toute la ligne d'en-
+                  têtes. `whitespace-nowrap` + `align-middle` explicite sur
+                  chaque cellule d'en-tête, pour toutes les tables de
+                  l'application (composant générique) — la colonne
+                  contenante défile déjà horizontalement au besoin
+                  (`overflow-x-auto` sur le conteneur). */}
               {columns.map((col) => (
-                <th key={col.key} className="px-4 py-2.5 text-left font-bold text-slate-600 uppercase tracking-wide text-[10px]">
+                <th key={col.key} className="px-4 py-2.5 text-left align-middle font-bold text-slate-600 uppercase tracking-wide text-[10px] whitespace-nowrap">
                   {col.header}
                 </th>
               ))}
@@ -59,8 +68,20 @@ export function DataTable<T>({ columns, rows, getRowKey, onRowClick, emptyTitle,
                 onClick={() => onRowClick?.(row)}
                 className={onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}
               >
+                {/* === AMÉLIORATION AJOUTÉE (bien ranger les données —
+                    lignes de tableau) === BUG PRÉEXISTANT CORRIGÉ, même
+                    cause que le correctif d'alignement des en-têtes
+                    ci-dessus (déjà `whitespace-nowrap`) : une cellule au
+                    contenu plus long qu'une autre (ex. libellé de catégorie)
+                    passait sur 2-4 lignes alors que ses voisines restaient
+                    sur 1, rendant la hauteur de chaque ligne irrégulière et
+                    le tableau visuellement désordonné. `whitespace-nowrap`
+                    uniformise toutes les cellules sur une seule ligne — le
+                    conteneur défile déjà horizontalement au besoin
+                    (`overflow-x-auto` ci-dessus), pour toutes les tables de
+                    l'application (composant générique). */}
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3 text-slate-700 align-middle">
+                  <td key={col.key} className="px-4 py-3 text-slate-700 align-middle whitespace-nowrap">
                     {col.render(row)}
                   </td>
                 ))}

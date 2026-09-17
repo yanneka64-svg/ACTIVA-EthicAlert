@@ -18,8 +18,6 @@ import {
   Network,
   // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
   SlidersHorizontal,
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  GitBranch,
   // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
   Inbox,
   UserPlus,
@@ -37,6 +35,8 @@ import {
   // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) ===
   ClipboardCheck,
   Eye,
+  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
+  Archive,
 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -90,8 +90,13 @@ interface StaffPortalLayoutProps {
 
 // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de données"
 // retiré) === 'admin_database' retiré de cette liste, sur demande explicite
-// de l'utilisateur (voir aussi routing/routes.ts et App.tsx).
-const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_workflow', 'admin_entities', 'admin_categories'];
+// de l'utilisateur (voir aussi routing/routes.ts et App.tsx). `admin_workflow`
+// retiré ici en fusionnant avec `main`, qui n'a jamais extrait de composant
+// d'onglet Workflow lors de son propre refactor d'AdminConfigView.tsx (voir
+// App.tsx) — le backend (`storage.getWorkflowTransitions`/
+// `updateWorkflowTransitions`) reste intact, seule cette entrée de menu vers
+// un écran qui n'existe plus dans la nouvelle structure disparaît.
+const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_entities', 'admin_categories'];
 
 // Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
 // "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à
@@ -197,11 +202,25 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'op_assign', label: t.sidebar_op_assign, icon: <UserPlus className="w-4 h-4" />, group: '' },
     { key: 'op_pending_info', label: t.sidebar_op_pending, icon: <Clock3 className="w-4 h-4" />, group: '' },
     { key: 'op_processed', label: t.sidebar_op_processed, icon: <CheckCircle2 className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+    // envoyés en revue) === entre "Dossiers ouverts" et "Dossiers
+    // clôturés" — suite logique du cycle de vie du dossier.
+    { key: 'op_review', label: t.sidebar_op_review, icon: <Eye className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === juste en
+    // dessous de "Dossiers attribués", sur demande explicite.
+    { key: 'op_closed', label: t.sidebar_op_closed, icon: <Archive className="w-4 h-4" />, group: '' },
     ...toolsItems.map((i) => ({ ...i, group: t.sidebar_group_tools })),
   ];
 
   const investigatorItems: NavItem[] = [
-    { key: 'inv_dashboard', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+    // "Tableau de bord" remplacé par "Boîte de réception" sur demande
+    // explicite de l'utilisateur : l'écran cible (`inv_dashboard` →
+    // InvestigationDesk, `initialFilter={{ myCasesOnly: true }}`, voir
+    // App.tsx) montre déjà uniquement les dossiers attribués à l'enquêteur
+    // connecté — seuls le libellé et l'icône changent, clé de routage et
+    // écran inchangés (route '/investigator/dashboard' conservée).
+    { key: 'inv_dashboard', label: t.sidebar_inv_inbox, icon: <Inbox className="w-4 h-4" />, group: '' },
     { key: 'inv_my_cases', label: t.sidebar_inv_my_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' },
     { key: 'inv_to_process', label: t.sidebar_inv_to_process, icon: <ListChecks className="w-4 h-4" />, group: '' },
     { key: 'inv_in_progress', label: t.sidebar_inv_in_progress, icon: <Search className="w-4 h-4" />, group: '' },
@@ -236,14 +255,20 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     { key: 'admin_organization', label: 'Organisation', icon: <Globe2 className="w-4 h-4" />, group: '' },
     { key: 'admin_entities', label: 'Entités du Groupe', icon: <Building2 className="w-4 h-4" />, group: '' },
     { key: 'admin_categories', label: 'Catégories', icon: <Tag className="w-4 h-4" />, group: '' },
-    { key: 'admin_workflow', label: 'Workflows & Statuts', icon: <GitBranch className="w-4 h-4" />, group: '' },
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
     { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, group: '' },
     // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
     // données" retiré) === Entrée "Base de données" retirée d'ici, sur
-    // demande explicite de l'utilisateur.
-    { key: 'settings', label: 'Paramètres système', icon: <Settings className="w-4 h-4" />, group: '' },
+    // demande explicite de l'utilisateur — l'écran (rattachement Firebase)
+    // et sa route restent en place, seul le lien de menu disparaît.
+    // === AMÉLIORATION AJOUTÉE (suppression du lien "Paramètres système") ===
+    // Retiré sur `main`, sur demande explicite de l'utilisateur : ce lien
+    // était redondant avec le titre affiché en tête de la sidebar
+    // ci-dessous. L'écran qu'il ciblait ('settings' → route '/admin',
+    // `configTab` par défaut 'matrix') reste l'écran d'accueil naturel de
+    // l'espace Admin — atteint dès l'entrée dans l'espace, sans avoir
+    // besoin d'un lien de menu dédié.
   ];
 
   // === AMÉLIORATION AJOUTÉE (Espace Consultation — Audit interne &
@@ -343,29 +368,30 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   return (
     <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
-      {/* === AMÉLIORATION AJOUTÉE (Correction bug — la barre de navigation
+      {/* === AMÉLIORATION AJOUTÉE (sidebar sous la topbar) === z-index
+          explicite, strictement inférieur à celui de la topbar
+          (Navbar.tsx, `z-40`), pour garantir que la sidebar collante ne
+          puisse jamais s'afficher par-dessus elle pendant le défilement —
+          elle doit toujours commencer juste en dessous.
+          === AMÉLIORATION AJOUTÉE (Ascenseur sous l'en-tête) === `top-
+          [5.5rem]` → `top-0` : cet offset compensait l'en-tête `sticky`
+          flottant par-dessus le contenu pendant le défilement de la page
+          entière. App.tsx a été restructuré pour que l'en-tête vive hors
+          de la zone désormais seule scrollable (qui commence déjà juste
+          en dessous de lui) — cette sidebar colle donc naturellement au
+          bon endroit dès `top-0`, relatif à ce nouveau conteneur.
+          === AMÉLIORATION AJOUTÉE (Correction bug — la barre de navigation
           s'arrête bien avant le pied de page) === BUG PRÉEXISTANT CORRIGÉ,
           signalé par l'utilisateur, capture de référence à l'appui :
           `lg:self-start` limitait la hauteur de cette carte à son seul
-          contenu (liste de menu + carte "Besoin d'aide ?"), plus courte que
-          la colonne de contenu à droite dès qu'un écran est un peu long —
-          un grand espace vide séparait alors le bas de la barre latérale du
-          bandeau de pied de page, au lieu de s'arrêter juste au-dessus.
-          `lg:self-stretch` (le comportement par défaut de Flexbox, ici
-          réaffirmé explicitement) étire la carte à la hauteur réelle de la
-          ligne (= la plus haute des deux colonnes) ; `<nav>` porte déjà
-          `flex-1` (inchangé) et pousse donc naturellement la carte "Besoin
-          d'aide ?" tout en bas de cette hauteur disponible, sans qu'aucun
-          élément existant ne soit déplacé ou retiré. Le comportement
-          `sticky` ci-dessus reste inchangé. Limité à `selectedSpace ===
-          'admin'` (les captures de référence de l'utilisateur montrent
-          l'écran Administration) : les espaces Opérateur/Enquêteur ont des
-          tableaux de bord bien plus longs que leur propre menu (peu
-          d'entrées) — y étirer la carte créerait un vide interne bien plus
-          grand que le problème signalé, sans qu'aucune capture ne demande
-          ce changement là. `lg:self-start` (comportement inchangé) reste
-          donc la valeur par défaut pour tous les autres espaces. */}
-      <aside className={`hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-[5.5rem] ${selectedSpace === 'admin' ? 'lg:self-stretch' : 'lg:self-start'} bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6`}>
+          contenu, plus courte que la colonne de contenu à droite dès qu'un
+          écran est un peu long. `lg:self-stretch`, réservé à
+          `selectedSpace === 'admin'`, étire la carte à la hauteur réelle
+          de la ligne ; `<nav>` porte déjà `flex-1` et pousse donc
+          naturellement la carte "Besoin d'aide ?" tout en bas. Les espaces
+          Opérateur/Enquêteur (tableaux de bord bien plus longs que leur
+          propre menu) gardent `lg:self-start`. */}
+      <aside className={`hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-0 lg:z-30 ${selectedSpace === 'admin' ? 'lg:self-stretch' : 'lg:self-start'} bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6`}>
         {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
             sélecteur en barre latérale) === Le petit bloc "ESPACES" qui
             vivait ici (2-3 boutons empilés en haut de la sidebar) est
@@ -383,22 +409,20 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
             barre latérale, propre à l'espace Admin (fidèle à la référence)
             — purement visuel, ne change ni `navItems` ni la navigation
             elle-même.
-            === AMÉLIORATION AJOUTÉE (Correction demandée — renommage du
-            titre) === "Administration" remplacé par "Paramètres
-            Utilisateur et Configuration", puis par "Panneau de
-            configuration", sur 2 demandes explicites successives de
-            l'utilisateur.
-            === AMÉLIORATION AJOUTÉE (Correction demandée — sous-titre
-            retiré) === Le sous-titre "Paramètres, utilisateurs et
-            configuration" sous ce titre est retiré, sur demande explicite
-            de l'utilisateur. */}
+            === AMÉLIORATION AJOUTÉE (renommages successifs du titre) ===
+            "Administration" → "Configuration"/"Paramètres Utilisateur et
+            Configuration" → "Panneau de configuration", sur plusieurs
+            demandes explicites successives de l'utilisateur (le lien de
+            menu "Paramètres système" du même nom, devenu redondant, a été
+            retiré juste au-dessus). Le sous-texte ("Paramètres,
+            utilisateurs et configuration") reste retiré. */}
         {selectedSpace === 'admin' && (
           <div className="flex items-center gap-2.5 px-3.5 pt-4 pb-1">
             <span className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 shrink-0">
               <Settings className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <p className="font-extrabold text-slate-900 text-sm leading-tight">Panneau de configuration</p>
+              <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">Panneau de configuration</p>
             </div>
           </div>
         )}
@@ -427,7 +451,13 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
             return (
               <React.Fragment key={`${item.key}-${item.label}`}>
                 {showGroupHeader && (
-                  <div className="px-3 pt-3.5 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
+                  // BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core :
+                  // text-slate-400 à cette taille ne passe pas le seuil WCAG
+                  // AA (2.63:1, minimum 4.5:1) — text-slate-600 y remédie
+                  // (text-slate-500 seul restait tout juste insuffisant,
+                  // 4.46:1, sur le fond légèrement teinté de la sidebar).
+                  <div className="px-3 pt-3.5 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">
                     {item.group}
                   </div>
                 )}

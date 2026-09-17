@@ -4,12 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- === AMÉLIORATION AJOUTÉE (Phase 11 — alignement de marque) === -->
-    <title>ACTIVA EthicAlert</title>
+    <title>activa-whistleblowing</title>
     <meta name="description" content="Plateforme sécurisée et multilingue de gestion et de signalement confidentiel ou anonyme des alertes éthiques pour le Groupe ACTIVA." />
-    <meta property="og:title" content="ACTIVA EthicAlert" />
+    <meta property="og:title" content="activa-whistleblowing" />
     <meta property="og:description" content="Plateforme sécurisée et multilingue de gestion et de signalement confidentiel ou anonyme des alertes éthiques pour le Groupe ACTIVA." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
+         BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : la photo du
+         siège (page d'accueil publique, destination naturelle après
+         déconnexion) n'était demandée qu'une fois React monté et le
+         composant WhistleblowerHome rendu — après le téléchargement et
+         l'exécution du bundle JS. Ce préchargement démarre le
+         téléchargement de l'image EN PARALLÈLE du bundle, dès le chargement
+         de la page, réduisant nettement le délai avant son affichage. -->
+    <link rel="preload" as="image" href="/brand/activa-hq-hero.jpg" fetchpriority="high" />
+    <!-- === AMÉLIORATION AJOUTÉE (images de fond des autres pages lentes à
+         l'affichage) === BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur :
+         seule la photo de la page d'accueil ci-dessus était préchargée — les
+         3 autres photos de fond (suivi de signalement, espace de travail
+         staff, écran de confidentialité du formulaire) n'étaient demandées
+         qu'une fois React monté sur CETTE page précise, exactement le même
+         bug que celui déjà corrigé ci-dessus. Préchargées ici aussi, en
+         priorité basse (elles ne sont pas forcément visibles au tout premier
+         chargement, contrairement à la photo d'accueil) : déjà en cache dès
+         que l'utilisateur navigue vers l'une de ces pages, dans cette
+         session ou par lien direct. -->
+    <link rel="preload" as="image" href="/brand/track-login-bg.jpg" fetchpriority="low" />
+    <link rel="preload" as="image" href="/brand/space-home-bg.jpg" fetchpriority="low" />
+    <link rel="preload" as="image" href="/brand/confidentiality-gate-bg.jpg" fetchpriority="low" />
   </head>
   <body>
     <div id="root"></div>

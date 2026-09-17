@@ -23,6 +23,12 @@ export type Permission =
   | 'cases.edit'
   | 'cases.close'
   | 'cases.reopen'
+  // === AMÉLIORATION AJOUTÉE (Fix — gate Archiver par une permission dédiée) ===
+  // Distincte de `cases.close`/`cases.reopen` : l'archivage légal (statut
+  // `archived`, conservation 10 ans) est une action encore plus définitive,
+  // réservée aux mêmes rôles que `cases.reopen` (voir ROLE_PERMISSIONS
+  // ci-dessous).
+  | 'cases.archive'
   | 'cases.export'
   | 'evidence.read'
   | 'evidence.upload'
@@ -51,6 +57,12 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
   senior_investigator: [
     'cases.read',
     'cases.edit',
+    // === AMÉLIORATION AJOUTÉE : le Responsable des Investigations Groupe
+    // est le seul rôle à combiner par défaut les habilitations Opérateur
+    // (attribution des dossiers) et Enquêteur — `cases.assign` lui donne
+    // le droit d'agir, `GLOBAL_VISIBILITY_ROLES` ci-dessous (même fichier)
+    // lui donne la visibilité nécessaire pour le faire réellement.
+    'cases.assign',
     'cases.reassign',
     'cases.close',
     'evidence.read',
@@ -68,6 +80,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     'cases.edit',
     'cases.close',
     'cases.reopen',
+    'cases.archive',
     'cases.export',
     'evidence.read',
     'evidence.upload',
@@ -81,9 +94,18 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
   darc_compliance: [
     'cases.read',
     'cases.assign',
+    // === AMÉLIORATION AJOUTÉE : le Directeur Audit, Risques et Conformité
+    // Groupe (darc_compliance) obtient les mêmes habilitations Opérateur +
+    // Enquêteur que le Responsable des Investigations (senior_investigator,
+    // voir plus haut) — `cases.assign` (déjà présent) + `cases.edit`
+    // suffisent : `darc_compliance` est déjà dans GLOBAL_VISIBILITY_ROLES,
+    // donc passe naturellement `canSeeOperatorSpace`/`canSeeInvestigatorSpace`
+    // (domain/staffSpaces.ts) sans autre changement.
+    'cases.edit',
     'cases.reassign',
     'cases.close',
     'cases.reopen',
+    'cases.archive',
     'cases.export',
     'evidence.read',
     'communications.read',
@@ -190,7 +212,14 @@ function isInScope(user: AppUser, kase: Pick<Case, 'country' | 'entity'>): boole
 // `consultation` : sans vision globale, `cases.read` seul resterait sans
 // effet (un compte non assigné à aucun dossier ne verrait jamais rien —
 // voir `useVisibleAlerts.ts`).
-const GLOBAL_VISIBILITY_ROLES: RoleId[] = ['functional_admin', 'darc_compliance', 'consultation', 'executive', 'audit_committee'];
+// === AMÉLIORATION AJOUTÉE : `senior_investigator` (Responsable des
+// Investigations Groupe) ajouté — seul rôle "investigateur" à voir tous les
+// dossiers de son périmètre pays/entité (pas seulement ceux qui lui sont
+// assignés), condition nécessaire pour que l'Espace Opérateur (attribution)
+// lui soit réellement utilisable, exactement comme functional_admin/
+// darc_compliance aujourd'hui. `investigator` (enquêteur simple) reste
+// volontairement absent de cette liste — comportement inchangé.
+const GLOBAL_VISIBILITY_ROLES: RoleId[] = ['functional_admin', 'darc_compliance', 'consultation', 'executive', 'audit_committee', 'senior_investigator'];
 
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles
 // dans l'app réelle) === Exposé pour que `src/services/authz.ts` (couche

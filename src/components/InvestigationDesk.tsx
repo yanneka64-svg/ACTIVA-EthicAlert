@@ -42,6 +42,15 @@ import {
   ChevronLeft,
   // === AMÉLIORATION AJOUTÉE (Retours visuels — cartes d'info du dossier) ===
   Hourglass,
+  // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
+  HelpCircle,
+  Eye,
+  // === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation en fichier) ===
+  X,
+  // === AMÉLIORATION AJOUTÉE (Onglet Entretiens) ===
+  Mic,
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors périmètre) ===
+  Ban,
 } from 'lucide-react';
 import {
   Language,
@@ -58,23 +67,49 @@ import {
   EvidenceFile,
   InvolvedPerson,
   Witness,
+  CaseInterview,
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+// section) === premier contenu d'onglet extrait dans son propre composant,
+// voir src/components/investigation/CaseTimelineSection.tsx.
+import { CaseTimelineSection } from './investigation/CaseTimelineSection';
+import { PersonRow } from './investigation/PersonRow';
+import { PersonsSection } from './investigation/PersonsSection';
+import { EvidenceSection } from './investigation/EvidenceSection';
+import { MessagesSection } from './investigation/MessagesSection';
+import { CorrectiveMeasuresSection } from './investigation/CorrectiveMeasuresSection';
+import { TasksSection } from './investigation/TasksSection';
+import { InterviewsSection } from './investigation/InterviewsSection';
+import { TriageSection } from './investigation/TriageSection';
+import { ReportSection } from './investigation/ReportSection';
+import { OverviewSection } from './investigation/OverviewSection';
+import { PriorityModal } from './investigation/PriorityModal';
+import { AddPersonModal } from './investigation/AddPersonModal';
+import { LinkPersonModal } from './investigation/LinkPersonModal';
+import { EscalateModal } from './investigation/EscalateModal';
+import { DismissModal } from './investigation/DismissModal';
+import { AddMeasureModal } from './investigation/AddMeasureModal';
+import { AssignModal } from './investigation/AssignModal';
+import { AddTaskModal } from './investigation/AddTaskModal';
+import { getPriorityBadge } from './investigation/getPriorityBadge';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
-import { notifyAssignmentToInvestigators } from '../services/emailNotify';
-import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
+import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
+import { StatusBadge, Breadcrumb, nocaColor, DataTable, ConfirmDialog } from './ui';
 import type { DataTableColumn } from './ui';
-import { computeSlaStatus } from '../services/statusMapping';
+// === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+import { CaseReportPrintView } from './CaseReportPrintView';
+import { computeSlaStatus, deriveCaseStatus, applyCaseStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { isGlobalCaseViewer, userCan } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
-import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
+import { computeCandidates } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
 // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-import { evaluateEscalationCriteria, getGroupEscalationOwners } from '../domain/escalationCriteria';
+import { evaluateEscalationCriteria } from '../domain/escalationCriteria';
 // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === même
 // regroupement en 5 paniers que le Tableau de bord (Phase 1), pour que les
 // onglets de filtre affichent exactement les mêmes catégories.
@@ -83,130 +118,25 @@ import { AlertStatusBucket, getAlertStatusBucket, isRejectedBucket } from '../do
 // Mêmes fonctions réelles que le formulaire public (AlertSubmissionFlow.tsx)
 // pour l'évaluation de risque et la génération du code d'accès sécurisé —
 // jamais réimplémentées à la main pour cette modale.
-import { computeRiskEvaluation } from '../data/activaConfig';
+import { computeRiskEvaluation, formatCountryLabel } from '../data/activaConfig';
 import { generateSalt, hashPassword, generateAccessPassword } from '../services/crypto';
 
-// === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
-// Petit composant partagé entre les deux groupes (compatibles / autorisés
-// Groupe) de la modale d'attribution — évite de dupliquer deux fois le
-// même balisage checkbox + charge de travail.
-// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === Exportée (auparavant
-// privée à ce fichier) pour que le nouvel écran OperatorCaseDesk.tsx
-// réutilise exactement le même balisage checkbox + charge de travail pour
-// son propre panneau d'attribution, plutôt que de le dupliquer — aucun
-// changement de comportement ici.
-export function AssignCandidateRow({
-  candidate,
-  checked,
-  onToggle,
-}: {
-  candidate: AssignmentCandidate;
-  checked: boolean;
-  onToggle: (checked: boolean) => void;
-}) {
-  const { user: inv, workload } = candidate;
-  return (
-    <label
-      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-        checked ? 'bg-blue-50 border-blue-400 font-semibold' : 'border-slate-200 hover:bg-slate-50'
-      }`}
-    >
-      <div>
-        <div className="text-slate-900">{inv.name}</div>
-        <div className="text-[11px] text-slate-500">{inv.roleTitle} • {inv.country}</div>
-        <div className="text-[10px] text-slate-400 mt-0.5">
-          {workload.active} dossier(s) actif(s)
-          {workload.overdue > 0 && <span className="text-rose-600 font-semibold"> · {workload.overdue} en retard</span>}
-        </div>
-      </div>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onToggle(e.target.checked)}
-        className="rounded text-blue-600 focus:ring-blue-500"
-      />
-    </label>
-  );
-}
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+// section) === `AssignCandidateRow` déplacé tel quel dans
+// src/components/investigation/AssignCandidateRow.tsx, désormais partagé
+// entre OperatorCaseDesk.tsx et AssignModal.tsx (plus utilisé directement
+// ici depuis l'extraction de la modale d'attribution).
 
-// === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
-// Petit composant partagé entre la modale "+ Ajouter" et la modale "Lier à
-// un compte" — évite de dupliquer deux fois le même <select> de
-// rattachement d'une personne impliquée/témoin à un compte réel de la
-// plateforme (InvolvedPerson.linkedUserId / Witness.linkedUserId,
-// types.ts Phase 1). Dès qu'un rattachement est défini, le routage
-// indépendant (domain/independentRouting.ts, Phase 3-4) exclura
-// automatiquement ce compte de l'accès au dossier.
-function LinkedAccountSelect({
-  users,
-  value,
-  onChange,
-}: {
-  users: UserProfile[];
-  value: string;
-  onChange: (userId: string) => void;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white"
-    >
-      <option value="">Aucun (personne externe)</option>
-      {users.map((u) => (
-        <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
-      ))}
-    </select>
-  );
-}
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+// section) === `LinkedAccountSelect` déplacé tel quel dans
+// src/components/investigation/LinkedAccountSelect.tsx (importé ci-dessus),
+// partagé entre AddPersonModal.tsx et LinkPersonModal.tsx.
 
-// === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
-// Ligne Personne impliquée/Témoin, partagée entre le résumé de l'onglet
-// Vue d'ensemble et l'onglet Personnes dédié — ces deux rendus affichaient
-// jusqu'ici un balisage identique dupliqué. Ajoute l'indicateur "Compte
-// lié" et l'affordance "Lier à un compte" sans changer le rendu existant
-// (avatar/nom/fonction/niveau hiérarchique) ; `dense` reproduit fidèlement
-// les deux légères différences de taille qui existaient déjà entre les
-// deux contextes (résumé compact vs. onglet dédié).
-function PersonRow({
-  person,
-  users,
-  dense,
-  onLinkClick,
-}: {
-  person: InvolvedPerson | Witness;
-  users: UserProfile[];
-  dense: boolean;
-  onLinkClick: () => void;
-}) {
-  const linkedUser = person.linkedUserId ? users.find((u) => u.id === person.linkedUserId) : undefined;
-  return (
-    <div className={`flex items-center gap-2.5 ${dense ? 'p-2' : 'p-2.5'} bg-slate-50 rounded-lg border border-slate-100`}>
-      <span className={`${dense ? 'w-8 h-8 text-[11px]' : 'w-9 h-9 text-xs'} rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0`}>
-        {(person.name || '??').slice(0, 2).toUpperCase()}
-      </span>
-      <div className="min-w-0 flex-1">
-        <span className="font-bold text-slate-900 block truncate">{person.name || 'Confidentiel'}</span>
-        <div className="text-[11px] text-slate-500 truncate">{person.position} • {person.hierarchyRole}</div>
-        {linkedUser && (
-          <div className="text-[10px] text-emerald-700 font-semibold truncate flex items-center gap-1 mt-0.5">
-            <Link2 className="w-3 h-3" />
-            Compte lié : {linkedUser.name}
-          </div>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={onLinkClick}
-        title="Lier à un compte"
-        className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-blue-700 hover:bg-blue-50"
-      >
-        <Link2 className="w-3.5 h-3.5" />
-      </button>
-      <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-    </div>
-  );
-}
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+// section) === `PersonRow` déplacé tel quel dans
+// src/components/investigation/PersonRow.tsx (importé ci-dessus), partagé
+// entre le résumé "Vue d'ensemble" ci-dessous et l'onglet "Personnes"
+// dédié (voir PersonsSection.tsx).
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -361,7 +291,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // "Rapport", en plus d'une synthèse — rien n'est supprimé, tout reste
   // accessible, juste réorganisé. 'triage' s'affiche sous le libellé
   // "Allégations" (contenu existant enrichi d'un résumé de la qualification).
-  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'messages' | 'corrective' | 'tasks' | 'timeline' | 'triage' | 'persons' | 'evidence_tab' | 'report'>(initialCaseTab ?? 'overview');
+  const [activeCaseTab, setActiveCaseTab] = useState<'overview' | 'messages' | 'corrective' | 'tasks' | 'interviews' | 'timeline' | 'triage' | 'persons' | 'evidence_tab' | 'report'>(initialCaseTab ?? 'overview');
 
   // === AMÉLIORATION AJOUTÉE (Phase 10 — refonte visuelle façon maquette) ===
   // Consolidates the action toolbar (Attribution/Priorité/Clôture/Réouverture/
@@ -386,14 +316,56 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [reopenReason, setReopenReason] = useState<string>('');
 
+  // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche —
+  // étapes "En attente d'informations" et "En revue" désormais atteignables)
+  // === `domain/workflow.ts`/`storage.transitionStatus()` existaient déjà,
+  // entièrement testés (storage.transitionStatus.test.ts), mais n'étaient
+  // appelés par aucun écran — ces deux étapes de la timeline "STATUT DU
+  // DOSSIER" restaient donc en permanence grisées ("à venir"), quel que
+  // soit le dossier. Ces 2 nouvelles actions les rendent réellement
+  // franchissables, sans toucher à la logique de clôture existante
+  // (handleCloseAlert), qui continue de fonctionner exactement comme avant.
+  const [showRequestInfoModal, setShowRequestInfoModal] = useState(false);
+  const [requestInfoReason, setRequestInfoReason] = useState<string>('');
+
+  // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+  // l'envoi en revue) === "Envoyer en revue" n'apparaît dans le menu
+  // Actions qu'une fois ce rapport renseigné (texte ET/OU fichier importé —
+  // selectedAlert.investigationReport / investigationReportFile).
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportDraft, setReportDraft] = useState('');
+  const [reportFile, setReportFile] = useState<EvidenceFile | undefined>(undefined);
+  const reportFileInputRef = useRef<HTMLInputElement>(null);
+
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [escalateReason, setEscalateReason] = useState<string>('');
   const [escalateOwnerId, setEscalateOwnerId] = useState<string>('');
 
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+  // périmètre) === `CaseStatus` (domain/caseTypes.ts, 14 valeurs) prévoyait
+  // déjà 'duplicate'/'out_of_scope', structurellement atteignables depuis
+  // 'new' (ALLOWED_TRANSITIONS, domain/workflow.ts) — mais aucun écran ne
+  // les proposait, les rendant de fait inaccessibles (constat de l'analyse
+  // critique du frontend). Réutilise storage.transitionStatus(), déjà réel
+  // pour pending_information/conclusion_pending/functional_review, jamais
+  // un nouveau mécanisme parallèle.
+  const [showDismissModal, setShowDismissModal] = useState(false);
+  const [dismissTargetStatus, setDismissTargetStatus] = useState<'duplicate' | 'out_of_scope'>('duplicate');
+  const [dismissReason, setDismissReason] = useState<string>('');
+
   // Note & Message inputs
   const [internalNoteText, setInternalNoteText] = useState<string>('');
   const [investigatorMsgText, setInvestigatorMsgText] = useState<string>('');
+
+  // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+  // Dès que `showPrintReport` passe à true, CaseReportPrintView.tsx (rendu
+  // plus bas, cf. `.print-only` dans index.css) devient le SEUL contenu
+  // visible dans la boîte de dialogue d'impression du navigateur — jamais
+  // toute la page comme auparavant (BUG PRÉEXISTANT CORRIGÉ, signalé par
+  // l'utilisateur). Un seul modèle désormais (synthèse), sur demande
+  // explicite — plus besoin du menu de choix entre plusieurs modèles.
+  const [showPrintReport, setShowPrintReport] = useState(false);
 
   // Corrective Measure form inputs
   const [showAddMeasureModal, setShowAddMeasureModal] = useState(false);
@@ -410,6 +382,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const [taskOwnerId, setTaskOwnerId] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
   const [taskPriority, setTaskPriority] = useState<TaskPriority>('medium');
+
+  // === AMÉLIORATION AJOUTÉE (Onglet Entretiens — branchement de
+  // storage.addInterview(), jusqu'ici écrit et testé mais jamais appelé par
+  // aucun écran) === même gabarit que le formulaire "+Nouvelle tâche"
+  // ci-dessus.
+  const [showAddInterviewModal, setShowAddInterviewModal] = useState(false);
+  const [interviewIntervieweeName, setInterviewIntervieweeName] = useState('');
+  const [interviewLinkedPersonId, setInterviewLinkedPersonId] = useState('');
+  const [interviewScheduledAt, setInterviewScheduledAt] = useState('');
+  const [interviewSummary, setInterviewSummary] = useState('');
+  const [interviewStatus, setInterviewStatus] = useState<CaseInterview['status']>('planned');
 
   // === AMÉLIORATION AJOUTÉE (Phase 6 — Triage & Conflit d'intérêt) ===
   const [showConflictModal, setShowConflictModal] = useState(false);
@@ -591,6 +574,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // mode (e.g. a trackingNumber deep link narrows the search to one match) —
   // in list mode there is deliberately no "current" case.
   const selectedAlert = alerts.find(a => a.id === selectedAlertId) || (viewMode === 'detail' ? visibleAlerts[0] : undefined) || null;
+
+  // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+  // Laisse React monter CaseReportPrintView (rendu conditionnellement sur
+  // `showPrintReport`, plus bas dans ce composant) avant d'appeler
+  // `window.print()`, qui n'imprime alors QUE ce contenu grâce aux règles
+  // `.print-only`/`@media print` (index.css) — jamais le reste de l'app.
+  useEffect(() => {
+    if (!showPrintReport || !selectedAlert) return;
+    const timer = window.setTimeout(() => {
+      window.print();
+      setShowPrintReport(false);
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [showPrintReport, selectedAlert]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
   // Candidats à l'attribution pour le dossier actuellement sélectionné —
@@ -893,21 +890,49 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     }, activeUser);
   };
 
-  const taskEffectiveStatus = (task: CaseTask): CaseTask['status'] => {
-    if (task.status === 'completed') return 'completed';
-    if (new Date(task.dueDate).getTime() < Date.now()) return 'overdue';
-    return task.status;
+  // === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === storage.addInterview,
+  // même motif audit que handleAddTask ci-dessus. La personne entendue peut
+  // être liée à une entrée réelle de "Personnes impliquées"/"Témoins" (son
+  // nom est alors repris tel quel, jamais dupliqué à la main) ou saisie
+  // librement (entretien avec un tiers externe au dossier).
+  const handleAddInterview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAlert) return;
+    const linkedPerson = interviewLinkedPersonId
+      ? [...selectedAlert.involvedPersons, ...selectedAlert.witnesses].find((p) => p.id === interviewLinkedPersonId)
+      : undefined;
+    const intervieweeName = linkedPerson?.name ?? interviewIntervieweeName.trim();
+    if (!intervieweeName) return;
+
+    const newInterview: CaseInterview = {
+      id: 'itv-' + Date.now(),
+      intervieweeName,
+      intervieweePersonId: linkedPerson?.id,
+      scheduledAt: interviewScheduledAt || undefined,
+      conductedAt: interviewStatus === 'completed' ? new Date().toISOString() : undefined,
+      conductedBy: activeUser.name,
+      summary: interviewSummary.trim() || undefined,
+      status: interviewStatus,
+    };
+
+    storage.addInterview(selectedAlert.id, newInterview, activeUser);
+
+    setInterviewIntervieweeName('');
+    setInterviewLinkedPersonId('');
+    setInterviewScheduledAt('');
+    setInterviewSummary('');
+    setInterviewStatus('planned');
+    setShowAddInterviewModal(false);
   };
 
-  // === AMÉLIORATION AJOUTÉE (Phase 6 — Triage) === exact wording already
-  // used at submission time (AlertSubmissionFlow's step 4), reused here so
-  // the Triage tab reads the same axis scores with the same labels.
-  const RISK_AXIS_LABELS: Record<'financialImpact' | 'hierarchyLevel' | 'recidivism' | 'reputationRisk', Record<1 | 2 | 3 | 4, string>> = {
-    financialImpact: { 1: 'Faible (01) : < 5 000 Euro', 2: 'Élevé (02) : 5 000 - 10 000 Euro', 3: 'Très élevé (03) : 10 000 - 20 000 Euro', 4: 'Critique (04) : > 20 000 Euro' },
-    hierarchyLevel: { 1: 'Faible (01) : Employé', 2: 'Élevé (02) : Cadre', 3: 'Très élevé (03) : Sous Directeur', 4: 'Critique (04) : Directeur' },
-    recidivism: { 1: 'Faible (01) : Aucune', 2: 'Élevé (02) : Possible', 3: 'Très élevé (03) : Confirmée', 4: 'Critique (04) : Confirmée (Majeure)' },
-    reputationRisk: { 1: 'Faible (01) : Négligeable', 2: 'Élevé (02) : Modéré', 3: 'Très élevé (03) : Élevé', 4: 'Critique (04) : Élevé / Médiatique' },
-  };
+  // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+  // section) === `taskEffectiveStatus` déplacée telle quelle dans
+  // src/components/investigation/TasksSection.tsx (importé ci-dessus),
+  // son seul appelant.
+
+  // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+  // section) === `RISK_AXIS_LABELS` déplacée telle quelle dans
+  // src/components/investigation/TriageSection.tsx, son seul appelant.
 
   // === AMÉLIORATION AJOUTÉE (Phase 6 — Conflit d'intérêt) === uses Phase
   // 1's ConflictDeclaration type + storage.declareConflict (already built,
@@ -970,7 +995,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     // Un rattachement défini dès la création déclenche immédiatement le
     // routage indépendant (storage.triggerIndependentRouting, Phase 4).
     if (personLinkedUserId) {
-      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      const fallbackRecipient = storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et
+      // de routage) === Aucune autorité interne trouvée → notifie le
+      // destinataire de dernier recours identifié par storage.ts.
+      if (fallbackRecipient) {
+        notifyEscalationRecipient(fallbackRecipient, selectedAlert, activeUser, 'Routage indépendant non résolu — intervention manuelle requise');
+      }
     }
     setAddPersonKind(null);
     setPersonNameInput('');
@@ -1003,7 +1034,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     }
     // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
     if (resolvedUserId) {
-      storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      const fallbackRecipient = storage.triggerIndependentRouting(selectedAlert.id, activeUser);
+      if (fallbackRecipient) {
+        notifyEscalationRecipient(fallbackRecipient, selectedAlert, activeUser, 'Routage indépendant non résolu — intervention manuelle requise');
+      }
     }
     setLinkingPerson(null);
     setLinkingUserId('');
@@ -1039,15 +1073,25 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     if (!selectedAlert) return;
 
     if (selectedAlert.correctiveMeasures.length === 0) {
-      alert("Conformément au CDC 3.1.2 et 3.1.3, la documentation préalable d'au moins une mesure corrective est obligatoire avant toute clôture de dossier.");
+      alert("La documentation préalable d'au moins une mesure corrective est obligatoire avant toute clôture de dossier.");
       setActiveCaseTab('corrective');
       setShowCloseModal(false);
       return;
     }
 
     const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      status: 'closed',
+      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+      // cause racine) === `applyCaseStatus` remplace la construction
+      // manuelle `status: 'closed', workflowStatus: 'closed'` — mêmes deux
+      // champs, mais désormais écrits ensemble par construction (voir
+      // services/statusMapping.ts) : sans cela, un dossier dont
+      // `workflowStatus` a été renseigné par le moteur riche (ex. passé par
+      // "Envoyer en revue") restait figé sur 'conclusion_pending'/
+      // 'functional_review' après sa clôture legacy — la timeline "STATUT
+      // DU DOSSIER" affichait alors "En revue" comme étape courante en même
+      // temps que "Clôturé" comme faite, une incohérence visuelle réelle
+      // (bug déjà corrigé, ce refactor n'en change pas le comportement).
+      ...applyCaseStatus(selectedAlert, 'closed'),
       closedAt: new Date().toISOString(),
       closedBy: activeUser.name,
       closureSummary: closureSummary.trim() || 'Dossier traité et investigué avec succès conformément aux directives de la DARC Groupe ACTIVA.',
@@ -1081,8 +1125,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     if (!selectedAlert || !reopenReason.trim()) return;
 
     const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      status: 'reopened',
+      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+      // cause racine) === `applyCaseStatus` remplace la construction
+      // manuelle — même synchronisation que handleCloseAlert : un dossier
+      // rouvert depuis 'conclusion_pending'/'functional_review' ne doit
+      // plus afficher "En revue" comme étape courante.
+      ...applyCaseStatus(selectedAlert, 'reopened'),
       reopenedAt: new Date().toISOString(),
       reopenedBy: activeUser.name,
       reopenReason: reopenReason.trim(),
@@ -1101,12 +1149,124 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setReopenReason('');
   };
 
+  // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
+  // Statut riche courant (14 valeurs) — `workflowStatus` s'il a déjà été
+  // renseigné par une de ces actions, sinon dérivé du statut legacy
+  // (`deriveCaseStatus`, déjà utilisé par storage.transitionStatus()
+  // lui-même) pour qu'un dossier jamais touché par ce nouveau chemin
+  // affiche des actions cohérentes dès le premier clic.
+  const currentWorkflowStatus = selectedAlert ? selectedAlert.workflowStatus ?? deriveCaseStatus(selectedAlert) : undefined;
+
+  // "Demander des informations complémentaires" (investigation → pending_information).
+  // Horodate `pendingInfoReachedAt` une seule fois (première visite réelle),
+  // pour que la timeline puisse plus tard cocher cette étape honnêtement.
+  const handleRequestInfo = () => {
+    if (!selectedAlert || !requestInfoReason.trim()) return;
+    const result = storage.transitionStatus(selectedAlert.id, 'pending_information', activeUser, requestInfoReason.trim());
+    if (result.allowed) {
+      const fresh = storage.getAlerts().find((a) => a.id === selectedAlert.id);
+      if (fresh && !fresh.pendingInfoReachedAt) {
+        storage.saveAlert({ ...fresh, pendingInfoReachedAt: new Date().toISOString() });
+      }
+    }
+    setShowRequestInfoModal(false);
+    setRequestInfoReason('');
+  };
+
+  // "Reprendre l'investigation" — depuis pending_information, conclusion_pending
+  // ou functional_review, toutes structurellement valides vers investigation
+  // (domain/workflow.ts, ALLOWED_TRANSITIONS).
+  const handleResumeInvestigation = () => {
+    if (!selectedAlert) return;
+    storage.transitionStatus(selectedAlert.id, 'investigation', activeUser);
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+  // l'envoi en revue) === "Rédiger le rapport d'investigation" — texte et/ou
+  // fichier importé (au moins l'un des deux), horodaté/attribué (pas de
+  // statut ni de transition, juste du contenu documentant le dossier),
+  // condition d'apparition de "Envoyer en revue" dans le menu Actions
+  // ci-dessous. Toujours le même libellé "Rédiger", qu'un rapport existe
+  // déjà ou non — rédiger de nouveau REMPLACE le contenu précédent plutôt
+  // que de prétendre à une distinction "création"/"modification" qui
+  // n'apporte rien ici (pas d'historique de versions).
+  const handleSaveInvestigationReport = () => {
+    if (!selectedAlert || (!reportDraft.trim() && !reportFile)) return;
+    storage.saveAlert({
+      ...selectedAlert,
+      investigationReport: reportDraft.trim() || undefined,
+      investigationReportFile: reportFile,
+      investigationReportBy: activeUser.name,
+      investigationReportAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    storage.logAudit(
+      'INVESTIGATION_REPORT_SAVED',
+      `Rapport d'investigation rédigé pour le dossier ${selectedAlert.trackingNumber} par ${activeUser.name}.`,
+      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
+      activeUser
+    );
+    setShowReportModal(false);
+    setReportDraft('');
+    setReportFile(undefined);
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation en
+  // fichier) === Même mécanique de lecture que handleAddEvidenceFile
+  // ci-dessus (FileReader → dataUrl) mais reste local à la modale
+  // (`reportFile`, pas storage.saveAlert direct) : le fichier n'est
+  // persisté qu'au clic sur "Enregistrer le rapport", comme le texte.
+  const handleImportReportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setReportFile({
+        id: 'ev-report-' + Date.now(),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadedAt: new Date().toISOString(),
+        dataUrl: typeof reader.result === 'string' ? reader.result : undefined,
+        uploadedBy: activeUser.name,
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // "Envoyer en revue" — enchaîne investigation → conclusion_pending →
+  // functional_review (les 2 sous-étapes distinctes du moteur riche) en un
+  // seul geste utilisateur, l'écran "STATUT DU DOSSIER" n'ayant qu'une
+  // seule étape visuelle "En revue" pour les deux. Horodate
+  // `reviewReachedAt` une seule fois (première visite réelle).
+  const handleSendToReview = () => {
+    if (!selectedAlert) return;
+    const step1 = storage.transitionStatus(selectedAlert.id, 'conclusion_pending', activeUser);
+    if (!step1.allowed) return;
+    const step2 = storage.transitionStatus(selectedAlert.id, 'functional_review', activeUser);
+    if (step2.allowed) {
+      const fresh = storage.getAlerts().find((a) => a.id === selectedAlert.id);
+      if (fresh && !fresh.reviewReachedAt) {
+        storage.saveAlert({ ...fresh, reviewReachedAt: new Date().toISOString() });
+      }
+    }
+  };
+
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === `escalateOwnerId` référence désormais un
+  // EscalationRecipient.id (registre admin-éditable) — storage.escalateAlert
+  // gère lui-même l'octroi d'accès réel (compte lié) et retourne le
+  // destinataire complet pour la notification e-mail ci-dessous.
   const handleEscalate = () => {
     if (!selectedAlert || !escalateReason.trim() || !escalateOwnerId) return;
     const criteriaMatched = evaluateEscalationCriteria(selectedAlert).map((c) => c.label);
     const result = storage.escalateAlert(selectedAlert.id, escalateReason.trim(), criteriaMatched, escalateOwnerId, activeUser);
     if (result.allowed) {
+      if (result.recipient) {
+        notifyEscalationRecipient(result.recipient, selectedAlert, activeUser, 'Dossier escaladé');
+      }
       setShowEscalateModal(false);
       setEscalateReason('');
       setEscalateOwnerId('');
@@ -1118,13 +1278,31 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     // affichage si besoin.
   };
 
+  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+  // périmètre) === Structurellement valide uniquement depuis 'new'
+  // (ALLOWED_TRANSITIONS), donc réservé aux dossiers pas encore attribués —
+  // évite tout chevauchement avec la clôture normale (handleCloseAlert),
+  // qui exige au moins une allégation documentée (§25) : un doublon/hors
+  // périmètre n'a par nature rien à documenter.
+  const handleDismissCase = () => {
+    if (!selectedAlert || !dismissReason.trim()) return;
+    const result = storage.transitionStatus(selectedAlert.id, dismissTargetStatus, activeUser, dismissReason.trim());
+    if (result.allowed) {
+      setShowDismissModal(false);
+      setDismissReason('');
+      setDismissTargetStatus('duplicate');
+    }
+  };
+
   // Archive Alert (CDC 3.1.3)
   const handleArchiveAlert = () => {
     if (!selectedAlert) return;
 
     const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      status: 'archived',
+      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+      // cause racine) === `applyCaseStatus` remplace la construction
+      // manuelle — même synchronisation que handleCloseAlert.
+      ...applyCaseStatus(selectedAlert, 'archived'),
       updatedAt: new Date().toISOString(),
     };
 
@@ -1140,16 +1318,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // === AMÉLIORATION AJOUTÉE (Phase 0) === delegates to the shared PriorityBadge
   // primitive (src/components/ui) instead of a locally-duplicated switch —
   // same colors/text as before, verified to render identically.
-  const getPriorityBadge = (alert: AlertRecord) => {
-    const p = alert.overridePriority || alert.riskEvaluation.priority;
-    const labels: Record<typeof p, string> = {
-      critique: 'CRITIQUE (48h)',
-      tres_elevee: 'TRÈS ÉLEVÉE (7j)',
-      elevee: 'ÉLEVÉE (15j)',
-      faible: 'FAIBLE (30j)',
-    };
-    return <PriorityBadge priority={p} label={labels[p]} />;
-  };
+  // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+  // section) === `getPriorityBadge` déplacée telle quelle dans
+  // src/components/investigation/getPriorityBadge.tsx (importé ci-dessus),
+  // partagée avec le nouvel onglet "Allégations" extrait (TriageSection.tsx).
 
   // === AMÉLIORATION AJOUTÉE (Phase 12.5 — niveau de confidentialité) ===
   // N'affiche rien pour `restricted` (le niveau par défaut, non sensible) —
@@ -1605,6 +1777,38 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   </h1>
                   {getPriorityBadge(selectedAlert)}
                   <StatusBadge status={selectedAlert.status} label={selectedAlert.status.toUpperCase().replace('_', ' ')} size="sm" />
+                  {/* === AMÉLIORATION AJOUTÉE (Visibilité de l'escalade —
+                      impasse UX corrigée) === BUG PRÉEXISTANT CORRIGÉ,
+                      identifié lors d'une analyse critique du frontend :
+                      une fois escaladé, rien dans l'interface ne montrait
+                      qu'un dossier l'était — le badge "INVESTIGATION"
+                      restait affiché sans changement visible (l'escalade
+                      était absorbée dans l'étape générique "En
+                      investigation" de la timeline "STATUT DU DOSSIER",
+                      jamais une étape à part). Ce badge n'apparaît que
+                      tant que `workflowStatus` est ENCORE 'escalated'
+                      (état courant, disparaît naturellement dès que le
+                      dossier avance à l'étape suivante) — la carte
+                      "Dossier escaladé" ci-dessous, elle, reste visible en
+                      permanence comme trace historique. */}
+                  {currentWorkflowStatus === 'escalated' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border border-rose-200 text-rose-700 bg-rose-50">
+                      <ArrowUpCircle className="w-3 h-3" />
+                      {t.case_escalated_badge}
+                    </span>
+                  )}
+                  {/* === AMÉLIORATION AJOUTÉE (Classement sans suite —
+                      Doublon / Hors périmètre) === Sans ce badge, un
+                      dossier classé "Doublon"/"Hors périmètre" afficherait
+                      seulement le badge générique "CLOSED" hérité du
+                      statut legacy (syncLegacyStatus), indiscernable d'une
+                      vraie clôture après investigation complète. */}
+                  {(currentWorkflowStatus === 'duplicate' || currentWorkflowStatus === 'out_of_scope') && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border border-slate-300 text-slate-600 bg-slate-100">
+                      <Ban className="w-3 h-3" />
+                      {currentWorkflowStatus === 'duplicate' ? t.dismiss_reason_duplicate : t.dismiss_reason_out_of_scope}
+                    </span>
+                  )}
                   {/* === AMÉLIORATION AJOUTÉE (Retours visuels 3) === BUG PRÉEXISTANT
                       CORRIGÉ, signalé par l'utilisateur (capture de référence) : le
                       score de risque était affiché dans une box flottante séparée à
@@ -1668,27 +1872,60 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       </button>
                     )}
 
+                    {/* === AMÉLIORATION AJOUTÉE (Classement sans suite —
+                        Doublon / Hors périmètre) === BUG PRÉEXISTANT
+                        CORRIGÉ, identifié lors d'une analyse critique du
+                        frontend : 'duplicate'/'out_of_scope' (CaseStatus,
+                        domain/caseTypes.ts) étaient structurellement
+                        atteignables depuis 'new' (ALLOWED_TRANSITIONS,
+                        domain/workflow.ts) mais aucun écran ne le
+                        proposait — un signalement manifestement doublon ou
+                        hors périmètre devait passer par tout le circuit
+                        d'investigation (allégations, mesures correctives)
+                        avant de pouvoir être clôturé. Même garde que
+                        "Attribuer" (cases.assign, décision d'opérateur) ;
+                        réservé aux dossiers pas encore attribués (voir
+                        handleDismissCase). */}
+                    {userCan(activeUser, 'cases.assign') && currentWorkflowStatus === 'new' && (
+                      <button
+                        id="btn-desk-dismiss"
+                        onClick={() => {
+                          setDismissTargetStatus('duplicate');
+                          setDismissReason('');
+                          setShowDismissModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                      >
+                        <Ban className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{t.btn_dismiss_case}</span>
+                      </button>
+                    )}
+
                     {/* === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-                        Escalade manuelle vers la DARC Groupe (brief §14/§44).
-                        Gardée par `cases.reassign` (comme l'attribution,
-                        l'escalade change la responsabilité du dossier) — un
+                        Escalade manuelle (brief §14/§44). Gardée par
+                        `cases.reassign` (comme l'attribution, l'escalade
+                        change la responsabilité du dossier) — un
                         investigateur de base n'a pas cette permission, un
                         senior_investigator/functional_admin/darc_compliance
-                        oui. N'apparaît que s'il existe au moins un compte
-                        Groupe éligible pour recevoir le dossier. */}
-                    {userCan(activeUser, 'cases.reassign') && getGroupEscalationOwners(allUsers).length > 0 && (
+                        oui. N'apparaît que s'il existe au moins un
+                        destinataire actif dans le registre d'escalade
+                        admin-éditable (Gouvernance) — REMPLACE
+                        `getGroupEscalationOwners`, limité à 2 rôles codés
+                        en dur. */}
+                    {userCan(activeUser, 'cases.reassign') && storage.getEscalationRecipients().filter((r) => r.active).length > 0 && (
                       <button
                         id="btn-desk-escalate"
                         onClick={() => {
                           setEscalateReason('');
-                          setEscalateOwnerId(getGroupEscalationOwners(allUsers)[0]?.id ?? '');
+                          setEscalateOwnerId(storage.getEscalationRecipients().filter((r) => r.active)[0]?.id ?? '');
                           setShowEscalateModal(true);
                           setShowActionsMenu(false);
                         }}
                         className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
                       >
                         <ArrowUpCircle className="w-3.5 h-3.5 text-rose-600" />
-                        <span>Escalader vers la DARC Groupe</span>
+                        <span>{t.btn_escalate_case}</span>
                       </button>
                     )}
 
@@ -1707,7 +1944,95 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       </button>
                     )}
 
-                    {selectedAlert.status !== 'closed' && selectedAlert.status !== 'archived' && (
+                    {/* === AMÉLIORATION AJOUTÉE (Branchement du moteur de
+                        workflow riche) === Rend réellement franchissables
+                        les étapes "En attente d'informations" et "En revue"
+                        de la timeline "STATUT DU DOSSIER" (jusqu'ici
+                        toujours grisées — voir domain/workflow.ts,
+                        storage.transitionStatus()). Visibles pendant la
+                        phase active d'investigation uniquement. */}
+                    {currentWorkflowStatus === 'investigation' && (
+                      <button
+                        id="btn-desk-request-info"
+                        onClick={() => {
+                          setShowRequestInfoModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-purple-50 text-purple-700 font-semibold text-left"
+                      >
+                        {/* === AMÉLIORATION AJOUTÉE : `text-left` — le libellé de cet
+                            item est le plus long du menu et passe seul sur 2 lignes ;
+                            sans cette classe, le `text-align: center` par défaut des
+                            `<button>` centrait la 2e ligne au lieu de l'aligner sous
+                            la 1re comme tous les autres items du menu. */}
+                        <HelpCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{t.btn_request_info}</span>
+                      </button>
+                    )}
+
+                    {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation
+                        obligatoire avant l'envoi en revue) === Rédiger le
+                        rapport est désormais un préalable réel : "Envoyer en
+                        revue" ci-dessous n'apparaît que si un rapport (texte
+                        et/ou fichier importé) est renseigné — jamais un
+                        bouton visible mais bloqué. Libellé toujours
+                        "Rédiger" : réécrire remplace le contenu précédent,
+                        pas de distinction création/modification. */}
+                    {currentWorkflowStatus === 'investigation' && (
+                      <button
+                        id="btn-desk-write-report"
+                        onClick={() => {
+                          setReportDraft(selectedAlert.investigationReport ?? '');
+                          setReportFile(selectedAlert.investigationReportFile);
+                          setShowReportModal(true);
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-teal-50 text-teal-700 font-semibold text-left"
+                      >
+                        <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                        <span>{t.btn_write_report}</span>
+                      </button>
+                    )}
+
+                    {currentWorkflowStatus === 'investigation' && (!!selectedAlert.investigationReport || !!selectedAlert.investigationReportFile) && (
+                      <button
+                        id="btn-desk-send-review"
+                        onClick={() => {
+                          handleSendToReview();
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-indigo-50 text-indigo-700 font-semibold"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>{t.btn_send_review}</span>
+                      </button>
+                    )}
+
+                    {(currentWorkflowStatus === 'pending_information' || currentWorkflowStatus === 'conclusion_pending' || currentWorkflowStatus === 'functional_review') && (
+                      <button
+                        id="btn-desk-resume-investigation"
+                        onClick={() => {
+                          handleResumeInvestigation();
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-blue-50 text-blue-700 font-semibold"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>{t.btn_resume_investigation}</span>
+                      </button>
+                    )}
+
+                    {/* === AMÉLIORATION AJOUTÉE (Fix — gate Clôturer par la
+                        permission cases.close) === BUG PRÉEXISTANT CORRIGÉ :
+                        ce bouton était visible pour tout compte pouvant
+                        simplement ouvrir la fiche dossier (cases.edit), y
+                        compris un enquêteur junior (role investigator) qui
+                        n'a, selon domain/permissions.ts, PAS la permission
+                        cases.close (réservée à senior_investigator/
+                        functional_admin/darc_compliance/system_admin(*)) —
+                        même garde que le bouton Attribuer/Réattribuer
+                        (`canAssign`, cases.assign) déjà réel plus haut. */}
+                    {selectedAlert.status !== 'closed' && selectedAlert.status !== 'archived' && userCan(activeUser, 'cases.close') && (
                       <button
                         id="btn-desk-close"
                         onClick={() => {
@@ -1721,7 +2046,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       </button>
                     )}
 
-                    {selectedAlert.status === 'closed' && (
+                    {/* === AMÉLIORATION AJOUTÉE (Fix — gate Réouvrir par la
+                        permission cases.reopen) === BUG PRÉEXISTANT CORRIGÉ,
+                        même nature que "Clôturer le dossier" ci-dessus : ce
+                        bouton était visible pour tout compte ayant
+                        simplement cases.edit, y compris un enquêteur junior,
+                        qui n'a PAS cases.reopen (réservée à
+                        functional_admin/darc_compliance/system_admin(*)). */}
+                    {selectedAlert.status === 'closed' && userCan(activeUser, 'cases.reopen') && (
                       <button
                         id="btn-desk-reopen"
                         onClick={() => {
@@ -1735,7 +2067,17 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       </button>
                     )}
 
-                    {selectedAlert.status === 'closed' && (
+                    {/* === AMÉLIORATION AJOUTÉE (Fix — gate Archiver par la
+                        permission cases.archive) === BUG PRÉEXISTANT
+                        CORRIGÉ, même nature que "Clôturer"/"Rouvrir"
+                        ci-dessus : ce bouton était visible pour tout compte
+                        ayant simplement cases.edit. cases.archive est une
+                        nouvelle permission dédiée (domain/permissions.ts),
+                        réservée aux mêmes rôles que cases.reopen
+                        (functional_admin/darc_compliance) — l'archivage
+                        légal (conservation 10 ans) est une action au moins
+                        aussi définitive qu'une réouverture. */}
+                    {selectedAlert.status === 'closed' && userCan(activeUser, 'cases.archive') && (
                       <button
                         onClick={() => {
                           handleArchiveAlert();
@@ -1782,7 +2124,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 <Globe2 className="w-4 h-4" />
               </span>
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_country}</div>
-              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.country}>{selectedAlert.country}</div>
+              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.country}>{formatCountryLabel(storage.getCountries(), selectedAlert.country)}</div>
             </div>
             <div className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
               <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2">
@@ -1908,6 +2250,20 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   {(selectedAlert.tasks ?? []).length}
                 </span>
               </button>
+              {/* === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === */}
+              <button
+                onClick={() => setActiveCaseTab('interviews')}
+                className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                  activeCaseTab === 'interviews'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>{t.nav_interviews}</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px]">
+                  {(selectedAlert.interviews ?? []).length}
+                </span>
+              </button>
               <button
                 onClick={() => setActiveCaseTab('messages')}
                 className={`py-3 px-4 border-b-2 transition shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
@@ -1958,6 +2314,21 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </button>
             </div>
 
+            {/* === BUG PRÉEXISTANT CORRIGÉ (bouton "+ Ajouter" de l'onglet
+                Preuves dédié) === Cet <input type="file"> caché n'était
+                jusqu'ici rendu que dans le bloc "Vue d'ensemble" ci-dessous
+                (conditionné par activeCaseTab === 'overview'), donc
+                démonté dès qu'un autre onglet était actif :
+                evidenceFileInputRef.current valait alors `null`, et le
+                bouton "+ Ajouter" de l'onglet Preuves dédié
+                (EvidenceSection.tsx) ne déclenchait rien. Remonté ici,
+                en dehors du switch par onglet, pour rester toujours monté
+                tant qu'un dossier est affiché en mode détail — les deux
+                boutons ("Vue d'ensemble" et "Preuves") continuent de
+                cliquer exactement le même <input>, comportement inchangé
+                pour le premier, corrigé pour le second. */}
+            <input ref={evidenceFileInputRef} type="file" className="hidden" onChange={handleAddEvidenceFile} />
+
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: 1. VUE
                 D'ENSEMBLE — reproduit exactement les 4 blocs de la maquette
                 (Description avec "Modifier", Personnes impliquées + Témoins
@@ -1967,582 +2338,177 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 complémentaires" — pas de perte, seulement une relocalisation
                 fidèle à la maquette). */}
             {activeCaseTab === 'overview' && (
-              <div className="p-6 space-y-5 max-h-[640px] overflow-y-auto text-xs">
-                {/* Description of facts */}
-                <div className="p-4 rounded-xl border border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-bold text-slate-900 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-blue-600" />
-                      Description détaillée des faits
-                    </h4>
-                    {!editingDescription && (
-                      <button
-                        onClick={() => { setDescriptionDraft(selectedAlert.detailedDescription); setEditingDescription(true); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold"
-                      >
-                        <SlidersHorizontal className="w-3.5 h-3.5" />
-                        {t.case_btn_edit}
-                      </button>
-                    )}
-                  </div>
-                  {editingDescription ? (
-                    <div className="space-y-2">
-                      <textarea
-                        rows={4}
-                        value={descriptionDraft}
-                        onChange={(e) => setDescriptionDraft(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => setEditingDescription(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
-                        <button onClick={handleSaveDescription} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">Enregistrer</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="leading-relaxed text-slate-700 whitespace-pre-wrap">{selectedAlert.detailedDescription}</p>
-                  )}
-                </div>
-
-                {/* Implicated & Witnesses */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {(['subject', 'witness'] as const).map((kind) => {
-                    const list = kind === 'subject' ? selectedAlert.involvedPersons : selectedAlert.witnesses;
-                    return (
-                      <div key={kind} className="p-4 rounded-xl border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <h5 className="font-bold text-slate-900">
-                            {kind === 'subject' ? 'Personnes impliquées' : 'Témoins'} ({list.length})
-                          </h5>
-                          <button
-                            onClick={() => setAddPersonKind(kind)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            {t.case_btn_add}
-                          </button>
-                        </div>
-                        {list.length === 0 ? (
-                          <p className="text-slate-400 italic">Non spécifié</p>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {list.map((p) => (
-                              <PersonRow
-                                key={p.id}
-                                person={p}
-                                users={allUsers}
-                                dense
-                                onLinkClick={() => { setLinkingPerson({ kind, id: p.id, currentName: p.name }); setLinkingUserId(p.linkedUserId ?? ''); }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Evidences list */}
-                <div className="p-4 rounded-xl border border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="font-bold text-slate-900 flex items-center gap-2">
-                      <Paperclip className="w-4 h-4 text-blue-600" />
-                      Preuves & pièces jointes ({selectedAlert.evidences.length})
-                    </h5>
-                    <button
-                      onClick={() => evidenceFileInputRef.current?.click()}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      {t.case_btn_add}
-                    </button>
-                    <input ref={evidenceFileInputRef} type="file" className="hidden" onChange={handleAddEvidenceFile} />
-                  </div>
-                  {selectedAlert.evidences.length === 0 ? (
-                    <p className="text-slate-400 italic">Aucun document joint</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {selectedAlert.evidences.map((ev) => (
-                        <div key={ev.id} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                          <span className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                            <FileText className="w-4 h-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <span className="font-medium text-slate-800 block truncate">{ev.name}</span>
-                            <span className="text-[10px] text-slate-400">
-                              {new Date(ev.uploadedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 shrink-0">{Math.round(ev.size / 1024)} Ko</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <OverviewSection
+                selectedAlert={selectedAlert}
+                lang={lang}
+                t={t}
+                allUsers={allUsers}
+                editingDescription={editingDescription}
+                setEditingDescription={setEditingDescription}
+                descriptionDraft={descriptionDraft}
+                setDescriptionDraft={setDescriptionDraft}
+                handleSaveDescription={handleSaveDescription}
+                setReportDraft={setReportDraft}
+                setReportFile={setReportFile}
+                setShowReportModal={setShowReportModal}
+                setAddPersonKind={setAddPersonKind}
+                setLinkingPerson={setLinkingPerson}
+                setLinkingUserId={setLinkingUserId}
+                evidenceFileInputRef={evidenceFileInputRef}
+              />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Modal partagée pour "+ Ajouter" (Personnes impliquées / Témoins) */}
             {addPersonKind && (
-              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-                <form onSubmit={handleAddPerson} className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-3 text-xs">
-                  <h3 className="text-sm font-bold text-slate-900">{t.person_modal_title}</h3>
-                  {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une
-                      personne) === pills "Type de personne" façon maquette —
-                      permet de choisir/changer la liste cible (Personnes
-                      impliquées ou Témoins) directement dans la modale,
-                      plutôt que par deux boutons "+ Ajouter" distincts
-                      seulement. Pas de pill "Autre" : aucune 3e liste
-                      n'existe sur AlertRecord (seuls `involvedPersons` et
-                      `witnesses`) — l'ajouter aurait été une catégorie sans
-                      donnée réelle derrière (brief §32). */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{t.person_modal_type}</label>
-                    <div className="flex gap-1.5">
-                      {(['subject', 'witness'] as const).map((k) => (
-                        <button
-                          key={k}
-                          type="button"
-                          onClick={() => setAddPersonKind(k)}
-                          className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition ${
-                            addPersonKind === k ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                          }`}
-                        >
-                          {k === 'subject' ? t.person_modal_kind_subject : t.person_modal_kind_witness}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <input
-                    autoFocus
-                    value={personNameInput}
-                    onChange={(e) => setPersonNameInput(e.target.value)}
-                    placeholder="Nom (ou « Confidentiel »)"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                  <input
-                    value={personPositionInput}
-                    onChange={(e) => setPersonPositionInput(e.target.value)}
-                    placeholder="Fonction / Poste"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                  <select
-                    value={personHierarchyInput}
-                    onChange={(e) => setPersonHierarchyInput(e.target.value as InvolvedPerson['hierarchyRole'])}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white"
-                  >
-                    <option value="Employé">Employé</option>
-                    <option value="Cadre">Cadre</option>
-                    <option value="Sous-Directeur">Sous-Directeur</option>
-                    <option value="Directeur+">Directeur+</option>
-                  </select>
-                  {/* === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) === */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Rattachement à un compte (facultatif)</label>
-                    <LinkedAccountSelect users={allUsers} value={personLinkedUserId} onChange={setPersonLinkedUserId} />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setAddPersonKind(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
-                    <button type="submit" disabled={!personNameInput.trim()} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold">{t.case_btn_add}</button>
-                  </div>
-                </form>
-              </div>
+              <AddPersonModal
+                t={t}
+                allUsers={allUsers}
+                addPersonKind={addPersonKind}
+                setAddPersonKind={setAddPersonKind}
+                handleAddPerson={handleAddPerson}
+                personNameInput={personNameInput}
+                setPersonNameInput={setPersonNameInput}
+                personPositionInput={personPositionInput}
+                setPersonPositionInput={setPersonPositionInput}
+                personHierarchyInput={personHierarchyInput}
+                setPersonHierarchyInput={setPersonHierarchyInput}
+                personLinkedUserId={personLinkedUserId}
+                setPersonLinkedUserId={setPersonLinkedUserId}
+              />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) === Modale "Lier à un compte" pour une personne/témoin déjà enregistré·e */}
             {linkingPerson && (
-              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-                <form onSubmit={handleLinkPerson} className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-3 text-xs">
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Lier « {linkingPerson.currentName || 'Confidentiel'} » à un compte
-                  </h3>
-                  <p className="text-slate-500">
-                    Si vous reconnaissez cette personne comme un collaborateur de la plateforme, rattachez-la à son compte réel. Le routage indépendant l'exclura alors automatiquement de l'accès à ce dossier.
-                  </p>
-                  <LinkedAccountSelect users={allUsers} value={linkingUserId} onChange={setLinkingUserId} />
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setLinkingPerson(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
-                    <button type="submit" className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">Enregistrer</button>
-                  </div>
-                </form>
-              </div>
+              <LinkPersonModal
+                allUsers={allUsers}
+                linkingPerson={linkingPerson}
+                setLinkingPerson={setLinkingPerson}
+                handleLinkPerson={handleLinkPerson}
+                linkingUserId={linkingUserId}
+                setLinkingUserId={setLinkingUserId}
+              />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: PERSONNES
                 — vue dédiée (reprend Personnes impliquées + Témoins, avec
                 "+ Ajouter", partagée avec l'onglet Vue d'ensemble). */}
+            {/* === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/PersonsSection.tsx. */}
             {activeCaseTab === 'persons' && (
-              <div className="p-6 space-y-4 max-h-[640px] overflow-y-auto text-xs">
-                {(['subject', 'witness'] as const).map((kind) => {
-                  const list = kind === 'subject' ? selectedAlert.involvedPersons : selectedAlert.witnesses;
-                  return (
-                    <div key={kind} className="p-4 rounded-xl border border-slate-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <h5 className="font-bold text-slate-900">
-                          {kind === 'subject' ? 'Personnes impliquées' : 'Témoins'} ({list.length})
-                        </h5>
-                        <button
-                          onClick={() => setAddPersonKind(kind)}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          {t.case_btn_add}
-                        </button>
-                      </div>
-                      {list.length === 0 ? (
-                        <p className="text-slate-400 italic">Non spécifié</p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {list.map((p) => (
-                            <PersonRow
-                              key={p.id}
-                              person={p}
-                              users={allUsers}
-                              dense={false}
-                              onLinkClick={() => { setLinkingPerson({ kind, id: p.id, currentName: p.name }); setLinkingUserId(p.linkedUserId ?? ''); }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <PersonsSection
+                selectedAlert={selectedAlert}
+                allUsers={allUsers}
+                t={t}
+                setAddPersonKind={setAddPersonKind}
+                setLinkingPerson={setLinkingPerson}
+                setLinkingUserId={setLinkingUserId}
+              />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: PREUVES —
                 vue dédiée (reprend Preuves & pièces jointes, avec
                 "+ Ajouter"), avec les métadonnées disponibles pour chaque
                 fichier (aucun champ inventé : hash/version ne sont pas
-                stockés par ce modèle, donc non affichés ici). */}
+                stockés par ce modèle, donc non affichés ici).
+                === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/EvidenceSection.tsx. */}
             {activeCaseTab === 'evidence_tab' && (
-              <div className="p-6 space-y-3 max-h-[640px] overflow-y-auto text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                    {t.nav_evidence} ({selectedAlert.evidences.length})
-                  </span>
-                  <button
-                    onClick={() => evidenceFileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    {t.case_btn_add}
-                  </button>
-                </div>
-                {selectedAlert.evidences.length === 0 ? (
-                  <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
-                    Aucun document joint
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {selectedAlert.evidences.map((ev) => (
-                      <div key={ev.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                        <span className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <span className="font-medium text-slate-800 block truncate">{ev.name}</span>
-                          <span className="text-[10px] text-slate-400">
-                            {ev.type || 'application/octet-stream'} •{' '}
-                            {new Date(ev.uploadedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-slate-400 shrink-0">{Math.round(ev.size / 1024)} Ko</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <EvidenceSection selectedAlert={selectedAlert} lang={lang} t={t} evidenceFileInputRef={evidenceFileInputRef} />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: RAPPORT —
                 regroupe désormais la synthèse du dossier, les notes
                 d'enquête internes (contenu inchangé) et les déclarations de
                 conflit d'intérêt (contenu inchangé, voir plus bas) sous un
-                seul onglet "Rapport", comme dans la maquette. */}
+                seul onglet "Rapport", comme dans la maquette.
+                === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/ReportSection.tsx — regroupe
+                aussi le second bloc `activeCaseTab === 'report'` qui
+                apparaissait plus bas dans ce fichier (déclarations de
+                conflit d'intérêt), les deux blocs produisant déjà un rendu
+                strictement adjacent (tous les blocs intercalés entre eux
+                sont mutuellement exclusifs). */}
             {activeCaseTab === 'report' && (
-              <div className="p-6 space-y-6 max-h-[640px] overflow-y-auto text-xs">
-                {/* Synthèse du dossier */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <h4 className="font-bold text-slate-900 flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4 text-blue-600" />
-                    Synthèse du dossier
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-700">
-                    <div><span className="text-slate-500">Catégorie :</span> {selectedAlert.category}</div>
-                    <div><span className="text-slate-500">Entité :</span> {selectedAlert.concernedEntity}</div>
-                    <div><span className="text-slate-500">Statut :</span> {selectedAlert.status.toUpperCase()}</div>
-                    <div><span className="text-slate-500">Investigateur(s) :</span> {selectedAlert.assignedInvestigatorNames.join(', ') || t.case_info_unassigned}</div>
-                    <div><span className="text-slate-500">Mesures correctives :</span> {selectedAlert.correctiveMeasures.length}</div>
-                    <div><span className="text-slate-500">Clôturé le :</span> {selectedAlert.closedAt ? new Date(selectedAlert.closedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR') : '—'}</div>
-                  </div>
-                  {selectedAlert.closureSummary && (
-                    <p className="pt-2 border-t border-slate-200 text-slate-700 leading-relaxed">{selectedAlert.closureSummary}</p>
-                  )}
-                  <button
-                    onClick={() => window.print()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    {t.case_btn_generate_report}
-                  </button>
-                </div>
-
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-amber-700 shrink-0" />
-                  <span>Ces notes sont strictement confidentielles et ne sont JAMAIS visibles par le lanceur d'alerte.</span>
-                </div>
-
-                {/* Add internal note form */}
-                <form onSubmit={handleAddInternalNote} className="space-y-3">
-                  <label className="block font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                    Ajouter une note d'investigation interne
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={internalNoteText}
-                    onChange={(e) => setInternalNoteText(e.target.value)}
-                    placeholder="Consignez les résultats d'entretiens, vérifications comptables, constats informatiques..."
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={!internalNoteText.trim()}
-                      className="px-4 py-2 rounded-xl bg-[#0B2545] hover:bg-[#134074] disabled:opacity-40 text-white font-bold transition"
-                    >
-                      Enregistrer la note
-                    </button>
-                  </div>
-                </form>
-
-                {/* Internal notes list */}
-                <div className="space-y-3 pt-4 border-t border-slate-200">
-                  <h5 className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                    Historique des notes internes ({selectedAlert.internalNotes.length})
-                  </h5>
-                  {selectedAlert.internalNotes.length === 0 ? (
-                    <p className="text-slate-400 italic">Aucune note enregistrée.</p>
-                  ) : (
-                    selectedAlert.internalNotes.map((note) => (
-                      <div key={note.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-bold text-[#0B2545]">{note.authorName} ({note.authorRole})</span>
-                          <span className="text-slate-400">{new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'fr-FR')}</span>
-                        </div>
-                        <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{note.content}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+              <ReportSection
+                selectedAlert={selectedAlert}
+                lang={lang}
+                t={t}
+                setShowPrintReport={setShowPrintReport}
+                internalNoteText={internalNoteText}
+                setInternalNoteText={setInternalNoteText}
+                handleAddInternalNote={handleAddInternalNote}
+                setConflictOutcome={setConflictOutcome}
+                setConflictDetails={setConflictDetails}
+                setShowConflictModal={setShowConflictModal}
+              />
             )}
 
             {/* TAB CONTENT: 3. COMMUNICATION WITH WHISTLEBLOWER */}
+            {/* === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/MessagesSection.tsx. */}
             {activeCaseTab === 'messages' && (
-              <div className="p-6 flex flex-col h-[560px] text-xs">
-                <div className="border-b border-slate-100 pb-3 mb-4">
-                  <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                    Canal d'échange sécurisé avec le lanceur d'alerte
-                  </h4>
-                  <p className="text-slate-500 text-[11px]">
-                    Le déclarant consulte ces messages en se connectant avec sa référence et son mot de passe.
-                  </p>
-                </div>
-
-                {/* Messages list */}
-                <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-4">
-                  {selectedAlert.messages.map((m) => {
-                    const isWb = m.sender === 'whistleblower';
-                    return (
-                      <div key={m.id} className={`flex flex-col ${isWb ? 'items-start' : 'items-end'}`}>
-                        <div className="text-[10px] text-slate-400 mb-1 flex items-center gap-1">
-                          <span className="font-semibold text-slate-700">{m.senderDisplayName}</span>
-                          <span>•</span>
-                          <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                        <div className={`max-w-md p-3.5 rounded-2xl whitespace-pre-wrap leading-relaxed ${
-                          isWb 
-                            ? 'bg-amber-50 text-amber-950 border border-amber-200 rounded-tl-none' 
-                            : 'bg-blue-600 text-white rounded-tr-none'
-                        }`}>
-                          {m.content}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Message input */}
-                <form onSubmit={handleSendInvestigatorMessage} className="pt-3 border-t border-slate-100 flex gap-2">
-                  <input
-                    type="text"
-                    value={investigatorMsgText}
-                    onChange={(e) => setInvestigatorMsgText(e.target.value)}
-                    placeholder="Demander des compléments d'informations au déclarant..."
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!investigatorMsgText.trim()}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold flex items-center gap-1.5"
-                  >
-                    <span>Envoyer</span>
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                </form>
-              </div>
+              <MessagesSection
+                selectedAlert={selectedAlert}
+                investigatorMsgText={investigatorMsgText}
+                setInvestigatorMsgText={setInvestigatorMsgText}
+                handleSendInvestigatorMessage={handleSendInvestigatorMessage}
+              />
             )}
 
-            {/* TAB CONTENT: 4. CORRECTIVE MEASURES (MANDATORY BEFORE CLOSURE - CDC 3.1.2) */}
+            {/* TAB CONTENT: 4. CORRECTIVE MEASURES (MANDATORY BEFORE CLOSURE - CDC 3.1.2)
+                === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/CorrectiveMeasuresSection.tsx. */}
             {activeCaseTab === 'corrective' && (
-              <div className="p-6 space-y-6 max-h-[560px] overflow-y-auto text-xs">
-                <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-950">
-                  <h4 className="font-bold uppercase tracking-wider text-[11px] mb-1 flex items-center gap-1.5">
-                    <FileCheck2 className="w-4 h-4 text-indigo-700" />
-                    Mesures correctives & disciplinaires
-                  </h4>
-                  <p className="text-[11px] text-indigo-800">
-                    {t.corrective_required_note}
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                    Mesures enregistrées ({selectedAlert.correctiveMeasures.length})
-                  </span>
-                  <button
-                    id="btn-add-measure-trigger"
-                    onClick={() => setShowAddMeasureModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition shadow-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{t.btn_add_measure}</span>
-                  </button>
-                </div>
-
-                {selectedAlert.correctiveMeasures.length === 0 ? (
-                  <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
-                    Aucune mesure corrective documentée pour l'instant. Vous devez en formaliser au moins une pour clôturer le dossier.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedAlert.correctiveMeasures.map((cm) => (
-                      <div key={cm.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 text-sm">{cm.title}</span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            cm.status === 'implemented' || cm.status === 'verified'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {cm.status.toUpperCase()}
-                          </span>
-                        </div>
-                        <p className="text-slate-700 leading-relaxed">{cm.description}</p>
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-                          <div><strong className="text-slate-700">Responsable :</strong> {cm.responsiblePerson}</div>
-                          <div><strong className="text-slate-700">Échéance :</strong> {cm.dueDate}</div>
-                          <div><strong className="text-slate-700">Documenté par :</strong> {cm.documentedBy}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <CorrectiveMeasuresSection selectedAlert={selectedAlert} t={t} setShowAddMeasureModal={setShowAddMeasureModal} />
             )}
 
-            {/* === AMÉLIORATION AJOUTÉE (Phase 6) === TAB CONTENT: TASKS */}
+            {/* === AMÉLIORATION AJOUTÉE (Phase 6) === TAB CONTENT: TASKS.
+                === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/TasksSection.tsx. */}
             {activeCaseTab === 'tasks' && (
-              <div className="p-6 space-y-4 max-h-[560px] overflow-y-auto text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                    {t.tab_tasks} ({(selectedAlert.tasks ?? []).length})
-                  </span>
-                  <button
-                    onClick={() => setShowAddTaskModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition shadow-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{t.btn_add_task}</span>
-                  </button>
-                </div>
+              <TasksSection
+                selectedAlert={selectedAlert}
+                allUsers={allUsers}
+                t={t}
+                setShowAddTaskModal={setShowAddTaskModal}
+                handleToggleTaskStatus={handleToggleTaskStatus}
+              />
+            )}
 
-                {(selectedAlert.tasks ?? []).length === 0 ? (
-                  <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
-                    {t.tasks_empty}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {(selectedAlert.tasks ?? []).map((task) => {
-                      const effStatus = taskEffectiveStatus(task);
-                      const owner = allUsers.find((u) => u.id === task.owner);
-                      return (
-                        <div key={task.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-                          <button onClick={() => handleToggleTaskStatus(task)} className="mt-0.5 shrink-0 text-slate-500 hover:text-blue-700">
-                            {task.status === 'completed' ? <CheckSquare className="w-4 h-4 text-emerald-600" /> : <Square className="w-4 h-4" />}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className={`font-semibold text-slate-900 ${task.status === 'completed' ? 'line-through text-slate-400' : ''}`}>{task.title}</span>
-                              <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${
-                                effStatus === 'overdue' ? 'bg-rose-100 text-rose-800'
-                                : effStatus === 'completed' ? 'bg-emerald-100 text-emerald-800'
-                                : effStatus === 'in_progress' ? 'bg-blue-100 text-blue-800'
-                                : 'bg-slate-200 text-slate-700'
-                              }`}>
-                                {t[`task_status_${effStatus}` as keyof typeof t]}
-                              </span>
-                            </div>
-                            {task.description && <p className="text-slate-600 mt-0.5">{task.description}</p>}
-                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-1.5">
-                              <span>{t.task_owner_label} : <strong className="text-slate-700">{owner?.name ?? task.owner}</strong></span>
-                              <span>{t.task_due_date_label} : <strong className="text-slate-700">{task.dueDate}</strong></span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+            {/* === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === même gabarit
+                que l'onglet Tâches ci-dessus (liste + "+Ajouter").
+                === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/InterviewsSection.tsx. */}
+            {activeCaseTab === 'interviews' && (
+              <InterviewsSection
+                selectedAlert={selectedAlert}
+                lang={lang}
+                t={t}
+                setShowAddInterviewModal={setShowAddInterviewModal}
+              />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 6) === TAB CONTENT: TIMELINE — derived from real audit_logs + messages for this case, never hand-authored. */}
+            {/* === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/CaseTimelineSection.tsx. */}
             {activeCaseTab === 'timeline' && (
-              <div className="p-6 max-h-[560px] overflow-y-auto text-xs">
-                {(() => {
-                  type TimelineItem = { timestamp: string; label: string };
-                  const auditItems: TimelineItem[] = storage
-                    .getAuditLogs()
-                    .filter((log) => log.trackingNumber === selectedAlert.trackingNumber)
-                    .map((log) => ({ timestamp: log.timestamp, label: log.details }));
-                  const messageItems: TimelineItem[] = selectedAlert.messages.map((m) => ({
-                    timestamp: m.createdAt,
-                    label: `${t.timeline_message_from} ${m.senderDisplayName} : « ${m.content.slice(0, 80)}${m.content.length > 80 ? '…' : ''} »`,
-                  }));
-                  const items = [...auditItems, ...messageItems].sort(
-                    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-                  );
-                  if (items.length === 0) {
-                    return <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">{t.timeline_empty}</div>;
-                  }
-                  return (
-                    <ol className="relative border-l-2 border-slate-200 ml-2 space-y-5">
-                      {items.map((item, i) => (
-                        <li key={i} className="ml-4">
-                          <div className="absolute w-2.5 h-2.5 bg-blue-600 rounded-full -left-[5px] mt-1 border-2 border-white" />
-                          <time className="text-[10px] font-bold text-slate-400 uppercase">
-                            {new Date(item.timestamp).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR', {
-                              day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                            })}
-                          </time>
-                          <p className="text-slate-700 mt-0.5">{item.label}</p>
-                        </li>
-                      ))}
-                    </ol>
-                  );
-                })()}
-              </div>
+              <CaseTimelineSection selectedAlert={selectedAlert} lang={lang} t={t} />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 6 — Triage) === repurposes the
@@ -2553,228 +2519,79 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 modal (same button as the top toolbar's "Modifier la
                 priorité / Délais") rather than a second, parallel edit
                 path. */}
+            {/* === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/TriageSection.tsx. */}
             {activeCaseTab === 'triage' && (
-              <div className="p-6 space-y-5 max-h-[640px] overflow-y-auto text-xs">
-                {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
-                    "Récit de l'allégation" + bouton "Réattribuer" façon
-                    maquette — réutilise la modale d'attribution déjà
-                    existante (Actions > Assigner), jamais une seconde
-                    modale dupliquée. */}
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">{t.allegation_narrative_title}</h3>
-                  <button
-                    onClick={() => setShowAssignModal(true)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700 transition"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" /> {t.allegation_reassign}
-                  </button>
-                </div>
-
-                {/* === AMÉLIORATION AJOUTÉE (Phase 11) === résumé de la
-                    qualification (catégorie/sous-catégorie/description),
-                    pour que l'onglet "Allégations" présente d'abord ce que
-                    le dossier reproche avant la matrice de risque. */}
-                <div className="p-4 rounded-xl border border-slate-200 space-y-2">
-                  <div className="font-bold text-slate-900">{selectedAlert.category}</div>
-                  <div className="text-slate-600">{selectedAlert.subCategory}</div>
-                  {selectedAlert.customViolationType && (
-                    <div className="text-slate-500 italic">{selectedAlert.customViolationType}</div>
-                  )}
-                  <p className="pt-2 border-t border-slate-100 leading-relaxed text-slate-700 whitespace-pre-wrap">
-                    {selectedAlert.detailedDescription}
-                  </p>
-                </div>
-
-                {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
-                    "Éléments clés" / "Classification" façon maquette —
-                    chaque champ réutilise une donnée réelle déjà existante
-                    sur AlertRecord (jamais une valeur fabriquée) ; "—"
-                    quand la donnée est absente (ex. dossier créé avant
-                    qu'un champ optionnel n'existe). Pas de ligne
-                    "Mots-clés" : aucun champ de ce type n'existe sur
-                    AlertRecord aujourd'hui — ajoutée uniquement si un vrai
-                    champ voit le jour, plutôt que d'inventer des tags
-                    (brief §32). */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5">
-                    <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-100">
-                      {t.allegation_key_elements}
-                    </div>
-                    {[
-                      [t.allegation_type, selectedAlert.customViolationType || selectedAlert.subCategory],
-                      [t.allegation_estimated_amount, selectedAlert.estimatedImpactValue || '—'],
-                      [t.allegation_period, selectedAlert.incidentDates || '—'],
-                      [t.allegation_location, selectedAlert.incidentLocation || '—'],
-                      [t.allegation_persons_cited, String(selectedAlert.involvedPersons.length)],
-                      [t.allegation_entities_concerned, selectedAlert.concernedEntity],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between gap-2">
-                        <span className="text-slate-500">{label}</span>
-                        <span className="font-semibold text-slate-900 text-right truncate max-w-[55%]">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5">
-                    <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-100">
-                      {t.allegation_classification}
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-500">{t.allegation_noca}</span>
-                      <span className="font-semibold text-slate-900">{selectedAlert.riskEvaluation.nocaThreshold}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-500">{t.allegation_severity}</span>
-                      <span className="font-semibold text-slate-900">
-                        {selectedAlert.severity ? t[`severity_${selectedAlert.severity}` as keyof typeof t] ?? selectedAlert.severity : '—'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-500">{t.allegation_sensitivity}</span>
-                      <span className="font-semibold text-slate-900">
-                        {t[`confidentiality_${selectedAlert.confidentialityLevel ?? 'restricted'}` as keyof typeof t] ?? (selectedAlert.confidentialityLevel ?? 'restricted')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                  <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                    {t.triage_matrix_title}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-3 bg-white rounded-lg border border-slate-200">
-                      <div className="text-slate-500 text-[11px]">{t.triage_axis_financial}</div>
-                      <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.financialImpact[selectedAlert.riskEvaluation.financialImpact]}</div>
-                    </div>
-                    <div className="p-3 bg-white rounded-lg border border-slate-200">
-                      <div className="text-slate-500 text-[11px]">{t.triage_axis_hierarchy}</div>
-                      <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.hierarchyLevel[selectedAlert.riskEvaluation.hierarchyLevel]}</div>
-                    </div>
-                    <div className="p-3 bg-white rounded-lg border border-slate-200">
-                      <div className="text-slate-500 text-[11px]">{t.triage_axis_recidivism}</div>
-                      <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.recidivism[selectedAlert.riskEvaluation.recidivism]}</div>
-                    </div>
-                    <div className="p-3 bg-white rounded-lg border border-slate-200">
-                      <div className="text-slate-500 text-[11px]">{t.triage_axis_reputation}</div>
-                      <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.reputationRisk[selectedAlert.riskEvaluation.reputationRisk]}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-xl border border-slate-200 bg-white text-center">
-                    <div className="text-2xl font-extrabold text-[#0B2545]">{selectedAlert.riskEvaluation.totalScore}/16</div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">{t.triage_total_score}</div>
-                  </div>
-                  <div className="p-3.5 rounded-xl border border-slate-200 bg-white text-center">
-                    <div className="text-2xl font-extrabold text-[#0B2545]">{selectedAlert.riskEvaluation.nocaThreshold}</div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">{selectedAlert.riskEvaluation.expectedTreatment}</div>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-700">{t.triage_computed_priority}</span>
-                    {getPriorityBadge({ ...selectedAlert, overridePriority: undefined } as AlertRecord)}
-                  </div>
-                  {selectedAlert.overridePriority && (
-                    <div className="flex items-center justify-between pt-2 border-t border-amber-100">
-                      <span className="font-semibold text-amber-800">{t.triage_override_priority}</span>
-                      {getPriorityBadge(selectedAlert)}
-                    </div>
-                  )}
-                  {selectedAlert.overrideReason && (
-                    <p className="text-[11px] text-slate-500 pt-1">
-                      <span className="font-semibold">{t.triage_override_reason}:</span> {selectedAlert.overrideReason}
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => {
-                    setNewPriority(selectedAlert.overridePriority || selectedAlert.riskEvaluation.priority);
-                    setPriorityOverrideReason('');
-                    setShowPriorityModal(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  {t.triage_btn_adjust}
-                </button>
-              </div>
+              <TriageSection
+                selectedAlert={selectedAlert}
+                t={t}
+                setShowAssignModal={setShowAssignModal}
+                setNewPriority={setNewPriority}
+                setPriorityOverrideReason={setPriorityOverrideReason}
+                setShowPriorityModal={setShowPriorityModal}
+              />
             )}
 
-            {/* === AMÉLIORATION AJOUTÉE (Phase 6 — Conflit d'intérêt ; Phase 11
-                — déplacé sous l'onglet "Rapport") === real, persisted
-                declarations (Phase 1's ConflictDeclaration type +
-                storage.declareConflict, built but unused until now) — never
-                a fabricated/derived list. */}
-            {activeCaseTab === 'report' && (
-              <div className="p-6 pt-0 space-y-4 text-xs">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">{t.conflict_section_title}</div>
-                    <p className="text-slate-500 text-[11px] mt-0.5">{t.conflict_section_desc}</p>
-                  </div>
-                  <button
-                    onClick={() => { setConflictOutcome('no_conflict'); setConflictDetails(''); setShowConflictModal(true); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold shadow-xs transition shrink-0"
-                  >
-                    <UserCog className="w-3.5 h-3.5" />
-                    {t.conflict_btn_declare}
-                  </button>
-                </div>
-
-                {(selectedAlert.conflictDeclarations ?? []).length === 0 ? (
-                  <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
-                    {t.conflict_empty}
-                  </div>
-                ) : (
-                  <ul className="space-y-2">
-                    {(selectedAlert.conflictDeclarations ?? []).map((d) => (
-                      <li key={d.id} className="p-3.5 rounded-xl border border-slate-200 bg-white">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-slate-900">{d.userName}</span>
-                          <span className="text-[10px] text-slate-400">
-                            {new Date(d.declaredAt).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
-                          </span>
-                        </div>
-                        <span className={`inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                          d.outcome === 'no_conflict'
-                            ? 'bg-emerald-100 text-emerald-900 border-emerald-200'
-                            : 'bg-rose-100 text-rose-900 border-rose-200'
-                        }`}>
-                          {d.outcome === 'no_conflict' ? t.conflict_outcome_none : t.conflict_outcome_identified}
-                        </span>
-                        {d.details && <p className="text-slate-600 mt-1.5 leading-relaxed">{d.details}</p>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Right column: Statut du dossier / Informations complémentaires / Liens rapides */}
           <aside className="space-y-5">
-            {/* Statut du dossier — timeline verticale, dérivée du vrai statut
-                (pas de statut fantaisiste : "En attente d'informations" et
-                "En revue" ne sont pas modélisés par AlertStatus, ils restent
-                donc à l'état "à venir" tant qu'ils ne le sont pas). */}
+            {/* === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow
+                riche) === Statut du dossier — timeline verticale, dérivée
+                du statut RICHE (workflowStatus, 14 valeurs,
+                domain/workflow.ts) plutôt que du seul statut legacy
+                (AlertStatus, 7 valeurs) : "En attente d'informations"
+                (pending_information) et "En revue" (conclusion_pending +
+                functional_review, une seule étape visuelle pour les deux
+                sous-étapes du moteur riche) reflètent désormais l'état réel
+                du dossier, via les actions "Demander des informations
+                complémentaires"/"Envoyer en revue"/"Reprendre
+                l'investigation" ci-dessus. */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-4 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
                 {t.case_status_title}
               </h3>
               {(() => {
-                const isInvestigating = ['investigation', 'corrective_action', 'closed', 'archived', 'reopened'].includes(selectedAlert.status);
                 const isClosed = ['closed', 'archived'].includes(selectedAlert.status);
+                const ws = currentWorkflowStatus;
+                const isPendingInfo = ws === 'pending_information';
+                const isInReview = ws === 'conclusion_pending' || ws === 'functional_review';
+                // "En investigation" reste l'étape courante tant qu'aucune des
+                // 2 étapes suivantes n'a été atteinte et que le dossier n'est
+                // pas clos — un aller-retour (ex. reprise après "En attente
+                // d'informations") y ramène naturellement l'affichage.
+                const isInvestigating = !isClosed && !isPendingInfo && !isInReview
+                  ? ['investigation', 'corrective_action', 'reopened'].includes(selectedAlert.status) || ws === 'investigation' || ws === 'escalated'
+                  : false;
+                // === AMÉLIORATION AJOUTÉE : "fait" uniquement si le dossier
+                // est RÉELLEMENT passé par cette étape (pendingInfoReachedAt
+                // / reviewReachedAt, horodatés une seule fois par
+                // handleRequestInfo/handleSendToReview) — jamais déduit du
+                // seul fait que le dossier a depuis avancé plus loin, pour
+                // ne jamais cocher une étape qu'il n'a pas traversée.
+                const pendingInfoDone = !!selectedAlert.pendingInfoReachedAt && (isInReview || isClosed);
+                const reviewDone = !!selectedAlert.reviewReachedAt && isClosed;
                 type StepState = 'done' | 'current' | 'pending';
                 const steps: { label: string; state: StepState; date?: string }[] = [
                   { label: t.case_status_received, state: 'done', date: selectedAlert.createdAt },
-                  { label: t.case_status_investigation, state: isClosed ? 'done' : isInvestigating ? 'current' : 'pending', date: isInvestigating ? selectedAlert.updatedAt : undefined },
-                  { label: t.case_status_pending_info, state: 'pending' },
-                  { label: t.case_status_review, state: 'pending' },
+                  {
+                    label: t.case_status_investigation,
+                    state: isClosed || isPendingInfo || isInReview ? 'done' : isInvestigating ? 'current' : 'pending',
+                    date: isInvestigating ? selectedAlert.updatedAt : undefined,
+                  },
+                  {
+                    label: t.case_status_pending_info,
+                    state: isPendingInfo ? 'current' : pendingInfoDone ? 'done' : 'pending',
+                    date: isPendingInfo ? selectedAlert.updatedAt : selectedAlert.pendingInfoReachedAt,
+                  },
+                  {
+                    label: t.case_status_review,
+                    state: isInReview ? 'current' : reviewDone ? 'done' : 'pending',
+                    date: isInReview ? selectedAlert.updatedAt : selectedAlert.reviewReachedAt,
+                  },
                   { label: t.case_status_closed_step, state: isClosed ? 'done' : 'pending', date: selectedAlert.closedAt },
                 ];
                 return (
@@ -2828,8 +2645,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 <Link2 className="w-3.5 h-3.5 text-slate-400" />
                 {t.case_quick_links_title}
               </h3>
+              {/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête
+                  ACTIVA) === Même motif que Synthèse du dossier ci-dessus. */}
               <button
-                onClick={() => window.print()}
+                onClick={() => setShowPrintReport(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition"
               >
                 <Printer className="w-3.5 h-3.5 text-blue-600" />
@@ -2859,421 +2678,200 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           </div>
         ))}
 
+      {/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+          Rendu inconditionnellement caché à l'écran (`.print-only`, voir
+          index.css) — ne devient visible que dans la boîte de dialogue
+          d'impression du navigateur, une fois `showPrintReport` à true
+          (voir le useEffect plus haut, qui appelle window.print() puis le
+          réinitialise). */}
+      {selectedAlert && showPrintReport && (
+        <CaseReportPrintView
+          alert={selectedAlert}
+          generatedByName={activeUser.name}
+          locale={lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'}
+        />
+      )}
+
       {/* MODAL: ASSIGN INVESTIGATORS */}
       {showAssignModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                Attribuer l'alerte à un ou plusieurs gestionnaires
-              </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Dossier {selectedAlert.trackingNumber} ({selectedAlert.concernedEntity})
-              </p>
-            </div>
-
-            {/* === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
-                Remplace la liste plate et non triée par le moteur de
-                compatibilité : "Compatibles" (même pays+entité que le
-                dossier) affichés en premier, puis "Autorisés Groupe"
-                (périmètre vide) en second — jamais un enquêteur dont le
-                périmètre ne correspond à aucun des deux par défaut, voir
-                domain/assignmentEngine.ts. Chaque ligne affiche désormais
-                aussi la charge de travail réelle (dossiers actifs/en
-                retard), déjà calculée pour le Centre de Pilotage mais
-                jusqu'ici invisible ici. */}
-            <div className="space-y-3 max-h-72 overflow-y-auto">
-              {assignCandidates && assignCandidates.compatible.length === 0 && assignCandidates.groupAuthorized.length === 0 && (
-                <p className="text-slate-500 text-[11px] italic p-2">
-                  Aucun enquêteur compatible ou autorisé Groupe pour ce dossier (périmètre, confidentialité, conflit d'intérêt ou disponibilité).
-                </p>
-              )}
-
-              {assignCandidates && assignCandidates.compatible.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                    Enquêteurs compatibles ({selectedAlert.concernedEntity})
-                  </div>
-                  {assignCandidates.compatible.map((c) => (
-                    <AssignCandidateRow
-                      key={c.user.id}
-                      candidate={c}
-                      checked={selectedInvestigatorIds.includes(c.user.id)}
-                      onToggle={(checked) =>
-                        setSelectedInvestigatorIds(
-                          checked
-                            ? [...selectedInvestigatorIds, c.user.id]
-                            : selectedInvestigatorIds.filter((id) => id !== c.user.id)
-                        )
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-
-              {assignCandidates && assignCandidates.groupAuthorized.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-                    Enquêteurs autorisés Groupe (vision Groupe)
-                  </div>
-                  {assignCandidates.groupAuthorized.map((c) => (
-                    <AssignCandidateRow
-                      key={c.user.id}
-                      candidate={c}
-                      checked={selectedInvestigatorIds.includes(c.user.id)}
-                      onToggle={(checked) =>
-                        setSelectedInvestigatorIds(
-                          checked
-                            ? [...selectedInvestigatorIds, c.user.id]
-                            : selectedInvestigatorIds.filter((id) => id !== c.user.id)
-                        )
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleAssignInvestigators}
-                className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
-              >
-                Enregistrer l'attribution
-              </button>
-            </div>
-          </div>
-        </div>
+        <AssignModal
+          selectedAlert={selectedAlert}
+          assignCandidates={assignCandidates}
+          selectedInvestigatorIds={selectedInvestigatorIds}
+          setSelectedInvestigatorIds={setSelectedInvestigatorIds}
+          setShowAssignModal={setShowAssignModal}
+          handleAssignInvestigators={handleAssignInvestigators}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
           MODAL: ESCALADE VERS LA DARC GROUPE */}
       {showEscalateModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Escalader vers la DARC Groupe</h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Dossier {selectedAlert.trackingNumber} ({selectedAlert.concernedEntity}) — le pays et l'entité d'origine ne sont pas modifiés, seul le propriétaire du dossier change.
-              </p>
-            </div>
+        <EscalateModal
+          t={t}
+          selectedAlert={selectedAlert}
+          allUsers={allUsers}
+          escalateOwnerId={escalateOwnerId}
+          setEscalateOwnerId={setEscalateOwnerId}
+          escalateReason={escalateReason}
+          setEscalateReason={setEscalateReason}
+          setShowEscalateModal={setShowEscalateModal}
+          handleEscalate={handleEscalate}
+        />
+      )}
 
-            {(() => {
-              const criteria = evaluateEscalationCriteria(selectedAlert);
-              return criteria.length > 0 ? (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 space-y-1">
-                  <div className="font-bold text-rose-800">Critères d'escalade détectés (suggestion, non bloquant) :</div>
-                  <ul className="list-disc list-inside text-rose-700 space-y-0.5">
-                    {criteria.map((c) => (
-                      <li key={c.key}>{c.label}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <p className="text-slate-500 text-[11px] italic">
-                  Aucun critère automatique détecté — l'escalade reste possible à la discrétion de l'opérateur/enquêteur.
-                </p>
-              );
-            })()}
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Propriétaire Groupe *</label>
-              <select
-                value={escalateOwnerId}
-                onChange={(e) => setEscalateOwnerId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                required
-              >
-                {getGroupEscalationOwners(allUsers).map((u) => (
-                  <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Motif de l'escalade *</label>
-              <textarea
-                rows={3}
-                value={escalateReason}
-                onChange={(e) => setEscalateReason(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                placeholder="Justification de l'escalade vers la DARC Groupe..."
-                required
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => setShowEscalateModal(false)}
-                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleEscalate}
-                disabled={!escalateReason.trim() || !escalateOwnerId}
-                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold"
-              >
-                Confirmer l'escalade
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
+          périmètre) === Même gabarit que la modale d'escalade ci-dessus. */}
+      {showDismissModal && selectedAlert && (
+        <DismissModal
+          t={t}
+          selectedAlert={selectedAlert}
+          dismissTargetStatus={dismissTargetStatus}
+          setDismissTargetStatus={setDismissTargetStatus}
+          dismissReason={dismissReason}
+          setDismissReason={setDismissReason}
+          setShowDismissModal={setShowDismissModal}
+          handleDismissCase={handleDismissCase}
+        />
       )}
 
       {/* MODAL: MODIFY PRIORITY & SLA */}
       {showPriorityModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                Modifier la classification et les délais de traitement
-              </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                CDC 3.1.2 : Le point de contact peut ajuster la priorité et les délais préconfigurés.
-              </p>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Niveau de priorité</label>
-              <select
-                value={newPriority}
-                onChange={(e: any) => setNewPriority(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-bold"
-              >
-                <option value="critique">Critique (Action immédiate 48h)</option>
-                <option value="tres_elevee">Très élevée (Enquête urgente 7j)</option>
-                <option value="elevee">Élevée (Suivi renforcé 15j)</option>
-                <option value="faible">Faible (Traitement standard 30j)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Délai de traitement cible (en jours)</label>
-              <input
-                type="number"
-                value={newSlaDays}
-                onChange={(e) => setNewSlaDays(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Motif de l'ajustement</label>
-              <input
-                type="text"
-                value={priorityOverrideReason}
-                onChange={(e) => setPriorityOverrideReason(e.target.value)}
-                placeholder="Ex: Confirmation d'un préjudice supérieur à 20k€..."
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => setShowPriorityModal(false)}
-                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleUpdatePriority}
-                className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold"
-              >
-                Appliquer les modifications
-              </button>
-            </div>
-          </div>
-        </div>
+        <PriorityModal
+          newPriority={newPriority}
+          setNewPriority={setNewPriority}
+          newSlaDays={newSlaDays}
+          setNewSlaDays={setNewSlaDays}
+          priorityOverrideReason={priorityOverrideReason}
+          setPriorityOverrideReason={setPriorityOverrideReason}
+          setShowPriorityModal={setShowPriorityModal}
+          handleUpdatePriority={handleUpdatePriority}
+        />
       )}
 
       {/* MODAL: ADD CORRECTIVE MEASURE */}
       {showAddMeasureModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                Documenter une mesure corrective
-              </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Exigence obligatoire avant toute clôture de dossier (CDC 3.1.2).
-              </p>
-            </div>
-
-            <form onSubmit={handleAddCorrectiveMeasure} className="space-y-3">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Intitulé de la mesure *</label>
-                <input
-                  type="text"
-                  value={measureTitle}
-                  onChange={(e) => setMeasureTitle(e.target.value)}
-                  placeholder="Ex: Audit approfondi des sinistres matériels, sanctions disciplinaires..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Description des actions à mener *</label>
-                <textarea
-                  rows={3}
-                  value={measureDesc}
-                  onChange={(e) => setMeasureDesc(e.target.value)}
-                  placeholder="Détaillez le plan d'action préventif ou curatif..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Responsable désigné</label>
-                  <input
-                    type="text"
-                    value={measureResp}
-                    onChange={(e) => setMeasureResp(e.target.value)}
-                    placeholder="Ex: DRH Groupe, Directeur Technique..."
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Échéance de réalisation</label>
-                  <input
-                    type="date"
-                    value={measureDueDate}
-                    onChange={(e) => setMeasureDueDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Statut initial de la mesure</label>
-                <select
-                  value={measureStatus}
-                  onChange={(e: any) => setMeasureStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                >
-                  <option value="planned">Planifiée</option>
-                  <option value="in_progress">En cours de déploiement</option>
-                  <option value="implemented">Déployée / Réalisée</option>
-                  <option value="verified">Vérifiée par la DARC</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddMeasureModal(false)}
-                  className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-                >
-                  Enregistrer la mesure
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddMeasureModal
+          measureTitle={measureTitle}
+          setMeasureTitle={setMeasureTitle}
+          measureDesc={measureDesc}
+          setMeasureDesc={setMeasureDesc}
+          measureResp={measureResp}
+          setMeasureResp={setMeasureResp}
+          measureDueDate={measureDueDate}
+          setMeasureDueDate={setMeasureDueDate}
+          measureStatus={measureStatus}
+          setMeasureStatus={setMeasureStatus}
+          setShowAddMeasureModal={setShowAddMeasureModal}
+          handleAddCorrectiveMeasure={handleAddCorrectiveMeasure}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 6) === MODAL: ADD TASK */}
       {showAddTaskModal && selectedAlert && (
+        <AddTaskModal
+          t={t}
+          selectedAlert={selectedAlert}
+          investigatorUsers={investigatorUsers}
+          taskTitle={taskTitle}
+          setTaskTitle={setTaskTitle}
+          taskDescription={taskDescription}
+          setTaskDescription={setTaskDescription}
+          taskOwnerId={taskOwnerId}
+          setTaskOwnerId={setTaskOwnerId}
+          taskDueDate={taskDueDate}
+          setTaskDueDate={setTaskDueDate}
+          taskPriority={taskPriority}
+          setTaskPriority={setTaskPriority}
+          setShowAddTaskModal={setShowAddTaskModal}
+          handleAddTask={handleAddTask}
+        />
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === MODAL: "+Nouvel
+          entretien" — même structure que "+Nouvelle tâche" ci-dessus. */}
+      {showAddInterviewModal && selectedAlert && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
             <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">{t.btn_add_task}</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t.btn_add_interview}</h3>
               <p className="text-slate-500 text-[11px] mt-0.5">{selectedAlert.trackingNumber}</p>
             </div>
 
-            <form onSubmit={handleAddTask} className="space-y-3">
+            <form onSubmit={handleAddInterview} className="space-y-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">{t.task_title_label} *</label>
-                <input
-                  type="text"
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  required
-                />
+                <label className="block font-semibold text-slate-700 mb-1">{t.interview_link_person_label}</label>
+                <select
+                  value={interviewLinkedPersonId}
+                  onChange={(e) => { setInterviewLinkedPersonId(e.target.value); if (e.target.value) setInterviewIntervieweeName(''); }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                >
+                  <option value="">—</option>
+                  {[...selectedAlert.involvedPersons, ...selectedAlert.witnesses].map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">{t.task_description_label}</label>
-                <textarea
-                  rows={2}
-                  value={taskDescription}
-                  onChange={(e) => setTaskDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              {!interviewLinkedPersonId && (
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t.task_owner_label} *</label>
-                  <select
-                    value={taskOwnerId}
-                    onChange={(e) => setTaskOwnerId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                    required
-                  >
-                    <option value="">—</option>
-                    {investigatorUsers.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t.task_due_date_label} *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.interview_interviewee_label} *</label>
                   <input
-                    type="date"
-                    value={taskDueDate}
-                    onChange={(e) => setTaskDueDate(e.target.value)}
+                    type="text"
+                    value={interviewIntervieweeName}
+                    onChange={(e) => setInterviewIntervieweeName(e.target.value)}
+                    placeholder={t.interview_interviewee_placeholder}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                     required
                   />
                 </div>
-              </div>
+              )}
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">{t.task_priority_label}</label>
-                {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une
-                    tâche) === pills façon maquette au lieu d'un <select> —
-                    même état `taskPriority`, mêmes 3 valeurs réelles
-                    (TaskPriority), rien d'autre ne change. */}
-                <div className="flex gap-1.5">
-                  {(['low', 'medium', 'high'] as const).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setTaskPriority(p)}
-                      className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition ${
-                        taskPriority === p ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                      }`}
-                    >
-                      {p === 'low' ? t.task_priority_low : p === 'medium' ? t.task_priority_medium : t.task_priority_high}
-                    </button>
-                  ))}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.interview_scheduled_label}</label>
+                  <input
+                    type="date"
+                    value={interviewScheduledAt}
+                    onChange={(e) => setInterviewScheduledAt(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.interview_status_label}</label>
+                  <div className="flex gap-1.5">
+                    {(['planned', 'completed', 'cancelled'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setInterviewStatus(s)}
+                        className={`flex-1 px-2 py-2 rounded-lg text-[11px] font-bold border transition ${
+                          interviewStatus === s ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                        }`}
+                      >
+                        {s === 'planned' ? t.interview_status_planned : s === 'completed' ? t.interview_status_completed : t.interview_status_cancelled}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">{t.interview_summary_label}</label>
+                <textarea
+                  rows={3}
+                  value={interviewSummary}
+                  onChange={(e) => setInterviewSummary(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button type="button" onClick={() => setShowAddTaskModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
+                <button type="button" onClick={() => setShowAddInterviewModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
                   {t.btn_cancel}
                 </button>
                 <button type="submit" className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">
-                  {t.btn_add_task}
+                  {t.btn_add_interview}
                 </button>
               </div>
             </form>
@@ -3290,9 +2888,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 Clôturer formellement le dossier {selectedAlert.trackingNumber}
               </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Vérification de complétude et information du lanceur d'alerte (CDC 3.1.3).
-              </p>
             </div>
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 6 — checklist de clôture, §33) ===
@@ -3346,7 +2941,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Synthèse interne de clôture pour le dossier d'audit
+                Synthèse interne de clôture pour le dossier d'enquête
               </label>
               <textarea
                 rows={3}
@@ -3359,7 +2954,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Message officiel transmis au lanceur d'alerte (CDC 3.1.2 & 3.1.3)
+                Message officiel transmis au lanceur d'alerte
               </label>
               <textarea
                 rows={3}
@@ -3390,49 +2985,141 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         </div>
       )}
 
-      {/* MODAL: REOPEN CASE (WITH MANDATORY REASON - CDC 3.1.3) */}
-      {showReopenModal && selectedAlert && (
+      {/* MODAL: REOPEN CASE (WITH MANDATORY REASON - CDC 3.1.3)
+          === AMÉLIORATION AJOUTÉE (Refactor — migration vers ConfirmDialog
+          partagé) === Rendu et comportement identiques à l'ancienne modale
+          ad hoc (mêmes couleurs rose-600/700, même icône, même placeholder,
+          même bouton désactivé tant que le motif est vide) — seule
+          l'implémentation change. */}
+      {selectedAlert && (
+        <ConfirmDialog
+          open={showReopenModal}
+          title={`Rouvrir le dossier ${selectedAlert.trackingNumber}`}
+          description="Règle stricte : Motif de réouverture obligatoire consigné en piste d'audit."
+          confirmLabel="Valider la réouverture"
+          cancelLabel="Annuler"
+          tone="danger"
+          icon={<RotateCcw className="w-4 h-4" />}
+          titleClassName="text-rose-700"
+          requireReason
+          reasonLabel="Motif obligatoire de réouverture *"
+          reasonPlaceholder="Précisez les nouveaux faits constatés, l'incomplétude identifiée ou la demande du Comité d'audit..."
+          reason={reopenReason}
+          onReasonChange={setReopenReason}
+          onConfirm={handleReopenAlert}
+          onCancel={() => setShowReopenModal(false)}
+        />
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche)
+          === MODAL: demander des informations complémentaires
+          (investigation → pending_information, storage.transitionStatus()).
+          === AMÉLIORATION AJOUTÉE (Refactor — migration vers ConfirmDialog
+          partagé) === Rendu et comportement identiques à l'ancienne modale
+          ad hoc (variante purple-600/700 dédiée du bouton, même icône,
+          même id sur le bouton de validation). */}
+      {selectedAlert && (
+        <ConfirmDialog
+          open={showRequestInfoModal}
+          title={`${t.request_info_modal_title} — ${selectedAlert.trackingNumber}`}
+          description={t.request_info_modal_desc}
+          confirmLabel={t.request_info_modal_submit}
+          cancelLabel="Annuler"
+          icon={<HelpCircle className="w-4 h-4" />}
+          titleClassName="text-purple-700"
+          confirmVariant="accent"
+          confirmButtonId="btn-request-info-submit"
+          requireReason
+          reasonLabel={t.request_info_modal_label}
+          reasonPlaceholder={t.request_info_modal_placeholder}
+          reason={requestInfoReason}
+          onReasonChange={setRequestInfoReason}
+          onConfirm={handleRequestInfo}
+          onCancel={() => setShowRequestInfoModal(false)}
+        />
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+          l'envoi en revue) === MODAL: rédiger le rapport d'investigation —
+          même structure que la modale "Demander des informations"
+          ci-dessus, couleur distincte (teal). Texte et fichier importé sont
+          tous deux facultatifs pris isolément, mais au moins l'un des deux
+          est requis (voir handleSaveInvestigationReport). */}
+      {showReportModal && selectedAlert && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
             <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 text-rose-700">
-                <RotateCcw className="w-4 h-4" />
-                Rouvrir le dossier {selectedAlert.trackingNumber}
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 text-teal-700">
+                <ClipboardList className="w-4 h-4" />
+                {t.report_modal_title} — {selectedAlert.trackingNumber}
               </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Règle stricte CDC 3.1.3 : Motif de réouverture obligatoire consigné en piste d'audit.
-              </p>
+              <p className="text-slate-500 text-[11px] mt-0.5">{t.report_modal_desc}</p>
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Motif obligatoire de réouverture *
-              </label>
+              <label className="block font-semibold text-slate-700 mb-1">{t.report_modal_label}</label>
               <textarea
-                rows={4}
-                value={reopenReason}
-                onChange={(e) => setReopenReason(e.target.value)}
-                placeholder="Précisez les nouveaux faits constatés, l'incomplétude identifiée ou la demande du Comité d'audit..."
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
-                required
+                rows={6}
+                value={reportDraft}
+                onChange={(e) => setReportDraft(e.target.value)}
+                placeholder={t.report_modal_placeholder}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500"
               />
+            </div>
+
+            {/* === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation
+                en fichier) === Même mécanisme que "Preuves & pièces
+                jointes" (handleAddEvidenceFile) : lecture locale en
+                dataUrl, jamais d'upload réseau fabriqué. */}
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">{t.report_modal_import_label}</label>
+              {reportFile ? (
+                <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                  <span className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium text-slate-800 block truncate">{reportFile.name}</span>
+                    <span className="text-[10px] text-slate-400">{Math.round(reportFile.size / 1024)} Ko</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReportFile(undefined)}
+                    className="text-slate-400 hover:text-rose-600 shrink-0"
+                    title={t.report_modal_remove_file}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => reportFileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-200 text-teal-700 hover:bg-teal-50 font-semibold"
+                >
+                  <Paperclip className="w-3.5 h-3.5" />
+                  {t.report_modal_import_btn}
+                </button>
+              )}
+              <input id="report-file-input" ref={reportFileInputRef} type="file" className="hidden" onChange={handleImportReportFile} />
             </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setShowReopenModal(false)}
+                onClick={() => setShowReportModal(false)}
                 className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
               >
                 Annuler
               </button>
               <button
                 type="button"
-                onClick={handleReopenAlert}
-                disabled={!reopenReason.trim()}
-                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white font-bold"
+                id="btn-report-submit"
+                onClick={handleSaveInvestigationReport}
+                disabled={!reportDraft.trim() && !reportFile}
+                className="px-4 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold"
               >
-                Valider la réouverture
+                {t.report_modal_submit}
               </button>
             </div>
           </div>

@@ -4,19 +4,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
   fr: {
     // Header & Brand — app_title/app_subtitle sont définis plus bas, dans
     // le bloc "Phase 11" (libellé exact de la maquette de référence).
-    group_name: 'Groupe ACTIVA',
-    darc_label: 'Direction d’Audit, des Risques et de la Conformité (DARC)',
     confidentiality_guarantee: 'Confidentialité absolue & Protection contre les représailles',
     
     // Navigation
     nav_home: 'Accueil & Signalement',
     nav_track: 'Suivre mon alerte',
     nav_portal: 'Espace Gestion DARC',
-    nav_reports: 'Tableaux de bord & Reporting',
     nav_audit: 'Piste d’Audit',
-    nav_settings: 'Configuration Système',
-    nav_qrcode: 'Accès Mobile / QR Code',
-    nav_firebase_lookup: 'Recherche Firebase (Bêta)',
 
     // Firebase Case Lookup (Phase 4 — real Firebase Auth + Firestore)
     fb_lookup_title: 'Recherche de dossier (données réelles Firebase)',
@@ -50,38 +44,43 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_subcollections_note: 'Allégations, personnes, preuves, notes et échanges ne sont pas affichés ici : leur lecture nécessite une Cloud Function (non déployée, projet en forfait Spark). Voir docs/FIREBASE-SETUP.md.',
     
     // Whistleblower home
-    hero_title: 'EthicsAlert.Com',
+    hero_title: 'Activa-whistleblowing',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
     // Titre du hero remplacé par un message d'action en deux lignes, sur
     // demande explicite ("le modèle que je t'ai donné"). `hero_title` reste
     // inchangé (utilisé ailleurs comme nom de produit, ex. en-tête du
     // portail collaborateur) — seul le hero utilise désormais ces 2 clés.
-    hero_headline_line1: 'Signalez en toute',
-    hero_headline_line2: 'confiance',
-    hero_desc: 'Un comportement contraire à nos valeurs, à l’éthique ou à la réglementation ? Parlez-en. Nous vous écoutons.',
-    hero_paragraph: 'L’intégrité est au cœur de notre culture d’entreprise. EthicsAlert vous permet de signaler, en toute confidentialité et sans crainte, tout comportement contraire à nos valeurs, à notre code d’éthique ou à la réglementation en vigueur. Chaque signalement est pris au sérieux et traité avec rigueur.',
-    hero_tags: '100% CONFIDENTIEL · SÉCURISÉ · CONFORME',
-    hero_how_it_works_link: 'Comment ça marche ?',
-    hero_quote: 'Ensemble, pour un Groupe plus éthique et plus solide.',
+    hero_headline_line1: 'Signalez en',
+    hero_headline_line2: 'toute confiance',
+    // === AMÉLIORATION AJOUTÉE (garder "Parlez-en. Nous vous écoutons." sur
+    // une seule ligne) === `hero_desc` scindé en clés sur demande explicite :
+    // la question s'enroule normalement, l'appel à l'action final reste
+    // groupé (voir `whitespace-nowrap` dans WhistleblowerHome.tsx).
+    // === AMÉLIORATION AJOUTÉE (retour à la ligne forcé avant "à l'éthique")
+    // === Sur demande explicite : `hero_desc_question` scindé en 2 lignes
+    // (`<br />` dans WhistleblowerHome.tsx) pour que "à l'éthique ou à la
+    // réglementation ?" retombe toujours sur sa propre ligne, plutôt que de
+    // dépendre du retour à la ligne naturel du navigateur (qui variait
+    // selon la largeur d'écran).
+    hero_desc_line1: 'Un comportement contraire à nos valeurs,',
+    hero_desc_line2: 'à l’éthique ou à la réglementation ?',
+    hero_desc_cta: 'Parlez-en. Nous vous écoutons.',
     // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
-    hero_eyebrow: 'Canal éthique du Groupe ACTIVA',
+    hero_eyebrow: 'Canal de gestion des alertes du Groupe ACTIVA',
     hero_anonymous_note: 'Vous pouvez effectuer un signalement de manière anonyme.',
+    // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
+    // Sur demande explicite, avec capture de référence à respecter (couleurs,
+    // barre d'accent bleue, légende sous la liste).
+    hero_value_1: 'L’écoute clients',
+    hero_value_2: 'La réactivité',
+    hero_value_3: 'Le respect des engagements',
+    hero_value_4: 'L’innovation',
+    hero_value_5: 'La disponibilité',
+    hero_values_caption: 'Des valeurs qui nous engagent',
     // === AMÉLIORATION AJOUTÉE (Phase 22 — carte de valeurs qui tourne) ===
-    hero_value1_title: 'Intégrité',
-    hero_value1_desc: 'Des pratiques responsables',
-    hero_value2_title: 'Transparence',
-    hero_value2_desc: 'Une culture d’ouverture',
-    hero_value3_title: 'Confiance',
-    hero_value3_desc: 'Un Groupe plus durable',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — bandeau utilitaire + bouton Connexion) ===
-    topbar_about: 'À propos du Groupe ACTIVA',
     nav_connexion: 'Connexion',
     process_subtitle: 'Quatre étapes pour faire entendre votre voix en toute confiance.',
-    categories_eyebrow: 'Des sujets qui comptent',
-    categories_heading: 'Quels types de préoccupations pouvez-vous signaler ?',
-    categories_subtitle: 'Vous pouvez signaler tout fait contraire à nos valeurs, nos politiques ou la réglementation.',
-    categories_view_all: 'Voir la liste complète',
-    cta_band_heading: 'Une préoccupation à signaler ?',
     cta_band_desc: 'Votre voix compte. Signalez en toute confiance.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — section FAQ, absente jusqu'ici) ===
@@ -90,7 +89,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_q1: 'Mon signalement est-il vraiment anonyme ?',
     faq_a1: 'Oui. Si vous choisissez le mode anonyme, aucune information permettant de vous identifier (nom, adresse IP, données de connexion) n’est enregistrée. Vous recevez un numéro de dossier et un mot de passe pour suivre votre signalement sans jamais révéler votre identité.',
     faq_q2: 'Que se passe-t-il après l’envoi de mon signalement ?',
-    faq_a2: 'Votre signalement est immédiatement classifié selon la matrice de risques NOCA, puis attribué à un ou plusieurs investigateurs DARC assermentés. Vous pouvez suivre l’avancement et dialoguer en toute sécurité depuis l’espace de suivi.',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, microcopy) ===
+    // Les sigles NOCA et DARC n'étaient jamais explicités sur les pages
+    // publiques ; un lanceur d'alerte externe les découvrait sans contexte.
+    faq_a2: 'Votre signalement est immédiatement classifié selon la grille de criticité interne du Groupe (matrice NOCA), puis attribué à un ou plusieurs investigateurs assermentés de la Direction d’Audit, des Risques et de la Conformité (DARC). Vous pouvez suivre l’avancement et dialoguer en toute sécurité depuis l’espace de suivi.',
     faq_q3: 'Suis-je protégé(e) contre des représailles ?',
     faq_a3: 'Oui. La politique du Groupe ACTIVA garantit une protection totale contre toute forme de représailles à l’encontre d’un lanceur d’alerte de bonne foi, conformément au Code éthique du Groupe.',
     faq_q4: 'Puis-je compléter ou supprimer mon signalement ?',
@@ -101,7 +103,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_a6: 'Le mot de passe n’est affiché qu’une seule fois, à la soumission du signalement, et n’est jamais stocké en clair ni récupérable — conservez-le précieusement. Si vous l’avez perdu, contactez la DARC via les canaux officiels du Groupe.',
     btn_new_alert: 'Signaler une préoccupation',
     btn_track_existing: 'Suivre mon signalement',
-    btn_view_policy: 'Consulter la Charte Éthique',
 
     // === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === un
     // second jeu de clés « Contact page » avait été réintroduit ici par une
@@ -112,11 +113,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // clés `contact_*` existantes, conservées, juste avant `process_label`.
 
     // Alert form steps
-    step_1_identity: '1. Confidentialité & Identité',
-    step_2_facts: '2. Faits & Catégorie',
-    step_3_persons: '3. Personnes & Témoins',
-    step_4_evidence: '4. Preuves & Impact',
-    step_5_security: '5. Sécurisation de l’accès',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité avant le
+    // formulaire de signalement) ===
+    confidentiality_gate_title: 'Votre signalement est confidentiel',
+    confidentiality_gate_body1_pre: 'Les informations que vous communiquez seront traitées ',
+    confidentiality_gate_body1_bold: 'de manière confidentielle',
+    confidentiality_gate_body1_post: ' et uniquement par les personnes habilitées à traiter votre signalement.',
+    confidentiality_gate_body2_pre: 'Vous pouvez choisir de rester ',
+    confidentiality_gate_body2_bold: 'anonyme.',
+    confidentiality_gate_body2_post: ' Merci de transmettre uniquement les informations utiles au traitement des faits signalés.',
+    confidentiality_gate_cancel: 'Annuler',
+    confidentiality_gate_confirm: 'Je souhaite poursuivre',
 
     // === AMÉLIORATION AJOUTÉE (Phase 26 — formulaire de signalement en 6 étapes,
     // fidèle à la nouvelle maquette de référence fournie) ===
@@ -130,7 +138,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     wizard_step2_hint: 'Vous pouvez rester anonyme. Ces informations sont facultatives et ne sont pas obligatoires pour soumettre votre signalement.',
     wizard_step3_title: 'Informations sur l’incident',
     wizard_step3_desc: 'Décrivez les faits',
-    wizard_step4_title: 'Pièces jointes',
     wizard_step4_title_optional: 'Pièces jointes (optionnel)',
     wizard_step4_desc: 'Ajoutez des documents (optionnel)',
     wizard_step4_hint: 'Vous pouvez joindre des documents, des captures d’écran, des photos ou tout autre élément pouvant appuyer votre signalement.',
@@ -163,12 +170,21 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ack_success_title: 'Votre signalement a été soumis avec succès',
     ack_success_desc: 'Nous vous remercions pour votre confiance. Votre signalement a bien été enregistré et transmis aux équipes compétentes pour analyse.',
     ack_password_label: 'Mot de passe',
-    ack_credentials_note: 'Conservez précieusement cet identifiant et ce mot de passe. Ils vous permettront de suivre l’avancement de votre signalement en toute confidentialité.',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
+    // BUG PRÉEXISTANT CORRIGÉ : ce message ne précisait jamais ce qu'il se
+    // passe en cas de perte des identifiants, alors qu'ils sont en réalité
+    // irrécupérables — voir aussi `track_login_help` désormais affiché.
+    ack_credentials_note: 'Conservez précieusement cet identifiant et ce mot de passe : ils vous permettront de suivre l’avancement de votre signalement en toute confidentialité. En cas de perte, il ne sera pas possible de les récupérer ni de retrouver votre dossier.',
     ack_next_heading: 'Et ensuite ?',
     ack_next_track_title: 'Suivez votre signalement',
     ack_next_track_desc: 'Connectez-vous avec votre identifiant et votre mot de passe sur la plateforme pour consulter les mises à jour.',
-    ack_next_anon_title: 'Votre anonymat est garanti',
-    ack_next_anon_desc: 'Aucune information personnelle n’est requise. Tous les échanges restent confidentiels et sécurisés.',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
+    // BUG PRÉEXISTANT CORRIGÉ : « garanti » est une promesse absolue,
+    // juridiquement risquée et en tension avec l'avertissement sur les
+    // métadonnées des pièces jointes (`track_docs_metadata_warning`) —
+    // reformulé en langage honnête et vérifiable.
+    ack_next_anon_title: 'Votre anonymat est protégé',
+    ack_next_anon_desc: 'Aucune information personnelle n’est requise. Tous les échanges restent confidentiels et accessibles uniquement aux personnes habilitées.',
     ack_next_informed_title: 'Vous serez informé',
     ack_next_informed_desc: 'Vous recevrez des mises à jour dans votre espace sécurisé dès qu’une évolution sera disponible.',
     btn_copy_password: 'Copier',
@@ -176,8 +192,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Form fields
     choice_anonymous: 'Signalement 100% Anonyme (Recommandé)',
     choice_identified: 'Signalement Identifié (Confidentiel)',
-    anonymous_note: 'Aucune donnée d’identification technique (adresse IP, appareil) n’est enregistrée.',
-    label_fullname: 'Nom et prénom',
     label_job_title: 'Fonction / Poste',
     label_department: 'Département / Direction',
     label_declarant_type: 'Votre relation avec ACTIVA',
@@ -187,7 +201,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_phone: 'Téléphone',
     
     label_category: 'Catégorie de manquement',
-    label_subcategory: 'Sous-catégorie spécifique',
     label_custom_violation: 'Précision du manquement (si autre)',
     label_description: 'Description détaillée et chronologique des faits',
     desc_placeholder: 'Décrivez précisément les faits constatés, les dates, les montants en cause, les mécanismes observés...',
@@ -196,38 +209,19 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_location: 'Lieu précis de l’incident',
     
     // Risk Matrix fields
-    matrix_title: 'Évaluation automatique des risques (Matrice DARC)',
-    label_financial_impact: 'Impact financier potentiel',
-    label_hierarchy_level: 'Niveau hiérarchique de la personne en cause',
-    label_recidivism: 'Récidive / Répétition des faits',
-    label_reputation_risk: 'Risque pour la réputation du Groupe ACTIVA',
-    calculated_noca: 'Classification calculée',
-    priority_level: 'Niveau de priorité',
-    expected_sla: 'Délai de traitement cible',
 
     // People
     btn_add_involved: '+ Ajouter une personne mise en cause',
     btn_add_witness: '+ Ajouter un témoin éventuel',
-    role_employee: 'Employé',
-    role_manager: 'Cadre',
-    role_subdirector: 'Sous-Directeur',
-    role_director: 'Directeur+',
 
     // Evidence
     drag_drop_evidence: 'Glissez-déposez des pièces justificatives (PDF, images, bordereaux) ou cliquez pour parcourir',
     max_file_note: 'Formats acceptés : PDF, PNG, JPG, DOCX (Max 15 Mo par fichier)',
     
     // Security & submission
-    label_password: 'Créez un mot de passe pour suivre votre alerte',
-    label_password_confirm: 'Confirmez votre mot de passe',
-    pwd_security_note: 'Conservez précieusement ce mot de passe et le numéro de dossier qui vous sera attribué. Ils sont indispensables pour échanger avec les enquêteurs en tout anonymat.',
-    btn_submit_alert: 'Transmettre l’alerte à la DARC',
-    btn_save_draft: 'Brouillon sauvegardé automatiquement',
     
     // Acknowledgment
-    ack_title: 'Alerte transmise avec succès à la DARC',
     ack_tracking_num: 'Votre Numéro de Dossier Unique',
-    ack_instructions: 'Prenez note de ce numéro. Un accusé de réception formel a été généré.',
     btn_download_ack: 'Télécharger l’Accusé de Réception (PDF)',
     btn_go_to_tracking: 'Accéder à l’espace de suivi',
 
@@ -241,13 +235,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_tab_messages: 'Messages',
     track_tab_documents: 'Pièces jointes',
     track_tab_updates: 'Historique',
-    track_updates_empty: 'Aucune mise à jour enregistrée pour le moment.',
-    label_enter_number: 'Numéro de dossier (ex: ACT-2026-0418)',
-    label_enter_pwd: 'Mot de passe associé',
     btn_login_tracking: 'Consulter mon dossier',
-    status_label: 'Statut du dossier',
-    badge_anonymous: 'Dossier Anonyme',
-    badge_identified: 'Dossier Identifié',
 
     // === AMÉLIORATION AJOUTÉE (Phase 33 — refonte du portail de suivi,
     // fidèle aux 4 captures de référence fournies : écran de connexion,
@@ -255,18 +243,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // complément) ===
     track_label_case_number: 'Numéro de dossier',
     track_label_password: 'Mot de passe associé',
-    track_placeholder_case_number: 'Ex. ACT-2026-0418',
+    track_placeholder_case_number: 'Ex. AARDC-26-09-0001',
     track_placeholder_password: 'Votre mot de passe confidentiel',
     track_divider_or: 'ou',
     track_switch_to_new_alert: 'Vous souhaitez plutôt déposer un nouveau signalement ?',
     track_login_help: 'Votre code d’accès et votre mot de passe sont personnels et confidentiels. En cas d’oubli, il n’est pas possible de les récupérer.',
-    track_confidentiality_tip1: 'Accès sécurisé et chiffré',
-    track_confidentiality_tip2: 'Échanges anonymisés',
-    track_confidentiality_tip3: 'Aucune information personnelle requise',
     track_back: 'Retour',
-    track_complete_declaration: 'Compléter la déclaration',
-    track_logout: 'Déconnexion',
-    track_progress_label: 'Avancement de votre dossier',
     track_step1: 'Enregistré & Reçu',
     track_step2: 'Analyse DARC',
     track_step3: 'Investigation',
@@ -297,20 +279,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 34 — nouvelle maquette du portail de
     // suivi : panneau photo sur la connexion, navigation latérale, historique
     // en frise chronologique) ===
-    track_login_tagline: 'Un environnement plus éthique, plus sûr pour tous.',
     track_login_photo_note: 'Un canal sécurisé, anonyme et indépendant.',
     // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
-    space_home_badge: 'Dispositif d’Alerte Éthique & Déontologie',
-    space_home_tagline: 'Bienvenue sur votre espace sécurisé.',
-    space_home_body: 'Vous êtes sur la plateforme confidentielle dédiée au signalement des faits sensibles, dans le respect de l’éthique et des valeurs de notre organisation.',
-    space_home_confidentiality: 'Confidentialité garantie',
-    space_home_traceability: 'Traçabilité des actions',
-    space_home_hello: 'Bonjour',
-    space_home_title_single: 'Espace de travail',
     space_home_title_plural: 'Espaces de travail',
-    space_home_subtitle_single: 'Accédez à votre espace de travail pour reprendre votre activité.',
-    space_home_subtitle_plural: 'Sélectionnez votre environnement de travail pour accéder aux dossiers, à la boîte de réception et aux outils dédiés.',
-    space_home_session_active: 'Session active',
+    space_home_subtitle_plural: 'Sélectionnez votre environnement de travail.',
+    // === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) ===
+    space_home_denied_title: 'Accès restreint',
+    space_home_denied_body: 'Votre profil ne dispose pas des habilitations nécessaires pour accéder à « {space} ».',
+    space_home_denied_close: 'Fermer',
     space_home_operator_title: 'Espace Opérateur',
     space_home_operator_desc: 'Traitement des signalements, qualification, cotation et attribution des dossiers.',
     space_home_operator_stat: '{n} nouveau(x) signalement(s)',
@@ -322,11 +298,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Configuration", puis par "Panneau de configuration", sur 2 demandes
     // explicites successives de l'utilisateur, en cohérence avec le même
     // renommage du bloc titre de la barre latérale Admin
-    // (StaffPortalLayout.tsx).
+    // (StaffPortalLayout.tsx). Description alignée sur la mise à jour
+    // apportée entre-temps sur `main`.
     space_home_admin_title: 'Panneau de configuration',
-    space_home_admin_desc: 'Comptes, rôles, configuration et gouvernance de la plateforme.',
-    space_home_general_title: 'Vue d’ensemble & Rapports',
-    space_home_general_desc: 'Consultation en lecture seule de l’activité et des rapports DARC.',
+    space_home_admin_desc: 'Configuration, gestion des utilisateurs et suivi global de la plateforme.',
+    space_home_general_title: 'Espace Consultant',
+    space_home_general_desc: 'Accès aux dossiers partagés et appui technique.',
     track_docs_subtitle: 'Ajoutez des documents pour appuyer votre signalement.',
     track_updates_title: 'Historique du dossier',
     track_updates_subtitle: 'Suivez toutes les étapes et actions réalisées sur votre signalement.',
@@ -336,7 +313,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Messaging
     // === AMÉLIORATION AJOUTÉE (Phase 33) === titre raccourci + sous-titre
     // séparé, conforme à la capture (bandeau vert avec les deux lignes).
-    msg_box_title: 'Messagerie sécurisée et chiffrée',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
+    // BUG PRÉEXISTANT CORRIGÉ : « chiffrée » promettait un chiffrement de
+    // bout en bout qui ne correspond pas à l'architecture réelle (stockage
+    // local non chiffré) — reformulé en langage vérifiable.
+    msg_box_title: 'Messagerie confidentielle et sécurisée',
     msg_placeholder: 'Écrivez un message ou apportez un complément d’information...',
     btn_send_msg: 'Envoyer',
 
@@ -356,41 +337,67 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     portal_urgent: 'Priorités Critiques (NOCA 3 & 4)',
     portal_closed_rate: 'Taux de résolution',
     
-    filter_all: 'Toutes les alertes',
-    filter_my_cases: 'Mes dossiers attribués',
-    filter_by_status: 'Filtrer par statut',
-    filter_by_entity: 'Filtrer par entité',
-    filter_by_noca: 'Filtrer par criticité NOCA',
     search_placeholder: 'Rechercher par référence, mot-clé, ville...',
 
     // Case detail
-    tab_overview: 'Détails du signalement',
-    tab_investigation: 'Enquête & Notes internes',
-    tab_messages: 'Dialogue avec le déclarant',
-    tab_corrective: 'Mesures correctives obligatoires',
-    tab_audit: 'Historique & Piste d’audit',
 
     btn_assign_investigator: 'Attribuer à un gestionnaire',
     btn_change_priority: 'Modifier la priorité / Délais',
+    // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et
+    // de routage) ===
+    btn_escalate_case: 'Escalader le dossier',
+    escalate_recipient_label: 'Destinataire',
+    escalate_recipient_email_only: 'e-mail uniquement',
+    // === AMÉLIORATION AJOUTÉE (Visibilité de l'escalade — impasse UX corrigée) ===
+    case_escalated_badge: 'Escaladé',
+    case_escalated_card_title: 'Dossier escaladé',
+    case_escalated_card_meta: 'Escaladé le {date} vers {recipient} ({fonction}) par {actor}.',
+    case_escalated_card_reason_label: 'Motif :',
+    case_escalated_card_access_granted: 'Accès au dossier accordé au destinataire.',
+    case_escalated_card_access_email_only: 'Notification e-mail uniquement — aucun accès in-app (compte non lié ou habilitation insuffisante).',
+    // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors périmètre) ===
+    btn_dismiss_case: 'Classer sans suite',
+    btn_dismiss_case_confirm: 'Confirmer le classement',
+    dismiss_modal_subtitle: 'Dossier {tracking} — clôture immédiate, sans passer par le circuit d’investigation.',
+    dismiss_reason_type_label: 'Motif de classement',
+    dismiss_reason_duplicate: 'Doublon',
+    dismiss_reason_out_of_scope: 'Hors périmètre',
+    dismiss_motive_label: 'Précision',
+    dismiss_motive_placeholder: 'Justification du classement sans suite...',
+    // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
+    btn_request_info: 'Demander des informations',
+    btn_send_review: 'Envoyer en revue',
+    btn_resume_investigation: 'Reprendre l’investigation',
+    request_info_modal_title: 'Demander des informations',
+    request_info_modal_desc: 'Le dossier passe en « En attente d’informations » jusqu’à la reprise de l’investigation.',
+    request_info_modal_label: 'Informations demandées *',
+    request_info_modal_placeholder: 'Précisez les informations ou pièces manquantes...',
+    request_info_modal_submit: 'Envoyer la demande',
+    // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+    // l'envoi en revue) ===
+    btn_write_report: 'Rédiger le rapport d’investigation',
+    report_modal_title: 'Rapport d’investigation',
+    report_modal_desc: 'Un rapport (texte et/ou fichier importé) est requis avant de pouvoir envoyer le dossier en revue.',
+    report_modal_label: 'Rapport d’investigation',
+    report_modal_placeholder: 'Faits établis, constatations, conclusions provisoires...',
+    report_modal_import_label: 'Fichier du rapport (optionnel)',
+    report_modal_import_btn: 'Importer un fichier',
+    report_modal_remove_file: 'Retirer le fichier',
+    report_modal_submit: 'Enregistrer le rapport',
+    report_card_title: 'Rapport d’investigation',
+    report_card_empty: 'Aucun rapport rédigé pour le moment — requis avant l’envoi en revue.',
+    report_card_meta: 'Rédigé par {author} le {date}',
     btn_close_case: 'Clôturer le dossier',
     btn_reopen_case: 'Rouvrir le dossier (motif requis)',
     btn_archive_case: 'Archiver le dossier',
     
     // Corrective measures
-    corrective_required_note: 'La documentation des mesures correctives est obligatoire avant toute clôture de dossier (CDC 3.1.2).',
+    corrective_required_note: 'La documentation des mesures correctives est obligatoire avant toute clôture de dossier.',
     btn_add_measure: '+ Documenter une mesure corrective',
     
     // Reports
     reporting_title: 'Statistiques & Tableaux de bord DARC',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
-    report_card_activity: 'Activité globale',
-    report_card_by_country: 'Par pays',
-    report_card_by_entity: 'Par entité',
-    report_card_by_category: 'Par catégorie',
-    report_card_sla: 'SLA et délais',
-    report_card_custom: 'Rapport personnalisé',
-    report_card_generate: 'Générer',
-    report_card_configure: 'Configurer',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — filtres réels des rapports) ===
     report_filters_label: 'Filtres',
     report_filter_period_all: 'Toute période',
@@ -404,7 +411,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     report_filters_reset: 'Réinitialiser',
     report_filters_results_suffix: 'dossiers affichés',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — Vue exécutive) ===
-    nav_executive: 'Vue Exécutive',
     exec_title: 'Vue Exécutive & Comité d’Audit',
     exec_subtitle: 'Synthèse agrégée à destination de la Direction Générale et du Comité d’Audit — aucune identité de déclarant, note interne ou pièce jointe n’est exposée ici.',
     exec_kpi_total: 'Total des alertes',
@@ -414,7 +420,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     exec_section_trend: 'Évolution des alertes',
     exec_section_category: 'Répartition par catégorie',
     exec_confidentiality_note: 'Conformément à la politique de confidentialité du Groupe, cette vue exécutive n’expose ni identité du lanceur d’alerte, ni notes internes d’investigation, ni pièces jointes — uniquement des indicateurs agrégés.',
-    btn_export_csv: 'Export CSV brut',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
     export_modal_title: 'Exporter les résultats',
     export_modal_format: 'Format',
@@ -427,9 +432,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     export_modal_format_pdf: 'PDF',
     export_modal_fields: 'Champs à inclure',
     export_modal_export: 'Exporter',
-    btn_export_excel: 'Export Données Formatées',
-    btn_print_report: 'Imprimer / Exporter Rapport PDF',
-    toggle_anonymize: 'Générer un rapport 100% anonymisé (Caviardage)',
     // === AMÉLIORATION AJOUTÉE (Retours visuels — écran Rapports allégé) ===
     // Bouton unique remplaçant les 2 boutons "Export CSV brut"/"Imprimer /
     // Exporter Rapport PDF" — ouvre toujours la même modale déjà réelle
@@ -438,57 +440,28 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // confidentialité) et le format PDF n'a jamais changé de mécanisme
     // (`window.print()`, inchangé).
     report_btn_export: 'Exporter (PDF / CSV)',
-    report_monthly_darc: 'Reporting Mensuel DARC',
-    report_quarterly_board: 'Reporting Trimestriel Comité d’Audit & CA',
 
     // Role switcher
-    active_profile: 'Profil utilisateur simulé',
-    switch_role: 'Changer de rôle pour tester',
     // === AMÉLIORATION AJOUTÉE (Phase 4 — centre de notifications) ===
-    notif_title: 'Notifications',
-    notif_mark_all_read: 'Tout marquer comme lu',
-    notif_empty: 'Aucune notification pour le moment.',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
-    notif_tab_all: 'Toutes',
-    notif_tab_tasks: 'Tâches',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
-    profile_menu_settings: 'Paramètres',
     profile_menu_help: 'Aide & support',
     // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
     profile_menu_change_space: 'Changer d’espace',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
-    nav_control_panel: 'Centre de Pilotage',
     // === AMÉLIORATION AJOUTÉE (Phase 6 — sidebar grouping) ===
-    nav_group_control_panel: 'Pilotage',
-    nav_group_alerts: 'Gestion des alertes',
-    nav_group_reporting: 'Rapports',
-    nav_group_audit: 'Audit',
-    nav_group_admin: 'Administration',
     // === AMÉLIORATION AJOUTÉE (Phase 9 — restructuration de la navigation façon maquette) ===
     // Nouveaux groupes et écrans dédiés du menu latéral : chaque entrée de la
     // maquette devient un écran réel et distinct (voir InvestigationDesk avec
     // un `initialFilter` préréglé, ou un nouveau registre transverse pour
     // Tâches/Preuves/Communications/Actions correctives). Aucune entrée ni
     // aucun comportement existant n'est retiré — ceci n'ajoute que des clés.
-    nav_group_investigation: 'Investigation',
-    nav_group_remediation: 'Remédiation',
-    nav_alerts: 'Alertes',
-    nav_triage: 'Triage',
-    nav_assignment: 'Attribution',
-    nav_my_cases: 'Mes Dossiers',
-    nav_investigations: 'Investigations',
     nav_tasks: 'Tâches',
     nav_evidence: 'Preuves',
     nav_communications: 'Communications',
-    nav_corrective_actions: 'Actions Correctives',
-    nav_admin_users: 'Utilisateurs & Rôles',
-    nav_admin_config: 'Configuration',
     // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
     nav_search_advanced: 'Recherche avancée',
-    btn_open_case: 'Ouvrir le dossier',
-    reg_tasks_title: 'Registre des Tâches',
-    reg_tasks_subtitle: 'Toutes les tâches d’investigation, tous dossiers confondus, avec échéance et responsable.',
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des
     // investigations) === ce message concerne désormais des dossiers, pas
     // des tâches (seule utilisation de cette clé, voir TasksRegistry.tsx).
@@ -519,8 +492,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     search_advanced_subtitle: 'Recherchez par mot-clé, pays, entité, catégorie, statut, criticité, sévérité, sensibilité, canal ou période — parmi les dossiers que vous êtes habilité à voir.',
     search_advanced_empty: 'Aucun dossier ne correspond à votre périmètre pour le moment.',
     search_advanced_empty_filtered: 'Aucun dossier ne correspond à ces critères.',
-    reg_corrective_title: 'Registre des Actions Correctives',
-    reg_corrective_subtitle: 'Toutes les mesures correctives documentées, tous dossiers confondus.',
     reg_corrective_empty: 'Aucune action corrective enregistrée pour le moment.',
     reg_col_title: 'Intitulé',
     reg_col_owner: 'Responsable',
@@ -536,14 +507,23 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // dur dans le composant, exactement comme AdvancedSearchView.tsx (même
     // précédent déjà établi dans ce code pour un écran transverse de ce
     // type).
-    ocd_inbox_subtitle: 'Tous les signalements reçus du public — triez-les et échangez avec le lanceur d’alerte avant attribution.',
+    ocd_inbox_subtitle: 'Tous les signalements reçus du public.',
     ocd_to_assign_subtitle: 'Dossiers nouveaux et en cours, classés par pays, entité, nature, criticité, sévérité et urgence — attribuez-les à un enquêteur.',
     ocd_pending_info_subtitle: 'Dossiers en cours nécessitant des informations complémentaires du lanceur d’alerte.',
-    ocd_assigned_subtitle: 'Toutes les affaires déjà attribuées à un enquêteur.',
+    // === AMÉLIORATION AJOUTÉE (Dossiers ouverts — exclut désormais les
+    // dossiers clôturés, qui ont leur propre onglet dédié) ===
+    ocd_assigned_subtitle: 'Dossiers attribués à un enquêteur, non encore clôturés.',
+    // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
+    ocd_closed_subtitle: 'Dossiers attribués et clôturés — référence, nature, pays, entité, dates et résumé de clôture.',
+    // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+    // envoyés en revue) ===
+    ocd_review_subtitle: 'Dossiers dont le rapport d’investigation a été envoyé en revue — clôturez-les si tous les éléments sont disponibles.',
     ocd_empty_inbox: 'Aucun signalement en attente de tri.',
     ocd_empty_to_assign: 'Aucun dossier à attribuer pour le moment.',
     ocd_empty_pending_info: 'Aucun dossier en attente d’informations complémentaires.',
-    ocd_empty_assigned: 'Aucun dossier attribué pour le moment.',
+    ocd_empty_assigned: 'Aucun dossier ouvert pour le moment.',
+    ocd_empty_closed: 'Aucun dossier clôturé pour le moment.',
+    ocd_empty_review: 'Aucun dossier en revue pour le moment.',
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
     // Enquêteur) === 3 écrans supplémentaires, mêmes titres que les clés
     // `sidebar_inv_*` déjà existantes.
@@ -566,58 +546,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     corrective_status_implemented: 'Mise en œuvre',
     corrective_status_verified: 'Vérifiée',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
-    reg_col_priority: 'Priorité',
-    tasks_bucket_a_faire: 'À faire',
-    tasks_bucket_terminees: 'Terminées',
-    evidence_bucket_documents: 'Documents',
-    evidence_bucket_images: 'Images',
-    evidence_bucket_autres: 'Autres',
-    reg_col_sender: 'Émetteur',
-    reg_col_message: 'Message',
-    reg_col_date: 'Date',
-    reg_col_name: 'Nom',
-    reg_col_type: 'Type',
-    reg_col_size: 'Taille',
     cp_title: 'Centre de Pilotage',
     cp_subtitle: 'Vue de supervision opérationnelle en temps réel de l’ensemble des dossiers DARC.',
     cp_kpi_total: 'Total des dossiers',
-    cp_kpi_new: 'Nouveaux',
-    cp_kpi_unassigned: 'Non attribués',
-    cp_kpi_critical: 'Critiques',
-    cp_kpi_very_high: 'Très élevés',
-    cp_kpi_overdue: 'En retard',
-    cp_section_alert_management: 'Gestion des alertes',
     cp_section_sla: 'Suivi des délais SLA',
     cp_sla_on_track: 'Dans les délais',
     cp_sla_at_risk: 'Échéance proche',
     cp_sla_overdue: 'En dépassement',
     cp_sla_escalated: 'Escaladés',
-    cp_view_overdue_cases: 'Voir les dossiers en retard',
-    cp_section_investigation: 'Suivi des investigations',
-    cp_stat_active: 'Actives',
-    cp_stat_pending_info: 'En attente d’informations',
-    cp_stat_investigation_overdue: 'En retard',
-    cp_stat_approaching_sla: 'Proche du délai SLA',
     cp_section_workload: 'Charge de travail des investigateurs',
     cp_workload_investigator: 'Investigateur',
     cp_workload_active: 'Actifs',
     cp_workload_overdue: 'En retard',
     cp_workload_critical: 'Critiques',
     cp_empty_workload: 'Aucun investigateur actif pour le moment.',
-    cp_section_corrective: 'Mesures correctives',
-    cp_corrective_open: 'Ouvertes',
-    cp_corrective_overdue: 'En retard',
-    cp_corrective_in_progress: 'En cours',
-    cp_corrective_completed: 'Terminées',
-    cp_section_activity: 'Activité récente',
-    cp_empty_activity: 'Aucune activité récente.',
-    cp_section_quick_actions: 'Actions rapides',
-    cp_qa_review_new: 'Examiner les nouvelles alertes',
-    cp_qa_triage_unassigned: 'Trier les dossiers non attribués',
-    cp_qa_assign_case: 'Attribuer un dossier',
-    cp_qa_view_overdue: 'Voir les dossiers en retard',
-    cp_qa_review_closure: 'Examiner les clôtures',
-    cp_qa_view_reports: 'Voir les rapports',
+    // === AMÉLIORATION AJOUTÉE (connectivité frontend) === BUG PRÉEXISTANT
+    // CORRIGÉ, signalé lors d'un audit de connectivité : ControlPanel.tsx
+    // référence `t.cp_empty_recent_alerts` à 5 endroits (tableau "Alertes
+    // récentes" + 3 graphiques vides), mais cette clé n'était définie dans
+    // aucune des 3 langues — les titres d'état vide s'affichaient donc
+    // vides (`undefined`).
+    cp_empty_recent_alerts: 'Aucune alerte récente.',
 
     // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
     // maquette Tableau de bord) === regroupement en 5 paniers de statut
@@ -658,7 +607,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tâches',
-    tab_timeline: 'Chronologie',
     btn_add_task: '+ Nouvelle tâche',
     tasks_empty: 'Aucune tâche pour ce dossier pour l’instant.',
     task_status_not_started: 'Non commencée',
@@ -673,6 +621,23 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     task_priority_low: 'Basse',
     task_priority_medium: 'Moyenne',
     task_priority_high: 'Haute',
+
+    // === AMÉLIORATION AJOUTÉE (Onglet Entretiens — branchement de
+    // storage.addInterview(), jusqu'ici jamais appelé par aucun écran) ===
+    nav_interviews: 'Entretiens',
+    tab_interviews: 'Entretiens',
+    btn_add_interview: '+ Nouvel entretien',
+    interviews_empty: 'Aucun entretien consigné pour ce dossier pour l’instant.',
+    interview_interviewee_label: 'Personne entendue',
+    interview_interviewee_placeholder: 'Nom (ou lier une personne ci-dessous)',
+    interview_link_person_label: 'Lier à une personne impliquée / un témoin (optionnel)',
+    interview_scheduled_label: 'Date',
+    interview_summary_label: 'Synthèse de l’entretien',
+    interview_status_label: 'Statut',
+    interview_status_planned: 'Planifié',
+    interview_status_completed: 'Mené',
+    interview_status_cancelled: 'Annulé',
+    interview_conducted_by_label: 'Mené par',
     timeline_message_from: 'Message de',
     timeline_empty: 'Aucun événement enregistré pour ce dossier.',
     btn_cancel: 'Annuler',
@@ -680,8 +645,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_back_to_list: 'Retour à la liste des dossiers',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Triage & Conflit d'intérêt) ===
-    tab_triage: 'Triage',
-    tab_conflict: 'Conflit d’intérêt',
     triage_matrix_title: 'Matrice des risques (Annexe 9)',
     triage_axis_financial: '1. Impact financier',
     triage_axis_hierarchy: '2. Niveau hiérarchique',
@@ -745,14 +708,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_kpi_open_corrective: 'Mesures correctives ouvertes',
     cp_kpi_sub_corrective_overdue: 'en retard',
     cp_kpi_sub_corrective_none: 'Aucune en retard',
-    cp_period_today: 'Aujourd’hui',
-    cp_period_7d: '7 jours',
-    cp_period_30d: '30 jours',
-    cp_period_quarter: 'Trimestre',
-    cp_period_custom: 'Personnalisé',
-    cp_last_updated: 'Dernière mise à jour',
-    cp_refresh: 'Actualiser',
+    // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+    // `cp_period_today/7d/30d/quarter/custom` (anciens libellés de boutons
+    // de période) retirés ici, sur `main` : les champs de date Du/Au sont
+    // désormais affichés directement, sans bouton ni libellé de repli
+    // (voir ControlPanel.tsx).
+    cp_year_all: 'Toutes les années',
     // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
+    // Remplace `cp_btn_download_csv` ("Télécharger (CSV)", mono-format) par
+    // un bouton "Exporter" ouvrant le choix CSV/PDF, sur demande explicite
+    // de l'utilisateur — voir ControlPanel.tsx.
     cp_btn_export: 'Exporter',
     cp_action_new_case: 'Nouveau dossier',
     cp_action_triage: 'Trier',
@@ -824,33 +789,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reproduction fidèle de la
     // maquette : logo, sidebar, onglets de la fiche dossier, pied de page) ===
-    app_title: 'EthicsAlert.Com',
+    app_title: 'activa-whistleblowing',
     app_subtitle: 'Canal sécurisé pour signaler les préoccupations éthiques et de conformité',
-    brand_tagline: 'passionnément clients',
     navbar_search_placeholder: 'Rechercher un dossier, une personne, un mot-clé...',
     nav_public_home: 'Accueil',
-    nav_public_how: 'Comment ça marche',
     nav_public_faq: 'FAQ',
     sidebar_dashboard: 'Tableau de bord',
-    sidebar_dossiers: 'Dossiers',
-    sidebar_evidence: 'Preuves & Pièces jointes',
     sidebar_corrective_measures: 'Mesures correctives',
-    sidebar_reports_dashboards: 'Tableaux de bord',
     sidebar_reports_exports: 'Rapports',
     sidebar_admin_users: 'Utilisateurs',
     sidebar_admin_roles: 'Rôles & Permissions',
-    sidebar_admin_settings: 'Paramètres',
-    sidebar_group_dossiers: 'GESTION DES DOSSIERS',
-    sidebar_group_compliance: 'CONFORMITÉ',
-    sidebar_group_reports: 'RAPPORTS',
-    sidebar_group_admin: 'ADMINISTRATION',
     // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
     // Le sélecteur d'espace filtre désormais réellement la liste ci-dessous
     // (voir StaffPortalLayout.tsx) — ces libellés couvrent les écrans
     // Opérateur/Enquêteur déjà réels (op_*/inv_*) mais jusqu'ici sans aucun
     // bouton de menu.
     sidebar_group_tools: 'OUTILS',
-    sidebar_all_cases: 'Tous les dossiers',
     sidebar_op_inbox: 'Boîte de réception',
     sidebar_op_assign: 'À attribuer',
     sidebar_op_pending: 'En attente d’infos',
@@ -858,7 +812,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // changés ("toutes les affaires attribuées", ex-"Dossiers traités"/
     // statut Clôturé) — clé de code conservée pour ne pas toucher
     // routing/routes.ts, App.tsx et StaffPortalLayout.tsx sans nécessité.
-    sidebar_op_processed: 'Dossiers attribués',
+    // === AMÉLIORATION AJOUTÉE (Dossiers ouverts) === renommé depuis
+    // "Dossiers attribués", sur demande explicite, maintenant que les
+    // dossiers clôturés ont leur propre onglet dédié.
+    sidebar_op_processed: 'Dossiers ouverts',
+    // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+    // envoyés en revue) ===
+    sidebar_op_review: 'En revue',
+    // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
+    sidebar_op_closed: 'Dossiers clôturés',
+    // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+    // Remplace le libellé "Tableau de bord" de l'onglet `inv_dashboard` :
+    // cet écran (InvestigationDesk, `initialFilter={{ myCasesOnly: true }}`)
+    // affiche déjà uniquement les dossiers attribués à l'enquêteur connecté
+    // — clé de code et écran inchangés, seul le libellé de menu devient
+    // "Boîte de réception", sur demande explicite de l'utilisateur.
+    sidebar_inv_inbox: 'Boîte de réception',
     sidebar_inv_my_cases: 'Mes dossiers',
     sidebar_inv_to_process: 'À traiter',
     sidebar_inv_in_progress: 'En cours',
@@ -866,7 +835,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Registres transverses — libellé désormais distinct de l'onglet
     // interne d'un dossier portant le même nom (ex. onglet "Tâches" d'une
     // fiche dossier), pour lever l'ambiguïté relevée par l'utilisateur.
-    sidebar_tasks_registry: 'Toutes les tâches',
     sidebar_evidence_registry: 'Preuves & pièces jointes',
     sidebar_comms_registry: 'Toutes les communications',
     // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
@@ -874,16 +842,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // "toutes" les données via ces écrans — computeVisibleAlerts
     // (useVisibleAlerts.ts) le limite déjà à ses dossiers assignés. Ces
     // libellés reflètent ce périmètre réel au lieu de dire "Toutes" à tort.
-    sidebar_my_tasks: 'Mes tâches',
     sidebar_my_evidence: 'Mes preuves',
     sidebar_my_comms: 'Mes communications',
     sidebar_help_title: 'Besoin d’aide ?',
     sidebar_help_body: 'Consultez la documentation ou contactez l’équipe conformité.',
-    footer_confidentiality: 'Confidentialité',
-    footer_legal: 'Mentions légales',
     footer_contact: 'Contact',
-    footer_secure: 'Plateforme sécurisée',
-    footer_secure_sub: 'Accessible uniquement aux utilisateurs autorisés',
     tab_allegations: 'Allégations',
     tab_persons: 'Personnes',
     tab_report: 'Rapport',
@@ -902,7 +865,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_feature_no_retaliation_desc: 'Toute forme de représailles est interdite et sanctionnée par le Groupe ACTIVA.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 13 — refonte de l'accueil, maquette photo) ===
-    nav_secure_space: 'Espace sécurisé',
     nav_public_contact: 'Contact',
 
     // === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel, WhatsApp +
@@ -937,23 +899,84 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17) === libellé aligné sur la maquette adoptée ("Nous traitons").
     process_step4_title: 'Nous traitons',
     process_step4_desc: 'Votre signalement est analysé de manière sérieuse et traité par les équipes compétentes.',
+    // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip)
+    // === Sur demande explicite, contenu de la face arrière de chaque
+    // carte (catégorie affichée à côté de "ÉTAPE N", titre détaillé,
+    // explication plus longue) — voir WhistleblowerHome.tsx.
+    process_step1_category: 'Déposer un signalement',
+    process_step1_back_title: 'Signalez en toute simplicité',
+    process_step1_back_desc: 'Décrivez les faits aussi précisément que possible, ajoutez les informations ou documents utiles et choisissez, si vous le souhaitez, de rester anonyme. Votre identité n’est pas nécessaire pour transmettre une alerte.',
+    process_step2_category: 'Accès sécurisé',
+    process_step2_back_title: 'Conservez vos identifiants',
+    process_step2_back_desc: 'Après l’enregistrement de votre signalement, un identifiant unique et un code d’accès vous permettent de retrouver votre dossier. Conservez-les précieusement : ils vous permettront de consulter les mises à jour sans révéler votre identité.',
+    process_step3_category: 'Suivi du dossier',
+    process_step3_back_title: 'Restez informé de l’avancement',
+    process_step3_back_desc: 'Votre espace sécurisé vous permet de consulter le statut de votre signalement, de prendre connaissance des demandes d’informations complémentaires et, lorsque cela est nécessaire, d’échanger avec l’équipe en charge du dossier.',
+    process_step4_category: 'Analyse et traitement',
+    process_step4_back_title: 'Votre signalement est pris en charge',
+    process_step4_back_desc: 'Chaque signalement fait l’objet d’une analyse selon les procédures applicables. Les éléments pertinents sont examinés par les personnes habilitées afin de déterminer les suites appropriées, dans le respect de la confidentialité.',
+    process_back_button: '← Retour',
     footer_legal_notice: 'Mentions légales',
     footer_privacy_policy: 'Politique de confidentialité',
+
+    // === AMÉLIORATION AJOUTÉE (pages Mentions légales / Politique de
+    // confidentialité, liens réels du pied de page) === Contenu-type de
+    // départ (adresse, hébergeur, etc. en placeholders) à adapter aux
+    // informations légales réelles du Groupe ACTIVA — voir
+    // LegalNoticeView.tsx / PrivacyPolicyView.tsx.
+    legal_title: 'Mentions légales',
+    legal_subtitle: 'Informations légales relatives à l’édition et à l’hébergement de cette plateforme.',
+    legal_editor_heading: 'Éditeur du site',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    // BUG PRÉEXISTANT CORRIGÉ : ces mentions légales, obligatoires, étaient
+    // publiées avec des espaces réservés non remplis ([Adresse du siège
+    // social], [Numéro RCCM]...). Adresse et entité confirmées auprès de
+    // l'utilisateur (siège opérationnel du Groupe, Douala) ; le numéro RCCM
+    // et le nom du représentant légal restent explicitement en attente de
+    // confirmation par le service juridique du Groupe — jamais inventés.
+    legal_editor_body: 'Cette plateforme est éditée par le Groupe ACTIVA.\nSiège social : Rue Prince de Galles, B.P. 12970, Douala, Cameroun\nTéléphone : +237 233 50 13 00\nRegistre du commerce : (à compléter par le service juridique du Groupe)\nReprésentant légal : (à compléter par le service juridique du Groupe)',
+    legal_hosting_heading: 'Hébergement',
+    legal_hosting_body: 'Hébergeur : (à compléter par le service juridique du Groupe).',
+    legal_ip_heading: 'Propriété intellectuelle',
+    legal_ip_body: 'L’ensemble des contenus (textes, logos, éléments graphiques) de cette plateforme est protégé par le droit de la propriété intellectuelle. Toute reproduction, même partielle, est interdite sans autorisation préalable du Groupe ACTIVA.',
+    legal_liability_heading: 'Responsabilité',
+    legal_liability_body: 'Le Groupe ACTIVA s’efforce d’assurer l’exactitude des informations diffusées sur cette plateforme, sans garantie d’exhaustivité. Le Groupe ACTIVA ne saurait être tenu responsable des erreurs ou omissions constatées.',
+    legal_contact_heading: 'Contact',
+    legal_contact_body: 'Pour toute question relative aux présentes mentions légales, vous pouvez nous contacter à l’adresse suivante :',
+
+    privacy_title: 'Politique de confidentialité',
+    privacy_subtitle: 'Comment le Groupe ACTIVA collecte, utilise et protège les données transmises via cette plateforme.',
+    privacy_controller_heading: 'Responsable du traitement',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — coordonnées réelles) ===
+    // Adresse du siège ajoutée, cohérente avec celle des Mentions légales.
+    privacy_controller_body: 'Le responsable du traitement des données collectées via cette plateforme est le Groupe ACTIVA (Rue Prince de Galles, B.P. 12970, Douala, Cameroun), à travers sa Direction Audit, Risques & Conformité (DARC).',
+    privacy_data_heading: 'Données collectées',
+    privacy_data_body: 'Selon les informations que vous choisissez de transmettre : le contenu de votre signalement, les pièces jointes éventuelles, ainsi que vos coordonnées si vous ne souhaitez pas rester anonyme.',
+    privacy_purpose_heading: 'Finalité du traitement',
+    privacy_purpose_body: 'Ces données sont collectées dans le seul but de recevoir, instruire et traiter les signalements relatifs à des faits contraires à l’éthique, à la réglementation ou au Code de conduite du Groupe ACTIVA.',
+    privacy_retention_heading: 'Durée de conservation',
+    privacy_retention_body: 'Les données sont conservées pendant la durée nécessaire au traitement du signalement, puis archivées ou supprimées conformément aux obligations légales applicables.',
+    privacy_recipients_heading: 'Destinataires des données',
+    privacy_recipients_body: 'Seules les personnes habilitées (opérateurs, enquêteurs et administrateurs autorisés) ont accès aux données, selon des droits d’accès strictement limités à leur rôle. Vos données ne sont jamais transmises à des tiers non autorisés.',
+    privacy_rights_heading: 'Vos droits',
+    privacy_rights_body: 'Conformément à la réglementation applicable en matière de protection des données, vous disposez d’un droit d’accès, de rectification, d’effacement et d’opposition concernant vos données personnelles. Vous pouvez exercer ces droits en nous contactant à l’adresse suivante :',
+    privacy_security_heading: 'Sécurité',
+    privacy_security_body: 'Le Groupe ACTIVA met en œuvre les mesures techniques et organisationnelles appropriées pour protéger la confidentialité et la sécurité des données transmises via cette plateforme.',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — contact DPO dédié) ===
+    // Contact spécifique du Délégué à la Protection des Données, distinct
+    // de l'adresse générale de la plateforme (activa.whistleblowing@...) —
+    // information réelle communiquée par l'utilisateur, jamais inventée.
+    privacy_dpo_heading: 'Contact du Délégué à la Protection des Données',
+    privacy_dpo_body: 'Pour toute question relative à la protection de vos données personnelles, vous pouvez également contacter directement notre Délégué à la Protection des Données (DPO) :',
   },
   en: {
     // app_title/app_subtitle are defined further below, in the "Phase 11" block.
-    group_name: 'ACTIVA Group',
-    darc_label: 'Audit, Risk & Compliance Directorate (DARC)',
     confidentiality_guarantee: 'Absolute Confidentiality & Whistleblower Protection',
     
     nav_home: 'Home & Report',
     nav_track: 'Track my report',
     nav_portal: 'DARC Management Desk',
-    nav_reports: 'Dashboards & Reporting',
     nav_audit: 'Audit Trail',
-    nav_settings: 'System Configuration',
-    nav_qrcode: 'Mobile / QR Code Access',
-    nav_firebase_lookup: 'Firebase Lookup (Beta)',
 
     // Firebase Case Lookup (Phase 4 — real Firebase Auth + Firestore)
     fb_lookup_title: 'Case Lookup (real Firebase data)',
@@ -986,34 +1009,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Description',
     fb_lookup_subcollections_note: 'Allegations, persons, evidence, notes and communications are not shown here: reading them requires a Cloud Function (not deployed, project on Spark plan). See docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'EthicsAlert.Com',
+    hero_title: 'Activa-whistleblowing',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — matching the supplied model) ===
-    hero_headline_line1: 'Report with complete',
-    hero_headline_line2: 'confidence',
-    hero_desc: 'Something contrary to our values, ethics, or regulations? Speak up. We’re listening.',
-    hero_paragraph: 'Integrity is at the heart of our corporate culture. EthicsAlert lets you report, in full confidentiality and without fear, any behavior contrary to our values, our code of ethics, or applicable regulations. Every report is taken seriously and handled rigorously.',
-    hero_tags: '100% CONFIDENTIAL · SECURE · COMPLIANT',
-    hero_how_it_works_link: 'How does it work?',
-    hero_quote: 'Together, for a more ethical and resilient Group.',
+    hero_headline_line1: 'Report with',
+    hero_headline_line2: 'complete confidence',
+    hero_desc_line1: 'Something contrary to our values,',
+    hero_desc_line2: 'ethics, or regulations?',
+    hero_desc_cta: 'Speak up. We’re listening.',
     // === AMÉLIORATION AJOUTÉE (Phase 17 — homepage reorganization) ===
-    hero_eyebrow: 'ACTIVA Group ethics channel',
+    hero_eyebrow: 'ACTIVA Group alert management channel',
     hero_anonymous_note: 'You can file a report anonymously.',
+    // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
+    hero_value_1: 'Customer focus',
+    hero_value_2: 'Responsiveness',
+    hero_value_3: 'Commitment to our promises',
+    hero_value_4: 'Innovation',
+    hero_value_5: 'Availability',
+    hero_values_caption: 'Values that drive us',
     // === AMÉLIORATION AJOUTÉE (Phase 22 — rotating values card) ===
-    hero_value1_title: 'Integrity',
-    hero_value1_desc: 'Responsible practices',
-    hero_value2_title: 'Transparency',
-    hero_value2_desc: 'A culture of openness',
-    hero_value3_title: 'Trust',
-    hero_value3_desc: 'A more sustainable Group',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — utility bar + Login button) ===
-    topbar_about: 'About the ACTIVA Group',
     nav_connexion: 'Log in',
     process_subtitle: 'Four steps to make your voice heard with complete confidence.',
-    categories_eyebrow: 'Topics that matter',
-    categories_heading: 'What kinds of concerns can you report?',
-    categories_subtitle: 'You can report anything contrary to our values, our policies, or applicable regulations.',
-    categories_view_all: 'See the full list',
-    cta_band_heading: 'A concern to report?',
     cta_band_desc: 'Your voice matters. Report with complete confidence.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — FAQ section) ===
@@ -1022,7 +1038,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_q1: 'Is my report really anonymous?',
     faq_a1: 'Yes. If you choose the anonymous mode, no identifying information (name, IP address, connection data) is ever recorded. You receive a case number and a password so you can track your report without ever revealing your identity.',
     faq_q2: 'What happens after I submit my report?',
-    faq_a2: 'Your report is immediately classified using the NOCA risk matrix, then assigned to one or more sworn DARC investigators. You can follow progress and communicate securely from the tracking portal.',
+    // === IMPROVEMENT ADDED (Frontend audit — Phase 3, microcopy) ===
+    // NOCA and DARC were never spelled out on public pages; a first-time
+    // whistleblower reader had no context for either acronym.
+    faq_a2: 'Your report is immediately classified using the Group’s internal risk-criticality grid (NOCA matrix), then assigned to one or more sworn investigators from the Audit, Risk & Compliance Directorate (DARC). You can follow progress and communicate securely from the tracking portal.',
     faq_q3: 'Am I protected against retaliation?',
     faq_a3: 'Yes. ACTIVA Group\'s policy guarantees full protection against any form of retaliation towards a whistleblower acting in good faith, in accordance with the Group\'s Code of Ethics.',
     faq_q4: 'Can I add to or delete my report?',
@@ -1033,16 +1052,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_a6: 'The password is only shown once, at submission, and is never stored in plain text or recoverable — keep it safe. If lost, contact DARC through the Group\'s official channels.',
     btn_new_alert: 'Report a concern',
     btn_track_existing: 'Track a report',
-    btn_view_policy: 'View Ethics Charter',
 
     // === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === doublon
     // des clés `contact_*` retiré (voir le même commentaire dans le bloc fr).
 
-    step_1_identity: '1. Confidentiality & Identity',
-    step_2_facts: '2. Facts & Category',
-    step_3_persons: '3. Involved Parties & Witnesses',
-    step_4_evidence: '4. Evidence & Impact',
-    step_5_security: '5. Access Security',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — confidentiality gate before the
+    // reporting form) ===
+    confidentiality_gate_title: 'Your report is confidential',
+    confidentiality_gate_body1_pre: 'The information you provide will be handled ',
+    confidentiality_gate_body1_bold: 'confidentially',
+    confidentiality_gate_body1_post: ' and only by people authorized to process your report.',
+    confidentiality_gate_body2_pre: 'You may choose to remain ',
+    confidentiality_gate_body2_bold: 'anonymous.',
+    confidentiality_gate_body2_post: ' Please share only the information relevant to processing the reported facts.',
+    confidentiality_gate_cancel: 'Cancel',
+    confidentiality_gate_confirm: 'I wish to proceed',
 
     // === AMÉLIORATION AJOUTÉE (Phase 26 — 6-step reporting form matching the
     // supplied reference mockup) ===
@@ -1056,7 +1081,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     wizard_step2_hint: 'You may remain anonymous. This information is optional and not required to submit your report.',
     wizard_step3_title: 'Information about the incident',
     wizard_step3_desc: 'Describe the facts',
-    wizard_step4_title: 'Attachments',
     wizard_step4_title_optional: 'Attachments (optional)',
     wizard_step4_desc: 'Add documents (optional)',
     wizard_step4_hint: 'You may attach documents, screenshots, photos, or any other item supporting your report.',
@@ -1089,20 +1113,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ack_success_title: 'Your report has been submitted successfully',
     ack_success_desc: 'Thank you for your trust. Your report has been recorded and forwarded to the relevant teams for analysis.',
     ack_password_label: 'Password',
-    ack_credentials_note: 'Keep this reference number and password safe. They will let you track the progress of your report confidentially.',
+    ack_credentials_note: 'Keep this reference number and password safe: they will let you track the progress of your report confidentially. If lost, they cannot be recovered and your report cannot be retrieved.',
     ack_next_heading: 'What happens next?',
     ack_next_track_title: 'Track your report',
     ack_next_track_desc: 'Log in with your reference number and password on the platform to view updates.',
-    ack_next_anon_title: 'Your anonymity is guaranteed',
-    ack_next_anon_desc: 'No personal information is required. All exchanges remain confidential and secure.',
+    ack_next_anon_title: 'Your anonymity is protected',
+    ack_next_anon_desc: 'No personal information is required. All exchanges remain confidential and accessible only to authorized staff.',
     ack_next_informed_title: 'You will be informed',
     ack_next_informed_desc: 'You will receive updates in your secure area as soon as progress is available.',
     btn_copy_password: 'Copy',
 
     choice_anonymous: '100% Anonymous Reporting (Recommended)',
     choice_identified: 'Identified Reporting (Confidential)',
-    anonymous_note: 'No technical identifiers (IP address, device data) are recorded.',
-    label_fullname: 'Full name',
     label_job_title: 'Job title / Function',
     label_department: 'Department / Unit',
     label_declarant_type: 'Your relationship with ACTIVA',
@@ -1112,7 +1134,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_phone: 'Phone number',
     
     label_category: 'Breach category',
-    label_subcategory: 'Specific sub-category',
     label_custom_violation: 'Details of breach (if other)',
     label_description: 'Detailed chronological description of facts',
     desc_placeholder: 'Describe observed facts, dates, amounts, mechanisms...',
@@ -1120,34 +1141,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     no_future_dates_warning: 'Date cannot be in the future',
     label_location: 'Incident location',
 
-    matrix_title: 'Automatic Risk Assessment (DARC Matrix)',
-    label_financial_impact: 'Potential financial impact',
-    label_hierarchy_level: 'Hierarchy level of implicated person',
-    label_recidivism: 'Recidivism / Repetition of facts',
-    label_reputation_risk: 'Reputational risk for ACTIVA Group',
-    calculated_noca: 'Calculated classification',
-    priority_level: 'Priority level',
-    expected_sla: 'Target processing turnaround',
 
     btn_add_involved: '+ Add an implicated person',
     btn_add_witness: '+ Add a potential witness',
-    role_employee: 'Employee',
-    role_manager: 'Manager',
-    role_subdirector: 'Deputy Director',
-    role_director: 'Director+',
 
     drag_drop_evidence: 'Drag and drop supporting evidence (PDF, images) or click to browse',
     max_file_note: 'Accepted formats: PDF, PNG, JPG, DOCX (Max 15MB per file)',
 
-    label_password: 'Create a password to track your report',
-    label_password_confirm: 'Confirm your password',
-    pwd_security_note: 'Safely keep this password along with your unique tracking number. They are mandatory to communicate anonymously with investigators.',
-    btn_submit_alert: 'Transmit Report to DARC',
-    btn_save_draft: 'Draft saved automatically',
 
-    ack_title: 'Report successfully transmitted to DARC',
     ack_tracking_num: 'Your Unique Case Tracking Number',
-    ack_instructions: 'Keep this number safe. A formal acknowledgment receipt has been generated.',
     btn_download_ack: 'Download Acknowledgment Receipt (PDF)',
     btn_go_to_tracking: 'Go to Tracking Area',
 
@@ -1158,30 +1160,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_tab_messages: 'Messages',
     track_tab_documents: 'Documents',
     track_tab_updates: 'Updates',
-    track_updates_empty: 'No updates recorded yet.',
-    label_enter_number: 'Tracking number (e.g., ACT-2026-0418)',
-    label_enter_pwd: 'Associated password',
     btn_login_tracking: 'Access Case',
-    status_label: 'Case Status',
-    badge_anonymous: 'Anonymous Report',
-    badge_identified: 'Identified Report',
 
     // === AMÉLIORATION AJOUTÉE (Phase 33 — tracking portal redesign,
     // reference mockup) ===
     track_label_case_number: 'Case number',
     track_label_password: 'Associated password',
-    track_placeholder_case_number: 'E.g. ACT-2026-0418',
+    track_placeholder_case_number: 'E.g. AARDC-26-09-0001',
     track_placeholder_password: 'Your confidential password',
     track_divider_or: 'or',
     track_switch_to_new_alert: 'Would you rather submit a new report?',
     track_login_help: 'Your access code and password are personal and confidential. If lost, they cannot be recovered.',
-    track_confidentiality_tip1: 'Secure, encrypted access',
-    track_confidentiality_tip2: 'Anonymized exchanges',
-    track_confidentiality_tip3: 'No personal information required',
     track_back: 'Back',
-    track_complete_declaration: 'Complete the statement',
-    track_logout: 'Log out',
-    track_progress_label: 'Case progress',
     track_step1: 'Recorded & Received',
     track_step2: 'DARC Review',
     track_step3: 'Investigation',
@@ -1211,20 +1201,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_supplement_submit: 'Submit',
     // === AMÉLIORATION AJOUTÉE (Phase 34 — tracking portal redesign: login
     // photo panel, sidebar navigation, timeline-style history) ===
-    track_login_tagline: 'A more ethical, safer environment for everyone.',
     track_login_photo_note: 'A secure, anonymous, independent channel.',
     // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
-    space_home_badge: 'Ethics & Compliance Alert System',
-    space_home_tagline: 'Welcome to your secure workspace.',
-    space_home_body: 'You are on the confidential platform dedicated to reporting sensitive matters, in line with our organization’s ethics and values.',
-    space_home_confidentiality: 'Confidentiality guaranteed',
-    space_home_traceability: 'Full traceability',
-    space_home_hello: 'Hello',
-    space_home_title_single: 'Workspace',
     space_home_title_plural: 'Workspaces',
-    space_home_subtitle_single: 'Access your workspace to resume your activity.',
-    space_home_subtitle_plural: 'Select your workspace to access cases, the inbox and dedicated tools.',
-    space_home_session_active: 'Active session',
+    space_home_subtitle_plural: 'Select your workspace.',
+    // === AMÉLIORATION AJOUTÉE (access-denied window on click) ===
+    space_home_denied_title: 'Access restricted',
+    space_home_denied_body: 'Your profile does not have the necessary permissions to access “{space}”.',
+    space_home_denied_close: 'Close',
     space_home_operator_title: 'Operator Space',
     space_home_operator_desc: 'Intake, qualification, scoring and assignment of reports.',
     space_home_operator_stat: '{n} new report(s)',
@@ -1232,16 +1216,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_investigator_desc: 'Cases assigned to you, hearings and instructions.',
     space_home_investigator_stat: '{n} case(s) to process',
     space_home_admin_title: 'Control Panel',
-    space_home_admin_desc: 'Accounts, roles, configuration and platform governance.',
-    space_home_general_title: 'Overview & Reports',
-    space_home_general_desc: 'Read-only view of DARC activity and reports.',
+    space_home_admin_desc: 'Configuration, user management and platform oversight.',
+    space_home_general_title: 'Consultant Space',
+    space_home_general_desc: 'Access to shared cases and technical support.',
     track_docs_subtitle: 'Add documents to support your report.',
     track_updates_title: 'Case history',
     track_updates_subtitle: 'Follow every step and action taken on your report.',
     track_you_label: 'You',
     track_field_status: 'Status',
 
-    msg_box_title: 'Secure, encrypted messaging',
+    msg_box_title: 'Confidential, secure messaging',
     msg_placeholder: 'Write a message or provide additional evidence...',
     btn_send_msg: 'Send Message',
 
@@ -1259,38 +1243,57 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     portal_urgent: 'Critical priorities (NOCA 3 & 4)',
     portal_closed_rate: 'Resolution rate',
 
-    filter_all: 'All alerts',
-    filter_my_cases: 'My assigned cases',
-    filter_by_status: 'Filter by status',
-    filter_by_entity: 'Filter by entity',
-    filter_by_noca: 'Filter by NOCA criticality',
     search_placeholder: 'Search by case ID, keyword, city...',
 
-    tab_overview: 'Report Details',
-    tab_investigation: 'Investigation & Internal Notes',
-    tab_messages: 'Communication with Whistleblower',
-    tab_corrective: 'Mandatory Corrective Measures',
-    tab_audit: 'History & Audit Trail',
 
     btn_assign_investigator: 'Assign to Investigator',
     btn_change_priority: 'Update Priority / SLA',
+    btn_escalate_case: 'Escalate case',
+    escalate_recipient_label: 'Recipient',
+    escalate_recipient_email_only: 'email only',
+    case_escalated_badge: 'Escalated',
+    case_escalated_card_title: 'Case escalated',
+    case_escalated_card_meta: 'Escalated on {date} to {recipient} ({fonction}) by {actor}.',
+    case_escalated_card_reason_label: 'Reason:',
+    case_escalated_card_access_granted: 'Case access granted to the recipient.',
+    case_escalated_card_access_email_only: 'Email notification only — no in-app access (unlinked account or insufficient clearance).',
+    btn_dismiss_case: 'Dismiss case',
+    btn_dismiss_case_confirm: 'Confirm dismissal',
+    dismiss_modal_subtitle: 'Case {tracking} — immediate closure, without going through the investigation workflow.',
+    dismiss_reason_type_label: 'Dismissal reason',
+    dismiss_reason_duplicate: 'Duplicate',
+    dismiss_reason_out_of_scope: 'Out of scope',
+    dismiss_motive_label: 'Details',
+    dismiss_motive_placeholder: 'Justification for dismissing this case...',
+    btn_request_info: 'Request information',
+    btn_send_review: 'Send for review',
+    btn_resume_investigation: 'Resume investigation',
+    request_info_modal_title: 'Request information',
+    request_info_modal_desc: 'The case moves to "Pending information" until the investigation resumes.',
+    request_info_modal_label: 'Information requested *',
+    request_info_modal_placeholder: 'Specify the missing information or documents...',
+    request_info_modal_submit: 'Send request',
+    btn_write_report: 'Write investigation report',
+    report_modal_title: 'Investigation report',
+    report_modal_desc: 'A report (text and/or imported file) is required before the case can be sent for review.',
+    report_modal_label: 'Investigation report',
+    report_modal_placeholder: 'Established facts, findings, preliminary conclusions...',
+    report_modal_import_label: 'Report file (optional)',
+    report_modal_import_btn: 'Import a file',
+    report_modal_remove_file: 'Remove file',
+    report_modal_submit: 'Save report',
+    report_card_title: 'Investigation report',
+    report_card_empty: 'No report written yet — required before sending for review.',
+    report_card_meta: 'Written by {author} on {date}',
     btn_close_case: 'Close Case',
     btn_reopen_case: 'Reopen Case (Reason Required)',
     btn_archive_case: 'Archive Case',
 
-    corrective_required_note: 'Documenting corrective measures is mandatory before closing any case (Spec 3.1.2).',
+    corrective_required_note: 'Documenting corrective measures is mandatory before closing any case.',
     btn_add_measure: '+ Document corrective measure',
 
     reporting_title: 'DARC Analytics & Dashboards',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
-    report_card_activity: 'Overall activity',
-    report_card_by_country: 'By country',
-    report_card_by_entity: 'By entity',
-    report_card_by_category: 'By category',
-    report_card_sla: 'SLA & turnaround',
-    report_card_custom: 'Custom report',
-    report_card_generate: 'Generate',
-    report_card_configure: 'Configure',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — real report filters) ===
     report_filters_label: 'Filters',
     report_filter_period_all: 'All time',
@@ -1304,7 +1307,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     report_filters_reset: 'Reset',
     report_filters_results_suffix: 'cases shown',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — Executive Dashboard) ===
-    nav_executive: 'Executive View',
     exec_title: 'Executive & Audit Committee View',
     exec_subtitle: 'Aggregated summary for Senior Management and the Audit Committee — no reporter identity, internal note, or attachment is exposed here.',
     exec_kpi_total: 'Total alerts',
@@ -1314,7 +1316,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     exec_section_trend: 'Alerts trend',
     exec_section_category: 'Breakdown by category',
     exec_confidentiality_note: 'In accordance with the Group\'s confidentiality policy, this executive view exposes no whistleblower identity, no internal investigation notes, and no attachments — aggregated indicators only.',
-    btn_export_csv: 'Raw CSV Export',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
     export_modal_title: 'Export Results',
     export_modal_format: 'Format',
@@ -1322,55 +1323,23 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     export_modal_format_pdf: 'PDF',
     export_modal_fields: 'Fields to Include',
     export_modal_export: 'Export',
-    btn_export_excel: 'Formatted Data Export',
-    btn_print_report: 'Print / Save PDF Report',
-    toggle_anonymize: 'Generate 100% Anonymized Report (Redaction)',
     report_btn_export: 'Export (PDF / CSV)',
-    report_monthly_darc: 'DARC Monthly Report',
-    report_quarterly_board: 'Audit Committee & Board Quarterly Report',
 
-    active_profile: 'Active Simulation Profile',
-    switch_role: 'Switch role for testing',
     // === AMÉLIORATION AJOUTÉE (Phase 4 — notification center) ===
-    notif_title: 'Notifications',
-    notif_mark_all_read: 'Mark all as read',
-    notif_empty: 'No notifications yet.',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
-    notif_tab_all: 'All',
-    notif_tab_tasks: 'Tasks',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
-    profile_menu_settings: 'Settings',
     profile_menu_help: 'Help & Support',
     // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
     profile_menu_change_space: 'Switch space',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
-    nav_control_panel: 'Control Panel',
     // === AMÉLIORATION AJOUTÉE (Phase 6 — sidebar grouping) ===
-    nav_group_control_panel: 'Control Panel',
-    nav_group_alerts: 'Alert Management',
-    nav_group_reporting: 'Reporting',
-    nav_group_audit: 'Audit',
-    nav_group_admin: 'Administration',
     // === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructuring to match the mockup) ===
-    nav_group_investigation: 'Investigation',
-    nav_group_remediation: 'Remediation',
-    nav_alerts: 'Alerts',
-    nav_triage: 'Triage',
-    nav_assignment: 'Assignment',
-    nav_my_cases: 'My Cases',
-    nav_investigations: 'Investigations',
     nav_tasks: 'Tasks',
     nav_evidence: 'Evidence',
     nav_communications: 'Communications',
-    nav_corrective_actions: 'Corrective Actions',
-    nav_admin_users: 'Users & Roles',
-    nav_admin_config: 'Configuration',
     // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
     nav_search_advanced: 'Advanced Search',
-    btn_open_case: 'Open case',
-    reg_tasks_title: 'Task Registry',
-    reg_tasks_subtitle: 'Every investigation task across all cases, with due date and owner.',
     reg_tasks_empty: 'No case matches this filter.',
     reg_investigations_title: 'Investigation Tracking',
     reg_investigations_subtitle: 'Progress, status and corrective measures for every case, across all countries.',
@@ -1395,8 +1364,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     search_advanced_subtitle: 'Search by keyword, country, entity, category, status, criticality, severity, sensitivity, channel or date — across the cases you are cleared to see.',
     search_advanced_empty: 'No case in your scope yet.',
     search_advanced_empty_filtered: 'No case matches these criteria.',
-    reg_corrective_title: 'Corrective Actions Registry',
-    reg_corrective_subtitle: 'Every documented corrective measure across all cases.',
     reg_corrective_empty: 'No corrective action recorded yet.',
     reg_col_title: 'Title',
     reg_col_owner: 'Owner',
@@ -1404,14 +1371,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_recommendations_title: 'Recommendations Tracking',
     reg_recommendations_subtitle: 'Corrective measures for every case, by country, entity, severity and status.',
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) ===
-    ocd_inbox_subtitle: 'All reports received from the public — triage them and message the reporter before assignment.',
+    ocd_inbox_subtitle: 'All reports received from the public.',
     ocd_to_assign_subtitle: 'New and in-progress cases, classified by country, entity, nature, criticality, severity and urgency — assign them to an investigator.',
     ocd_pending_info_subtitle: 'In-progress cases awaiting additional information from the reporter.',
-    ocd_assigned_subtitle: 'All cases already assigned to an investigator.',
+    ocd_assigned_subtitle: 'Cases assigned to an investigator, not yet closed.',
+    ocd_closed_subtitle: 'Assigned and closed cases — reference, nature, country, entity, dates and closure summary.',
+    ocd_review_subtitle: 'Cases whose investigation report has been sent for review — close them once all elements are available.',
     ocd_empty_inbox: 'No reports awaiting triage.',
     ocd_empty_to_assign: 'No cases to assign at the moment.',
     ocd_empty_pending_info: 'No cases awaiting additional information.',
-    ocd_empty_assigned: 'No assigned cases at the moment.',
+    ocd_empty_assigned: 'No open cases at the moment.',
+    ocd_empty_closed: 'No closed cases at the moment.',
+    ocd_empty_review: 'No cases under review at the moment.',
     ocd_my_cases_subtitle: 'All cases assigned to you.',
     ocd_to_process_subtitle: 'Your new and in-progress cases, to handle first.',
     ocd_in_progress_subtitle: 'Your cases currently under investigation.',
@@ -1431,58 +1402,21 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     corrective_status_implemented: 'Implemented',
     corrective_status_verified: 'Verified',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
-    reg_col_priority: 'Priority',
-    tasks_bucket_a_faire: 'To do',
-    tasks_bucket_terminees: 'Completed',
-    evidence_bucket_documents: 'Documents',
-    evidence_bucket_images: 'Images',
-    evidence_bucket_autres: 'Other',
-    reg_col_sender: 'Sender',
-    reg_col_message: 'Message',
-    reg_col_date: 'Date',
-    reg_col_name: 'Name',
-    reg_col_type: 'Type',
-    reg_col_size: 'Size',
     cp_title: 'Control Panel',
     cp_subtitle: 'Real-time operational oversight of all DARC cases.',
     cp_kpi_total: 'Total Cases',
-    cp_kpi_new: 'New',
-    cp_kpi_unassigned: 'Unassigned',
-    cp_kpi_critical: 'Critical',
-    cp_kpi_very_high: 'Very High',
-    cp_kpi_overdue: 'Overdue',
-    cp_section_alert_management: 'Alert Management',
     cp_section_sla: 'SLA Monitoring',
     cp_sla_on_track: 'On Track',
     cp_sla_at_risk: 'Approaching Deadline',
     cp_sla_overdue: 'Overdue',
     cp_sla_escalated: 'Escalated',
-    cp_view_overdue_cases: 'View Overdue Cases',
-    cp_section_investigation: 'Investigation Monitoring',
-    cp_stat_active: 'Active',
-    cp_stat_pending_info: 'Awaiting Information',
-    cp_stat_investigation_overdue: 'Overdue',
-    cp_stat_approaching_sla: 'Approaching SLA',
     cp_section_workload: 'Investigator Workload',
     cp_workload_investigator: 'Investigator',
     cp_workload_active: 'Active',
     cp_workload_overdue: 'Overdue',
     cp_workload_critical: 'Critical',
     cp_empty_workload: 'No active investigator right now.',
-    cp_section_corrective: 'Corrective Actions',
-    cp_corrective_open: 'Open',
-    cp_corrective_overdue: 'Overdue',
-    cp_corrective_in_progress: 'In Progress',
-    cp_corrective_completed: 'Completed',
-    cp_section_activity: 'Recent Activity',
-    cp_empty_activity: 'No recent activity.',
-    cp_section_quick_actions: 'Quick Actions',
-    cp_qa_review_new: 'Review New Alerts',
-    cp_qa_triage_unassigned: 'Triage Unassigned',
-    cp_qa_assign_case: 'Assign Case',
-    cp_qa_view_overdue: 'View Overdue Cases',
-    cp_qa_review_closure: 'Review Closure',
-    cp_qa_view_reports: 'View Reports',
+    cp_empty_recent_alerts: 'No recent alerts.',
 
     // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
     // maquette Tableau de bord) ===
@@ -1521,7 +1455,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tasks',
-    tab_timeline: 'Timeline',
     btn_add_task: '+ New Task',
     tasks_empty: 'No tasks recorded for this case yet.',
     task_status_not_started: 'Not Started',
@@ -1536,6 +1469,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     task_priority_low: 'Low',
     task_priority_medium: 'Medium',
     task_priority_high: 'High',
+
+    nav_interviews: 'Interviews',
+    tab_interviews: 'Interviews',
+    btn_add_interview: '+ New interview',
+    interviews_empty: 'No interviews recorded for this case yet.',
+    interview_interviewee_label: 'Interviewee',
+    interview_interviewee_placeholder: 'Name (or link a person below)',
+    interview_link_person_label: 'Link to an involved person / witness (optional)',
+    interview_scheduled_label: 'Date',
+    interview_summary_label: 'Interview summary',
+    interview_status_label: 'Status',
+    interview_status_planned: 'Planned',
+    interview_status_completed: 'Conducted',
+    interview_status_cancelled: 'Cancelled',
+    interview_conducted_by_label: 'Conducted by',
+
     timeline_message_from: 'Message from',
     timeline_empty: 'No recorded events for this case.',
     btn_cancel: 'Cancel',
@@ -1543,8 +1492,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_back_to_list: 'Back to case list',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Triage & Conflict of Interest) ===
-    tab_triage: 'Triage',
-    tab_conflict: 'Conflict of Interest',
     triage_matrix_title: 'Risk Matrix (Annex 9)',
     triage_axis_financial: '1. Financial Impact',
     triage_axis_hierarchy: '2. Hierarchy Level',
@@ -1608,13 +1555,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_kpi_open_corrective: 'Open corrective actions',
     cp_kpi_sub_corrective_overdue: 'overdue',
     cp_kpi_sub_corrective_none: 'None overdue',
-    cp_period_today: 'Today',
-    cp_period_7d: '7 Days',
-    cp_period_30d: '30 Days',
-    cp_period_quarter: 'Quarter',
-    cp_period_custom: 'Custom',
-    cp_last_updated: 'Last updated',
-    cp_refresh: 'Refresh',
+    cp_year_all: 'All years',
     cp_btn_export: 'Export',
     cp_action_new_case: 'New Case',
     cp_action_triage: 'Triage',
@@ -1685,51 +1626,37 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     person_modal_kind_witness: 'Witness',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — faithful mockup reproduction) ===
-    app_title: 'EthicsAlert.Com',
+    app_title: 'activa-whistleblowing',
     app_subtitle: 'Secure channel to report ethical and compliance concerns',
-    brand_tagline: 'passionately serving clients',
     navbar_search_placeholder: 'Search a case, a person, a keyword...',
     nav_public_home: 'Home',
-    nav_public_how: 'How it works',
     nav_public_faq: 'FAQ',
     sidebar_dashboard: 'Dashboard',
-    sidebar_dossiers: 'Cases',
-    sidebar_evidence: 'Evidence & Attachments',
     sidebar_corrective_measures: 'Corrective Measures',
-    sidebar_reports_dashboards: 'Dashboards',
     sidebar_reports_exports: 'Reports',
     sidebar_admin_users: 'Users',
     sidebar_admin_roles: 'Roles & Permissions',
-    sidebar_admin_settings: 'Settings',
-    sidebar_group_dossiers: 'CASE MANAGEMENT',
-    sidebar_group_compliance: 'COMPLIANCE',
-    sidebar_group_reports: 'REPORTS',
-    sidebar_group_admin: 'ADMINISTRATION',
     // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
     sidebar_group_tools: 'TOOLS',
-    sidebar_all_cases: 'All Cases',
     sidebar_op_inbox: 'Inbox',
     sidebar_op_assign: 'To Assign',
     sidebar_op_pending: 'Pending Info',
-    sidebar_op_processed: 'Assigned Cases',
+    sidebar_op_processed: 'Open Cases',
+    sidebar_op_review: 'Under Review',
+    sidebar_op_closed: 'Closed Cases',
+    sidebar_inv_inbox: 'Inbox',
     sidebar_inv_my_cases: 'My Cases',
     sidebar_inv_to_process: 'To Process',
     sidebar_inv_in_progress: 'In Progress',
     sidebar_inv_pending: 'Pending',
-    sidebar_tasks_registry: 'All Tasks',
     sidebar_evidence_registry: 'Evidence & Attachments',
     sidebar_comms_registry: 'All Communications',
     // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
-    sidebar_my_tasks: 'My Tasks',
     sidebar_my_evidence: 'My Evidence',
     sidebar_my_comms: 'My Communications',
     sidebar_help_title: 'Need help?',
     sidebar_help_body: 'Check the documentation or contact the compliance team.',
-    footer_confidentiality: 'Confidentiality',
-    footer_legal: 'Legal notice',
     footer_contact: 'Contact',
-    footer_secure: 'Secure platform',
-    footer_secure_sub: 'Accessible to authorized users only',
     tab_allegations: 'Allegations',
     tab_persons: 'Persons',
     tab_report: 'Report',
@@ -1743,7 +1670,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_feature_no_retaliation_desc: 'Any form of retaliation is prohibited and sanctioned by the ACTIVA Group.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 13 — home page redesign, photo mockup) ===
-    nav_secure_space: 'Secure area',
     nav_public_contact: 'Contact us',
 
     // === AMÉLIORATION AJOUTÉE (Phase 27 — real Contact tab, dedicated
@@ -1778,23 +1704,62 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17) === label aligned with the adopted mockup ("We handle it").
     process_step4_title: 'We handle it',
     process_step4_desc: 'Your report is reviewed seriously and handled by the competent teams.',
+    process_step1_category: 'File a report',
+    process_step1_back_title: 'Report with total ease',
+    process_step1_back_desc: 'Describe the facts as precisely as possible, add any useful information or documents, and choose to stay anonymous if you wish. Your identity is not required to submit a report.',
+    process_step2_category: 'Secure access',
+    process_step2_back_title: 'Keep your credentials safe',
+    process_step2_back_desc: 'Once your report is registered, a unique ID and access code let you retrieve your case. Keep them safe: they let you check for updates without revealing your identity.',
+    process_step3_category: 'Case follow-up',
+    process_step3_back_title: 'Stay informed of progress',
+    process_step3_back_desc: 'Your secure space lets you check your report’s status, review requests for additional information and, when needed, exchange messages with the team handling your case.',
+    process_step4_category: 'Review and handling',
+    process_step4_back_title: 'Your report is being handled',
+    process_step4_back_desc: 'Every report is reviewed under the applicable procedures. Relevant elements are examined by authorized staff to determine appropriate next steps, in full confidentiality.',
+    process_back_button: '← Back',
     footer_legal_notice: 'Legal notice',
     footer_privacy_policy: 'Privacy policy',
+
+    legal_title: 'Legal notice',
+    legal_subtitle: 'Legal information about the publisher and host of this platform.',
+    legal_editor_heading: 'Site publisher',
+    legal_editor_body: 'This platform is published by ACTIVA Group.\nRegistered office: Rue Prince de Galles, B.P. 12970, Douala, Cameroon\nPhone: +237 233 50 13 00\nRegistration number: (to be confirmed by the Group’s legal department)\nLegal representative: (to be confirmed by the Group’s legal department)',
+    legal_hosting_heading: 'Hosting',
+    legal_hosting_body: 'Hosting provider: (to be confirmed by the Group’s legal department).',
+    legal_ip_heading: 'Intellectual property',
+    legal_ip_body: 'All content on this platform (text, logos, graphic elements) is protected by intellectual property law. Any reproduction, even partial, is prohibited without prior authorization from ACTIVA Group.',
+    legal_liability_heading: 'Liability',
+    legal_liability_body: 'ACTIVA Group strives to ensure the accuracy of the information published on this platform, without guaranteeing its completeness. ACTIVA Group cannot be held liable for any errors or omissions.',
+    legal_contact_heading: 'Contact',
+    legal_contact_body: 'For any question regarding this legal notice, you may contact us at the following address:',
+
+    privacy_title: 'Privacy policy',
+    privacy_subtitle: 'How ACTIVA Group collects, uses and protects the data submitted through this platform.',
+    privacy_controller_heading: 'Data controller',
+    privacy_controller_body: 'The controller for data collected through this platform is ACTIVA Group (Rue Prince de Galles, B.P. 12970, Douala, Cameroon), through its Audit, Risk & Compliance Directorate (DARC).',
+    privacy_data_heading: 'Data collected',
+    privacy_data_body: 'Depending on what you choose to share: the content of your report, any attachments, and your contact details if you choose not to remain anonymous.',
+    privacy_purpose_heading: 'Purpose of processing',
+    privacy_purpose_body: 'This data is collected solely to receive, review and handle reports of conduct contrary to ethics, regulations or the ACTIVA Group Code of Conduct.',
+    privacy_retention_heading: 'Retention period',
+    privacy_retention_body: 'Data is kept for as long as necessary to process the report, then archived or deleted in accordance with applicable legal obligations.',
+    privacy_recipients_heading: 'Data recipients',
+    privacy_recipients_body: 'Only authorized personnel (operators, investigators and authorized administrators) can access the data, with access rights strictly limited to their role. Your data is never shared with unauthorized third parties.',
+    privacy_rights_heading: 'Your rights',
+    privacy_rights_body: 'In accordance with applicable data protection regulations, you have the right to access, rectify, erase and object to the processing of your personal data. You can exercise these rights by contacting us at:',
+    privacy_security_heading: 'Security',
+    privacy_security_body: 'ACTIVA Group implements appropriate technical and organizational measures to protect the confidentiality and security of data submitted through this platform.',
+    privacy_dpo_heading: 'Data Protection Officer contact',
+    privacy_dpo_body: 'For any question regarding the protection of your personal data, you may also contact our Data Protection Officer (DPO) directly:',
   },
   pt: {
     // app_title/app_subtitle são definidos mais abaixo, no bloco "Phase 11".
-    group_name: 'Grupo ACTIVA',
-    darc_label: 'Diretoria de Auditoria, Riscos e Conformidade (DARC)',
     confidentiality_guarantee: 'Confidencialidade Absoluta & Proteção ao Denunciante',
     
     nav_home: 'Início & Denúncia',
     nav_track: 'Acompanhar denúncia',
     nav_portal: 'Portal de Gestão DARC',
-    nav_reports: 'Painéis & Relatórios',
     nav_audit: 'Trilha de Auditoria',
-    nav_settings: 'Configuração do Sistema',
-    nav_qrcode: 'Acesso Móvel / QR Code',
-    nav_firebase_lookup: 'Pesquisa Firebase (Beta)',
 
     // Firebase Case Lookup (Phase 4 — real Firebase Auth + Firestore)
     fb_lookup_title: 'Pesquisa de caso (dados reais do Firebase)',
@@ -1827,34 +1792,27 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     fb_lookup_field_description: 'Descrição',
     fb_lookup_subcollections_note: 'Alegações, pessoas, provas, notas e comunicações não são exibidas aqui: sua leitura requer uma Cloud Function (não implantada, projeto no plano Spark). Ver docs/FIREBASE-SETUP.md.',
 
-    hero_title: 'EthicsAlert.Com',
+    hero_title: 'Activa-whistleblowing',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — fidelidade ao modelo fornecido) ===
-    hero_headline_line1: 'Denuncie com toda a',
-    hero_headline_line2: 'confiança',
-    hero_desc: 'Um comportamento contrário aos nossos valores, à ética ou à regulamentação? Fale sobre isso. Estamos a ouvir.',
-    hero_paragraph: 'A integridade está no centro da nossa cultura empresarial. O EthicsAlert permite-lhe reportar, em total confidencialidade e sem receio, qualquer comportamento contrário aos nossos valores, ao nosso código de ética ou à regulamentação em vigor. Cada denúncia é levada a sério e tratada com rigor.',
-    hero_tags: '100% CONFIDENCIAL · SEGURO · CONFORME',
-    hero_how_it_works_link: 'Como funciona?',
-    hero_quote: 'Juntos, por um Grupo mais ético e mais sólido.',
+    hero_headline_line1: 'Denuncie com',
+    hero_headline_line2: 'toda a confiança',
+    hero_desc_line1: 'Um comportamento contrário aos nossos valores,',
+    hero_desc_line2: 'à ética ou à regulamentação?',
+    hero_desc_cta: 'Fale sobre isso. Estamos a ouvir.',
     // === AMÉLIORATION AJOUTÉE (Phase 17 — reorganização da página inicial) ===
-    hero_eyebrow: 'Canal de ética do Grupo ACTIVA',
+    hero_eyebrow: 'Canal de gestão de alertas do Grupo ACTIVA',
     hero_anonymous_note: 'Pode efetuar uma denúncia de forma anónima.',
+    // === AMÉLIORATION AJOUTÉE (bandeau de valeurs, côté droit du hero) ===
+    hero_value_1: 'Foco no cliente',
+    hero_value_2: 'Reatividade',
+    hero_value_3: 'Cumprimento dos compromissos',
+    hero_value_4: 'Inovação',
+    hero_value_5: 'Disponibilidade',
+    hero_values_caption: 'Valores que nos comprometem',
     // === AMÉLIORATION AJOUTÉE (Phase 22 — cartão de valores rotativo) ===
-    hero_value1_title: 'Integridade',
-    hero_value1_desc: 'Práticas responsáveis',
-    hero_value2_title: 'Transparência',
-    hero_value2_desc: 'Uma cultura de abertura',
-    hero_value3_title: 'Confiança',
-    hero_value3_desc: 'Um Grupo mais sustentável',
     // === AMÉLIORATION AJOUTÉE (Phase 23 — barra utilitária + botão Entrar) ===
-    topbar_about: 'Sobre o Grupo ACTIVA',
     nav_connexion: 'Entrar',
     process_subtitle: 'Quatro etapas para fazer ouvir a sua voz com toda a confiança.',
-    categories_eyebrow: 'Temas que importam',
-    categories_heading: 'Que tipos de preocupações pode denunciar?',
-    categories_subtitle: 'Pode denunciar qualquer facto contrário aos nossos valores, às nossas políticas ou à regulamentação.',
-    categories_view_all: 'Ver a lista completa',
-    cta_band_heading: 'Uma preocupação a denunciar?',
     cta_band_desc: 'A sua voz conta. Denuncie com toda a confiança.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 2 — seção de perguntas frequentes) ===
@@ -1863,7 +1821,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_q1: 'Minha denúncia é realmente anônima?',
     faq_a1: 'Sim. Se você escolher o modo anônimo, nenhuma informação que permita identificá-lo (nome, endereço IP, dados de conexão) é registrada. Você recebe um número de caso e uma senha para acompanhar sua denúncia sem nunca revelar sua identidade.',
     faq_q2: 'O que acontece depois que envio minha denúncia?',
-    faq_a2: 'Sua denúncia é imediatamente classificada de acordo com a matriz de risco NOCA e, em seguida, atribuída a um ou mais investigadores da DARC. Você pode acompanhar o andamento e conversar com segurança pelo portal de acompanhamento.',
+    // === MELHORIA ADICIONADA (Auditoria frontend — Fase 3, microcopy) ===
+    // As siglas NOCA e DARC nunca eram explicadas nas páginas públicas; um
+    // denunciante de primeira viagem não tinha contexto para nenhuma delas.
+    faq_a2: 'Sua denúncia é imediatamente classificada de acordo com a grade de criticidade interna do Grupo (matriz NOCA) e, em seguida, atribuída a um ou mais investigadores juramentados da Diretoria de Auditoria, Riscos e Conformidade (DARC). Você pode acompanhar o andamento e conversar com segurança pelo portal de acompanhamento.',
     faq_q3: 'Estou protegido(a) contra retaliação?',
     faq_a3: 'Sim. A política do Grupo ACTIVA garante proteção total contra qualquer forma de retaliação a um denunciante de boa-fé, em conformidade com o Código de Ética do Grupo.',
     faq_q4: 'Posso complementar ou excluir minha denúncia?',
@@ -1874,16 +1835,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_a6: 'A senha é exibida apenas uma vez, no momento do envio, e nunca é armazenada em texto simples nem recuperável — guarde-a com cuidado. Se a perder, contate a DARC pelos canais oficiais do Grupo.',
     btn_new_alert: 'Reportar uma preocupação',
     btn_track_existing: 'Acompanhar uma denúncia',
-    btn_view_policy: 'Consultar Carta de Ética',
 
     // === AMÉLIORATION AJOUTÉE (Phase 29 — correction post-fusion) === doublon
     // des clés `contact_*` retiré (voir le même commentaire dans le bloc fr).
 
-    step_1_identity: '1. Confidencialidade & Identidade',
-    step_2_facts: '2. Fatos & Categoria',
-    step_3_persons: '3. Pessoas Envolvidas & Testemunhas',
-    step_4_evidence: '4. Provas & Impacto',
-    step_5_security: '5. Segurança de Acesso',
+
+    // === AMÉLIORATION AJOUTÉE (Phase 33 — modal de confidencialidade antes do
+    // formulário de denúncia) ===
+    confidentiality_gate_title: 'A sua denúncia é confidencial',
+    confidentiality_gate_body1_pre: 'As informações que você fornecer serão tratadas ',
+    confidentiality_gate_body1_bold: 'de forma confidencial',
+    confidentiality_gate_body1_post: ' e apenas por pessoas autorizadas a tratar a sua denúncia.',
+    confidentiality_gate_body2_pre: 'Você pode optar por permanecer ',
+    confidentiality_gate_body2_bold: 'anônimo.',
+    confidentiality_gate_body2_post: ' Por favor, transmita apenas as informações úteis ao tratamento dos fatos denunciados.',
+    confidentiality_gate_cancel: 'Cancelar',
+    confidentiality_gate_confirm: 'Desejo continuar',
 
     // === AMÉLIORATION AJOUTÉE (Phase 26 — formulário de denúncia em 6 etapas,
     // fiel à nova maquete de referência fornecida) ===
@@ -1897,7 +1864,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     wizard_step2_hint: 'Você pode permanecer anônimo. Estas informações são facultativas e não são obrigatórias para enviar sua denúncia.',
     wizard_step3_title: 'Informações sobre o incidente',
     wizard_step3_desc: 'Descreva os fatos',
-    wizard_step4_title: 'Anexos',
     wizard_step4_title_optional: 'Anexos (opcional)',
     wizard_step4_desc: 'Adicione documentos (opcional)',
     wizard_step4_hint: 'Você pode anexar documentos, capturas de tela, fotos ou qualquer outro elemento que apoie sua denúncia.',
@@ -1930,20 +1896,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ack_success_title: 'Sua denúncia foi enviada com sucesso',
     ack_success_desc: 'Agradecemos sua confiança. Sua denúncia foi registrada e encaminhada às equipes competentes para análise.',
     ack_password_label: 'Senha',
-    ack_credentials_note: 'Guarde com cuidado este identificador e esta senha. Eles permitirão acompanhar o andamento da sua denúncia com total confidencialidade.',
+    ack_credentials_note: 'Guarde com cuidado este identificador e esta senha: eles permitirão acompanhar o andamento da sua denúncia com total confidencialidade. Em caso de perda, não será possível recuperá-los nem localizar novamente o seu processo.',
     ack_next_heading: 'E agora?',
     ack_next_track_title: 'Acompanhe sua denúncia',
     ack_next_track_desc: 'Conecte-se com seu identificador e sua senha na plataforma para consultar as atualizações.',
-    ack_next_anon_title: 'Seu anonimato é garantido',
-    ack_next_anon_desc: 'Nenhuma informação pessoal é exigida. Todas as trocas permanecem confidenciais e seguras.',
+    ack_next_anon_title: 'O seu anonimato é protegido',
+    ack_next_anon_desc: 'Nenhuma informação pessoal é exigida. Todas as trocas permanecem confidenciais e acessíveis apenas a pessoas autorizadas.',
     ack_next_informed_title: 'Você será informado',
     ack_next_informed_desc: 'Você receberá atualizações em sua área segura assim que houver progresso.',
     btn_copy_password: 'Copiar',
 
     choice_anonymous: 'Denúncia 100% Anônima (Recomendado)',
     choice_identified: 'Denúncia Identificada (Confidencial)',
-    anonymous_note: 'Nenhum identificador técnico (endereço IP, dados do dispositivo) é gravado.',
-    label_fullname: 'Nome completo',
     label_job_title: 'Função / Cargo',
     label_department: 'Departamento / Direção',
     label_declarant_type: 'Sua relação com a ACTIVA',
@@ -1953,7 +1917,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_phone: 'Telefone',
 
     label_category: 'Categoria de infração',
-    label_subcategory: 'Subcategoria específica',
     label_custom_violation: 'Especificação da infração (se outra)',
     label_description: 'Descrição detalhada e cronológica dos fatos',
     desc_placeholder: 'Descreva os fatos observados, datas, quantias, mecanismos...',
@@ -1961,34 +1924,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     no_future_dates_warning: 'A data não pode ser futura',
     label_location: 'Local do incidente',
 
-    matrix_title: 'Avaliação Automática de Riscos (Matriz DARC)',
-    label_financial_impact: 'Impacto financeiro potencial',
-    label_hierarchy_level: 'Nível hierárquico da pessoa implicada',
-    label_recidivism: 'Reincidência / Repetição',
-    label_reputation_risk: 'Risco para a reputação do Grupo ACTIVA',
-    calculated_noca: 'Classificação calculada',
-    priority_level: 'Nível de prioridade',
-    expected_sla: 'Prazo de tratamento alvo',
 
     btn_add_involved: '+ Adicionar pessoa implicada',
     btn_add_witness: '+ Adicionar testemunha',
-    role_employee: 'Funcionário',
-    role_manager: 'Quadro / Gerente',
-    role_subdirector: 'Subdiretor',
-    role_director: 'Diretor+',
 
     drag_drop_evidence: 'Arraste e solte evidências (PDF, imagens) ou clique para procurar',
     max_file_note: 'Formatos aceitos: PDF, PNG, JPG, DOCX (Máx 15MB por arquivo)',
 
-    label_password: 'Crie uma senha para acompanhar sua denúncia',
-    label_password_confirm: 'Confirme sua senha',
-    pwd_security_note: 'Guarde com segurança esta senha e o número de processo. Eles são indispensáveis para conversar de forma anônima com os auditores.',
-    btn_submit_alert: 'Transmitir Denúncia à DARC',
-    btn_save_draft: 'Rascunho salvo automaticamente',
 
-    ack_title: 'Denúncia transmitida com sucesso à DARC',
     ack_tracking_num: 'Seu Número Único de Processo',
-    ack_instructions: 'Anote este número. Foi gerado um recibo formal de confirmação.',
     btn_download_ack: 'Baixar Recibo de Confirmação (PDF)',
     btn_go_to_tracking: 'Ir para Área de Acompanhamento',
 
@@ -1999,30 +1943,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_tab_messages: 'Mensagens',
     track_tab_documents: 'Documentos',
     track_tab_updates: 'Histórico',
-    track_updates_empty: 'Nenhuma atualização registrada ainda.',
-    label_enter_number: 'Número de processo (ex: ACT-2026-0418)',
-    label_enter_pwd: 'Senha associada',
     btn_login_tracking: 'Acessar Processo',
-    status_label: 'Status do processo',
-    badge_anonymous: 'Processo Anônimo',
-    badge_identified: 'Processo Identificado',
 
     // === AMÉLIORATION AJOUTÉE (Phase 33 — reformulação do portal de
     // acompanhamento, maquete de referência) ===
     track_label_case_number: 'Número de processo',
     track_label_password: 'Senha associada',
-    track_placeholder_case_number: 'Ex. ACT-2026-0418',
+    track_placeholder_case_number: 'Ex. AARDC-26-09-0001',
     track_placeholder_password: 'A sua senha confidencial',
     track_divider_or: 'ou',
     track_switch_to_new_alert: 'Prefere antes apresentar uma nova denúncia?',
     track_login_help: 'O seu código de acesso e a sua senha são pessoais e confidenciais. Em caso de esquecimento, não é possível recuperá-los.',
-    track_confidentiality_tip1: 'Acesso seguro e encriptado',
-    track_confidentiality_tip2: 'Trocas anonimizadas',
-    track_confidentiality_tip3: 'Nenhuma informação pessoal exigida',
     track_back: 'Voltar',
-    track_complete_declaration: 'Completar a declaração',
-    track_logout: 'Terminar sessão',
-    track_progress_label: 'Andamento do seu processo',
     track_step1: 'Registado & Recebido',
     track_step2: 'Análise DARC',
     track_step3: 'Investigação',
@@ -2053,20 +1985,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 34 — nova maquete do portal de
     // acompanhamento: painel de foto na conexão, navegação lateral,
     // histórico em linha do tempo) ===
-    track_login_tagline: 'Um ambiente mais ético e mais seguro para todos.',
     track_login_photo_note: 'Um canal seguro, anônimo e independente.',
     // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
-    space_home_badge: 'Dispositivo de Alerta Ética & Conformidade',
-    space_home_tagline: 'Bem-vindo(a) ao seu espaço seguro.',
-    space_home_body: 'Você está na plataforma confidencial dedicada à denúncia de fatos sensíveis, no respeito à ética e aos valores da nossa organização.',
-    space_home_confidentiality: 'Confidencialidade garantida',
-    space_home_traceability: 'Rastreabilidade das ações',
-    space_home_hello: 'Olá',
-    space_home_title_single: 'Espaço de trabalho',
     space_home_title_plural: 'Espaços de trabalho',
-    space_home_subtitle_single: 'Acesse seu espaço de trabalho para retomar sua atividade.',
-    space_home_subtitle_plural: 'Selecione seu ambiente de trabalho para acessar os casos, a caixa de entrada e as ferramentas dedicadas.',
-    space_home_session_active: 'Sessão ativa',
+    space_home_subtitle_plural: 'Selecione seu ambiente de trabalho.',
+    // === AMÉLIORATION AJOUTÉE (janela de acesso restrito ao clicar) ===
+    space_home_denied_title: 'Acesso restrito',
+    space_home_denied_body: 'Seu perfil não possui as permissões necessárias para acessar « {space} ».',
+    space_home_denied_close: 'Fechar',
     space_home_operator_title: 'Espaço Operador',
     space_home_operator_desc: 'Tratamento das denúncias, qualificação, classificação e atribuição dos casos.',
     space_home_operator_stat: '{n} nova(s) denúncia(s)',
@@ -2074,16 +2000,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     space_home_investigator_desc: 'Casos atribuídos a você, audições e instruções.',
     space_home_investigator_stat: '{n} caso(s) a tratar',
     space_home_admin_title: 'Painel de Controlo',
-    space_home_admin_desc: 'Contas, funções, configuração e governança da plataforma.',
-    space_home_general_title: 'Visão geral & Relatórios',
-    space_home_general_desc: 'Consulta somente leitura da atividade e dos relatórios DARC.',
+    space_home_admin_desc: 'Configuração, gestão de utilizadores e supervisão da plataforma.',
+    space_home_general_title: 'Espaço Consultor',
+    space_home_general_desc: 'Acesso aos casos partilhados e apoio técnico.',
     track_docs_subtitle: 'Adicione documentos para apoiar a sua denúncia.',
     track_updates_title: 'Histórico do processo',
     track_updates_subtitle: 'Acompanhe todas as etapas e ações realizadas na sua denúncia.',
     track_you_label: 'Você',
     track_field_status: 'Status',
 
-    msg_box_title: 'Mensagens seguras e encriptadas',
+    msg_box_title: 'Mensagens confidenciais e seguras',
     msg_placeholder: 'Escreva uma mensagem ou envie informações complementares...',
     btn_send_msg: 'Enviar',
 
@@ -2101,21 +2027,48 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     portal_urgent: 'Prioridades Críticas (NOCA 3 & 4)',
     portal_closed_rate: 'Taxa de resolução',
 
-    filter_all: 'Todos os alertas',
-    filter_my_cases: 'Meus processos atribuídos',
-    filter_by_status: 'Filtrar por status',
-    filter_by_entity: 'Filtrar por entidade',
-    filter_by_noca: 'Filtrar por criticidade NOCA',
     search_placeholder: 'Pesquisar por referência, palavra-chave, cidade...',
 
-    tab_overview: 'Detalhes da Denúncia',
-    tab_investigation: 'Investigação & Notas Internas',
-    tab_messages: 'Diálogo com o Denunciante',
-    tab_corrective: 'Medidas Corretivas Obrigatórias',
-    tab_audit: 'Histórico & Trilha de Auditoria',
 
     btn_assign_investigator: 'Atribuir a um Investigador',
     btn_change_priority: 'Modificar Prioridade / Prazos',
+    btn_escalate_case: 'Escalar o processo',
+    escalate_recipient_label: 'Destinatário',
+    escalate_recipient_email_only: 'apenas e-mail',
+    case_escalated_badge: 'Escalado',
+    case_escalated_card_title: 'Processo escalado',
+    case_escalated_card_meta: 'Escalado em {date} para {recipient} ({fonction}) por {actor}.',
+    case_escalated_card_reason_label: 'Motivo:',
+    case_escalated_card_access_granted: 'Acesso ao processo concedido ao destinatário.',
+    case_escalated_card_access_email_only: 'Notificação apenas por e-mail — sem acesso na aplicação (conta não associada ou habilitação insuficiente).',
+    btn_dismiss_case: 'Arquivar sem seguimento',
+    btn_dismiss_case_confirm: 'Confirmar o arquivamento',
+    dismiss_modal_subtitle: 'Processo {tracking} — encerramento imediato, sem passar pelo fluxo de investigação.',
+    dismiss_reason_type_label: 'Motivo do arquivamento',
+    dismiss_reason_duplicate: 'Duplicado',
+    dismiss_reason_out_of_scope: 'Fora do escopo',
+    dismiss_motive_label: 'Detalhes',
+    dismiss_motive_placeholder: 'Justificativa do arquivamento sem seguimento...',
+    btn_request_info: 'Solicitar informações',
+    btn_send_review: 'Enviar para revisão',
+    btn_resume_investigation: 'Retomar a investigação',
+    request_info_modal_title: 'Solicitar informações',
+    request_info_modal_desc: 'O processo passa para "Aguardando informações" até a retomada da investigação.',
+    request_info_modal_label: 'Informações solicitadas *',
+    request_info_modal_placeholder: 'Especifique as informações ou documentos em falta...',
+    request_info_modal_submit: 'Enviar solicitação',
+    btn_write_report: 'Redigir o relatório de investigação',
+    report_modal_title: 'Relatório de investigação',
+    report_modal_desc: 'É necessário um relatório (texto e/ou ficheiro importado) antes de enviar o processo para revisão.',
+    report_modal_label: 'Relatório de investigação',
+    report_modal_placeholder: 'Fatos apurados, constatações, conclusões preliminares...',
+    report_modal_import_label: 'Ficheiro do relatório (opcional)',
+    report_modal_import_btn: 'Importar um ficheiro',
+    report_modal_remove_file: 'Remover ficheiro',
+    report_modal_submit: 'Guardar relatório',
+    report_card_title: 'Relatório de investigação',
+    report_card_empty: 'Nenhum relatório redigido até agora — necessário antes do envio para revisão.',
+    report_card_meta: 'Redigido por {author} em {date}',
     btn_close_case: 'Concluir Processo',
     btn_reopen_case: 'Reabrir Processo (Motivo Obrigatório)',
     btn_archive_case: 'Arquivar Processo',
@@ -2125,14 +2078,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     reporting_title: 'Estatísticas & Painéis DARC',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Rapports) ===
-    report_card_activity: 'Atividade global',
-    report_card_by_country: 'Por país',
-    report_card_by_entity: 'Por entidade',
-    report_card_by_category: 'Por categoria',
-    report_card_sla: 'SLA e prazos',
-    report_card_custom: 'Relatório personalizado',
-    report_card_generate: 'Gerar',
-    report_card_configure: 'Configurar',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — filtros reais dos relatórios) ===
     report_filters_label: 'Filtros',
     report_filter_period_all: 'Todo o período',
@@ -2146,7 +2091,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     report_filters_reset: 'Redefinir',
     report_filters_results_suffix: 'casos exibidos',
     // === AMÉLIORATION AJOUTÉE (Phase 7 — Painel Executivo) ===
-    nav_executive: 'Visão Executiva',
     exec_title: 'Visão Executiva & Comitê de Auditoria',
     exec_subtitle: 'Resumo agregado para a Direção Geral e o Comitê de Auditoria — nenhuma identidade do denunciante, nota interna ou anexo é exposto aqui.',
     exec_kpi_total: 'Total de alertas',
@@ -2156,7 +2100,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     exec_section_trend: 'Evolução dos alertas',
     exec_section_category: 'Distribuição por categoria',
     exec_confidentiality_note: 'Em conformidade com a política de confidencialidade do Grupo, esta visão executiva não expõe identidade do denunciante, notas internas de investigação nem anexos — apenas indicadores agregados.',
-    btn_export_csv: 'Exportar CSV bruto',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
     export_modal_title: 'Exportar resultados',
     export_modal_format: 'Formato',
@@ -2164,55 +2107,23 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     export_modal_format_pdf: 'PDF',
     export_modal_fields: 'Campos a incluir',
     export_modal_export: 'Exportar',
-    btn_export_excel: 'Exportar Dados Formatados',
-    btn_print_report: 'Imprimir / Salvar Relatório PDF',
-    toggle_anonymize: 'Gerar Relatório 100% Anonimizado',
     report_btn_export: 'Exportar (PDF / CSV)',
-    report_monthly_darc: 'Relatório Mensal DARC',
-    report_quarterly_board: 'Relatório Trimestral Comitê de Auditoria & Conselho',
 
-    active_profile: 'Perfil de Simulação Ativo',
-    switch_role: 'Trocar de perfil para testar',
     // === AMÉLIORATION AJOUTÉE (Phase 4 — central de notificações) ===
-    notif_title: 'Notificações',
-    notif_mark_all_read: 'Marcar tudo como lido',
-    notif_empty: 'Nenhuma notificação no momento.',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Notifications) ===
-    notif_tab_all: 'Todas',
-    notif_tab_tasks: 'Tarefas',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Menu Profil) ===
-    profile_menu_settings: 'Definições',
     profile_menu_help: 'Ajuda & suporte',
     // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en barre latérale) ===
     profile_menu_change_space: 'Mudar de espaço',
 
     // === AMÉLIORATION AJOUTÉE (Phase 5 — Control Panel) ===
-    nav_control_panel: 'Centro de Controle',
     // === AMÉLIORATION AJOUTÉE (Phase 6 — sidebar grouping) ===
-    nav_group_control_panel: 'Painel',
-    nav_group_alerts: 'Gestão de Alertas',
-    nav_group_reporting: 'Relatórios',
-    nav_group_audit: 'Auditoria',
-    nav_group_admin: 'Administração',
     // === AMÉLIORATION AJOUTÉE (Phase 9 — reestruturação da navegação conforme o mockup) ===
-    nav_group_investigation: 'Investigação',
-    nav_group_remediation: 'Remediação',
-    nav_alerts: 'Alertas',
-    nav_triage: 'Triagem',
-    nav_assignment: 'Atribuição',
-    nav_my_cases: 'Meus Casos',
-    nav_investigations: 'Investigações',
     nav_tasks: 'Tarefas',
     nav_evidence: 'Provas',
     nav_communications: 'Comunicações',
-    nav_corrective_actions: 'Ações Corretivas',
-    nav_admin_users: 'Usuários & Papéis',
-    nav_admin_config: 'Configuração',
     // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
     nav_search_advanced: 'Pesquisa avançada',
-    btn_open_case: 'Abrir o caso',
-    reg_tasks_title: 'Registo de Tarefas',
-    reg_tasks_subtitle: 'Todas as tarefas de investigação, em todos os casos, com prazo e responsável.',
     reg_tasks_empty: 'Nenhum caso corresponde a este filtro.',
     reg_investigations_title: 'Acompanhamento das investigações',
     reg_investigations_subtitle: 'Progresso, estatuto e medidas corretivas de todos os casos, em todos os países.',
@@ -2237,8 +2148,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     search_advanced_subtitle: 'Pesquise por palavra-chave, país, entidade, categoria, estado, criticidade, gravidade, sensibilidade, canal ou período — entre os casos que está autorizado a ver.',
     search_advanced_empty: 'Nenhum caso no seu âmbito por enquanto.',
     search_advanced_empty_filtered: 'Nenhum caso corresponde a estes critérios.',
-    reg_corrective_title: 'Registo de Ações Corretivas',
-    reg_corrective_subtitle: 'Todas as medidas corretivas documentadas, em todos os casos.',
     reg_corrective_empty: 'Nenhuma ação corretiva registada até o momento.',
     reg_col_title: 'Título',
     reg_col_owner: 'Responsável',
@@ -2246,14 +2155,18 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     reg_recommendations_title: 'Acompanhamento das recomendações',
     reg_recommendations_subtitle: 'Medidas corretivas de todos os casos, por país, entidade, gravidade e estatuto.',
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) ===
-    ocd_inbox_subtitle: 'Todas as denúncias recebidas do público — triadas e trocando mensagens com o denunciante antes da atribuição.',
+    ocd_inbox_subtitle: 'Todas as denúncias recebidas do público.',
     ocd_to_assign_subtitle: 'Casos novos e em curso, classificados por país, entidade, natureza, criticidade, gravidade e urgência — atribua-os a um investigador.',
     ocd_pending_info_subtitle: 'Casos em curso que aguardam informações complementares do denunciante.',
-    ocd_assigned_subtitle: 'Todos os casos já atribuídos a um investigador.',
+    ocd_assigned_subtitle: 'Casos atribuídos a um investigador, ainda não encerrados.',
+    ocd_closed_subtitle: 'Casos atribuídos e encerrados — referência, natureza, país, entidade, datas e resumo de encerramento.',
+    ocd_review_subtitle: 'Casos cujo relatório de investigação foi enviado para revisão — encerre-os quando todos os elementos estiverem disponíveis.',
     ocd_empty_inbox: 'Nenhuma denúncia à espera de triagem.',
     ocd_empty_to_assign: 'Nenhum caso a atribuir no momento.',
     ocd_empty_pending_info: 'Nenhum caso à espera de informações complementares.',
-    ocd_empty_assigned: 'Nenhum caso atribuído no momento.',
+    ocd_empty_assigned: 'Nenhum caso em aberto no momento.',
+    ocd_empty_closed: 'Nenhum caso encerrado no momento.',
+    ocd_empty_review: 'Nenhum caso em revisão no momento.',
     ocd_my_cases_subtitle: 'Todos os casos atribuídos a si.',
     ocd_to_process_subtitle: 'Os seus casos novos e em curso, a tratar em prioridade.',
     ocd_in_progress_subtitle: 'Os seus casos atualmente em investigação.',
@@ -2273,58 +2186,21 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     corrective_status_implemented: 'Implementada',
     corrective_status_verified: 'Verificada',
     // === AMÉLIORATION AJOUTÉE (Repère visuel — Tâches) ===
-    reg_col_priority: 'Prioridade',
-    tasks_bucket_a_faire: 'A fazer',
-    tasks_bucket_terminees: 'Concluídas',
-    evidence_bucket_documents: 'Documentos',
-    evidence_bucket_images: 'Imagens',
-    evidence_bucket_autres: 'Outros',
-    reg_col_sender: 'Remetente',
-    reg_col_message: 'Mensagem',
-    reg_col_date: 'Data',
-    reg_col_name: 'Nome',
-    reg_col_type: 'Tipo',
-    reg_col_size: 'Tamanho',
     cp_title: 'Centro de Controle',
     cp_subtitle: 'Supervisão operacional em tempo real de todos os casos DARC.',
     cp_kpi_total: 'Total de Casos',
-    cp_kpi_new: 'Novos',
-    cp_kpi_unassigned: 'Não Atribuídos',
-    cp_kpi_critical: 'Críticos',
-    cp_kpi_very_high: 'Muito Altos',
-    cp_kpi_overdue: 'Atrasados',
-    cp_section_alert_management: 'Gestão de Alertas',
     cp_section_sla: 'Monitoramento de SLA',
     cp_sla_on_track: 'No Prazo',
     cp_sla_at_risk: 'Prazo se Aproximando',
     cp_sla_overdue: 'Atrasado',
     cp_sla_escalated: 'Escalados',
-    cp_view_overdue_cases: 'Ver Casos Atrasados',
-    cp_section_investigation: 'Monitoramento de Investigações',
-    cp_stat_active: 'Ativas',
-    cp_stat_pending_info: 'Aguardando Informações',
-    cp_stat_investigation_overdue: 'Atrasadas',
-    cp_stat_approaching_sla: 'Próximo do SLA',
     cp_section_workload: 'Carga de Trabalho dos Investigadores',
     cp_workload_investigator: 'Investigador',
     cp_workload_active: 'Ativos',
     cp_workload_overdue: 'Atrasados',
     cp_workload_critical: 'Críticos',
     cp_empty_workload: 'Nenhum investigador ativo no momento.',
-    cp_section_corrective: 'Ações Corretivas',
-    cp_corrective_open: 'Abertas',
-    cp_corrective_overdue: 'Atrasadas',
-    cp_corrective_in_progress: 'Em Andamento',
-    cp_corrective_completed: 'Concluídas',
-    cp_section_activity: 'Atividade Recente',
-    cp_empty_activity: 'Nenhuma atividade recente.',
-    cp_section_quick_actions: 'Ações Rápidas',
-    cp_qa_review_new: 'Analisar Novos Alertas',
-    cp_qa_triage_unassigned: 'Triagem de Não Atribuídos',
-    cp_qa_assign_case: 'Atribuir Caso',
-    cp_qa_view_overdue: 'Ver Casos Atrasados',
-    cp_qa_review_closure: 'Analisar Encerramentos',
-    cp_qa_view_reports: 'Ver Relatórios',
+    cp_empty_recent_alerts: 'Nenhum alerta recente.',
 
     // === AMÉLIORATION AJOUTÉE (Repère visuel — reproduction fidèle de la
     // maquette Tableau de bord) ===
@@ -2363,7 +2239,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — case tabs: Tasks, Timeline) ===
     tab_tasks: 'Tarefas',
-    tab_timeline: 'Cronologia',
     btn_add_task: '+ Nova Tarefa',
     tasks_empty: 'Nenhuma tarefa registrada para este caso ainda.',
     task_status_not_started: 'Não Iniciada',
@@ -2378,6 +2253,22 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     task_priority_low: 'Baixa',
     task_priority_medium: 'Média',
     task_priority_high: 'Alta',
+
+    nav_interviews: 'Entrevistas',
+    tab_interviews: 'Entrevistas',
+    btn_add_interview: '+ Nova entrevista',
+    interviews_empty: 'Nenhuma entrevista registrada para este caso ainda.',
+    interview_interviewee_label: 'Pessoa entrevistada',
+    interview_interviewee_placeholder: 'Nome (ou associe uma pessoa abaixo)',
+    interview_link_person_label: 'Associar a uma pessoa implicada / testemunha (opcional)',
+    interview_scheduled_label: 'Data',
+    interview_summary_label: 'Síntese da entrevista',
+    interview_status_label: 'Estado',
+    interview_status_planned: 'Planeada',
+    interview_status_completed: 'Realizada',
+    interview_status_cancelled: 'Cancelada',
+    interview_conducted_by_label: 'Conduzida por',
+
     timeline_message_from: 'Mensagem de',
     timeline_empty: 'Nenhum evento registrado para este caso.',
     btn_cancel: 'Cancelar',
@@ -2385,8 +2276,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     btn_back_to_list: 'Voltar à lista de casos',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Triagem & Conflito de Interesses) ===
-    tab_triage: 'Triagem',
-    tab_conflict: 'Conflito de Interesses',
     triage_matrix_title: 'Matriz de Riscos (Anexo 9)',
     triage_axis_financial: '1. Impacto Financeiro',
     triage_axis_hierarchy: '2. Nível Hierárquico',
@@ -2450,13 +2339,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     cp_kpi_open_corrective: 'Ações corretivas abertas',
     cp_kpi_sub_corrective_overdue: 'em atraso',
     cp_kpi_sub_corrective_none: 'Nenhuma em atraso',
-    cp_period_today: 'Hoje',
-    cp_period_7d: '7 dias',
-    cp_period_30d: '30 dias',
-    cp_period_quarter: 'Trimestre',
-    cp_period_custom: 'Personalizado',
-    cp_last_updated: 'Última atualização',
-    cp_refresh: 'Atualizar',
+    cp_year_all: 'Todos os anos',
     cp_btn_export: 'Exportar',
     cp_action_new_case: 'Novo caso',
     cp_action_triage: 'Triagem',
@@ -2527,51 +2410,37 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     person_modal_kind_witness: 'Testemunha',
 
     // === AMÉLIORATION AJOUTÉE (Phase 11 — reprodução fiel da maquete) ===
-    app_title: 'EthicsAlert.Com',
+    app_title: 'activa-whistleblowing',
     app_subtitle: 'Canal seguro para reportar preocupações éticas e de conformidade',
-    brand_tagline: 'apaixonadamente clientes',
     navbar_search_placeholder: 'Pesquisar um caso, uma pessoa, uma palavra-chave...',
     nav_public_home: 'Início',
-    nav_public_how: 'Como funciona',
     nav_public_faq: 'FAQ',
     sidebar_dashboard: 'Painel',
-    sidebar_dossiers: 'Casos',
-    sidebar_evidence: 'Provas & Anexos',
     sidebar_corrective_measures: 'Medidas corretivas',
-    sidebar_reports_dashboards: 'Painéis',
     sidebar_reports_exports: 'Relatórios',
     sidebar_admin_users: 'Usuários',
     sidebar_admin_roles: 'Papéis & Permissões',
-    sidebar_admin_settings: 'Configurações',
-    sidebar_group_dossiers: 'GESTÃO DE CASOS',
-    sidebar_group_compliance: 'CONFORMIDADE',
-    sidebar_group_reports: 'RELATÓRIOS',
-    sidebar_group_admin: 'ADMINISTRAÇÃO',
     // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
     sidebar_group_tools: 'FERRAMENTAS',
-    sidebar_all_cases: 'Todos os casos',
     sidebar_op_inbox: 'Caixa de entrada',
     sidebar_op_assign: 'A atribuir',
     sidebar_op_pending: 'Aguardando informações',
-    sidebar_op_processed: 'Casos atribuídos',
+    sidebar_op_processed: 'Casos em aberto',
+    sidebar_op_review: 'Em revisão',
+    sidebar_op_closed: 'Casos encerrados',
+    sidebar_inv_inbox: 'Caixa de entrada',
     sidebar_inv_my_cases: 'Meus casos',
     sidebar_inv_to_process: 'A processar',
     sidebar_inv_in_progress: 'Em curso',
     sidebar_inv_pending: 'Em espera',
-    sidebar_tasks_registry: 'Todas as tarefas',
     sidebar_evidence_registry: 'Provas & anexos',
     sidebar_comms_registry: 'Todas as comunicações',
     // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le périmètre réel) ===
-    sidebar_my_tasks: 'Minhas tarefas',
     sidebar_my_evidence: 'Minhas provas',
     sidebar_my_comms: 'Minhas comunicações',
     sidebar_help_title: 'Precisa de ajuda?',
     sidebar_help_body: 'Consulte a documentação ou contacte a equipa de conformidade.',
-    footer_confidentiality: 'Confidencialidade',
-    footer_legal: 'Aviso legal',
     footer_contact: 'Contacto',
-    footer_secure: 'Plataforma segura',
-    footer_secure_sub: 'Acessível apenas a utilizadores autorizados',
     tab_allegations: 'Alegações',
     tab_persons: 'Pessoas',
     tab_report: 'Relatório',
@@ -2585,7 +2454,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     hero_feature_no_retaliation_desc: 'Qualquer forma de represália é proibida e sancionada pelo Grupo ACTIVA.',
 
     // === AMÉLIORATION AJOUTÉE (Phase 13 — redesenho da página inicial) ===
-    nav_secure_space: 'Área segura',
     nav_public_contact: 'Contacte-nos',
 
     // === AMÉLIORATION AJOUTÉE (Phase 27 — aba de Contacto real, WhatsApp +
@@ -2619,7 +2487,52 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // === AMÉLIORATION AJOUTÉE (Phase 17) === rótulo alinhado com a maquete adotada ("Tratamos").
     process_step4_title: 'Tratamos',
     process_step4_desc: 'A sua denúncia é analisada de forma séria e tratada pelas equipas competentes.',
+    process_step1_category: 'Apresentar uma denúncia',
+    process_step1_back_title: 'Denuncie com toda a simplicidade',
+    process_step1_back_desc: 'Descreva os factos com a maior precisão possível, adicione as informações ou documentos úteis e escolha, se assim o desejar, permanecer anónimo. A sua identidade não é necessária para enviar uma denúncia.',
+    process_step2_category: 'Acesso seguro',
+    process_step2_back_title: 'Guarde as suas credenciais',
+    process_step2_back_desc: 'Após o registo da sua denúncia, um identificador único e um código de acesso permitem-lhe recuperar o seu processo. Guarde-os com cuidado: permitem-lhe consultar as atualizações sem revelar a sua identidade.',
+    process_step3_category: 'Acompanhamento do processo',
+    process_step3_back_title: 'Mantenha-se informado sobre o andamento',
+    process_step3_back_desc: 'O seu espaço seguro permite-lhe consultar o estado da sua denúncia, tomar conhecimento de pedidos de informações adicionais e, quando necessário, trocar mensagens com a equipa responsável pelo processo.',
+    process_step4_category: 'Análise e tratamento',
+    process_step4_back_title: 'A sua denúncia está a ser tratada',
+    process_step4_back_desc: 'Cada denúncia é objeto de uma análise segundo os procedimentos aplicáveis. Os elementos pertinentes são examinados pelas pessoas habilitadas para determinar as diligências adequadas, no respeito pela confidencialidade.',
+    process_back_button: '← Voltar',
     footer_legal_notice: 'Aviso legal',
     footer_privacy_policy: 'Política de privacidade',
+
+    legal_title: 'Aviso legal',
+    legal_subtitle: 'Informações legais sobre o editor e o alojamento desta plataforma.',
+    legal_editor_heading: 'Editor do site',
+    legal_editor_body: 'Esta plataforma é publicada pelo Grupo ACTIVA.\nSede social: Rue Prince de Galles, B.P. 12970, Douala, Camarões\nTelefone: +237 233 50 13 00\nNúmero de registo: (a confirmar pelo departamento jurídico do Grupo)\nRepresentante legal: (a confirmar pelo departamento jurídico do Grupo)',
+    legal_hosting_heading: 'Alojamento',
+    legal_hosting_body: 'Fornecedor de alojamento: (a confirmar pelo departamento jurídico do Grupo).',
+    legal_ip_heading: 'Propriedade intelectual',
+    legal_ip_body: 'Todo o conteúdo desta plataforma (textos, logótipos, elementos gráficos) está protegido pelo direito de propriedade intelectual. Qualquer reprodução, mesmo parcial, é proibida sem autorização prévia do Grupo ACTIVA.',
+    legal_liability_heading: 'Responsabilidade',
+    legal_liability_body: 'O Grupo ACTIVA esforça-se por garantir a exatidão das informações publicadas nesta plataforma, sem garantir a sua exaustividade. O Grupo ACTIVA não pode ser responsabilizado por eventuais erros ou omissões.',
+    legal_contact_heading: 'Contacto',
+    legal_contact_body: 'Para qualquer questão relativa a este aviso legal, pode contactar-nos através do seguinte endereço:',
+
+    privacy_title: 'Política de privacidade',
+    privacy_subtitle: 'Como o Grupo ACTIVA recolhe, utiliza e protege os dados submetidos através desta plataforma.',
+    privacy_controller_heading: 'Responsável pelo tratamento',
+    privacy_controller_body: 'O responsável pelo tratamento dos dados recolhidos através desta plataforma é o Grupo ACTIVA (Rue Prince de Galles, B.P. 12970, Douala, Camarões), através da sua Direção de Auditoria, Risco e Conformidade (DARC).',
+    privacy_data_heading: 'Dados recolhidos',
+    privacy_data_body: 'Consoante as informações que optar por partilhar: o conteúdo do seu relato, eventuais anexos, e os seus dados de contacto caso opte por não permanecer anónimo.',
+    privacy_purpose_heading: 'Finalidade do tratamento',
+    privacy_purpose_body: 'Estes dados são recolhidos exclusivamente para receber, analisar e tratar relatos de condutas contrárias à ética, à regulamentação ou ao Código de Conduta do Grupo ACTIVA.',
+    privacy_retention_heading: 'Prazo de conservação',
+    privacy_retention_body: 'Os dados são conservados pelo tempo necessário ao tratamento do relato, sendo depois arquivados ou eliminados em conformidade com as obrigações legais aplicáveis.',
+    privacy_recipients_heading: 'Destinatários dos dados',
+    privacy_recipients_body: 'Apenas pessoas habilitadas (operadores, investigadores e administradores autorizados) têm acesso aos dados, com direitos de acesso estritamente limitados à sua função. Os seus dados nunca são partilhados com terceiros não autorizados.',
+    privacy_rights_heading: 'Os seus direitos',
+    privacy_rights_body: 'Em conformidade com a regulamentação aplicável em matéria de proteção de dados, tem o direito de acesso, retificação, apagamento e oposição relativamente aos seus dados pessoais. Pode exercer estes direitos contactando-nos através de:',
+    privacy_security_heading: 'Segurança',
+    privacy_security_body: 'O Grupo ACTIVA implementa as medidas técnicas e organizacionais adequadas para proteger a confidencialidade e a segurança dos dados submetidos através desta plataforma.',
+    privacy_dpo_heading: 'Contacto do Encarregado da Proteção de Dados',
+    privacy_dpo_body: 'Para qualquer questão relativa à proteção dos seus dados pessoais, pode também contactar diretamente o nosso Encarregado da Proteção de Dados (DPO):',
   }
 };

@@ -19,6 +19,13 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  // === AMÉLIORATION AJOUTÉE (identifiant de connexion distinct de l'email) ===
+  // Sur demande explicite : les collaborateurs se connectent avec un
+  // identifiant dédié, jamais leur adresse e-mail directement (StaffLoginView.tsx
+  // / storage.ts `verifyStaffLogin`) — `email` reste l'adresse de contact
+  // réelle (notifications, "mot de passe oublié ?"), `username` est
+  // l'identifiant de connexion.
+  username: string;
   role: UserRole;
   roleTitle: string;
   entity: string;
@@ -42,6 +49,22 @@ export interface UserProfile {
   // compatibilité d'attribution, Phase 4). Absent traité comme `true` —
   // aucun compte existant ne devient silencieusement indisponible.
   active?: boolean;
+  // === AMÉLIORATION AJOUTÉE (création de comptes par l'admin — mot de
+  // passe temporaire) === Un compte créé par un administrateur (voir
+  // AdminConfigView.tsx, storage.ts `verifyStaffLogin`/`changePassword`/
+  // `resetUserPassword`) reçoit un mot de passe temporaire généré, salé et
+  // haché exactement comme le code d'accès du lanceur d'alerte
+  // (services/crypto.ts) — jamais stocké en clair. `mustChangePassword`
+  // force un changement à la première connexion (StaffLoginView.tsx) ;
+  // `passwordSetAt` sert à faire expirer ce mot de passe temporaire 4h
+  // après sa génération (voir storage.ts). Tous optionnels : un compte sans
+  // `passwordHash` retombe sur le mot de passe fixe "demo" (repli documenté
+  // dans `verifyStaffLogin`) — cas résiduel, plus aucun compte fourni par
+  // défaut n'est dans cet état.
+  passwordHash?: string;
+  passwordSalt?: string;
+  mustChangePassword?: boolean;
+  passwordSetAt?: string;
 }
 
 export type AlertStatus = 
@@ -243,6 +266,13 @@ export interface AlertRecord {
   // le champ que tout écran existant continue de lire sans changement.
   // Optionnel : absent tant qu'aucune transition n'est passée par le
   // nouveau chemin.
+  //
+  // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
+  // cause racine) === N'écrivez JAMAIS `status`/`workflowStatus`
+  // séparément à la main (source de 3 bugs distincts cette session, un par
+  // champ oublié) : `storage.transitionStatus()` pour les transitions
+  // génériques, sinon `applyCaseStatus()` (services/statusMapping.ts) —
+  // les deux champs avancent alors toujours ensemble par construction.
   workflowStatus?: CaseStatus;
   assignedInvestigators: string[]; // Investigator IDs
   assignedInvestigatorNames: string[];
@@ -253,6 +283,28 @@ export interface AlertRecord {
   reopenReason?: string;
   reopenedAt?: string;
   reopenedBy?: string;
+  // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
+  // Horodatage réel du premier passage par ces 2 étapes (jamais fabriqué a
+  // posteriori) — permet à la timeline "STATUT DU DOSSIER" de les marquer
+  // honnêtement "fait" une fois le dossier passé à l'étape suivante, sans
+  // jamais cocher une étape que le dossier n'a en réalité pas traversée.
+  pendingInfoReachedAt?: string;
+  reviewReachedAt?: string;
+  // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+  // l'envoi en revue) === Champ texte simple, horodaté/attribué — dans le
+  // même esprit qu'InternalNote, mais un unique document mis à jour plutôt
+  // qu'une liste. `investigationReport` conditionne à lui seul la
+  // visibilité de "Envoyer en revue" dans le menu Actions (voir
+  // InvestigationDesk.tsx) : tant qu'il est absent, l'action n'apparaît
+  // simplement pas — aucun état "bloqué"/"désactivé" fabriqué.
+  investigationReport?: string;
+  investigationReportBy?: string;
+  investigationReportAt?: string;
+  // === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation en fichier) ===
+  // Alternative/complément au texte ci-dessus : mêmes champs qu'EvidenceFile
+  // (id/name/size/type/dataUrl/uploadedBy), déjà utilisé par "Preuves &
+  // pièces jointes" — aucun nouveau mécanisme de dépôt de fichier réinventé.
+  investigationReportFile?: EvidenceFile;
   // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
   // Escalade vers la DARC Groupe (brief §14/§44). Le pays/entité d'origine
   // ci-dessus (country/concernedEntity/countryId/entityId) ne sont JAMAIS
@@ -263,6 +315,20 @@ export interface AlertRecord {
   escalatedBy?: string;
   escalatedReason?: string;
   escalatedOwnerId?: string;
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === Référence vers EscalationRecipient.id, toujours renseignée
+  // à l'escalade (que le destinataire ait ou non un compte EthicAlert) —
+  // contrairement à escalatedOwnerId ci-dessus qui reste `undefined` quand
+  // le destinataire n'a pas de compte (jamais d'id de compte fictif).
+  escalatedRecipientId?: string;
+  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+  // routage) === Quand le routage indépendant ne trouve aucune autorité
+  // interne (independentRoutingUnresolved ci-dessous), le destinataire actif
+  // du grade le plus élevé du registre est notifié par e-mail à titre de
+  // dernier recours — jamais d'accès in-app fictif accordé, juste une vraie
+  // notification à un humain désigné plutôt qu'un silence total.
+  independentRoutingFallbackRecipientId?: string;
+  independentRoutingFallbackNotifiedAt?: string;
   // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
   // Routage indépendant (brief §47-68) : lorsqu'une personne mise en cause
   // est rattachée à un compte réel (InvolvedPerson.linkedUserId/
@@ -332,6 +398,28 @@ export interface CaseInterview {
   conductedBy: string;
   summary?: string;
   status: 'planned' | 'completed' | 'cancelled';
+}
+
+// === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
+// routage) === Distinct de `UserProfile` : ces destinataires n'ont pas
+// forcément de compte EthicAlert (ex. DRH, DGA Groupe) — `linkedUserId`
+// est renseigné UNIQUEMENT quand la personne a aussi un compte réel, ce
+// qui lui donne alors un accès in-app réel au dossier concerné (voir
+// storage.escalateAlert/triggerIndependentRouting) ; sans ce lien, le
+// destinataire est notifié par e-mail mais n'obtient jamais d'accès
+// fictif au dossier. `grade` est une échelle numérique propre à ce
+// registre (plus élevé = plus senior), utilisée pour choisir le
+// destinataire de dernier recours quand le routage indépendant ne trouve
+// aucune autorité interne.
+export interface EscalationRecipient {
+  id: string;
+  identifiant: string;
+  nom: string;
+  email: string;
+  fonction: string;
+  grade: number;
+  linkedUserId?: string;
+  active: boolean;
 }
 
 export interface ConflictDeclaration {
@@ -409,7 +497,10 @@ export interface AuditLogEntry {
     // honnête de chaque tentative d'envoi (voir services/emailNotify.ts) —
     // jamais un seul type "envoyé" qui masquerait un échec réel.
     | 'EMAIL_NOTIFICATION_SENT'
-    | 'EMAIL_NOTIFICATION_FAILED';
+    | 'EMAIL_NOTIFICATION_FAILED'
+    // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
+    // l'envoi en revue) ===
+    | 'INVESTIGATION_REPORT_SAVED';
   details: string;
   timestamp: string;
   ipAddress?: string;

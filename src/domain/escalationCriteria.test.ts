@@ -2,8 +2,8 @@
  * === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
  */
 import { describe, expect, it } from 'vitest';
-import { AlertRecord, UserProfile } from '../types';
-import { evaluateEscalationCriteria, getGroupEscalationOwners } from './escalationCriteria';
+import { AlertRecord } from '../types';
+import { evaluateEscalationCriteria } from './escalationCriteria';
 
 function makeAlert(overrides: Partial<AlertRecord> = {}): AlertRecord {
   return {
@@ -46,19 +46,6 @@ function makeAlert(overrides: Partial<AlertRecord> = {}): AlertRecord {
   };
 }
 
-function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
-  return {
-    id: 'u-1',
-    name: 'Test',
-    email: 't@example.com',
-    role: 'investigator',
-    roleTitle: 'x',
-    entity: 'x',
-    country: 'x',
-    ...overrides,
-  };
-}
-
 describe('evaluateEscalationCriteria', () => {
   it('returns nothing for a low-risk, standard case', () => {
     expect(evaluateEscalationCriteria(makeAlert())).toEqual([]);
@@ -97,18 +84,5 @@ describe('evaluateEscalationCriteria', () => {
   it('flags a whistleblower country different from the case country', () => {
     const alert = makeAlert({ whistleblower: { isAnonymous: true, declarantCountry: 'Ghana' } });
     expect(evaluateEscalationCriteria(alert).map((c) => c.key)).toContain('multi_country');
-  });
-});
-
-describe('getGroupEscalationOwners', () => {
-  it('includes only globally-scoped senior_investigator/darc_compliance accounts', () => {
-    const groupSenior = makeUser({ id: 'g1', role: 'senior_investigator', countries: [], entities: [] });
-    const groupDarc = makeUser({ id: 'g2', role: 'darc_compliance', countries: [], entities: [] });
-    const scopedSenior = makeUser({ id: 'g3', role: 'senior_investigator', countries: ['CM'], entities: ['cm_assurances'] });
-    const wrongRole = makeUser({ id: 'g4', role: 'functional_admin', countries: [], entities: [] });
-    const inactive = makeUser({ id: 'g5', role: 'darc_compliance', countries: [], entities: [], active: false });
-
-    const result = getGroupEscalationOwners([groupSenior, groupDarc, scopedSenior, wrongRole, inactive]);
-    expect(result.map((u) => u.id).sort()).toEqual(['g1', 'g2']);
   });
 });

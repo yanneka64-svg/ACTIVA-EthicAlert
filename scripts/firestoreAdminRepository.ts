@@ -159,7 +159,13 @@ export class FirestoreAdminCaseRepository implements CaseRepository {
 
     const allegations = (await this.sub(caseId, 'allegations').get()).docs.map((d) => d.data() as Allegation);
     const correctiveActions = (await this.sub(caseId, 'corrective_actions').get()).docs.map((d) => d.data() as CorrectiveAction);
-    const result = checkTransition(kase.status, to, { allegations, correctiveActions });
+    // === AMÉLIORATION AJOUTÉE (correctif — cadenas de revue fonctionnelle
+    // jamais réellement câblé) === voir src/domain/caseTypes.ts.
+    const result = checkTransition(kase.status, to, {
+      allegations,
+      correctiveActions,
+      hasFunctionalReviewSignOff: !!kase.functionalReviewSignedOffAt,
+    });
 
     if (!result.allowed) {
       await this.appendAudit({ actorId: actor.userId, action: 'STATUS_CHANGE_REJECTED', caseId, previousValue: kase.status, newValue: to, reason: result.reason });
@@ -192,6 +198,25 @@ export class FirestoreAdminCaseRepository implements CaseRepository {
     await this.caseDoc(caseId).set(updated);
     await this.appendTimeline(caseId, 'ASSIGNED', actor.userId, `Assignee: ${assignee}`);
     await this.appendAudit({ actorId: actor.userId, action: 'CASE_ASSIGNED', caseId, previousValue: previous, newValue: { assignee, additional } });
+    return updated;
+  }
+
+  // === AMÉLIORATION AJOUTÉE (correctif — cadenas de revue fonctionnelle) ===
+  async recordFunctionalReviewSignOff(caseId: string, actor: AppUser): Promise<Case> {
+    const snap = await this.caseDoc(caseId).get();
+    if (!snap.exists) throw new Error(`Case ${caseId} not found`);
+    const kase = snap.data() as Case;
+    await this.assertCaseAccess(kase, actor, 'cases.close');
+    const updated: Case = {
+      ...kase,
+      functionalReviewSignedOffAt: nowIso(),
+      functionalReviewSignedOffBy: actor.userId,
+      updatedAt: nowIso(),
+      updatedBy: actor.userId,
+    };
+    await this.caseDoc(caseId).set(updated);
+    await this.appendTimeline(caseId, 'FUNCTIONAL_REVIEW_SIGNED_OFF', actor.userId);
+    await this.appendAudit({ actorId: actor.userId, action: 'FUNCTIONAL_REVIEW_SIGNED_OFF', caseId });
     return updated;
   }
 

@@ -12,7 +12,7 @@
 // une SUGGESTION affichée à l'opérateur/enquêteur dans la modale
 // "Escalader" d'InvestigationDesk.tsx, qui reste seul décisionnaire.
 
-import { AlertRecord, UserProfile } from '../types';
+import { AlertRecord } from '../types';
 
 export interface EscalationCriterion {
   key: string;
@@ -53,21 +53,4 @@ export function evaluateEscalationCriteria(alert: AlertRecord): EscalationCriter
   }
 
   return criteria;
-}
-
-/**
- * Comptes "Groupe" éligibles comme propriétaire d'un dossier escaladé —
- * périmètre vide (vision Groupe, Phase 1) et rôle capable d'investiguer à
- * ce niveau. Réutilise `senior_investigator`/`darc_compliance` comme
- * "Enquêteur Groupe"/"DARC Groupe" plutôt que de créer de nouveaux rôles
- * (voir la justification dans domain/caseTypes.ts, RoleId).
- */
-export function getGroupEscalationOwners(users: UserProfile[]): UserProfile[] {
-  return users.filter(
-    (u) =>
-      (u.countries ?? []).length === 0 &&
-      (u.entities ?? []).length === 0 &&
-      (u.role === 'senior_investigator' || u.role === 'darc_compliance') &&
-      u.active !== false
-  );
 }

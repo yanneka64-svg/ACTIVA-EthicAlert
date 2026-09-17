@@ -28,23 +28,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   Inbox,
-  UserX,
-  Flame,
   TrendingUp,
   Clock3,
   Search,
-  UserPlus,
-  Eye,
-  FileCheck2,
   BarChart3,
   Activity,
   LayoutDashboard,
-  RefreshCw,
-  Plus,
-  ListChecks,
   AlertOctagon,
-  Bell,
-  CalendarRange,
   ShieldAlert,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
   CheckCircle2,
@@ -59,6 +49,7 @@ import { computeSlaStatus } from '../services/statusMapping';
 import { isGlobalCaseViewer, userCan } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
+import { formatCountryLabel } from '../data/activaConfig';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 import { ACTIVE_STATUSES, computeWorkload, WorkloadRow } from '../domain/workloadCalc';
 // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) === regroupement
@@ -89,14 +80,22 @@ interface ControlPanelProps {
 const PRIORITY_RANK: Record<PriorityLevel, number> = { critique: 4, tres_elevee: 3, elevee: 2, faible: 1 };
 const CATEGORY_PALETTE = ['#2563eb', '#6366f1', '#f97316', '#9333ea', '#0891b2', '#f43f5e', '#10b981', '#64748b', '#eab308', '#14b8a6'];
 
-type PeriodKey = 'today' | '7d' | '30d' | 'quarter' | 'custom';
+type PeriodKey = 'today' | '7d' | '30d' | 'custom' | 'year' | 'all_time';
 type TrendRange = '7d' | '30d' | '12m';
 
 function localeOf(lang: Language): string {
   return lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR';
 }
 
-function getPeriodWindow(period: PeriodKey, customStart: string, customEnd: string) {
+// === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+// `year` (nouveau) : filtre le Centre de Pilotage (KPIs, graphiques,
+// tableau) sur une année civile complète, en alternative au sélecteur de
+// plage personnalisée — jamais les deux en même temps (voir le handler
+// du <select> Année ci-dessous). `all_time` (nouveau, valeur par défaut) :
+// aucun filtre, tout l'historique — remplace l'ancien défaut '30d' qui ne
+// filtrait en réalité jamais l'affichage (seul le delta d'une carte KPI
+// l'utilisait), d'où le libellé "30 jours" trompeur retiré du bouton.
+function getPeriodWindow(period: PeriodKey, customStart: string, customEnd: string, selectedYear: number | null) {
   const now = new Date();
   let start: Date;
   let end: Date = now;
@@ -107,16 +106,25 @@ function getPeriodWindow(period: PeriodKey, customStart: string, customEnd: stri
     case '7d':
       start = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
       break;
-    case 'quarter':
-      start = new Date(now.getTime() - 91 * 24 * 3600 * 1000);
-      break;
     case 'custom':
       start = customStart ? new Date(customStart) : new Date(now.getTime() - 30 * 24 * 3600 * 1000);
       end = customEnd ? new Date(customEnd) : now;
       break;
+    case 'year': {
+      const y = selectedYear ?? now.getFullYear();
+      start = new Date(y, 0, 1);
+      end = new Date(y, 11, 31, 23, 59, 59, 999);
+      break;
+    }
     case '30d':
-    default:
       start = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+      break;
+    case 'all_time':
+    default:
+      // Pas de borne réelle : couvre toute donnée existante sans exclure
+      // les dossiers les plus anciens (voir `isScoped` plus bas, qui
+      // n'applique ce filtre à l'affichage que pour 'custom'/'year').
+      start = new Date(0);
       break;
   }
   const spanMs = Math.max(1, end.getTime() - start.getTime());
@@ -167,10 +175,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const t = TRANSLATIONS[lang];
   const locale = localeOf(lang);
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
-  const [period, setPeriod] = useState<PeriodKey>('30d');
+  const [period, setPeriod] = useState<PeriodKey>('all_time');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [trendRange, setTrendRange] = useState<TrendRange>('7d');
   // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
   // Remplace l'ancien bouton "Télécharger (CSV)" (mono-format) par un
@@ -183,15 +192,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   useEffect(() => {
     const unsub = storage.subscribe(() => {
       setAlerts(storage.getAlerts());
-      setLastRefreshed(new Date());
     });
     return unsub;
   }, []);
-
-  const handleRefresh = () => {
-    setAlerts(storage.getAlerts());
-    setLastRefreshed(new Date());
-  };
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
   // `visible` vient désormais du hook partagé, qui applique en plus le
@@ -202,39 +205,49 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
   const visible = useVisibleAlerts(alerts, activeUser);
 
+  // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+  // `period`/`getPeriodWindow` calculé ici (déplacé plus haut qu'avant,
+  // où il ne servait qu'au delta d'une seule carte KPI) pour pouvoir
+  // dériver `scopedVisible` avant tous les calculs ci-dessous. `isScoped`
+  // n'est vrai que pour 'custom'/'year' — 'all_time' (valeur par défaut)
+  // et les branches historiques 'today'/'7d'/'30d' (jamais réellement
+  // atteignables depuis l'interface aujourd'hui, boutons retirés — voir
+  // getPeriodWindow) laissent `scopedVisible` égal à `visible`, comportement
+  // par défaut inchangé (tout l'historique visible, comme avant ce filtre).
+  const { start: periodStart, end: periodEnd, prevStart, prevEnd } = getPeriodWindow(period, customStart, customEnd, selectedYear);
+  const isScoped = period === 'custom' || period === 'year';
+  const scopedVisible = isScoped ? visible.filter((a) => inWindow(a.createdAt, periodStart, periodEnd)) : visible;
+
   // --- KPIs ---
-  const totalCount = visible.length;
-  const newCount = visible.filter((a) => a.status === 'new').length;
-  const unassignedCount = visible.filter((a) => a.assignedInvestigators.length === 0 && ACTIVE_STATUSES.includes(a.status)).length;
-  const criticalCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'critique').length;
-  const veryHighCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'tres_elevee').length;
-  const lowCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'faible').length;
-  const highCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'elevee').length;
-  const overdueCount = visible.filter((a) => computeSlaStatus(a) === 'overdue').length;
+  const totalCount = scopedVisible.length;
+  const criticalCount = scopedVisible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'critique').length;
+  const veryHighCount = scopedVisible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'tres_elevee').length;
+  const lowCount = scopedVisible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'faible').length;
+  const highCount = scopedVisible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'elevee').length;
 
   // --- Alert management breakdown ---
   const STATUS_ORDER: AlertRecord['status'][] = ['new', 'under_review', 'investigation', 'corrective_action', 'closed', 'reopened', 'archived'];
   const statusBreakdown = STATUS_ORDER.map((status) => ({
     status,
-    count: visible.filter((a) => a.status === status).length,
+    count: scopedVisible.filter((a) => a.status === status).length,
   }));
 
   // --- SLA monitoring ---
-  const slaOnTrack = visible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'on_track').length;
-  const slaAtRisk = visible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'at_risk').length;
-  const slaOverdue = visible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'overdue').length;
+  const slaOnTrack = scopedVisible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'on_track').length;
+  const slaAtRisk = scopedVisible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'at_risk').length;
+  const slaOverdue = scopedVisible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'overdue').length;
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   // Remplace l'approximation précédente (dossiers en retard non réassignés,
   // documentée comme telle) par un vrai comptage : `workflowStatus` passe
   // désormais réellement à `'escalated'` via `storage.escalateAlert()`
   // (Phase 3/5), ce qui n'existait pas avant cette phase.
-  const slaEscalated = visible.filter((a) => a.workflowStatus === 'escalated').length;
+  const slaEscalated = scopedVisible.filter((a) => a.workflowStatus === 'escalated').length;
 
   // --- Investigation monitoring ---
-  const activeInvestigations = visible.filter((a) => a.status === 'investigation').length;
-  const pendingInfo = visible.filter((a) => a.status === 'under_review').length;
-  const investigationOverdue = visible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'overdue').length;
-  const investigationApproachingSla = visible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'at_risk').length;
+  const activeInvestigations = scopedVisible.filter((a) => a.status === 'investigation').length;
+  const pendingInfo = scopedVisible.filter((a) => a.status === 'under_review').length;
+  const investigationOverdue = scopedVisible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'overdue').length;
+  const investigationApproachingSla = scopedVisible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'at_risk').length;
 
   // --- Investigator workload ---
   // === AMÉLIORATION AJOUTÉE (Phase 12.3) === permission `cases.edit`
@@ -244,39 +257,36 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
   // Calcul déplacé dans domain/workloadCalc.ts (réutilisé par le moteur
   // d'attribution) — comportement inchangé, y compris le filtre "au moins
-  // 1 dossier actif" et le tri, propres à cet écran.
+  // 1 dossier actif" et le tri, propres à cet écran. Reste volontairement
+  // sur `alerts` (jamais `scopedVisible`) : la charge de travail d'un
+  // enquêteur est un instantané de MAINTENANT (dossiers actifs en ce
+  // moment), pas une donnée historique qu'un filtre de période/année
+  // devrait limiter — filtrer par année de création n'aurait aucun sens
+  // pour "combien de dossiers cet enquêteur a-t-il actuellement en cours".
   const workload: WorkloadRow[] = computeWorkload(investigatorUsers, alerts)
     .filter((row) => row.active > 0)
     .sort((a, b) => b.active - a.active);
 
   // --- Corrective actions ---
-  const allMeasures = visible.flatMap((a) => a.correctiveMeasures);
-  const correctiveOpen = allMeasures.filter((m) => m.status === 'planned').length;
-  const correctiveInProgress = allMeasures.filter((m) => m.status === 'in_progress').length;
+  const allMeasures = scopedVisible.flatMap((a) => a.correctiveMeasures);
   const correctiveCompleted = allMeasures.filter((m) => m.status === 'implemented' || m.status === 'verified').length;
-  const correctiveOverdue = allMeasures.filter((m) => (m.status === 'planned' || m.status === 'in_progress') && new Date(m.dueDate).getTime() < Date.now()).length;
-
-  // --- Recent activity (real audit_logs, scoped to what this user can see) ---
-  const visibleTrackingNumbers = new Set(visible.map((a) => a.trackingNumber));
-  const recentActivity = storage
-    .getAuditLogs()
-    .filter((log) => isGlobalViewer || (log.trackingNumber && visibleTrackingNumbers.has(log.trackingNumber)))
-    .slice(0, 8);
 
   // === AMÉLIORATION AJOUTÉE (Phase 6) === period-scoped delta for the Total
   // Alerts KPI ("+X% vs previous period") — a real comparison of alerts
   // created in the selected window vs. the immediately preceding window of
-  // equal length, never a fabricated percentage.
-  const { start: periodStart, end: periodEnd, prevStart, prevEnd } = getPeriodWindow(period, customStart, customEnd);
+  // equal length, never a fabricated percentage. Reste sur `visible` (pas
+  // `scopedVisible`) : la fenêtre "précédente" doit pouvoir remonter avant
+  // le début de la période sélectionnée pour exister (ex. l'année N-1
+  // entière pour un delta année sur année).
   const currentPeriodCount = visible.filter((a) => inWindow(a.createdAt, periodStart, periodEnd)).length;
   const previousPeriodCount = visible.filter((a) => inWindow(a.createdAt, prevStart, prevEnd)).length;
   const totalDeltaPct = previousPeriodCount === 0 ? (currentPeriodCount > 0 ? 100 : 0) : Math.round(((currentPeriodCount - previousPeriodCount) / previousPeriodCount) * 100);
 
   // === AMÉLIORATION AJOUTÉE (Phase 6) === chart data, all derived live.
-  const trendData = buildTrend(visible, trendRange, lang);
+  const trendData = buildTrend(scopedVisible, trendRange, lang);
 
   const categoryCounts = new Map<string, number>();
-  visible.forEach((a) => categoryCounts.set(a.category, (categoryCounts.get(a.category) || 0) + 1));
+  scopedVisible.forEach((a) => categoryCounts.set(a.category, (categoryCounts.get(a.category) || 0) + 1));
   const categoryData: DonutSlice[] = Array.from(categoryCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
@@ -289,7 +299,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // d'AlertStatus n'y correspond aujourd'hui (voir le commentaire du
   // fichier partagé, brief §32 — jamais de compteur fabriqué).
   const bucketCounts: Record<AlertStatusBucket, number> = { a_traiter: 0, en_cours: 0, en_attente: 0, clotures: 0, rejetes: 0 };
-  visible.forEach((a) => {
+  scopedVisible.forEach((a) => {
     bucketCounts[getAlertStatusBucket(a.status)] += 1;
   });
   // Delta période précédente par panier — même fenêtre glissante que
@@ -306,7 +316,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // sélecteur de période), volontairement distincte de la "Tendance des
   // alertes" interactive (7j/30j/12m) de la section existante plus bas —
   // évite un doublon strictement identique sur le même écran.
-  const mockupTrendData = buildTrend(visible, '7d', lang);
+  const mockupTrendData = buildTrend(scopedVisible, '7d', lang);
 
   // "Répartition par statut" — mêmes 5 paniers que les cartes KPI ci-dessus.
   const BUCKET_COLORS: Record<AlertStatusBucket, string> = {
@@ -328,11 +338,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // catégorie" existant plus bas), simplement tronqué à 5 plutôt que
   // recalculé une seconde fois.
   const countryCounts = new Map<string, number>();
-  visible.forEach((a) => countryCounts.set(a.country, (countryCounts.get(a.country) || 0) + 1));
+  scopedVisible.forEach((a) => countryCounts.set(a.country, (countryCounts.get(a.country) || 0) + 1));
   const topCountries: HBarDatum[] = Array.from(countryCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
-    .map(([label, value]) => ({ label, value, color: '#2563eb' }));
+    .map(([label, value]) => ({ label: formatCountryLabel(storage.getCountries(), label), value, color: '#2563eb' }));
   const topCategories: HBarDatum[] = categoryData.slice(0, 5).map((d) => ({ label: d.label, value: d.value, color: d.color }));
 
   const priorityBarData: BarDatum[] = [
@@ -346,7 +356,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // attention" lists — ranked by real priority + SLA state, each row deep
   // links straight to that case via the trackingNumber filter.
   const priorityRankOf = (a: AlertRecord) => PRIORITY_RANK[a.overridePriority || a.riskEvaluation.priority];
-  const urgentCases = visible
+  const urgentCases = scopedVisible
     .filter((a) => ACTIVE_STATUSES.includes(a.status))
     .slice()
     .sort((a, b) => {
@@ -358,7 +368,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     })
     .slice(0, 5);
 
-  const attentionCases = visible
+  const attentionCases = scopedVisible
     .filter(
       (a) =>
         ACTIVE_STATUSES.includes(a.status) &&
@@ -371,7 +381,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     })
     .slice(0, 5);
 
-  const recentAlerts = visible
+  const recentAlerts = scopedVisible
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8);
@@ -393,7 +403,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     { key: 'id', header: t.cp_col_case_id, render: (r) => <span className="font-bold text-blue-700">{r.trackingNumber}</span> },
     { key: 'date', header: t.cp_col_date, render: (r) => new Date(r.createdAt).toLocaleDateString(locale), hideOnMobile: true },
     { key: 'category', header: t.cp_col_category, render: (r) => r.category },
-    { key: 'country', header: t.cp_col_country, render: (r) => r.country, hideOnMobile: true },
+    { key: 'country', header: t.cp_col_country, render: (r) => formatCountryLabel(storage.getCountries(), r.country), hideOnMobile: true },
     { key: 'entity', header: t.cp_col_entity, render: (r) => r.concernedEntity, hideOnMobile: true },
     {
       key: 'priority',
@@ -418,57 +428,68 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     },
   ];
 
-  // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
-  // Export CSV de l'ensemble des dossiers réellement visibles par ce
-  // compte (`visible`, périmètre pays/entité/confidentialité déjà
-  // appliqué par useVisibleAlerts) — jamais seulement les 8 lignes
-  // tronquées affichées dans le tableau "Alertes récentes" ci-dessous.
-  // Mêmes colonnes/libellés que ce tableau (`recentAlertsColumns`),
-  // jamais une donnée fabriquée. Même mécanique de téléchargement
-  // (data URI) et de journalisation que `handleExportCSV` de
-  // ReportingDashboard.tsx, adaptée aux colonnes de cet écran.
+  // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+  // Années réellement présentes dans les dossiers visibles (jamais une
+  // plage fabriquée) — plus l'année civile en cours, toujours proposée
+  // même sans dossier encore créé cette année-là.
+  const availableYears = Array.from(
+    new Set([new Date().getFullYear(), ...visible.map((a) => new Date(a.createdAt).getFullYear())])
+  ).sort((a, b) => b - a);
+
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter, fusion
+  // avec `main`) === Export CSV des dossiers actuellement affichés
+  // (`scopedVisible` — tout l'historique par défaut, ou la plage/année
+  // sélectionnée), mêmes colonnes que le tableau "Dossiers récents"
+  // ci-dessus, jamais limité aux 8 lignes affichées à l'écran
+  // (`recentAlerts`). Proposé désormais au sein de la modale "Exporter"
+  // (CSV/PDF, voir plus bas) plutôt que comme bouton dédié mono-format
+  // "Télécharger (CSV)", sur demande explicite de l'utilisateur — voir
+  // `handlePrint` ci-dessous pour l'option PDF.
   const handleExportCSV = () => {
-    const headers = [
-      t.cp_col_case_id, t.cp_col_date, t.cp_col_category, t.cp_col_country, t.cp_col_entity,
-      t.cp_col_priority, t.cp_col_risk_score, t.cp_col_status, t.cp_col_assigned, t.cp_col_sla,
-    ];
-    const rows = visible.map((a) => {
-      const p = a.overridePriority || a.riskEvaluation.priority;
-      return [
-        a.trackingNumber,
-        new Date(a.createdAt).toLocaleDateString(locale),
-        a.category,
-        a.country,
-        a.concernedEntity,
-        t[`priority_${p}` as keyof typeof t] as string,
-        `${a.riskEvaluation.totalScore}/16`,
-        (t[`status_${a.status}` as keyof typeof t] as string) ?? a.status,
-        a.assignedInvestigatorNames.join('; ') || t.cp_unassigned_tag,
-        a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '—',
-      ];
-    });
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const headers = ['Dossier', 'Date', 'Catégorie', 'Pays', 'Entité', 'Priorité', 'Score de risque', 'Statut', 'Investigateur(s)', 'Échéance SLA'];
+    const rows = scopedVisible
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((a) => {
+        const p = a.overridePriority || a.riskEvaluation.priority;
+        return [
+          a.trackingNumber,
+          new Date(a.createdAt).toLocaleDateString(locale),
+          `"${a.category}"`,
+          `"${formatCountryLabel(storage.getCountries(), a.country)}"`,
+          `"${a.concernedEntity}"`,
+          t[`priority_${p}` as keyof typeof t],
+          `${a.riskEvaluation.totalScore}/16`,
+          t[`status_${a.status}` as keyof typeof t] ?? a.status,
+          `"${a.assignedInvestigatorNames.join(', ') || t.cp_unassigned_tag}"`,
+          a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '',
+        ];
+      });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csvContent));
-    link.setAttribute('download', `ACTIVA_EthicAlert_CentreDePilotage_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('href', encodedUri);
+    const periodLabel = period === 'year' ? String(selectedYear ?? new Date().getFullYear())
+      : period === 'custom' ? `${customStart || 'debut'}_${customEnd || 'fin'}`
+      : 'toute-periode';
+    link.setAttribute('download', `activa-whistleblowing_CentreDePilotage_${periodLabel}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    storage.logAudit('REPORT_GENERATED', `Génération d'un export CSV du Centre de Pilotage (${visible.length} dossier(s)) par ${activeUser.name}.`, undefined, activeUser);
+
+    storage.logAudit(
+      'REPORT_GENERATED',
+      `Génération d'un export CSV du Centre de Pilotage (${rows.length} dossier(s), période : ${periodLabel}) par ${activeUser.name}.`,
+      undefined,
+      activeUser
+    );
   };
 
   const handlePrint = () => {
     storage.logAudit('REPORT_GENERATED', `Impression / Export PDF du Centre de Pilotage par ${activeUser.name}.`, undefined, activeUser);
     window.print();
   };
-
-  const periodOptions: { key: PeriodKey; label: string }[] = [
-    { key: 'today', label: t.cp_period_today },
-    { key: '7d', label: t.cp_period_7d },
-    { key: '30d', label: t.cp_period_30d },
-    { key: 'quarter', label: t.cp_period_quarter },
-    { key: 'custom', label: t.cp_period_custom },
-  ];
 
   return (
     <div className="max-w-[1500px] mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-5">
@@ -491,54 +512,67 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80 overflow-x-auto">
-            {periodOptions.map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => setPeriod(opt.key)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition flex items-center gap-1 cursor-pointer ${
-                  period === opt.key
-                    ? 'bg-[#0B2545] text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                }`}
-              >
-                {opt.key === 'custom' && <CalendarRange className="w-3 h-3" />}
-                {opt.label}
-              </button>
+          {/* === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi
+              annuel) === Sur demande explicite : le bouton "30 jours" (qui
+              ne filtrait en réalité jamais l'affichage — seul le delta
+              d'une carte KPI l'utilisait, voir getPeriodWindow) est
+              retiré, ainsi que le bouton "calendrier" + popover qui l'a
+              remplacé un temps (libellé "Toute la période" retiré à son
+              tour, sur demande explicite) : les deux champs de date Du/Au
+              sont désormais affichés directement, sans étape de clic
+              intermédiaire. Filtrent réellement tout l'écran (KPIs,
+              graphiques, tableau — voir `scopedVisible`), avec un
+              sélecteur d'Année en alternative (jamais les deux en même
+              temps) pour le suivi année par année, et un bouton de
+              téléchargement CSV des dossiers de la période affichée. */}
+          <select
+            value={period === 'year' && selectedYear ? String(selectedYear) : ''}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === '') {
+                setPeriod('all_time');
+                setSelectedYear(null);
+              } else {
+                setSelectedYear(Number(v));
+                setPeriod('year');
+                setCustomStart('');
+                setCustomEnd('');
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+          >
+            <option value="">{t.cp_year_all}</option>
+            {availableYears.map((y) => (
+              <option key={y} value={y}>{y}</option>
             ))}
+          </select>
+
+          <div className="flex items-center gap-2 text-[11px]">
+            <input
+              type="date"
+              value={customStart}
+              onChange={(e) => { setCustomStart(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
+              className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-800 shadow-2xs"
+            />
+            <span className="text-slate-400">→</span>
+            <input
+              type="date"
+              value={customEnd}
+              onChange={(e) => { setCustomEnd(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
+              className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-800 shadow-2xs"
+            />
           </div>
-          {period === 'custom' && (
-            <div className="flex items-center gap-1.5 text-[11px]">
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
-              />
-              <span className="text-slate-400">→</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
-              />
-            </div>
-          )}
+          {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bouton
+              Exporter, fusion avec `main`) === Remplace l'ancien bouton
+              "Télécharger (CSV)" mono-format par un bouton "Exporter"
+              ouvrant le choix CSV/PDF (modale ci-dessous), sur demande
+              explicite de l'utilisateur. Le bouton "Actualiser"
+              (lastRefreshed/handleRefresh) qui vivait ici a été retiré
+              indépendamment par `main` lors de son propre refactor du
+              filtre de période (remplacé par la mise à jour déjà continue
+              via storage.subscribe) — aligné avec cet état actuel plutôt
+              que réintroduit lors de cette fusion. */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline">
-              {t.cp_last_updated}: {lastRefreshed.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            <button
-              onClick={handleRefresh}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-blue-600" /> {t.cp_refresh}
-            </button>
-            {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bouton
-                Exporter) === Remplace l'ancien bouton "Télécharger (CSV)"
-                mono-format par un bouton "Exporter" ouvrant le choix
-                CSV/PDF (modale ci-dessous), sur demande explicite de
-                l'utilisateur. */}
             <button
               onClick={() => setShowExportModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs transition cursor-pointer"
@@ -583,9 +617,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
               <button
                 type="button"
                 onClick={() => {
+                  // === AMÉLIORATION AJOUTÉE (fusion avec `main`) === Ferme
+                  // cette modale AVANT d'exporter/imprimer (plutôt qu'après),
+                  // même correction que ReportingDashboard.tsx : sinon elle
+                  // restait visible derrière la boîte de dialogue
+                  // d'impression du navigateur.
+                  setShowExportModal(false);
                   if (exportFormat === 'csv') handleExportCSV();
                   else handlePrint();
-                  setShowExportModal(false);
                 }}
                 className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
               >
@@ -613,7 +652,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           icon={<Inbox className="w-3.5 h-3.5" />}
           onClick={() => onNavigateToCases()}
           sub={
-            <span className={totalDeltaPct >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+            <span className={totalDeltaPct >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
               {totalDeltaPct >= 0 ? '↑' : '↓'} {Math.abs(totalDeltaPct)}%
             </span>
           }
@@ -625,7 +664,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           icon={<Search className="w-3.5 h-3.5" />}
           onClick={() => onNavigateToCases({ status: 'investigation' })}
           sub={
-            <span className={bucketDeltaPct('en_cours') >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+            <span className={bucketDeltaPct('en_cours') >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
               {bucketDeltaPct('en_cours') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('en_cours'))}%
             </span>
           }
@@ -637,7 +676,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           icon={<Clock3 className="w-3.5 h-3.5" />}
           onClick={() => onNavigateToCases({ status: 'corrective_action' })}
           sub={
-            <span className={bucketDeltaPct('en_attente') >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+            <span className={bucketDeltaPct('en_attente') >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
               {bucketDeltaPct('en_attente') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('en_attente'))}%
             </span>
           }
@@ -649,7 +688,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           icon={<CheckCircle2 className="w-3.5 h-3.5" />}
           onClick={() => onNavigateToCases({ status: 'closed' })}
           sub={
-            <span className={bucketDeltaPct('clotures') >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+            <span className={bucketDeltaPct('clotures') >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
               {bucketDeltaPct('clotures') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('clotures'))}%
             </span>
           }
@@ -701,114 +740,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
 
       <div className="flex items-center gap-2">
         <span className="h-px flex-1 bg-slate-200" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t.db_advanced_section_title}</span>
+        {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
+            text-slate-400 à cette taille ne passe pas le seuil WCAG AA
+            (mesuré via axe-core) ; text-slate-500 restait tout juste
+            insuffisant (4.46:1, minimum 4.5:1) — text-slate-600 y remédie. */}
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">{t.db_advanced_section_title}</span>
         <span className="h-px flex-1 bg-slate-200" />
-      </div>
-
-      {/* Action bar */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <button
-          onClick={onNavigateToNewCase}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-extrabold shadow-sm transition cursor-pointer"
-        >
-          <Plus className="w-4 h-4" /> {t.cp_action_new_case}
-        </button>
-        <button
-          onClick={() => onNavigateToCases({ status: 'new' })}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50/40 transition shadow-2xs cursor-pointer"
-        >
-          <Inbox className="w-4 h-4 text-blue-600" /> {t.cp_qa_review_new}
-          {newCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 text-[10px] font-extrabold">
-              {newCount}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => onNavigateToCases({ unassignedOnly: true })}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:border-amber-300 hover:bg-amber-50/40 transition shadow-2xs cursor-pointer"
-        >
-          <ListChecks className="w-4 h-4 text-amber-600" /> {t.cp_action_triage}
-          {unassignedCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[10px] font-extrabold">
-              {unassignedCount}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => onNavigateToCases({ overdueOnly: true })}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:border-rose-300 hover:bg-rose-50/40 transition shadow-2xs cursor-pointer"
-        >
-          <Flame className="w-4 h-4 text-rose-600" /> {t.cp_qa_view_overdue}
-          {overdueCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 text-[10px] font-extrabold">
-              {overdueCount}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard
-          value={totalCount}
-          label={t.cp_kpi_total}
-          tone="neutral"
-          onClick={() => onNavigateToCases()}
-          icon={<Inbox className="w-3.5 h-3.5" />}
-          sub={
-            <span className={totalDeltaPct >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-              {totalDeltaPct >= 0 ? '↑' : '↓'} {Math.abs(totalDeltaPct)}% {t.cp_kpi_delta_vs_previous}
-            </span>
-          }
-        />
-        <KpiCard
-          value={newCount}
-          label={t.cp_kpi_new}
-          tone="blue"
-          onClick={() => onNavigateToCases({ status: 'new' })}
-          icon={<Bell className="w-3.5 h-3.5" />}
-          sub={<span className="text-blue-600">↑ {t.cp_kpi_sub_new}</span>}
-        />
-        <KpiCard
-          value={unassignedCount}
-          label={t.cp_kpi_unassigned}
-          tone="amber"
-          onClick={() => onNavigateToCases({ unassignedOnly: true })}
-          icon={<UserX className="w-3.5 h-3.5" />}
-          sub={<span className="text-amber-600">↑ {t.cp_kpi_sub_unassigned}</span>}
-        />
-        <KpiCard
-          value={criticalCount}
-          label={t.cp_kpi_critical}
-          tone="rose"
-          icon={<AlertOctagon className="w-3.5 h-3.5" />}
-          sub={<span className="text-rose-600">↑ {t.cp_kpi_sub_critical}</span>}
-        />
-        <KpiCard
-          value={overdueCount}
-          label={t.cp_kpi_overdue}
-          tone="rose"
-          onClick={() => onNavigateToCases({ overdueOnly: true })}
-          icon={<Clock3 className="w-3.5 h-3.5" />}
-          sub={<span className="text-rose-600">↑ {t.cp_kpi_sub_overdue}</span>}
-        />
-        <KpiCard
-          value={correctiveOpen + correctiveInProgress}
-          label={t.cp_kpi_open_corrective}
-          tone="indigo"
-          onClick={() => onNavigateToCases({ status: 'corrective_action' })}
-          icon={<FileCheck2 className="w-3.5 h-3.5" />}
-          sub={
-            correctiveOverdue > 0 ? (
-              <span className="text-rose-600">
-                ↑ {correctiveOverdue} {t.cp_kpi_sub_corrective_overdue}
-              </span>
-            ) : (
-              <span className="text-slate-400">{t.cp_kpi_sub_corrective_none}</span>
-            )
-          }
-        />
       </div>
 
       {/* Charts row */}
@@ -824,7 +761,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
                 <button
                   key={r}
                   onClick={() => setTrendRange(r)}
-                  className={`px-2 py-1 rounded-md text-[10px] font-bold transition ${trendRange === r ? 'bg-white shadow-sm text-blue-700' : 'text-slate-400'}`}
+                  className={`px-2 py-1 rounded-md text-[10px] font-bold transition ${trendRange === r ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500'}`}
                 >
                   {r === '7d' ? t.cp_trend_7d : r === '30d' ? t.cp_trend_30d : t.cp_trend_12m}
                 </button>
@@ -902,7 +839,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
             <KpiCard value={slaOverdue} label={t.cp_sla_overdue} tone="rose" />
             <KpiCard value={slaEscalated} label={t.cp_sla_escalated} tone="purple" />
           </div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">{t.cp_section_urgent}</p>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">{t.cp_section_urgent}</p>
           {urgentCases.length === 0 ? (
             <EmptyState title={t.cp_empty_urgent} />
           ) : (
@@ -914,7 +851,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
                     className="w-full flex items-center justify-between gap-2 text-[11px] hover:bg-slate-50 rounded-lg px-1.5 py-1 -mx-1.5 transition text-left"
                   >
                     <span className="font-bold text-blue-700 truncate">{a.trackingNumber}</span>
-                    <span className="text-slate-400 shrink-0">
+                    <span className="text-slate-500 shrink-0">
                       {a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '—'}
                     </span>
                   </button>
@@ -968,7 +905,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
                           {t[`priority_${p}` as keyof typeof t]}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{receivedAgoLabel(a.createdAt)}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{receivedAgoLabel(a.createdAt)}</p>
                     </button>
                   </li>
                 );
@@ -977,28 +914,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           )}
         </section>
       </div>
-
-      {/* Recent activity */}
-      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 mb-4">
-          <Activity className="w-4 h-4 text-blue-700" />
-          {t.cp_section_activity}
-        </h3>
-        {recentActivity.length === 0 ? (
-          <EmptyState title={t.cp_empty_activity} />
-        ) : (
-          <ul className="space-y-3">
-            {recentActivity.map((log) => (
-              <li key={log.id} className="flex gap-3 text-xs">
-                <span className="text-slate-400 font-mono shrink-0 w-12">
-                  {new Date(log.timestamp).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                <span className="text-slate-700">{log.details}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       {/* Recent alerts table */}
       <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
@@ -1020,33 +935,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
         />
       </section>
 
-      {/* Quick actions */}
-      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 mb-4">
-          <BarChart3 className="w-4 h-4 text-blue-700" />
-          {t.cp_section_quick_actions}
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          <button onClick={() => onNavigateToCases({ status: 'new' })} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <Inbox className="w-4 h-4 text-blue-600" /> {t.cp_qa_review_new}
-          </button>
-          <button onClick={() => onNavigateToCases({ unassignedOnly: true })} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <UserX className="w-4 h-4 text-amber-600" /> {t.cp_qa_triage_unassigned}
-          </button>
-          <button onClick={() => onNavigateToCases()} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <UserPlus className="w-4 h-4 text-indigo-600" /> {t.cp_qa_assign_case}
-          </button>
-          <button onClick={() => onNavigateToCases({ overdueOnly: true })} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <Flame className="w-4 h-4 text-rose-600" /> {t.cp_qa_view_overdue}
-          </button>
-          <button onClick={() => onNavigateToCases({ status: 'corrective_action' })} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <Eye className="w-4 h-4 text-purple-600" /> {t.cp_qa_review_closure}
-          </button>
-          <button onClick={onNavigateToReports} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 text-left">
-            <BarChart3 className="w-4 h-4 text-emerald-600" /> {t.cp_qa_view_reports}
-          </button>
-        </div>
-      </section>
     </div>
   );
 };

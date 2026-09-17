@@ -38,6 +38,7 @@ import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE : vérification par hash salé + limitation du débit des tentatives ===
 import { verifyPassword } from '../services/crypto';
 import { getLockStatus, recordFailedAttempt, clearAttempts, formatRemaining } from '../services/rateLimiter';
+import { formatCountryLabel } from '../data/activaConfig';
 
 interface AlertTrackingViewProps {
   lang: Language;
@@ -297,6 +298,19 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) addEvidenceFiles(e.dataTransfer.files);
   };
 
+  // === AMÉLIORATION AJOUTÉE (bouton "Télécharger" sans action) === Le
+  // menu d'une pièce jointe avait un bouton "Télécharger" sans `onClick`
+  // (ne faisait rien au clic) — utilise le `dataUrl` déjà stocké sur
+  // l'EvidenceFile (même mécanisme que le dépôt de fichier), sans
+  // introduire de nouveau stockage.
+  const handleDownloadEvidence = (ev: AlertRecord['evidences'][number]) => {
+    if (!ev.dataUrl) return;
+    const link = document.createElement('a');
+    link.href = ev.dataUrl;
+    link.download = ev.name;
+    link.click();
+  };
+
   const handleDeleteEvidence = (id: string) => {
     if (!activeAlert) return;
     const updatedAlert: AlertRecord = {
@@ -366,22 +380,55 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
   // If not logged in into a case
   if (!activeAlert) {
+    // === AMÉLIORATION AJOUTÉE (alignement avec l'accueil des espaces
+    // StaffSpaceHome.tsx) === max-w-3xl → max-w-5xl, p-8 → p-8 sm:p-10 :
+    // mêmes dimensions que l'écran "Espaces de travail", sur demande
+    // explicite de l'utilisateur (les deux écrans doivent avoir le même
+    // gabarit). min-h-[460px] était déjà identique aux deux écrans.
+    // === AMÉLIORATION AJOUTÉE (même réduction que StaffSpaceHome.tsx,
+    // "page similaire") === sur demande explicite de l'utilisateur
+    // (« appliquer la même chose sur les pages similaires ») : largeur
+    // `max-w-5xl`→`max-w-3xl`, hauteur `min-h-[460px]`→`min-h-[260px]`,
+    // padding `p-10`→`p-8`, icône `w-5 h-5`→`w-4 h-4`, textes justifiés —
+    // mêmes valeurs exactes que la carte "Espaces de travail". */}
+    // === AMÉLIORATION AJOUTÉE (position verticale de la carte, "page
+    // similaire" de StaffSpaceHome.tsx) === même correctif que l'accueil
+    // des espaces : `min-h-[70vh] flex items-center` centre la carte
+    // verticalement au lieu de la laisser collée en haut avec un grand vide
+    // en dessous — sur demande explicite de l'utilisateur.
     return (
-      <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
+      <div className="min-h-[70vh] flex items-center justify-center py-8 px-4 sm:px-6">
+      <div className="w-full max-w-3xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
-          {/* Photo panel — même photo que le hero de l'accueil */}
-          <div className="relative hidden lg:flex flex-col justify-end p-8 min-h-[560px] text-white overflow-hidden">
+          {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
+              l'utilisateur) === Remplace la photo du siège par une photo de
+              bureau avec vue sur skyline, servie depuis
+              public/brand/track-login-bg.jpg. */}
+          {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
+              BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : couleur de
+              repli (`bg-[#0B2545]`, même teinte que le voile ci-dessous) le
+              temps du chargement au lieu d'un flash blanc, + priorité de
+              chargement explicite sur l'image. */}
+          <div className="relative hidden lg:flex flex-col justify-end p-6 sm:p-8 min-h-[260px] text-white overflow-hidden bg-[#0B2545]">
             <img
-              src="/brand/activa-hq.jpg"
-              alt="Siège du Groupe ACTIVA"
-              className="absolute inset-0 w-full h-full object-cover"
+              src="/brand/track-login-bg.jpg"
+              alt="Espace de travail avec vue sur la ville"
+              fetchPriority="high"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover object-left"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/90 via-[#0B2545]/55 to-[#0B2545]/15" />
             <div className="relative z-10 space-y-5">
-              <p className="text-2xl font-bold leading-snug max-w-xs">{t.track_login_tagline}</p>
+              {/* === AMÉLIORATION AJOUTÉE (texte du bandeau photo) === Remplace
+                  l'accroche générique par le même texte explicatif que le
+                  formulaire ("Consultez l'avancement de votre dossier...",
+                  `t.track_subtitle`), sur demande explicite de l'utilisateur.
+                  `track_login_tagline` reste défini dans translations.ts
+                  (non supprimé) mais n'est plus utilisé ici. */}
+              <p className="text-2xl font-bold leading-snug max-w-xs">{t.track_subtitle}</p>
               <div className="w-10 h-px bg-white/40" />
               <div className="flex items-start gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-white shrink-0 mt-0.5" />
+                <ShieldCheck className="w-4 h-4 text-white shrink-0 mt-0.5" />
                 <div>
                   <div className="text-sm font-bold">{t.sidebar_confidentiality_title}</div>
                   <div className="text-xs text-white/80">{t.track_login_photo_note}</div>
@@ -391,13 +438,18 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
           </div>
 
           {/* Form panel */}
-          <div className="bg-white p-6 sm:p-10 flex flex-col justify-center">
-            <div className="text-center mb-6 space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto">
-                <Lock className="w-6 h-6" />
-              </div>
+          <div className="bg-white p-6 sm:p-8 flex flex-col justify-center">
+            {/* === AMÉLIORATION AJOUTÉE (alignement avec l'accueil des
+                espaces) === Cadenas retiré et titre aligné à gauche
+                (au lieu de centré) — même style que le titre "Espaces de
+                travail" de StaffSpaceHome.tsx, sur demande explicite. */}
+            {/* === AMÉLIORATION AJOUTÉE (retrait du doublon de texte) ===
+                Le sous-titre (`t.track_subtitle`) était répété ici alors
+                qu'il s'affiche désormais aussi sur le bandeau photo à
+                gauche — retiré ici sur demande explicite de l'utilisateur,
+                la clé de traduction reste inchangée et utilisée côté photo. */}
+            <div className="mb-4">
               <h2 className="text-xl font-bold text-slate-900">{t.track_title}</h2>
-              <p className="text-xs text-slate-600">{t.track_subtitle}</p>
             </div>
 
             {loginError && (
@@ -406,9 +458,9 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="activa-caret-blink space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="input-tracking-number" className="block text-xs font-semibold text-slate-700 mb-1">
                   {t.track_label_case_number} *
                 </label>
                 <input
@@ -422,7 +474,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="input-tracking-password" className="block text-xs font-semibold text-slate-700 mb-1">
                   {t.track_label_password} *
                 </label>
                 <div className="relative">
@@ -442,6 +494,11 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {/* === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
+                    BUG PRÉEXISTANT CORRIGÉ : `track_login_help` existait déjà dans
+                    les traductions (avertissement sur la non-récupérabilité des
+                    accès) mais n'était affiché nulle part dans l'application. */}
+                <p className="mt-1.5 text-[11px] text-slate-500">{t.track_login_help}</p>
               </div>
 
               <button
@@ -457,7 +514,11 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-[11px] text-slate-400 uppercase font-semibold">{t.track_divider_or}</span>
+              {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
+                  BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core : text-slate-400
+                  sur fond blanc à cette taille ne passe pas le seuil WCAG AA
+                  (2.63:1, minimum 4.5:1) — text-slate-500 y remédie. */}
+              <span className="text-[11px] text-slate-500 uppercase font-semibold">{t.track_divider_or}</span>
               <div className="flex-1 h-px bg-slate-200" />
             </div>
 
@@ -468,13 +529,9 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               <span>{t.track_switch_to_new_alert}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
-
-            <div className="mt-5 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-              <p>{t.track_login_help}</p>
-            </div>
           </div>
         </div>
+      </div>
       </div>
     );
   }
@@ -657,7 +714,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
                   <p className="text-xs text-slate-600 flex items-center gap-2">
                     <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{activeAlert.concernedEntity} ({activeAlert.country})</span>
+                    <span>{activeAlert.concernedEntity} ({formatCountryLabel(storage.getCountries(), activeAlert.country)})</span>
                     <span>•</span>
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     <span>Déposé le {new Date(activeAlert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}</span>
@@ -732,7 +789,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                   </div>
                   {[
                     { icon: FileText, label: t.track_field_case_number, value: activeAlert.trackingNumber },
-                    { icon: Building2, label: t.track_field_entity, value: `${activeAlert.concernedEntity} (${activeAlert.country})` },
+                    { icon: Building2, label: t.track_field_entity, value: `${activeAlert.concernedEntity} (${formatCountryLabel(storage.getCountries(), activeAlert.country)})` },
                     { icon: Tag, label: t.track_field_category, value: activeAlert.category, sub: activeAlert.subCategory },
                     { icon: Calendar, label: t.track_field_dates, value: activeAlert.incidentDates },
                     { icon: MapPin, label: t.track_field_location, value: activeAlert.incidentLocation },
@@ -984,7 +1041,9 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                           >
                             <button
                               type="button"
-                              className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                              onClick={() => { handleDownloadEvidence(ev); setOpenFileMenuId(null); }}
+                              disabled={!ev.dataUrl}
+                              className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                             >
                               <Download className="w-3.5 h-3.5" /> Télécharger
                             </button>

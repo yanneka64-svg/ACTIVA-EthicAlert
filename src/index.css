@@ -1,5 +1,50 @@
 @import "tailwindcss";
 
+/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, design system) ===
+   Jusqu'ici, la couleur de marque (navy) était répétée en dur en
+   hexadécimal (`bg-[#0B2545]`, `hover:bg-[#134074]`...) dans une vingtaine
+   de fichiers, avec une dérive déjà observée (2 valeurs de navy, 3 nuances
+   de survol différentes pour un même bouton "primaire" — voir l'audit).
+   Ce bloc `@theme` (syntaxe CSS-first de Tailwind v4) déclare ces couleurs
+   UNE SEULE FOIS et génère automatiquement les utilitaires correspondants
+   (`bg-brand`, `text-brand`, `border-brand`, `hover:bg-brand-hover`, etc.),
+   consommés par le nouveau composant `<Button>` (components/ui/Button.tsx)
+   et, au fil du temps, par les écrans migrés. Reprend la couleur déjà
+   dominante (`#0B2545`, 95 occurrences avant cette phase) comme unique
+   source de vérité — aucune nouvelle couleur inventée, rien de retiré des
+   fichiers qui utilisent encore l'ancien hex en dur (migration progressive,
+   jamais un changement de comportement forcé d'un coup). Couleurs
+   sémantiques (`critical`/`success`...) séparées des tons décoratifs des
+   cartes KPI, pour éviter la confusion "rose = urgent" vs "rose = décoratif"
+   relevée dans l'audit. */
+@theme {
+  --color-brand: #0b2545;
+  --color-brand-hover: #134074;
+  --color-brand-tint: #e7ecf3;
+
+  --color-critical: #e11d48;
+  --color-critical-hover: #be123c;
+  --color-high: #ea580c;
+  --color-medium: #d97706;
+  --color-success: #0f6b4f;
+  --color-success-hover: #0a5b41;
+  --color-progress: #4338ca;
+}
+
+/* === AMÉLIORATION AJOUTÉE (dézoom léger pour un meilleur affichage) ===
+   Sur demande explicite de l'utilisateur : l'app utilise très majoritairement
+   des unités Tailwind en `rem` (tailles de police, paddings, marges...), donc
+   réduire la taille de police racine réduit proportionnellement quasiment
+   tout l'affichage — plus de contenu visible sans défilement, sans toucher à
+   chaque composant individuellement. `zoom`/`transform: scale()` sur `body`
+   auraient un support ou des effets de bord moins prévisibles (barres de
+   défilement, position des éléments `fixed`) ; cette approche standard est
+   fiable dans tous les navigateurs. Réduction modérée (~94 %, 16px → 15px)
+   pour rester lisible. */
+html {
+  font-size: 93.75%;
+}
+
 /* === AMÉLIORATION AJOUTÉE (Phase 30 — messages défilants du hero) ===
    Petit fondu enchaîné pour le changement de message toutes les 4 secondes
    dans WhistleblowerHome.tsx — respecte prefers-reduced-motion. */
@@ -19,5 +64,86 @@
 @media (prefers-reduced-motion: reduce) {
   .activa-fade-in {
     animation: none;
+  }
+}
+
+/* === AMÉLIORATION AJOUTÉE (curseur de texte non clignotant hors espaces
+   dédiés) === Sur demande explicite de l'utilisateur : le curseur de texte
+   (caret) des champs de saisie ne clignote plus par défaut nulle part dans
+   l'application (recherche, filtres, formulaires d'administration courts,
+   notes/messages au sein des tableaux de bord...) — seuls les écrans
+   entièrement dédiés à une saisie principale (signalement, connexion)
+   restaurent le clignotement normal via `.activa-caret-blink`.
+   `caret-animation` est une propriété CSS récente (Chrome 131+, Interop
+   2025) : dans les navigateurs qui ne la reconnaissent pas encore, ces
+   règles n'ont simplement aucun effet et le curseur continue de clignoter
+   normalement partout — dégradation sans casse, jamais un curseur invisible
+   ou un champ inutilisable. */
+input,
+textarea {
+  caret-animation: manual;
+}
+.activa-caret-blink,
+.activa-caret-blink input,
+.activa-caret-blink textarea {
+  caret-animation: auto;
+}
+
+/* === AMÉLIORATION AJOUTÉE (curseur de texte confiné aux champs de saisie) ===
+   Sur demande explicite de l'utilisateur : le curseur de texte ne doit
+   clignoter que dans les « barres dédiées » prévues pour saisir une
+   information (les <input>/<textarea> ci-dessus), jamais ailleurs sur la
+   page. Or un clic sur du texte non éditable (libellé de champ, ex.
+   "IDENTIFIANT") laisse le navigateur y placer un curseur de sélection
+   visuellement identique à un caret de saisie, en dehors de toute zone
+   dédiée — c'est ce curseur errant que `user-select: none` empêche ici, en
+   le limitant aux libellés statiques (jamais utilisés pour afficher une
+   valeur copiable dans cette application — mots de passe, identifiants et
+   numéros de suivi générés restent, eux, normalement sélectionnables). */
+label {
+  user-select: none;
+}
+
+/* === AMÉLIORATION AJOUTÉE (icône "œil" native du navigateur en double) ===
+   Signalé par l'utilisateur : un second glyphe "œil" apparaît dans les
+   champs mot de passe dès qu'une valeur est saisie — ce n'est PAS un bug de
+   l'application, mais l'icône native de révélation du mot de passe
+   qu'Edge ajoute automatiquement (pseudo-élément `::-ms-reveal`), en plus
+   du bouton œil déjà codé à la main (StaffLoginView.tsx,
+   AlertTrackingView.tsx). Masquée ici ; sans effet dans les navigateurs qui
+   ne supportent pas ce pseudo-élément (Chrome, Firefox, Safari). */
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}
+
+/* === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
+   BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : les boutons
+   "Générer le rapport" appelaient `window.print()` directement sur toute
+   la page affichée (barre latérale, navigation comprises) — jamais un
+   document propre. `.print-only` (CaseReportPrintView.tsx) est le SEUL
+   contenu visible à l'impression : masqué à l'écran, ces règles masquent
+   tout le RESTE de la page uniquement en contexte d'impression (jamais à
+   l'écran, où l'application continue de s'afficher normalement). */
+.print-only {
+  display: none;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+  .print-only {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  @page {
+    margin: 1.5cm;
   }
 }

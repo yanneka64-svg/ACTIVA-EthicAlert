@@ -4,7 +4,7 @@
  * @license Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Language, UserProfile } from './types';
 import { storage } from './services/storage';
@@ -15,9 +15,21 @@ import { WhistleblowerHome } from './components/WhistleblowerHome';
 import { FaqView } from './components/FaqView';
 // === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) ===
 import { ContactView } from './components/ContactView';
+// === AMÉLIORATION AJOUTÉE (liens réels du pied de page) ===
+import { LegalNoticeView } from './components/LegalNoticeView';
+import { PrivacyPolicyView } from './components/PrivacyPolicyView';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
 import { AlertTrackingView } from './components/AlertTrackingView';
-import { InvestigationDesk } from './components/InvestigationDesk';
+// === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, découpage de code) ===
+// Les écrans ci-dessous ne sont jamais nécessaires à un visiteur public
+// (lanceur d'alerte anonyme, page d'accueil, dépôt/suivi de signalement) —
+// seul un compte staff authentifié les atteint. Chargés à la demande
+// (`React.lazy`) plutôt qu'inclus dans le bundle initial : InvestigationDesk
+// à lui seul fait plus de 4 600 lignes (voir l'audit frontend), chargé
+// jusqu'ici même pour un lanceur d'alerte qui ne le verra jamais. Chaque
+// point de montage est enveloppé dans un `<Suspense>` (voir plus bas) —
+// aucun changement de comportement, seul le MOMENT du chargement change.
+const InvestigationDesk = lazy(() => import('./components/InvestigationDesk').then((m) => ({ default: m.InvestigationDesk })));
 // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — Boîte de réception /
 // À attribuer / En attente d'infos / Dossiers attribués) === remplace le
 // rendu InvestigationDesk+initialFilter des 4 onglets ci-dessous par ce
@@ -25,28 +37,30 @@ import { InvestigationDesk } from './components/InvestigationDesk';
 // panneau liste + détail pour la Boîte de réception) — voir le fichier
 // pour le détail. La fiche dossier complète (InvestigationDesk, inchangée)
 // reste accessible en un clic via `onOpenCase`/`navigateToCases`.
-import { OperatorCaseDesk } from './components/OperatorCaseDesk';
-import { ControlPanel } from './components/ControlPanel';
-import { ReportingDashboard } from './components/ReportingDashboard';
-import { ExecutiveDashboard } from './components/ExecutiveDashboard';
-import { AuditTrailView } from './components/AuditTrailView';
-import { AdminConfigView } from './components/AdminConfigView';
+const OperatorCaseDesk = lazy(() => import('./components/OperatorCaseDesk').then((m) => ({ default: m.OperatorCaseDesk })));
+const ControlPanel = lazy(() => import('./components/ControlPanel').then((m) => ({ default: m.ControlPanel })));
+const ReportingDashboard = lazy(() => import('./components/ReportingDashboard').then((m) => ({ default: m.ReportingDashboard })));
+const ExecutiveDashboard = lazy(() => import('./components/ExecutiveDashboard').then((m) => ({ default: m.ExecutiveDashboard })));
+const AuditTrailView = lazy(() => import('./components/AuditTrailView').then((m) => ({ default: m.AuditTrailView })));
+const AdminConfigView = lazy(() => import('./components/AdminConfigView').then((m) => ({ default: m.AdminConfigView })));
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
-import { CaseLookup } from './components/CaseLookup';
+const CaseLookup = lazy(() => import('./components/CaseLookup').then((m) => ({ default: m.CaseLookup })));
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) ===
-import { StaffSpaceHome } from './components/StaffSpaceHome';
+const StaffSpaceHome = lazy(() => import('./components/StaffSpaceHome').then((m) => ({ default: m.StaffSpaceHome })));
 // === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructurée façon maquette) ===
 // 4 écrans transverses réels (Tâches / Preuves / Communications / Actions
 // correctives), agrégeant des données déjà existantes sur `AlertRecord` —
 // voir chaque fichier pour le détail.
-import { TasksRegistry } from './components/TasksRegistry';
-import { EvidenceRegistry } from './components/EvidenceRegistry';
-import { CommunicationsRegistry } from './components/CommunicationsRegistry';
-import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
+const TasksRegistry = lazy(() => import('./components/TasksRegistry').then((m) => ({ default: m.TasksRegistry })));
+const EvidenceRegistry = lazy(() => import('./components/EvidenceRegistry').then((m) => ({ default: m.EvidenceRegistry })));
+const CommunicationsRegistry = lazy(() => import('./components/CommunicationsRegistry').then((m) => ({ default: m.CommunicationsRegistry })));
+const CorrectiveActionsRegistry = lazy(() => import('./components/CorrectiveActionsRegistry').then((m) => ({ default: m.CorrectiveActionsRegistry })));
 // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
-import { AdvancedSearchView } from './components/AdvancedSearchView';
+const AdvancedSearchView = lazy(() => import('./components/AdvancedSearchView').then((m) => ({ default: m.AdvancedSearchView })));
+// === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
+const StaffLoginView = lazy(() => import('./components/StaffLoginView').then((m) => ({ default: m.StaffLoginView })));
 import { ShieldOff } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE : correction post-fusion ===
 // Ces imports (routage par URL, garde-fous, pont RBAC, écran de connexion
@@ -59,7 +73,6 @@ import { ShieldOff } from 'lucide-react';
 import { resolveRoute, pathForTab } from './routing/routes';
 import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
 import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from './services/authz';
-import { StaffLoginView } from './components/StaffLoginView';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -105,15 +118,13 @@ const STAFF_TAB_KEYS = [
   // et n'étaient plus atteignables par aucun bouton de menu depuis la
   // Proposition B (voir StaffPortalLayout.tsx). Leurs anciennes URLs restent
   // fonctionnelles via un alias dans routing/routes.ts.
-  'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed',
+  'op_dashboard', 'op_inbox', 'op_pending_info', 'op_assign', 'op_processed', 'op_review', 'op_closed',
   'inv_dashboard', 'inv_my_cases', 'inv_to_process', 'inv_in_progress', 'inv_pending',
   'admin_audit', 'admin_reports', 'admin_organization',
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   'admin_governance',
   // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
   'advanced_search',
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  'admin_workflow',
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===
   // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
   // données" retiré) === 'admin_database' retiré de cette liste, sur
@@ -121,6 +132,24 @@ const STAFF_TAB_KEYS = [
   // StaffPortalLayout.tsx).
   'admin_entities', 'admin_categories',
 ];
+
+// === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, découpage de code) ===
+// État de chargement partagé par tous les `<Suspense>` ci-dessous, pendant
+// le chargement à la demande d'un écran staff (`React.lazy`) — l'app n'en
+// avait jusqu'ici quasiment aucun (relevé par l'audit), la donnée étant par
+// ailleurs toujours synchrone (localStorage). En pratique quasi instantané
+// une fois le module mis en cache par le navigateur ; ne s'affiche
+// réellement qu'au tout premier accès à chaque écran.
+function StaffLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center py-24 text-slate-400">
+      <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+    </div>
+  );
+}
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
 // `App()` redevient un mince point d'entrée qui monte le routeur ; toute la
@@ -166,17 +195,26 @@ function AppShell() {
   // scénario même que le brief section 32 veut voir bloqué — déclenche un
   // rechargement complet de la page, qui aurait sinon remis ce simple
   // useState à sa valeur par défaut et vidé la déconnexion de tout effet
-  // réel. Vaut `true` par défaut au tout premier lancement (aucune clé en
-  // storage) pour ne rien changer au confort existant, documenté depuis les
-  // premières phases de ce projet : l'app s'ouvrait déjà directement sur le
-  // profil `functional_admin`.
+  // réel.
+  // === AMÉLIORATION AJOUTÉE (BUG PRÉEXISTANT CORRIGÉ — accès direct à
+  // l'espace de travail sans connexion) === Signalé par l'utilisateur :
+  // partager le lien de l'app donnait à quiconque l'ouvre sur un appareil
+  // différent un accès DIRECT à l'espace collaborateur, sans jamais passer
+  // par l'écran de connexion. Cause : ce useState valait `true` par défaut
+  // au tout premier lancement (aucune clé en storage), pour "ne rien
+  // changer au confort existant" — mais un appareil qui n'a jamais visité
+  // l'app n'a justement AUCUNE clé en storage, donc était traité comme déjà
+  // connecté. Vaut désormais `false` par défaut (connexion requise) tant
+  // qu'aucune session n'a été explicitement établie sur cet appareil ; un
+  // appareil déjà connecté (clé déjà à 'true' en storage) n'est pas
+  // affecté. Même correctif pour le cas `localStorage` indisponible : repli
+  // fermé (connexion requise) plutôt qu'ouvert.
   const STAFF_SESSION_KEY = 'activa_staff_session_active';
   const [isStaffSessionActive, setIsStaffSessionActiveState] = useState<boolean>(() => {
     try {
-      const stored = localStorage.getItem(STAFF_SESSION_KEY);
-      return stored === null ? true : stored === 'true';
+      return localStorage.getItem(STAFF_SESSION_KEY) === 'true';
     } catch {
-      return true; // localStorage unavailable (private browsing, etc.) — fail open to the pre-existing default.
+      return false;
     }
   });
   const setIsStaffSessionActive = (active: boolean) => {
@@ -241,16 +279,13 @@ function AppShell() {
     setIsStaffSessionActive(true);
   };
 
-  // === AMÉLIORATION AJOUTÉE (Accueil des espaces — étendu à tous les
-  // profils) === Toute connexion atterrit désormais sur l'accueil des
-  // espaces (`/espace`, StaffSpaceHome.tsx) — y compris un compte à un seul
-  // espace réel ou à aucun des 3 (repli "vision globale"), qui n'y voyait
-  // pas cet écran avant cette phase. La redirection par rôle (Opérateur →
-  // `op_dashboard`, Enquêteur → `inv_dashboard`, Administration →
-  // `settings`, repli vision globale → `control_panel`/`reports`) n'a pas
-  // disparu : elle vit désormais dans StaffSpaceHome.tsx (via
-  // domain/staffSpaces.ts, réutilisé plutôt que dupliqué), déclenchée par
-  // le clic sur la carte correspondante plutôt qu'automatiquement ici.
+  // === AMÉLIORATION AJOUTÉE (connexion — retour systématique à l'accueil
+  // des espaces) === Sur demande explicite de l'utilisateur, TOUT compte
+  // qui se connecte est désormais ramené sur l'accueil des espaces
+  // (StaffSpaceHome.tsx), quel que soit le nombre d'espaces réellement
+  // accessibles — c'est là que son nom est affiché et que le choix
+  // d'espace se fait, plutôt que d'y accéder directement pour les comptes
+  // à un seul espace comme auparavant.
   const handleLogin = (user: UserProfile) => {
     handleUserChange(user);
     setIsStaffSessionActive(true);
@@ -261,6 +296,31 @@ function AppShell() {
     setIsStaffSessionActive(false);
     navigate(pathForTab('login'));
   };
+
+  // === AMÉLIORATION AJOUTÉE (déconnexion automatique après inactivité) ===
+  // Les espaces de travail internes se déconnectent automatiquement après
+  // 5 minutes sans interaction (souris, clavier, défilement, tactile) —
+  // aucune minuterie tant qu'aucune session interne n'est active (l'accueil
+  // public n'est jamais concerné).
+  const IDLE_LOGOUT_MS = 5 * 60 * 1000;
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    if (!isStaffSessionActive) return;
+    const resetIdleTimer = () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        handleLogout();
+      }, IDLE_LOGOUT_MS);
+    };
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'] as const;
+    activityEvents.forEach((evt) => window.addEventListener(evt, resetIdleTimer));
+    resetIdleTimer();
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      activityEvents.forEach((evt) => window.removeEventListener(evt, resetIdleTimer));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaffSessionActive]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 5) ===
   // A plain tab switch (Navbar / sidebar) clears any Control-Panel-driven
@@ -371,29 +431,55 @@ function AppShell() {
     // seulement pour ces comptes précis (tout compte avec cases.edit ou
     // cases.assign garde exactement l'écran "Dossiers" d'avant).
     if (currentTab === 'portal') {
+      // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+      // BUG PRÉEXISTANT CORRIGÉ : cet écran (et 19 autres, voir les
+      // `PermissionGuard` ajoutés dans ce fichier) n'était protégé par
+      // AUCUNE permission — seul `AuthenticatedRoute` vérifiait qu'une
+      // session était active, pas que ce compte précis avait le droit de
+      // voir des dossiers. `cases.read` est la permission de base pour
+      // toute visibilité de dossier (domain/permissions.ts) — l'absence
+      // volontaire de ce droit pour `system_admin`/`security_admin`
+      // ("System Administrator ≠ Case Access", brief section 30) n'était
+      // jusqu'ici pas réellement appliquée pour cet écran.
       const isReadOnlyCaseViewer = !userCan(activeUser, 'cases.edit') && !userCan(activeUser, 'cases.assign');
-      if (isReadOnlyCaseViewer && !effectiveCaseFilter?.trackingNumber) {
-        return (
-          <OperatorCaseDesk
-            key="portal-readonly-list"
-            lang={lang}
-            activeUser={activeUser}
-            mode="my_cases"
-            titleOverride="Dossiers"
-            subtitleOverride="Consultez et suivez l'ensemble des dossiers signalés dans le cadre d'EthicsAlert."
-            emptyOverride="Aucun dossier à afficher pour le moment."
-            onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
-          />
-        );
-      }
-      return <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner simplifiedFilters />;
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Dossiers">
+          {isReadOnlyCaseViewer && !effectiveCaseFilter?.trackingNumber ? (
+            <OperatorCaseDesk
+              key="portal-readonly-list"
+              lang={lang}
+              activeUser={activeUser}
+              mode="my_cases"
+              titleOverride="Dossiers"
+              subtitleOverride="Consultez et suivez l'ensemble des dossiers signalés dans le cadre d'activa-whistleblowing."
+              emptyOverride="Aucun dossier à afficher pour le moment."
+              onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
+            />
+          ) : (
+            <InvestigationDesk key={`portal-${JSON.stringify(effectiveCaseFilter ?? {})}`} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={effectiveCaseFilter} hideTopBanner simplifiedFilters />
+          )}
+        </PermissionGuard>
+      );
     }
     // === AMÉLIORATION AJOUTÉE (Phase 9 — écrans dédiés façon maquette) ===
     // Chacune de ces entrées réutilise InvestigationDesk (même liste, même
     // écran de détail, mêmes actions) avec un `initialFilter` préréglé
     // différent — pas une copie, un préréglage — exactement comme le
     // Centre de Pilotage le fait déjà pour ses propres cartes KPI.
-    if (currentTab === 'triage') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />;
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    // Les 8 écrans ci-dessous n'avaient jusqu'ici AUCUN `PermissionGuard` —
+    // voir la note complète sur l'onglet 'portal' plus haut. Chacun est
+    // désormais gardé par la permission minimale réellement nécessaire pour
+    // afficher un contenu pertinent (domain/permissions.ts) : `cases.read`
+    // pour les vues de dossiers, `evidence.read`/`communications.read`/
+    // `reports.read` pour les 3 registres transverses dédiés.
+    if (currentTab === 'triage') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Nouveaux signalements">
+          <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />
+        </PermissionGuard>
+      );
+    }
     if (currentTab === 'assignment') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
@@ -401,13 +487,55 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'my_cases') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />;
-    if (currentTab === 'investigations') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'investigation' }} />;
-    if (currentTab === 'tasks') return <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'evidence') return <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'communications') return <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'corrective_actions') return <CorrectiveActionsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'reports') return <ReportingDashboard lang={lang} activeUser={activeUser} />;
+    if (currentTab === 'my_cases') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Mes dossiers">
+          <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'investigations') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Investigations">
+          <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'investigation' }} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'tasks') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Suivi des investigations">
+          <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'evidence') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'evidence.read')} label="Preuves">
+          <EvidenceRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'communications') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'communications.read')} label="Communications">
+          <CommunicationsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'corrective_actions') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Suivi des recommandations">
+          <CorrectiveActionsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'reports') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'reports.read')} label="Rapports">
+          <ReportingDashboard lang={lang} activeUser={activeUser} />
+        </PermissionGuard>
+      );
+    }
     if (currentTab === 'executive') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Vue Exécutive">
@@ -496,8 +624,25 @@ function AppShell() {
     // `excludeClosed`/`assignedOnly` qu'avant). La fiche dossier complète
     // (InvestigationDesk, strictement inchangée) reste à un clic via
     // `onOpenCase`/`navigateToCases`.
-    if (currentTab === 'op_inbox') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'op_pending_info') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    // Ces 5 écrans Opérateur n'avaient aucun `PermissionGuard`, contrairement
+    // à leurs 2 écrans frères déjà gardés (op_assign/op_dashboard,
+    // `isGlobalViewer`) — même garde appliquée ici, pour une cohérence
+    // totale au sein de l'espace Opérateur.
+    if (currentTab === 'op_inbox') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Boîte de réception">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'op_pending_info') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="En attente d’infos">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     if (currentTab === 'op_assign') {
       return (
         <PermissionGuard allowed={isGlobalViewer} label="Attribution">
@@ -505,7 +650,30 @@ function AppShell() {
         </PermissionGuard>
       );
     }
-    if (currentTab === 'op_processed') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="assigned" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'op_processed') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Dossiers ouverts">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="assigned" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+    // envoyés en revue) ===
+    if (currentTab === 'op_review') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="En revue">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="review" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
+    if (currentTab === 'op_closed') {
+      return (
+        <PermissionGuard allowed={isGlobalViewer} label="Dossiers clôturés">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="closed" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
     // morts) === `op_search`/`op_reports`/`op_communications` (Phase 6)
     // supprimés d'ici : ils rendaient exactement `advanced_search`/
@@ -530,18 +698,34 @@ function AppShell() {
     // - "En cours" (inv_in_progress) : reste un raccourci plus étroit que
     //   "À traiter" (même principe que "En attente d'infos" à côté
     //   d'"À attribuer" côté Opérateur) — filtre inchangé, bandeau retiré.
-    // Tableau de bord (inv_dashboard) conserve son bandeau, comme le vrai
-    // Tableau de bord Opérateur (ControlPanel) — hors périmètre de cette
-    // refonte, qui ne concernait que les 4 écrans nommés explicitement.
-    // === AMÉLIORATION AJOUTÉE (Retours visuels — écran "Tableau de bord"
-    // Enquêteur, capture de référence) === BUG PRÉEXISTANT CORRIGÉ, signalé
-    // par l'utilisateur : le bandeau reste (décision ci-dessus, toujours
-    // valable), mais la barre de filtres se simplifie à Recherche + Entité
-    // (`simplifiedFilters`, comme "Dossiers") et la rangée d'onglets par
-    // panier de statut + bouton "+ Nouveau" disparaît (`hideStatusTabsBar`)
-    // — ce Tableau de bord a déjà ses propres cartes KPI juste au-dessus,
-    // cette rangée y faisait doublon.
-    if (currentTab === 'inv_dashboard') return <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} simplifiedFilters hideStatusTabsBar />;
+    // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+    // "Tableau de bord" (bandeau KPI + simple liste, décision ci-dessous
+    // historique) remplacé par un vrai panneau liste + détail/réponse,
+    // sur demande explicite de l'utilisateur, qui a fourni une capture de
+    // référence (Boîte de réception Opérateur) en précisant vouloir en
+    // reprendre tous les éléments SAUF les cartes KPI, conservées à
+    // l'identique (voir `OperatorCaseDesk` mode `inv_inbox`, mêmes 4
+    // libellés/formules que l'ancien bandeau `InvestigationDesk`
+    // ci-dessous). Périmètre inchangé : mêmes dossiers que "Mes dossiers"
+    // (`useVisibleAlerts` restreint déjà un enquêteur non global-viewer à
+    // ses seuls dossiers assignés).
+    //
+    // Ancienne décision (conservée pour mémoire, plus appliquée ici depuis
+    // le remplacement ci-dessus) : Tableau de bord (inv_dashboard)
+    // conservait son bandeau, comme le vrai Tableau de bord Opérateur
+    // (ControlPanel) — hors périmètre de la refonte Opérateur v2, qui ne
+    // concernait que les 4 écrans nommés explicitement.
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    // Les 5 écrans Enquêteur ci-dessous n'avaient aucun `PermissionGuard` —
+    // `cases.read`, la permission de base pour toute visibilité de dossier
+    // (déjà utilisée pour 'portal'/'triage'/'my_cases' ci-dessus).
+    if (currentTab === 'inv_dashboard') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Boîte de réception">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inv_inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
     // Enquêteur) === même remplacement par `OperatorCaseDesk` que côté
     // Opérateur (voir plus haut) — `myCasesOnly` n'a plus besoin d'être
@@ -551,10 +735,34 @@ function AppShell() {
     // `in_progress` n'ont besoin d'exprimer que la nuance de statut propre à
     // chaque écran. "En attente" réutilise le mode `pending_info` existant
     // (même règle, même action "Relancer"), avec son libellé propre.
-    if (currentTab === 'inv_my_cases') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="my_cases" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'inv_to_process') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="to_process" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'inv_in_progress') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="in_progress" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
-    if (currentTab === 'inv_pending') return <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" titleOverride={t.sidebar_inv_pending} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    if (currentTab === 'inv_my_cases') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Mes dossiers">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="my_cases" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'inv_to_process') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="À traiter">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="to_process" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'inv_in_progress') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="En cours">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="in_progress" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
+    if (currentTab === 'inv_pending') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="En attente">
+          <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" titleOverride={t.sidebar_inv_pending} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
     // === AMÉLIORATION AJOUTÉE (Revue navigation — nettoyage des doublons
     // morts) === `inv_tasks`/`inv_evidence`/`inv_communications`/
     // `inv_reports`/`inv_search` (Phase 6) supprimés d'ici, même motif que
@@ -562,7 +770,14 @@ function AppShell() {
     // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) === entrée de
     // barre latérale partagée (pas propre à un espace) — useVisibleAlerts
     // limite déjà correctement le périmètre pour n'importe quel rôle.
-    if (currentTab === 'advanced_search') return <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />;
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    if (currentTab === 'advanced_search') {
+      return (
+        <PermissionGuard allowed={userCan(activeUser, 'cases.read')} label="Recherche avancée">
+          <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
+        </PermissionGuard>
+      );
+    }
 
     if (currentTab === 'admin_audit') {
       return (
@@ -599,7 +814,7 @@ function AppShell() {
     // (AdminConfigView les rendait déjà, uniquement via sa rangée d'onglets
     // interne retirée) — même garde, même composant, seul l'onglet de
     // départ diffère, exactement le motif déjà suivi par admin_organization/
-    // admin_governance/admin_workflow ci-dessus.
+    // admin_governance ci-dessus.
     if (currentTab === 'admin_entities') {
       return (
         <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Entités du Groupe">
@@ -617,26 +832,43 @@ function AppShell() {
     // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
     // données" retiré) === Branche `admin_database` retirée d'ici, sur
     // demande explicite de l'utilisateur : `AdminConfigView` ne supporte
-    // plus `initialTab="database"` (type retiré). L'ancienne URL
-    // `/admin/database` (routing/routes.ts) n'est plus reliée à aucun
-    // écran ; une navigation directe y retombe sur `return null` ci-dessous,
-    // même comportement qu'une route staff inconnue.
-    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-    if (currentTab === 'admin_workflow') {
-      return (
-        <PermissionGuard allowed={canManageConfiguration(activeUser)} label="Workflows & Statuts">
-          <AdminConfigView lang={lang} activeUser={activeUser} initialTab="workflow" />
-        </PermissionGuard>
-      );
-    }
+    // plus `initialTab="database"` (type retiré sur cette branche ; sur
+    // `main`, la même prop pointe désormais vers `DatabaseFirebaseTab`, un
+    // composant extrait, sans lien de menu — voir la fusion ci-dessous).
+    // L'ancienne URL `/admin/database` (routing/routes.ts) n'est plus
+    // reliée à aucun écran ; une navigation directe y retombe sur
+    // `return null` ci-dessous, même comportement qu'une route staff
+    // inconnue.
+    // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) === Branche
+    // `admin_workflow` retirée en fusionnant avec `main`, dont le propre
+    // refactor d'AdminConfigView.tsx (extraction par onglet, voir
+    // src/components/admin/) n'a jamais réextrait d'onglet Workflow — ce
+    // type d'onglet n'existe donc plus dans `AdminConfigView`. Le backend
+    // (`storage.getWorkflowTransitions`/`updateWorkflowTransitions`) reste
+    // intact, seul cet accès UI disparaît.
 
     return null;
   };
 
   const isStaffTab = STAFF_TAB_KEYS.includes(currentTab);
+  // === AMÉLIORATION AJOUTÉE (page de connexion plein cadre, sur maquette
+  // fournie) === La nouvelle page de connexion (photo du siège + sélecteur
+  // de profil à gauche, formulaire à droite) reste dans le cadre standard
+  // de l'app : la Navbar (topbar) et le pied de page ne disparaissent
+  // jamais, quel que soit l'écran — consigne explicite de l'utilisateur.
+  // (Une précédente version masquait la Navbar sur cet écran ; revenue en
+  // arrière sur demande.)
 
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+    // === AMÉLIORATION AJOUTÉE (Ascenseur sous l'en-tête) === `min-h-screen`
+    // + page (html/body) scrollable → `h-screen overflow-hidden` + seule la
+    // zone sous l'en-tête (nouveau conteneur ci-dessous) scrolle. Sur
+    // demande explicite : la barre de défilement verticale ne doit plus
+    // s'étendre sur toute la hauteur (à côté de l'en-tête aussi), mais
+    // débuter juste en dessous. L'en-tête (Navbar) reste hors de cette zone
+    // scrollable, donc toujours visible, sans avoir besoin d'être `sticky`
+    // (son parent ne défile plus).
+    <div className="h-screen overflow-hidden bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       {/* Top Main Navigation */}
       <Navbar
         currentTab={currentTab}
@@ -648,11 +880,31 @@ function AppShell() {
         onOpenQrModal={() => setShowQrModal(true)}
         pendingAlertsCount={pendingAlertsCount}
         onNavigateToCase={(trackingNumber) => navigateToCases({ trackingNumber })}
-        isStaffContext={isStaffTab || currentTab === 'firebase_lookup'}
+        // === AMÉLIORATION AJOUTÉE (en-tête cohérent sur l'écran "Connexion
+        // requise") === BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur
+        // (capture d'écran) : un visiteur non connecté qui ouvrait un lien
+        // direct vers un écran interne voyait quand même l'en-tête "espace
+        // collaborateur" (avatar, barre de bulles "Espace Gestion DARC")
+        // au-dessus du mur "Connexion requise" — `isStaffContext` ne
+        // dépendait que de l'onglet visé, jamais de l'état réel de
+        // connexion. Exige désormais aussi `isStaffSessionActive` : tant
+        // que la connexion n'est pas faite, l'en-tête public normal
+        // s'affiche (logo, Signaler/Suivre, Connexion), cohérent avec le
+        // mur affiché juste en dessous.
+        isStaffContext={(isStaffTab || currentTab === 'firebase_lookup') && isStaffSessionActive}
         isStaffSessionActive={isStaffSessionActive}
         onLogout={handleLogout}
       />
 
+      {/* === AMÉLIORATION AJOUTÉE (Ascenseur sous l'en-tête) === Seule zone
+          scrollable de la page : uniquement `<main>` — l'en-tête ET le pied
+          de page vivent désormais tous deux hors du défilement (voir
+          plus bas, BUG PRÉEXISTANT CORRIGÉ : la barre de défilement
+          couvrait visuellement le pied de page, signalé par l'utilisateur).
+          `min-h-0` est nécessaire : sans lui, un enfant flex refuse par
+          défaut de rétrécir sous la taille de son contenu, empêchant
+          `overflow-y-auto` de jouer son rôle ici. */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
       {/* Main Content Area */}
       <main className="flex-1 pb-16">
         {currentTab === 'home' && (
@@ -673,6 +925,10 @@ function AppShell() {
         {/* === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) === */}
         {currentTab === 'contact' && <ContactView lang={lang} />}
 
+        {/* === AMÉLIORATION AJOUTÉE (liens réels du pied de page) === */}
+        {currentTab === 'legal_notice' && <LegalNoticeView lang={lang} />}
+        {currentTab === 'privacy_policy' && <PrivacyPolicyView lang={lang} />}
+
         {currentTab === 'new_alert' && (
           <AlertSubmissionFlow
             lang={lang}
@@ -691,7 +947,11 @@ function AppShell() {
         )}
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) === */}
-        {currentTab === 'login' && <StaffLoginView onLogin={handleLogin} />}
+        {currentTab === 'login' && (
+          <Suspense fallback={<StaffLoadingFallback />}>
+            <StaffLoginView onLogin={handleLogin} onGoToContact={() => goToTab('contact')} />
+          </Suspense>
+        )}
 
         {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
             sélecteur en barre latérale) === Rendue à part, HORS de
@@ -701,7 +961,9 @@ function AppShell() {
             AuthenticatedRoute comme le reste de l'espace staff. */}
         {currentTab === 'space_home' && (
           <AuthenticatedRoute isAuthenticated={isStaffSessionActive} onGoToLogin={() => goToTab('login')}>
-            <StaffSpaceHome lang={lang} activeUser={activeUser} setCurrentTab={goToTab} />
+            <Suspense fallback={<StaffLoadingFallback />}>
+              <StaffSpaceHome lang={lang} activeUser={activeUser} setCurrentTab={goToTab} />
+            </Suspense>
           </AuthenticatedRoute>
         )}
 
@@ -718,7 +980,7 @@ function AppShell() {
               currentTab={currentTab}
               setCurrentTab={goToTab}
             >
-              {renderStaffContent()}
+              <Suspense fallback={<StaffLoadingFallback />}>{renderStaffContent()}</Suspense>
             </StaffPortalLayout>
           </AuthenticatedRoute>
         )}
@@ -727,8 +989,13 @@ function AppShell() {
             Independent of the local demo model above: real Firebase Auth +
             Firestore against the actual project (activa-ethicalert-47246).
             See src/components/CaseLookup.tsx and docs/FIREBASE-SETUP.md. */}
-        {currentTab === 'firebase_lookup' && <CaseLookup lang={lang} />}
+        {currentTab === 'firebase_lookup' && (
+          <Suspense fallback={<StaffLoadingFallback />}>
+            <CaseLookup lang={lang} />
+          </Suspense>
+        )}
       </main>
+      </div>
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Pied de page réduit à
           l'exact contenu de la maquette de référence : un simple lien de
@@ -737,14 +1004,28 @@ function AppShell() {
       {/* === AMÉLIORATION AJOUTÉE (Phase 13) === Pied de page bleu marine,
           conforme à la nouvelle maquette d'accueil (au lieu du pied clair
           précédent). */}
-      <footer className="bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
+      {/* === AMÉLIORATION AJOUTÉE (pied de page fixe en bas de l'écran) ===
+          BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : la barre de
+          défilement (propre à la zone scrollable ci-dessus) continuait de
+          s'afficher par-dessus le pied de page tant qu'il faisait partie de
+          cette même zone scrollable — comportement standard de tout
+          navigateur, mais visuellement gênant. Sorti de la zone scrollable
+          et placé ici, en frère direct (racine `flex flex-col`, `shrink-0`
+          implicite car sans `flex-1`) : il reste désormais TOUJOURS visible,
+          épinglé en bas de l'écran, et la barre de défilement ne couvre
+          plus que la zone entre l'en-tête et lui. */}
+      <footer className="shrink-0 bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* === AMÉLIORATION AJOUTÉE (Phase 20) === logo retiré du pied de page sur demande explicite (ajouté Phase 17). */}
           <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
+          {/* === AMÉLIORATION AJOUTÉE (liens réels du pied de page) === Les
+              3 boutons étaient décoratifs (aucun `onClick`, aucune
+              destination) — reliés désormais à de vrais onglets publics via
+              `goToTab`, même mécanisme que le reste de la navigation. */}
           <div className="flex items-center gap-4">
-            <button className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
-            <button className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>
-            <button className="hover:text-white hover:underline">{t.footer_contact}</button>
+            <button onClick={() => goToTab('legal_notice')} className="hover:text-white hover:underline">{t.footer_legal_notice}</button>
+            <button onClick={() => goToTab('privacy_policy')} className="hover:text-white hover:underline">{t.footer_privacy_policy}</button>
+            <button onClick={() => goToTab('contact')} className="hover:text-white hover:underline">{t.footer_contact}</button>
           </div>
         </div>
       </footer>

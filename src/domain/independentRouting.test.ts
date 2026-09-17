@@ -9,7 +9,6 @@ import {
   getImplicatedUserIds,
   getConflictedUserIds,
   resolveIndependentAuthority,
-  getRoutingMatrixView,
 } from './independentRouting';
 
 function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
@@ -17,6 +16,7 @@ function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
     id: 'u-1',
     name: 'Test User',
     email: 't@example.com',
+    username: 'test.user',
     role: 'investigator',
     roleTitle: 'Investigateur',
     entity: 'ACTIVA Assurances',
@@ -137,10 +137,14 @@ describe('resolveIndependentAuthority', () => {
 
   it('falls back to a Group-scoped authority when no local one exists', () => {
     const accused = makeUser({ id: 'u-accused', role: 'senior_investigator', countries: ['CM'], entities: ['cm_assurances'] });
+    // === AMÉLIORATION AJOUTÉE (règle métier explicite — chaîne
+    // d'implication) === `darc_compliance` remplace `functional_admin` ici
+    // (désormais exclu comme cible, voir isRoutingEligibleRole) — même
+    // intention de test (repli Groupe générique), rôle toujours éligible.
     const groupAdmin = makeUser({
       id: 'u-group-admin',
-      role: 'functional_admin',
-      name: 'Admin Groupe',
+      role: 'darc_compliance',
+      name: 'DARC Groupe',
       countries: [],
       entities: [],
     });
@@ -149,6 +153,43 @@ describe('resolveIndependentAuthority', () => {
     expect(result.found).toBe(true);
     expect(result.scopeMatch).toBe('group');
     expect(result.candidates.map((c) => c.id)).toEqual(['u-group-admin']);
+  });
+
+  // === AMÉLIORATION AJOUTÉE (règle métier explicite — chaîne d'implication)
+  // === "Si l'alerte concerne le Responsable des Investigations, l'alerte
+  // doit tomber directement dans le panier du Directeur Audit, Risques et
+  // Conformité Groupe" : même en présence d'un functional_admin de niveau
+  // intermédiaire (5, entre senior_investigator:4 et darc_compliance:6), le
+  // routage doit sauter functional_admin et atteindre darc_compliance.
+  it('routes a Responsable des Investigations (senior_investigator) implication directly to darc_compliance, skipping the intermediate functional_admin level', () => {
+    const accused = makeUser({ id: 'u-accused', role: 'senior_investigator', countries: [], entities: [] });
+    const pointOfContact = makeUser({ id: 'u-poc', role: 'functional_admin', name: 'Point de Contact', countries: [], entities: [] });
+    const darc = makeUser({ id: 'u-darc', role: 'darc_compliance', name: 'DARC Groupe', countries: [], entities: [] });
+    const alert = makeAlert({ involvedPersons: [makePerson({ linkedUserId: 'u-accused' })] });
+    const result = resolveIndependentAuthority(alert, [accused, pointOfContact, darc], DEFAULT_HIERARCHY_LEVELS);
+    expect(result.found).toBe(true);
+    expect(result.candidates.map((c) => c.id)).toEqual(['u-darc']);
+  });
+
+  it('never proposes functional_admin as a routing target, even alone at the intermediate level', () => {
+    const accused = makeUser({ id: 'u-accused', role: 'senior_investigator', countries: [], entities: [] });
+    const pointOfContact = makeUser({ id: 'u-poc', role: 'functional_admin', countries: [], entities: [] });
+    const alert = makeAlert({ involvedPersons: [makePerson({ linkedUserId: 'u-accused' })] });
+    const result = resolveIndependentAuthority(alert, [accused, pointOfContact], DEFAULT_HIERARCHY_LEVELS);
+    expect(result).toEqual({ candidates: [], scopeMatch: null, found: false });
+  });
+
+  // === AMÉLIORATION AJOUTÉE (règle métier explicite — chaîne d'implication)
+  // === "Si l'alerte porte sur un enquêteur, l'alerte tombe directement chez
+  // le Responsable des investigations" — déjà le comportement par défaut
+  // (niveaux adjacents), verrouillé ici explicitement.
+  it('routes an investigator implication directly to senior_investigator (Responsable des Investigations)', () => {
+    const accused = makeUser({ id: 'u-accused', role: 'investigator', countries: [], entities: [] });
+    const senior = makeUser({ id: 'u-senior', role: 'senior_investigator', name: 'Responsable des Investigations', countries: [], entities: [] });
+    const alert = makeAlert({ involvedPersons: [makePerson({ linkedUserId: 'u-accused' })] });
+    const result = resolveIndependentAuthority(alert, [accused, senior], DEFAULT_HIERARCHY_LEVELS);
+    expect(result.found).toBe(true);
+    expect(result.candidates.map((c) => c.id)).toEqual(['u-senior']);
   });
 
   it('finds no independent authority when darc_compliance (highest operational role) is implicated', () => {
@@ -198,19 +239,5 @@ describe('resolveIndependentAuthority', () => {
     });
     const result = resolveIndependentAuthority(alert, [accused, underCleared], DEFAULT_HIERARCHY_LEVELS);
     expect(result).toEqual({ candidates: [], scopeMatch: null, found: false });
-  });
-});
-
-describe('getRoutingMatrixView', () => {
-  it('maps investigator to senior_investigator as the immediately superior eligible role', () => {
-    const view = getRoutingMatrixView(DEFAULT_HIERARCHY_LEVELS);
-    const investigatorRow = view.find((r) => r.role === 'investigator');
-    expect(investigatorRow?.nextLevelRoles).toEqual(['senior_investigator']);
-  });
-
-  it('darc_compliance has no eligible role above it', () => {
-    const view = getRoutingMatrixView(DEFAULT_HIERARCHY_LEVELS);
-    const darcRow = view.find((r) => r.role === 'darc_compliance');
-    expect(darcRow?.nextLevelRoles).toEqual([]);
   });
 });

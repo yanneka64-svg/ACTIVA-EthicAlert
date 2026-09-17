@@ -27,6 +27,11 @@ export const TAB_TO_PATH: Record<string, string> = {
   // Même logique que /faq juste au-dessus : vrai onglet avec sa propre URL,
   // voir ContactView.tsx.
   contact: '/contact',
+  // === AMÉLIORATION AJOUTÉE (liens réels du pied de page) === Même logique
+  // que /faq et /contact ci-dessus — voir LegalNoticeView.tsx /
+  // PrivacyPolicyView.tsx.
+  legal_notice: '/legal-notice',
+  privacy_policy: '/privacy-policy',
   firebase_lookup: '/lookup',
   login: '/login',
   // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
@@ -69,6 +74,11 @@ export const TAB_TO_PATH: Record<string, string> = {
   op_pending_info: '/operator/pending-information',
   op_assign: '/operator/assign',
   op_processed: '/operator/processed',
+  // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
+  // envoyés en revue) ===
+  op_review: '/operator/review',
+  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
+  op_closed: '/operator/closed',
 
   inv_dashboard: '/investigator/dashboard',
   inv_my_cases: '/investigator/cases',
@@ -86,8 +96,6 @@ export const TAB_TO_PATH: Record<string, string> = {
   // Nouvelle entrée de barre latérale, partagée (pas spécifique à un
   // espace) — voir StaffPortalLayout.tsx.
   advanced_search: '/search/advanced',
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  admin_workflow: '/admin/workflow',
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === 3 sections
   // jusqu'ici seulement atteignables via la rangée d'onglets interne
   // d'AdminConfigView (retirée), jamais par une URL propre — voir

@@ -38,10 +38,22 @@ export { getImplicatedUserIds, getConflictedUserIds };
 // Un rôle est éligible comme CIBLE de routage s'il peut réellement traiter
 // un dossier (cases.edit OU cases.assign — jamais l'un sans l'autre : voir
 // darc_compliance, qui a cases.assign sans cases.edit). Vérification par
-// RÔLE SEUL (pas par UserProfile complet), réutilisée à la fois par
-// resolveIndependentAuthority (sur un compte réel) et getRoutingMatrixView
-// (sur la table de niveaux seule, sans compte réel en jeu).
+// RÔLE SEUL (pas par UserProfile complet), utilisée par
+// resolveIndependentAuthority ci-dessous (sur un compte réel).
+//
+// === AMÉLIORATION AJOUTÉE (règle métier explicite — chaîne d'implication) ===
+// `functional_admin` (point de contact / accueil des signalements) est
+// volontairement exclu comme CIBLE, bien qu'il ait techniquement
+// cases.edit/cases.assign : ce n'est pas un échelon de la chaîne
+// d'implication enquêteur → Responsable des Investigations → Directeur
+// Audit, Risques et Conformité Groupe → DGA Groupe (repli e-mail, voir
+// storage.triggerIndependentRouting). Sans cette exclusion, un Responsable
+// des Investigations mis en cause pouvait être routé vers functional_admin
+// (niveau intermédiaire) au lieu du Directeur Audit, Risques et Conformité
+// Groupe — reste éligible comme SOURCE (compte mis en cause), seule sa
+// candidature comme CIBLE est retirée.
 function isRoutingEligibleRole(role: UserRole): boolean {
+  if (role === 'functional_admin') return false;
   return roleHasPermission(role, 'cases.edit') || roleHasPermission(role, 'cases.assign');
 }
 
@@ -109,30 +121,4 @@ export function resolveIndependentAuthority(
   if (local.length > 0) return { candidates: local, scopeMatch: 'local', found: true };
   if (group.length > 0) return { candidates: group, scopeMatch: 'group', found: true };
   return { candidates: [], scopeMatch: null, found: false };
-}
-
-export interface RoutingMatrixRow {
-  role: UserRole;
-  level: number;
-  /** Rôle(s) au niveau hiérarchique immédiatement supérieur, parmi les rôles éligibles comme cible de routage. Vide = aucune autorité indépendante possible pour ce rôle (ex. darc_compliance). */
-  nextLevelRoles: UserRole[];
-}
-
-/**
- * Vue dérivée en LECTURE SEULE de la table de niveaux, pour l'administration
- * (AdminConfigView.tsx, onglet Gouvernance, Phase 5) — jamais une seconde
- * table à maintenir à la main, qui pourrait diverger de hierarchyLevels.
- */
-export function getRoutingMatrixView(hierarchyLevels: HierarchyLevels): RoutingMatrixRow[] {
-  const roles = Object.keys(hierarchyLevels) as UserRole[];
-  return roles.map((role) => {
-    const level = hierarchyLevels[role];
-    const eligibleAbove = roles.filter((r) => hierarchyLevels[r] > level && isRoutingEligibleRole(r));
-    if (eligibleAbove.length === 0) {
-      return { role, level, nextLevelRoles: [] };
-    }
-    const minLevelAbove = Math.min(...eligibleAbove.map((r) => hierarchyLevels[r]));
-    const nextLevelRoles = eligibleAbove.filter((r) => hierarchyLevels[r] === minLevelAbove);
-    return { role, level, nextLevelRoles };
-  });
 }

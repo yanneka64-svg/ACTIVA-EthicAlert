@@ -89,7 +89,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({ allowed, label
       <h2 className="text-lg font-bold text-slate-900">Accès restreint</h2>
       <p className="text-xs text-slate-600 mt-2">
         Votre profil ne dispose pas des habilitations nécessaires pour consulter « {label} ».
-        Cette restriction est appliquée conformément au principe du moindre privilège (CDC 3.2.3).
+        Cette restriction est appliquée conformément au principe du moindre privilège.
       </p>
     </div>
   );

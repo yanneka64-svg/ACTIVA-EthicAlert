@@ -119,6 +119,22 @@ export interface Case extends Auditable {
 
   // Global finding, ALWAYS DERIVED from Allegation.finding[] — never set directly by a human or an AI.
   overallFinding?: 'substantiated' | 'partially_substantiated' | 'unsubstantiated' | 'inconclusive' | 'mixed';
+
+  // === AMÉLIORATION AJOUTÉE (correctif — cadenas de revue fonctionnelle
+  // jamais réellement câblé) === `workflow.checkTransition()`'s gate 4
+  // ("Functional review sign-off is required before closure") existed and
+  // was unit-tested (workflow.test.ts) since Phase 2, but neither
+  // `LocalCaseRepository.changeCaseStatus` nor the Cloud Function of the
+  // same name ever supplied `hasFunctionalReviewSignOff` — meaning closure
+  // was structurally impossible end-to-end, for every case, regardless of
+  // allegations/corrective actions being fully resolved. These two fields
+  // are the real, persisted record of that sign-off (set only by
+  // `CaseRepository.recordFunctionalReviewSignOff`, never inferred from
+  // any other field), now actually read by `changeCaseStatus`. Optional
+  // and additive: a case migrated before this fix simply has no sign-off
+  // yet, exactly like any case that genuinely hasn't been reviewed.
+  functionalReviewSignedOffAt?: ISODateString;
+  functionalReviewSignedOffBy?: string;
 }
 
 // ---------------------------------------------------------------------------

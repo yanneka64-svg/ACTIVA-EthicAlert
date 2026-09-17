@@ -22,18 +22,40 @@ export type SpaceKey = 'operator' | 'investigator' | 'admin' | 'general';
 // à l'espace Opérateur depuis que la matrice de permissions est éditable en
 // administration — la vraie garde de `/operator/dashboard` (App.tsx) est
 // `isGlobalViewer`, une table séparée. Alignée ici sur la garde réelle.
+// === AMÉLIORATION AJOUTÉE : `senior_investigator` (Responsable des
+// Investigations Groupe) retiré de l'exclusion — il obtient désormais
+// `cases.assign` + la vision globale de son périmètre par défaut
+// (domain/permissions.ts), donc passe naturellement le test générique
+// ci-dessous, exactement comme functional_admin/darc_compliance.
+// `investigator` (enquêteur simple) reste strictement exclu — comportement
+// inchangé.
 export function canSeeOperatorSpace(user: UserProfile): boolean {
+  if (user.role === 'investigator') {
+    return false;
+  }
   return userCan(user, 'cases.assign') && isGlobalCaseViewer(user);
 }
 export function canSeeInvestigatorSpace(user: UserProfile): boolean {
-  return userCan(user, 'cases.edit');
+  return userCan(user, 'cases.edit') || user.role === 'investigator' || user.role === 'senior_investigator';
 }
 export function canSeeAdminSpace(user: UserProfile): boolean {
+  if (user.role === 'investigator' || user.role === 'senior_investigator') {
+    return false;
+  }
   return canManageConfiguration(user);
 }
 
 /** Espaces réellement disponibles pour ce compte, dans un ordre de priorité stable. */
 export function computeAvailableSpaces(user: UserProfile): SpaceKey[] {
+  // Pour les investigateurs simples, afficher strictement et uniquement le bouton Espace Enquêteur.
+  // === AMÉLIORATION AJOUTÉE : `senior_investigator` (Responsable des
+  // Investigations Groupe) retiré de ce cas particulier — il doit voir à la
+  // fois Espace Opérateur et Espace Enquêteur par défaut, donc passe par le
+  // calcul générique ci-dessous (canSeeOperatorSpace/canSeeInvestigatorSpace/
+  // canSeeAdminSpace) au lieu d'être court-circuité sur Enquêteur seul.
+  if (user.role === 'investigator') {
+    return ['investigator'];
+  }
   return [
     ...(canSeeOperatorSpace(user) ? (['operator'] as const) : []),
     ...(canSeeInvestigatorSpace(user) ? (['investigator'] as const) : []),
