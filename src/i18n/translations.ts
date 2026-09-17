@@ -1065,9 +1065,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     legal_title: 'Mentions légales',
     legal_subtitle: 'Informations légales relatives à l’édition et à l’hébergement de cette plateforme.',
     legal_editor_heading: 'Éditeur du site',
-    legal_editor_body: 'Cette plateforme est éditée par le Groupe ACTIVA.\nSiège social : [Adresse du siège social]\nRegistre du commerce : [Numéro RCCM]\nReprésentant légal : [Nom du représentant légal]',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+    // BUG PRÉEXISTANT CORRIGÉ : ces mentions légales, obligatoires, étaient
+    // publiées avec des espaces réservés non remplis ([Adresse du siège
+    // social], [Numéro RCCM]...). Adresse et entité confirmées auprès de
+    // l'utilisateur (siège opérationnel du Groupe, Douala) ; le numéro RCCM
+    // et le nom du représentant légal restent explicitement en attente de
+    // confirmation par le service juridique du Groupe — jamais inventés.
+    legal_editor_body: 'Cette plateforme est éditée par le Groupe ACTIVA.\nSiège social : Rue Prince de Galles, B.P. 2970, Douala, Cameroun\nRegistre du commerce : (à compléter par le service juridique du Groupe)\nReprésentant légal : (à compléter par le service juridique du Groupe)',
     legal_hosting_heading: 'Hébergement',
-    legal_hosting_body: 'Ce site est hébergé par [Nom de l’hébergeur], [Adresse de l’hébergeur].',
+    legal_hosting_body: 'Hébergeur : (à compléter par le service juridique du Groupe).',
     legal_ip_heading: 'Propriété intellectuelle',
     legal_ip_body: 'L’ensemble des contenus (textes, logos, éléments graphiques) de cette plateforme est protégé par le droit de la propriété intellectuelle. Toute reproduction, même partielle, est interdite sans autorisation préalable du Groupe ACTIVA.',
     legal_liability_heading: 'Responsabilité',
@@ -2005,9 +2012,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     legal_title: 'Legal notice',
     legal_subtitle: 'Legal information about the publisher and host of this platform.',
     legal_editor_heading: 'Site publisher',
-    legal_editor_body: 'This platform is published by ACTIVA Group.\nRegistered office: [Registered office address]\nRegistration number: [Company registration number]\nLegal representative: [Legal representative name]',
+    legal_editor_body: 'This platform is published by ACTIVA Group.\nRegistered office: Rue Prince de Galles, B.P. 2970, Douala, Cameroon\nRegistration number: (to be confirmed by the Group’s legal department)\nLegal representative: (to be confirmed by the Group’s legal department)',
     legal_hosting_heading: 'Hosting',
-    legal_hosting_body: 'This site is hosted by [Hosting provider name], [Hosting provider address].',
+    legal_hosting_body: 'Hosting provider: (to be confirmed by the Group’s legal department).',
     legal_ip_heading: 'Intellectual property',
     legal_ip_body: 'All content on this platform (text, logos, graphic elements) is protected by intellectual property law. Any reproduction, even partial, is prohibited without prior authorization from ACTIVA Group.',
     legal_liability_heading: 'Liability',
@@ -2945,9 +2952,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     legal_title: 'Aviso legal',
     legal_subtitle: 'Informações legais sobre o editor e o alojamento desta plataforma.',
     legal_editor_heading: 'Editor do site',
-    legal_editor_body: 'Esta plataforma é publicada pelo Grupo ACTIVA.\nSede social: [Endereço da sede social]\nNúmero de registo: [Número de registo comercial]\nRepresentante legal: [Nome do representante legal]',
+    legal_editor_body: 'Esta plataforma é publicada pelo Grupo ACTIVA.\nSede social: Rue Prince de Galles, B.P. 2970, Douala, Camarões\nNúmero de registo: (a confirmar pelo departamento jurídico do Grupo)\nRepresentante legal: (a confirmar pelo departamento jurídico do Grupo)',
     legal_hosting_heading: 'Alojamento',
-    legal_hosting_body: 'Este site é alojado por [Nome do fornecedor de alojamento], [Endereço do fornecedor de alojamento].',
+    legal_hosting_body: 'Fornecedor de alojamento: (a confirmar pelo departamento jurídico do Grupo).',
     legal_ip_heading: 'Propriedade intelectual',
     legal_ip_body: 'Todo o conteúdo desta plataforma (textos, logótipos, elementos gráficos) está protegido pelo direito de propriedade intelectual. Qualquer reprodução, mesmo parcial, é proibida sem autorização prévia do Grupo ACTIVA.',
     legal_liability_heading: 'Responsabilidade',
