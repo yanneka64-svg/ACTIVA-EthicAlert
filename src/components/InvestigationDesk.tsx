@@ -71,6 +71,10 @@ import {
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+// section) === premier contenu d'onglet extrait dans son propre composant,
+// voir src/components/investigation/CaseTimelineSection.tsx.
+import { CaseTimelineSection } from './investigation/CaseTimelineSection';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable, ConfirmDialog } from './ui';
@@ -3124,41 +3128,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 6) === TAB CONTENT: TIMELINE — derived from real audit_logs + messages for this case, never hand-authored. */}
+            {/* === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/CaseTimelineSection.tsx. */}
             {activeCaseTab === 'timeline' && (
-              <div className="p-6 max-h-[560px] overflow-y-auto text-xs">
-                {(() => {
-                  type TimelineItem = { timestamp: string; label: string };
-                  const auditItems: TimelineItem[] = storage
-                    .getAuditLogs()
-                    .filter((log) => log.trackingNumber === selectedAlert.trackingNumber)
-                    .map((log) => ({ timestamp: log.timestamp, label: log.details }));
-                  const messageItems: TimelineItem[] = selectedAlert.messages.map((m) => ({
-                    timestamp: m.createdAt,
-                    label: `${t.timeline_message_from} ${m.senderDisplayName} : « ${m.content.slice(0, 80)}${m.content.length > 80 ? '…' : ''} »`,
-                  }));
-                  const items = [...auditItems, ...messageItems].sort(
-                    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-                  );
-                  if (items.length === 0) {
-                    return <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">{t.timeline_empty}</div>;
-                  }
-                  return (
-                    <ol className="relative border-l-2 border-slate-200 ml-2 space-y-5">
-                      {items.map((item, i) => (
-                        <li key={i} className="ml-4">
-                          <div className="absolute w-2.5 h-2.5 bg-blue-600 rounded-full -left-[5px] mt-1 border-2 border-white" />
-                          <time className="text-[10px] font-bold text-slate-400 uppercase">
-                            {new Date(item.timestamp).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR', {
-                              day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                            })}
-                          </time>
-                          <p className="text-slate-700 mt-0.5">{item.label}</p>
-                        </li>
-                      ))}
-                    </ol>
-                  );
-                })()}
-              </div>
+              <CaseTimelineSection selectedAlert={selectedAlert} lang={lang} t={t} />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 6 — Triage) === repurposes the
