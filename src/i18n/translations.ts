@@ -236,16 +236,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_dates: 'Date(s) des faits constatés',
     no_future_dates_warning: 'La date ne peut pas être située dans le futur',
     label_location: 'Lieu précis de l’incident',
-    // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, correction i18n) ===
-    // BUG PRÉEXISTANT CORRIGÉ : ces 4 messages de validation étaient codés
-    // en dur en français dans AlertSubmissionFlow.tsx, ignorant la langue
-    // réellement choisie (fr/en/pt) — un utilisateur en anglais ou en
-    // portugais recevait ce texte en français malgré tout.
-    err_missing_description: 'Veuillez fournir une description détaillée des faits constatés.',
-    err_missing_date: 'Veuillez préciser la date ou la période des faits.',
-    err_missing_location: 'Veuillez préciser le lieu des faits.',
-    err_missing_desc_date_location: 'Veuillez renseigner la description, la date et le lieu des faits.',
-
+    
     // Risk Matrix fields
     matrix_title: 'Évaluation automatique des risques (Matrice DARC)',
     label_financial_impact: 'Impact financier potentiel',
@@ -1081,7 +1072,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // l'utilisateur (siège opérationnel du Groupe, Douala) ; le numéro RCCM
     // et le nom du représentant légal restent explicitement en attente de
     // confirmation par le service juridique du Groupe — jamais inventés.
-    legal_editor_body: 'Cette plateforme est éditée par le Groupe ACTIVA.\nSiège social : Rue Prince de Galles, B.P. 2970, Douala, Cameroun\nRegistre du commerce : (à compléter par le service juridique du Groupe)\nReprésentant légal : (à compléter par le service juridique du Groupe)',
+    legal_editor_body: 'Cette plateforme est éditée par le Groupe ACTIVA.\nSiège social : Rue Prince de Galles, B.P. 12970, Douala, Cameroun\nTéléphone : +237 233 50 13 00\nRegistre du commerce : (à compléter par le service juridique du Groupe)\nReprésentant légal : (à compléter par le service juridique du Groupe)',
     legal_hosting_heading: 'Hébergement',
     legal_hosting_body: 'Hébergeur : (à compléter par le service juridique du Groupe).',
     legal_ip_heading: 'Propriété intellectuelle',
@@ -1094,7 +1085,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     privacy_title: 'Politique de confidentialité',
     privacy_subtitle: 'Comment le Groupe ACTIVA collecte, utilise et protège les données transmises via cette plateforme.',
     privacy_controller_heading: 'Responsable du traitement',
-    privacy_controller_body: 'Le responsable du traitement des données collectées via cette plateforme est le Groupe ACTIVA, à travers sa Direction Audit, Risques & Conformité (DARC).',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — coordonnées réelles) ===
+    // Adresse du siège ajoutée, cohérente avec celle des Mentions légales.
+    privacy_controller_body: 'Le responsable du traitement des données collectées via cette plateforme est le Groupe ACTIVA (Rue Prince de Galles, B.P. 12970, Douala, Cameroun), à travers sa Direction Audit, Risques & Conformité (DARC).',
     privacy_data_heading: 'Données collectées',
     privacy_data_body: 'Selon les informations que vous choisissez de transmettre : le contenu de votre signalement, les pièces jointes éventuelles, ainsi que vos coordonnées si vous ne souhaitez pas rester anonyme.',
     privacy_purpose_heading: 'Finalité du traitement',
@@ -1107,6 +1100,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     privacy_rights_body: 'Conformément à la réglementation applicable en matière de protection des données, vous disposez d’un droit d’accès, de rectification, d’effacement et d’opposition concernant vos données personnelles. Vous pouvez exercer ces droits en nous contactant à l’adresse suivante :',
     privacy_security_heading: 'Sécurité',
     privacy_security_body: 'Le Groupe ACTIVA met en œuvre les mesures techniques et organisationnelles appropriées pour protéger la confidentialité et la sécurité des données transmises via cette plateforme.',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — contact DPO dédié) ===
+    // Contact spécifique du Délégué à la Protection des Données, distinct
+    // de l'adresse générale de la plateforme (activa.whistleblowing@...) —
+    // information réelle communiquée par l'utilisateur, jamais inventée.
+    privacy_dpo_heading: 'Contact du Délégué à la Protection des Données',
+    privacy_dpo_body: 'Pour toute question relative à la protection de vos données personnelles, vous pouvez également contacter directement notre Délégué à la Protection des Données (DPO) :',
   },
   en: {
     // app_title/app_subtitle are defined further below, in the "Phase 11" block.
@@ -1308,10 +1307,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_dates: 'Date(s) of facts',
     no_future_dates_warning: 'Date cannot be in the future',
     label_location: 'Incident location',
-    err_missing_description: 'Please provide a detailed description of the facts.',
-    err_missing_date: 'Please specify the date or period of the facts.',
-    err_missing_location: 'Please specify the location of the facts.',
-    err_missing_desc_date_location: 'Please provide the description, date and location of the facts.',
 
     matrix_title: 'Automatic Risk Assessment (DARC Matrix)',
     label_financial_impact: 'Potential financial impact',
@@ -2025,7 +2020,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     legal_title: 'Legal notice',
     legal_subtitle: 'Legal information about the publisher and host of this platform.',
     legal_editor_heading: 'Site publisher',
-    legal_editor_body: 'This platform is published by ACTIVA Group.\nRegistered office: Rue Prince de Galles, B.P. 2970, Douala, Cameroon\nRegistration number: (to be confirmed by the Group’s legal department)\nLegal representative: (to be confirmed by the Group’s legal department)',
+    legal_editor_body: 'This platform is published by ACTIVA Group.\nRegistered office: Rue Prince de Galles, B.P. 12970, Douala, Cameroon\nPhone: +237 233 50 13 00\nRegistration number: (to be confirmed by the Group’s legal department)\nLegal representative: (to be confirmed by the Group’s legal department)',
     legal_hosting_heading: 'Hosting',
     legal_hosting_body: 'Hosting provider: (to be confirmed by the Group’s legal department).',
     legal_ip_heading: 'Intellectual property',
@@ -2038,7 +2033,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     privacy_title: 'Privacy policy',
     privacy_subtitle: 'How ACTIVA Group collects, uses and protects the data submitted through this platform.',
     privacy_controller_heading: 'Data controller',
-    privacy_controller_body: 'The controller for data collected through this platform is ACTIVA Group, through its Audit, Risk & Compliance Directorate (DARC).',
+    privacy_controller_body: 'The controller for data collected through this platform is ACTIVA Group (Rue Prince de Galles, B.P. 12970, Douala, Cameroon), through its Audit, Risk & Compliance Directorate (DARC).',
     privacy_data_heading: 'Data collected',
     privacy_data_body: 'Depending on what you choose to share: the content of your report, any attachments, and your contact details if you choose not to remain anonymous.',
     privacy_purpose_heading: 'Purpose of processing',
@@ -2051,6 +2046,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     privacy_rights_body: 'In accordance with applicable data protection regulations, you have the right to access, rectify, erase and object to the processing of your personal data. You can exercise these rights by contacting us at:',
     privacy_security_heading: 'Security',
     privacy_security_body: 'ACTIVA Group implements appropriate technical and organizational measures to protect the confidentiality and security of data submitted through this platform.',
+    privacy_dpo_heading: 'Data Protection Officer contact',
+    privacy_dpo_body: 'For any question regarding the protection of your personal data, you may also contact our Data Protection Officer (DPO) directly:',
   },
   pt: {
     // app_title/app_subtitle são definidos mais abaixo, no bloco "Phase 11".
@@ -2252,10 +2249,6 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_dates: 'Data(s) dos fatos',
     no_future_dates_warning: 'A data não pode ser futura',
     label_location: 'Local do incidente',
-    err_missing_description: 'Por favor, forneça uma descrição detalhada dos fatos.',
-    err_missing_date: 'Por favor, indique a data ou o período dos fatos.',
-    err_missing_location: 'Por favor, indique o local dos fatos.',
-    err_missing_desc_date_location: 'Por favor, indique a descrição, a data e o local dos fatos.',
 
     matrix_title: 'Avaliação Automática de Riscos (Matriz DARC)',
     label_financial_impact: 'Impacto financeiro potencial',
@@ -2969,7 +2962,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     legal_title: 'Aviso legal',
     legal_subtitle: 'Informações legais sobre o editor e o alojamento desta plataforma.',
     legal_editor_heading: 'Editor do site',
-    legal_editor_body: 'Esta plataforma é publicada pelo Grupo ACTIVA.\nSede social: Rue Prince de Galles, B.P. 2970, Douala, Camarões\nNúmero de registo: (a confirmar pelo departamento jurídico do Grupo)\nRepresentante legal: (a confirmar pelo departamento jurídico do Grupo)',
+    legal_editor_body: 'Esta plataforma é publicada pelo Grupo ACTIVA.\nSede social: Rue Prince de Galles, B.P. 12970, Douala, Camarões\nTelefone: +237 233 50 13 00\nNúmero de registo: (a confirmar pelo departamento jurídico do Grupo)\nRepresentante legal: (a confirmar pelo departamento jurídico do Grupo)',
     legal_hosting_heading: 'Alojamento',
     legal_hosting_body: 'Fornecedor de alojamento: (a confirmar pelo departamento jurídico do Grupo).',
     legal_ip_heading: 'Propriedade intelectual',
@@ -2982,7 +2975,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     privacy_title: 'Política de privacidade',
     privacy_subtitle: 'Como o Grupo ACTIVA recolhe, utiliza e protege os dados submetidos através desta plataforma.',
     privacy_controller_heading: 'Responsável pelo tratamento',
-    privacy_controller_body: 'O responsável pelo tratamento dos dados recolhidos através desta plataforma é o Grupo ACTIVA, através da sua Direção de Auditoria, Risco e Conformidade (DARC).',
+    privacy_controller_body: 'O responsável pelo tratamento dos dados recolhidos através desta plataforma é o Grupo ACTIVA (Rue Prince de Galles, B.P. 12970, Douala, Camarões), através da sua Direção de Auditoria, Risco e Conformidade (DARC).',
     privacy_data_heading: 'Dados recolhidos',
     privacy_data_body: 'Consoante as informações que optar por partilhar: o conteúdo do seu relato, eventuais anexos, e os seus dados de contacto caso opte por não permanecer anónimo.',
     privacy_purpose_heading: 'Finalidade do tratamento',
@@ -2995,5 +2988,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     privacy_rights_body: 'Em conformidade com a regulamentação aplicável em matéria de proteção de dados, tem o direito de acesso, retificação, apagamento e oposição relativamente aos seus dados pessoais. Pode exercer estes direitos contactando-nos através de:',
     privacy_security_heading: 'Segurança',
     privacy_security_body: 'O Grupo ACTIVA implementa as medidas técnicas e organizacionais adequadas para proteger a confidencialidade e a segurança dos dados submetidos através desta plataforma.',
+    privacy_dpo_heading: 'Contacto do Encarregado da Proteção de Dados',
+    privacy_dpo_body: 'Para qualquer questão relativa à proteção dos seus dados pessoais, pode também contactar diretamente o nosso Encarregado da Proteção de Dados (DPO):',
   }
 };
