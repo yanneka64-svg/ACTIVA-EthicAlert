@@ -48,6 +48,8 @@ import {
   ShieldAlert,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
   CheckCircle2,
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
+  FileSpreadsheet,
 } from 'lucide-react';
 import { AlertRecord, Language, PriorityLevel, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -170,6 +172,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [trendRange, setTrendRange] = useState<TrendRange>('7d');
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
+  // Remplace l'ancien bouton "Télécharger (CSV)" (mono-format) par un
+  // bouton "Exporter" ouvrant le choix CSV/PDF — même modale/logique que
+  // ReportingDashboard.tsx (mêmes clés i18n `export_modal_*`, jamais
+  // dupliquées), adaptée aux données réellement affichées sur CET écran.
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   useEffect(() => {
     const unsub = storage.subscribe(() => {
@@ -409,6 +418,50 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     },
   ];
 
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
+  // Export CSV de l'ensemble des dossiers réellement visibles par ce
+  // compte (`visible`, périmètre pays/entité/confidentialité déjà
+  // appliqué par useVisibleAlerts) — jamais seulement les 8 lignes
+  // tronquées affichées dans le tableau "Alertes récentes" ci-dessous.
+  // Mêmes colonnes/libellés que ce tableau (`recentAlertsColumns`),
+  // jamais une donnée fabriquée. Même mécanique de téléchargement
+  // (data URI) et de journalisation que `handleExportCSV` de
+  // ReportingDashboard.tsx, adaptée aux colonnes de cet écran.
+  const handleExportCSV = () => {
+    const headers = [
+      t.cp_col_case_id, t.cp_col_date, t.cp_col_category, t.cp_col_country, t.cp_col_entity,
+      t.cp_col_priority, t.cp_col_risk_score, t.cp_col_status, t.cp_col_assigned, t.cp_col_sla,
+    ];
+    const rows = visible.map((a) => {
+      const p = a.overridePriority || a.riskEvaluation.priority;
+      return [
+        a.trackingNumber,
+        new Date(a.createdAt).toLocaleDateString(locale),
+        a.category,
+        a.country,
+        a.concernedEntity,
+        t[`priority_${p}` as keyof typeof t] as string,
+        `${a.riskEvaluation.totalScore}/16`,
+        (t[`status_${a.status}` as keyof typeof t] as string) ?? a.status,
+        a.assignedInvestigatorNames.join('; ') || t.cp_unassigned_tag,
+        a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '—',
+      ];
+    });
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const link = document.createElement('a');
+    link.setAttribute('href', encodeURI(csvContent));
+    link.setAttribute('download', `ACTIVA_EthicAlert_CentreDePilotage_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    storage.logAudit('REPORT_GENERATED', `Génération d'un export CSV du Centre de Pilotage (${visible.length} dossier(s)) par ${activeUser.name}.`, undefined, activeUser);
+  };
+
+  const handlePrint = () => {
+    storage.logAudit('REPORT_GENERATED', `Impression / Export PDF du Centre de Pilotage par ${activeUser.name}.`, undefined, activeUser);
+    window.print();
+  };
+
   const periodOptions: { key: PeriodKey; label: string }[] = [
     { key: 'today', label: t.cp_period_today },
     { key: '7d', label: t.cp_period_7d },
@@ -481,9 +534,67 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
             >
               <RefreshCw className="w-3.5 h-3.5 text-blue-600" /> {t.cp_refresh}
             </button>
+            {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bouton
+                Exporter) === Remplace l'ancien bouton "Télécharger (CSV)"
+                mono-format par un bouton "Exporter" ouvrant le choix
+                CSV/PDF (modale ci-dessous), sur demande explicite de
+                l'utilisateur. */}
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs transition cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-300" /> {t.cp_btn_export}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
+          Modale de choix de format, même structure/clés i18n que celle de
+          ReportingDashboard.tsx (`export_modal_*`) — jamais dupliquée sous
+          un autre nom, seul le contenu exporté diffère (les dossiers
+          visibles sur CET écran plutôt que le registre complet des
+          rapports). */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
+            <h3 className="text-sm font-bold text-slate-900">{t.export_modal_title}</h3>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_format}</label>
+              <div className="flex gap-1.5">
+                {(['csv', 'pdf'] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    type="button"
+                    onClick={() => setExportFormat(fmt)}
+                    className={`flex-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border transition ${
+                      exportFormat === fmt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                    }`}
+                  >
+                    {fmt === 'csv' ? t.export_modal_format_csv : t.export_modal_format_pdf}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button type="button" onClick={() => setShowExportModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
+                {t.btn_cancel}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (exportFormat === 'csv') handleExportCSV();
+                  else handlePrint();
+                  setShowExportModal(false);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
+              >
+                {t.export_modal_export}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
           Reproduction fidèle de la maquette de référence : 4 cartes KPI

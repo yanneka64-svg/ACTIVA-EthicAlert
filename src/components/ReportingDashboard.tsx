@@ -135,7 +135,10 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   const anonymizeExport = true;
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'excel' | 'pdf'>('excel');
+  // === AMÉLIORATION AJOUTÉE (Correction demandée — retour au CSV) ===
+  // 'excel' redevient 'csv', sur demande explicite de l'utilisateur — voir
+  // `handleExportCSV` ci-dessous (jamais supprimée, simplement re-branchée).
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   const [exportFields, setExportFields] = useState<Set<ExportFieldGroupKey>>(new Set(EXPORT_FIELD_GROUPS.map((g) => g.key)));
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — filtres réels période/pays/entité/catégorie/statut) ===
@@ -621,12 +624,15 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
           fabriquer un format qui n'existait pas réellement (brief §32).
           === AMÉLIORATION AJOUTÉE (Retours visuels — export Excel réel,
           bouton bleu) === Sur retour utilisateur explicite ("PDF et Excel"),
-          le CSV devient un vrai fichier .xlsx (`handleExportExcel`,
-          `exceljs`) — la promesse "ouvrable dans Excel" est désormais
-          tenue littéralement, pas seulement approchée ; `handleExportCSV`
-          reste dans le code (jamais supprimée) mais n'est plus le format
-          proposé ici, remplacé par la vraie chose. Couleurs passées en bleu
-          (au lieu du bleu marine #0B2545), sur le même retour. */}
+          le CSV est devenu un vrai fichier .xlsx (`handleExportExcel`,
+          `exceljs`). Couleurs passées en bleu (au lieu du bleu marine
+          #0B2545), sur le même retour.
+          === AMÉLIORATION AJOUTÉE (Correction demandée — retour au CSV) ===
+          Sur nouvelle demande explicite de l'utilisateur, le format
+          redevient CSV (`handleExportCSV`, re-branchée ici) ; `handleExportExcel`
+          reste dans le code (jamais supprimée, même principe que
+          `handleExportCSV` la fois précédente) mais n'est plus le format
+          proposé par cette modale. */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
@@ -635,7 +641,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
             <div>
               <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_format}</label>
               <div className="flex gap-1.5">
-                {(['excel', 'pdf'] as const).map((fmt) => (
+                {(['csv', 'pdf'] as const).map((fmt) => (
                   <button
                     key={fmt}
                     type="button"
@@ -644,13 +650,13 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
                       exportFormat === fmt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
                     }`}
                   >
-                    {fmt === 'excel' ? t.export_modal_format_excel : t.export_modal_format_pdf}
+                    {fmt === 'csv' ? t.export_modal_format_csv : t.export_modal_format_pdf}
                   </button>
                 ))}
               </div>
             </div>
 
-            {exportFormat === 'excel' && (
+            {exportFormat === 'csv' && (
               <div>
                 <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_fields}</label>
                 <div className="space-y-1.5">
@@ -680,12 +686,12 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  if (exportFormat === 'excel') await handleExportExcel(exportFields);
+                onClick={() => {
+                  if (exportFormat === 'csv') handleExportCSV(exportFields);
                   else handlePrint();
                   setShowExportModal(false);
                 }}
-                disabled={exportFormat === 'excel' && exportFields.size === 0}
+                disabled={exportFormat === 'csv' && exportFields.size === 0}
                 className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold"
               >
                 {t.export_modal_export}
