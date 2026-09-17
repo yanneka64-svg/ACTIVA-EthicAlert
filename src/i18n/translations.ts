@@ -111,7 +111,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_q1: 'Mon signalement est-il vraiment anonyme ?',
     faq_a1: 'Oui. Si vous choisissez le mode anonyme, aucune information permettant de vous identifier (nom, adresse IP, données de connexion) n’est enregistrée. Vous recevez un numéro de dossier et un mot de passe pour suivre votre signalement sans jamais révéler votre identité.',
     faq_q2: 'Que se passe-t-il après l’envoi de mon signalement ?',
-    faq_a2: 'Votre signalement est immédiatement classifié selon la matrice de risques NOCA, puis attribué à un ou plusieurs investigateurs DARC assermentés. Vous pouvez suivre l’avancement et dialoguer en toute sécurité depuis l’espace de suivi.',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, microcopy) ===
+    // Les sigles NOCA et DARC n'étaient jamais explicités sur les pages
+    // publiques ; un lanceur d'alerte externe les découvrait sans contexte.
+    faq_a2: 'Votre signalement est immédiatement classifié selon la grille de criticité interne du Groupe (matrice NOCA), puis attribué à un ou plusieurs investigateurs assermentés de la Direction d’Audit, des Risques et de la Conformité (DARC). Vous pouvez suivre l’avancement et dialoguer en toute sécurité depuis l’espace de suivi.',
     faq_q3: 'Suis-je protégé(e) contre des représailles ?',
     faq_a3: 'Oui. La politique du Groupe ACTIVA garantit une protection totale contre toute forme de représailles à l’encontre d’un lanceur d’alerte de bonne foi, conformément au Code éthique du Groupe.',
     faq_q4: 'Puis-je compléter ou supprimer mon signalement ?',
@@ -1198,7 +1201,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_q1: 'Is my report really anonymous?',
     faq_a1: 'Yes. If you choose the anonymous mode, no identifying information (name, IP address, connection data) is ever recorded. You receive a case number and a password so you can track your report without ever revealing your identity.',
     faq_q2: 'What happens after I submit my report?',
-    faq_a2: 'Your report is immediately classified using the NOCA risk matrix, then assigned to one or more sworn DARC investigators. You can follow progress and communicate securely from the tracking portal.',
+    // === IMPROVEMENT ADDED (Frontend audit — Phase 3, microcopy) ===
+    // NOCA and DARC were never spelled out on public pages; a first-time
+    // whistleblower reader had no context for either acronym.
+    faq_a2: 'Your report is immediately classified using the Group’s internal risk-criticality grid (NOCA matrix), then assigned to one or more sworn investigators from the Audit, Risk & Compliance Directorate (DARC). You can follow progress and communicate securely from the tracking portal.',
     faq_q3: 'Am I protected against retaliation?',
     faq_a3: 'Yes. ACTIVA Group\'s policy guarantees full protection against any form of retaliation towards a whistleblower acting in good faith, in accordance with the Group\'s Code of Ethics.',
     faq_q4: 'Can I add to or delete my report?',
@@ -2140,7 +2146,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     faq_q1: 'Minha denúncia é realmente anônima?',
     faq_a1: 'Sim. Se você escolher o modo anônimo, nenhuma informação que permita identificá-lo (nome, endereço IP, dados de conexão) é registrada. Você recebe um número de caso e uma senha para acompanhar sua denúncia sem nunca revelar sua identidade.',
     faq_q2: 'O que acontece depois que envio minha denúncia?',
-    faq_a2: 'Sua denúncia é imediatamente classificada de acordo com a matriz de risco NOCA e, em seguida, atribuída a um ou mais investigadores da DARC. Você pode acompanhar o andamento e conversar com segurança pelo portal de acompanhamento.',
+    // === MELHORIA ADICIONADA (Auditoria frontend — Fase 3, microcopy) ===
+    // As siglas NOCA e DARC nunca eram explicadas nas páginas públicas; um
+    // denunciante de primeira viagem não tinha contexto para nenhuma delas.
+    faq_a2: 'Sua denúncia é imediatamente classificada de acordo com a grade de criticidade interna do Grupo (matriz NOCA) e, em seguida, atribuída a um ou mais investigadores juramentados da Diretoria de Auditoria, Riscos e Conformidade (DARC). Você pode acompanhar o andamento e conversar com segurança pelo portal de acompanhamento.',
     faq_q3: 'Estou protegido(a) contra retaliação?',
     faq_a3: 'Sim. A política do Grupo ACTIVA garante proteção total contra qualquer forma de retaliação a um denunciante de boa-fé, em conformidade com o Código de Ética do Grupo.',
     faq_q4: 'Posso complementar ou excluir minha denúncia?',
