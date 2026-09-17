@@ -91,6 +91,7 @@ import { LinkPersonModal } from './investigation/LinkPersonModal';
 import { EscalateModal } from './investigation/EscalateModal';
 import { DismissModal } from './investigation/DismissModal';
 import { AddMeasureModal } from './investigation/AddMeasureModal';
+import { AssignModal } from './investigation/AssignModal';
 import { getPriorityBadge } from './investigation/getPriorityBadge';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
@@ -104,7 +105,7 @@ import { isGlobalCaseViewer, userCan } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
-import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
+import { computeCandidates } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
 // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
 import { evaluateEscalationCriteria } from '../domain/escalationCriteria';
@@ -119,48 +120,11 @@ import { AlertStatusBucket, getAlertStatusBucket, isRejectedBucket } from '../do
 import { computeRiskEvaluation, formatCountryLabel } from '../data/activaConfig';
 import { generateSalt, hashPassword, generateAccessPassword } from '../services/crypto';
 
-// === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
-// Petit composant partagé entre les deux groupes (compatibles / autorisés
-// Groupe) de la modale d'attribution — évite de dupliquer deux fois le
-// même balisage checkbox + charge de travail.
-// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === Exportée (auparavant
-// privée à ce fichier) pour que le nouvel écran OperatorCaseDesk.tsx
-// réutilise exactement le même balisage checkbox + charge de travail pour
-// son propre panneau d'attribution, plutôt que de le dupliquer — aucun
-// changement de comportement ici.
-export function AssignCandidateRow({
-  candidate,
-  checked,
-  onToggle,
-}: {
-  candidate: AssignmentCandidate;
-  checked: boolean;
-  onToggle: (checked: boolean) => void;
-}) {
-  const { user: inv, workload } = candidate;
-  return (
-    <label
-      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-        checked ? 'bg-blue-50 border-blue-400 font-semibold' : 'border-slate-200 hover:bg-slate-50'
-      }`}
-    >
-      <div>
-        <div className="text-slate-900">{inv.name}</div>
-        <div className="text-[11px] text-slate-500">{inv.roleTitle} • {formatCountryLabel(storage.getCountries(), inv.country)}</div>
-        <div className="text-[10px] text-slate-400 mt-0.5">
-          {workload.active} dossier(s) actif(s)
-          {workload.overdue > 0 && <span className="text-rose-600 font-semibold"> · {workload.overdue} en retard</span>}
-        </div>
-      </div>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onToggle(e.target.checked)}
-        className="rounded text-blue-600 focus:ring-blue-500"
-      />
-    </label>
-  );
-}
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+// section) === `AssignCandidateRow` déplacé tel quel dans
+// src/components/investigation/AssignCandidateRow.tsx, désormais partagé
+// entre OperatorCaseDesk.tsx et AssignModal.tsx (plus utilisé directement
+// ici depuis l'extraction de la modale d'attribution).
 
 // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
 // section) === `LinkedAccountSelect` déplacé tel quel dans
@@ -2729,95 +2693,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
       {/* MODAL: ASSIGN INVESTIGATORS */}
       {showAssignModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                Attribuer l'alerte à un ou plusieurs gestionnaires
-              </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Dossier {selectedAlert.trackingNumber} ({selectedAlert.concernedEntity})
-              </p>
-            </div>
-
-            {/* === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
-                Remplace la liste plate et non triée par le moteur de
-                compatibilité : "Compatibles" (même pays+entité que le
-                dossier) affichés en premier, puis "Autorisés Groupe"
-                (périmètre vide) en second — jamais un enquêteur dont le
-                périmètre ne correspond à aucun des deux par défaut, voir
-                domain/assignmentEngine.ts. Chaque ligne affiche désormais
-                aussi la charge de travail réelle (dossiers actifs/en
-                retard), déjà calculée pour le Centre de Pilotage mais
-                jusqu'ici invisible ici. */}
-            <div className="space-y-3 max-h-72 overflow-y-auto">
-              {assignCandidates && assignCandidates.compatible.length === 0 && assignCandidates.groupAuthorized.length === 0 && (
-                <p className="text-slate-500 text-[11px] italic p-2">
-                  Aucun enquêteur compatible ou autorisé Groupe pour ce dossier (périmètre, confidentialité, conflit d'intérêt ou disponibilité).
-                </p>
-              )}
-
-              {assignCandidates && assignCandidates.compatible.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                    Enquêteurs compatibles ({selectedAlert.concernedEntity})
-                  </div>
-                  {assignCandidates.compatible.map((c) => (
-                    <AssignCandidateRow
-                      key={c.user.id}
-                      candidate={c}
-                      checked={selectedInvestigatorIds.includes(c.user.id)}
-                      onToggle={(checked) =>
-                        setSelectedInvestigatorIds(
-                          checked
-                            ? [...selectedInvestigatorIds, c.user.id]
-                            : selectedInvestigatorIds.filter((id) => id !== c.user.id)
-                        )
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-
-              {assignCandidates && assignCandidates.groupAuthorized.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-                    Enquêteurs autorisés Groupe (vision Groupe)
-                  </div>
-                  {assignCandidates.groupAuthorized.map((c) => (
-                    <AssignCandidateRow
-                      key={c.user.id}
-                      candidate={c}
-                      checked={selectedInvestigatorIds.includes(c.user.id)}
-                      onToggle={(checked) =>
-                        setSelectedInvestigatorIds(
-                          checked
-                            ? [...selectedInvestigatorIds, c.user.id]
-                            : selectedInvestigatorIds.filter((id) => id !== c.user.id)
-                        )
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleAssignInvestigators}
-                className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
-              >
-                Enregistrer l'attribution
-              </button>
-            </div>
-          </div>
-        </div>
+        <AssignModal
+          selectedAlert={selectedAlert}
+          assignCandidates={assignCandidates}
+          selectedInvestigatorIds={selectedInvestigatorIds}
+          setSelectedInvestigatorIds={setSelectedInvestigatorIds}
+          setShowAssignModal={setShowAssignModal}
+          handleAssignInvestigators={handleAssignInvestigators}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
