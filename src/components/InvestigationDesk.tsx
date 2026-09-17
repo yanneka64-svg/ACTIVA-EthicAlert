@@ -86,6 +86,8 @@ import { TriageSection } from './investigation/TriageSection';
 import { ReportSection } from './investigation/ReportSection';
 import { OverviewSection } from './investigation/OverviewSection';
 import { PriorityModal } from './investigation/PriorityModal';
+import { AddPersonModal } from './investigation/AddPersonModal';
+import { LinkPersonModal } from './investigation/LinkPersonModal';
 import { getPriorityBadge } from './investigation/getPriorityBadge';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
@@ -157,36 +159,10 @@ export function AssignCandidateRow({
   );
 }
 
-// === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
-// Petit composant partagé entre la modale "+ Ajouter" et la modale "Lier à
-// un compte" — évite de dupliquer deux fois le même <select> de
-// rattachement d'une personne impliquée/témoin à un compte réel de la
-// plateforme (InvolvedPerson.linkedUserId / Witness.linkedUserId,
-// types.ts Phase 1). Dès qu'un rattachement est défini, le routage
-// indépendant (domain/independentRouting.ts, Phase 3-4) exclura
-// automatiquement ce compte de l'accès au dossier.
-function LinkedAccountSelect({
-  users,
-  value,
-  onChange,
-}: {
-  users: UserProfile[];
-  value: string;
-  onChange: (userId: string) => void;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white"
-    >
-      <option value="">Aucun (personne externe)</option>
-      {users.map((u) => (
-        <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
-      ))}
-    </select>
-  );
-}
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+// section) === `LinkedAccountSelect` déplacé tel quel dans
+// src/components/investigation/LinkedAccountSelect.tsx (importé ci-dessus),
+// partagé entre AddPersonModal.tsx et LinkPersonModal.tsx.
 
 // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
 // section) === `PersonRow` déplacé tel quel dans
@@ -2416,88 +2392,33 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === Modal partagée pour "+ Ajouter" (Personnes impliquées / Témoins) */}
             {addPersonKind && (
-              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-                <form onSubmit={handleAddPerson} className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-3 text-xs">
-                  <h3 className="text-sm font-bold text-slate-900">{t.person_modal_title}</h3>
-                  {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Ajouter une
-                      personne) === pills "Type de personne" façon maquette —
-                      permet de choisir/changer la liste cible (Personnes
-                      impliquées ou Témoins) directement dans la modale,
-                      plutôt que par deux boutons "+ Ajouter" distincts
-                      seulement. Pas de pill "Autre" : aucune 3e liste
-                      n'existe sur AlertRecord (seuls `involvedPersons` et
-                      `witnesses`) — l'ajouter aurait été une catégorie sans
-                      donnée réelle derrière (brief §32). */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{t.person_modal_type}</label>
-                    <div className="flex gap-1.5">
-                      {(['subject', 'witness'] as const).map((k) => (
-                        <button
-                          key={k}
-                          type="button"
-                          onClick={() => setAddPersonKind(k)}
-                          className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition ${
-                            addPersonKind === k ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                          }`}
-                        >
-                          {k === 'subject' ? t.person_modal_kind_subject : t.person_modal_kind_witness}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <input
-                    autoFocus
-                    value={personNameInput}
-                    onChange={(e) => setPersonNameInput(e.target.value)}
-                    placeholder="Nom (ou « Confidentiel »)"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                  <input
-                    value={personPositionInput}
-                    onChange={(e) => setPersonPositionInput(e.target.value)}
-                    placeholder="Fonction / Poste"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                  <select
-                    value={personHierarchyInput}
-                    onChange={(e) => setPersonHierarchyInput(e.target.value as InvolvedPerson['hierarchyRole'])}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white"
-                  >
-                    <option value="Employé">Employé</option>
-                    <option value="Cadre">Cadre</option>
-                    <option value="Sous-Directeur">Sous-Directeur</option>
-                    <option value="Directeur+">Directeur+</option>
-                  </select>
-                  {/* === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) === */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Rattachement à un compte (facultatif)</label>
-                    <LinkedAccountSelect users={allUsers} value={personLinkedUserId} onChange={setPersonLinkedUserId} />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setAddPersonKind(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
-                    <button type="submit" disabled={!personNameInput.trim()} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold">{t.case_btn_add}</button>
-                  </div>
-                </form>
-              </div>
+              <AddPersonModal
+                t={t}
+                allUsers={allUsers}
+                addPersonKind={addPersonKind}
+                setAddPersonKind={setAddPersonKind}
+                handleAddPerson={handleAddPerson}
+                personNameInput={personNameInput}
+                setPersonNameInput={setPersonNameInput}
+                personPositionInput={personPositionInput}
+                setPersonPositionInput={setPersonPositionInput}
+                personHierarchyInput={personHierarchyInput}
+                setPersonHierarchyInput={setPersonHierarchyInput}
+                personLinkedUserId={personLinkedUserId}
+                setPersonLinkedUserId={setPersonLinkedUserId}
+              />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) === Modale "Lier à un compte" pour une personne/témoin déjà enregistré·e */}
             {linkingPerson && (
-              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-                <form onSubmit={handleLinkPerson} className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-3 text-xs">
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Lier « {linkingPerson.currentName || 'Confidentiel'} » à un compte
-                  </h3>
-                  <p className="text-slate-500">
-                    Si vous reconnaissez cette personne comme un collaborateur de la plateforme, rattachez-la à son compte réel. Le routage indépendant l'exclura alors automatiquement de l'accès à ce dossier.
-                  </p>
-                  <LinkedAccountSelect users={allUsers} value={linkingUserId} onChange={setLinkingUserId} />
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setLinkingPerson(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
-                    <button type="submit" className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">Enregistrer</button>
-                  </div>
-                </form>
-              </div>
+              <LinkPersonModal
+                allUsers={allUsers}
+                linkingPerson={linkingPerson}
+                setLinkingPerson={setLinkingPerson}
+                handleLinkPerson={handleLinkPerson}
+                linkingUserId={linkingUserId}
+                setLinkingUserId={setLinkingUserId}
+              />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: PERSONNES
