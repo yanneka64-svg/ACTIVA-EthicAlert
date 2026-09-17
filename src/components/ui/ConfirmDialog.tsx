@@ -25,7 +25,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Button } from './Button';
+import { Button, ButtonVariant } from './Button';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -40,6 +40,19 @@ interface ConfirmDialogProps {
   onReasonChange?: (value: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — migration des
+  // modales existantes vers ConfirmDialog) ===
+  // Props additives uniquement (aucun champ existant modifié) permettant à
+  // des modales déjà en production, avec leur propre icône/couleur/
+  // placeholder, de migrer vers ce composant partagé sans aucun changement
+  // visuel. Chacune retombe sur le comportement d'origine (aucune icône
+  // hors tone="danger", pas de placeholder, variante du bouton dérivée du
+  // tone) quand elle n'est pas fournie.
+  icon?: React.ReactNode;
+  titleClassName?: string;
+  reasonPlaceholder?: string;
+  confirmVariant?: ButtonVariant;
+  confirmButtonId?: string;
 }
 
 let dialogIdCounter = 0;
@@ -57,6 +70,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onReasonChange,
   onConfirm,
   onCancel,
+  icon,
+  titleClassName,
+  reasonPlaceholder,
+  confirmVariant,
+  confirmButtonId,
 }) => {
   const titleId = useRef(`confirm-dialog-title-${++dialogIdCounter}`).current;
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -99,8 +117,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs"
       >
         <div className="border-b border-slate-100 pb-3">
-          <h3 id={titleId} className={`text-sm font-bold flex items-center gap-1.5 ${tone === 'danger' ? 'text-critical' : 'text-slate-900'}`}>
-            {tone === 'danger' && <AlertTriangle className="w-4 h-4" />}
+          <h3 id={titleId} className={`text-sm font-bold flex items-center gap-1.5 ${titleClassName ?? (tone === 'danger' ? 'text-critical' : 'text-slate-900')}`}>
+            {icon ?? (tone === 'danger' && <AlertTriangle className="w-4 h-4" />)}
             {title}
           </h3>
           {description && <p className="text-slate-500 text-[11px] mt-0.5">{description}</p>}
@@ -118,6 +136,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               rows={4}
               value={reason}
               onChange={(e) => onReasonChange?.(e.target.value)}
+              placeholder={reasonPlaceholder}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -130,7 +149,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           </Button>
           <Button
             type="button"
-            variant={tone === 'danger' ? 'danger' : 'primary'}
+            id={confirmButtonId}
+            variant={confirmVariant ?? (tone === 'danger' ? 'danger' : 'primary')}
             size="sm"
             disabled={confirmDisabled}
             onClick={onConfirm}

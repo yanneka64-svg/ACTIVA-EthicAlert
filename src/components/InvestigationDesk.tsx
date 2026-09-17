@@ -73,7 +73,7 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
-import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable } from './ui';
+import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable, ConfirmDialog } from './ui';
 import type { DataTableColumn } from './ui';
 // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
 import { CaseReportPrintView } from './CaseReportPrintView';
@@ -4196,101 +4196,58 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         </div>
       )}
 
-      {/* MODAL: REOPEN CASE (WITH MANDATORY REASON - CDC 3.1.3) */}
-      {showReopenModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 text-rose-700">
-                <RotateCcw className="w-4 h-4" />
-                Rouvrir le dossier {selectedAlert.trackingNumber}
-              </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                Règle stricte : Motif de réouverture obligatoire consigné en piste d'audit.
-              </p>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Motif obligatoire de réouverture *
-              </label>
-              <textarea
-                rows={4}
-                value={reopenReason}
-                onChange={(e) => setReopenReason(e.target.value)}
-                placeholder="Précisez les nouveaux faits constatés, l'incomplétude identifiée ou la demande du Comité d'audit..."
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
-                required
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowReopenModal(false)}
-                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleReopenAlert}
-                disabled={!reopenReason.trim()}
-                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white font-bold"
-              >
-                Valider la réouverture
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* MODAL: REOPEN CASE (WITH MANDATORY REASON - CDC 3.1.3)
+          === AMÉLIORATION AJOUTÉE (Refactor — migration vers ConfirmDialog
+          partagé) === Rendu et comportement identiques à l'ancienne modale
+          ad hoc (mêmes couleurs rose-600/700, même icône, même placeholder,
+          même bouton désactivé tant que le motif est vide) — seule
+          l'implémentation change. */}
+      {selectedAlert && (
+        <ConfirmDialog
+          open={showReopenModal}
+          title={`Rouvrir le dossier ${selectedAlert.trackingNumber}`}
+          description="Règle stricte : Motif de réouverture obligatoire consigné en piste d'audit."
+          confirmLabel="Valider la réouverture"
+          cancelLabel="Annuler"
+          tone="danger"
+          icon={<RotateCcw className="w-4 h-4" />}
+          titleClassName="text-rose-700"
+          requireReason
+          reasonLabel="Motif obligatoire de réouverture *"
+          reasonPlaceholder="Précisez les nouveaux faits constatés, l'incomplétude identifiée ou la demande du Comité d'audit..."
+          reason={reopenReason}
+          onReasonChange={setReopenReason}
+          onConfirm={handleReopenAlert}
+          onCancel={() => setShowReopenModal(false)}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche)
           === MODAL: demander des informations complémentaires
-          (investigation → pending_information, storage.transitionStatus()). */}
-      {showRequestInfoModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 text-purple-700">
-                <HelpCircle className="w-4 h-4" />
-                {t.request_info_modal_title} — {selectedAlert.trackingNumber}
-              </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">{t.request_info_modal_desc}</p>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">{t.request_info_modal_label}</label>
-              <textarea
-                rows={4}
-                value={requestInfoReason}
-                onChange={(e) => setRequestInfoReason(e.target.value)}
-                placeholder={t.request_info_modal_placeholder}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                required
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowRequestInfoModal(false)}
-                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                id="btn-request-info-submit"
-                onClick={handleRequestInfo}
-                disabled={!requestInfoReason.trim()}
-                className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold"
-              >
-                {t.request_info_modal_submit}
-              </button>
-            </div>
-          </div>
-        </div>
+          (investigation → pending_information, storage.transitionStatus()).
+          === AMÉLIORATION AJOUTÉE (Refactor — migration vers ConfirmDialog
+          partagé) === Rendu et comportement identiques à l'ancienne modale
+          ad hoc (variante purple-600/700 dédiée du bouton, même icône,
+          même id sur le bouton de validation). */}
+      {selectedAlert && (
+        <ConfirmDialog
+          open={showRequestInfoModal}
+          title={`${t.request_info_modal_title} — ${selectedAlert.trackingNumber}`}
+          description={t.request_info_modal_desc}
+          confirmLabel={t.request_info_modal_submit}
+          cancelLabel="Annuler"
+          icon={<HelpCircle className="w-4 h-4" />}
+          titleClassName="text-purple-700"
+          confirmVariant="accent"
+          confirmButtonId="btn-request-info-submit"
+          requireReason
+          reasonLabel={t.request_info_modal_label}
+          reasonPlaceholder={t.request_info_modal_placeholder}
+          reason={requestInfoReason}
+          onReasonChange={setRequestInfoReason}
+          onConfirm={handleRequestInfo}
+          onCancel={() => setShowRequestInfoModal(false)}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
