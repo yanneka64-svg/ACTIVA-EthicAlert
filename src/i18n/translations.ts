@@ -939,6 +939,13 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_review: 'En revue',
     // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
     sidebar_op_closed: 'Dossiers clôturés',
+    // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
+    // Remplace le libellé "Tableau de bord" de l'onglet `inv_dashboard` :
+    // cet écran (InvestigationDesk, `initialFilter={{ myCasesOnly: true }}`)
+    // affiche déjà uniquement les dossiers attribués à l'enquêteur connecté
+    // — clé de code et écran inchangés, seul le libellé de menu devient
+    // "Boîte de réception", sur demande explicite de l'utilisateur.
+    sidebar_inv_inbox: 'Boîte de réception',
     sidebar_inv_my_cases: 'Mes dossiers',
     sidebar_inv_to_process: 'À traiter',
     sidebar_inv_in_progress: 'En cours',
@@ -1899,6 +1906,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_processed: 'Open Cases',
     sidebar_op_review: 'Under Review',
     sidebar_op_closed: 'Closed Cases',
+    sidebar_inv_inbox: 'Inbox',
     sidebar_inv_my_cases: 'My Cases',
     sidebar_inv_to_process: 'To Process',
     sidebar_inv_in_progress: 'In Progress',
@@ -2839,6 +2847,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     sidebar_op_processed: 'Casos em aberto',
     sidebar_op_review: 'Em revisão',
     sidebar_op_closed: 'Casos encerrados',
+    sidebar_inv_inbox: 'Caixa de entrada',
     sidebar_inv_my_cases: 'Meus casos',
     sidebar_inv_to_process: 'A processar',
     sidebar_inv_in_progress: 'Em curso',
