@@ -69,7 +69,7 @@ import type { DataTableColumn, KpiTone } from './ui';
 // le même balisage checkbox + charge de travail que la modale d'attribution
 // d'InvestigationDesk.tsx (composant désormais exporté depuis ce fichier
 // pour cette seule raison, aucun autre changement).
-import { AssignCandidateRow } from './InvestigationDesk';
+import { AssignCandidateRow } from './investigation/AssignCandidateRow';
 
 // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace Enquêteur) ===
 // 3 nouveaux modes purement additifs : `my_cases`/`to_process`/`in_progress`
