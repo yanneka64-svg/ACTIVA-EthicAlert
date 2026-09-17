@@ -14,9 +14,16 @@ const CONTACT_EMAIL = 'activa.whistleblowing@group-activa.com';
  *
  * Remplace le bouton décoratif du pied de page (sans destination) par un
  * vrai onglet public (`/legal-notice`, voir routing/routes.ts et App.tsx),
- * sur le même modèle que ContactView.tsx. Contenu-type de départ — les
- * champs entre crochets (adresse, hébergeur, etc.) sont des placeholders
- * à remplacer par les informations légales réelles du Groupe ACTIVA.
+ * sur le même modèle que ContactView.tsx.
+ *
+ * === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+ * BUG PRÉEXISTANT CORRIGÉ : ce contenu était publié avec des espaces
+ * réservés non remplis ([Adresse du siège social], [Numéro RCCM]...),
+ * une non-conformité légale visible instantanément. Adresse et entité
+ * éditrice désormais réelles et confirmées (i18n/translations.ts,
+ * `legal_editor_body`) ; le numéro RCCM, le représentant légal et
+ * l'hébergeur restent explicitement marqués « à compléter par le service
+ * juridique du Groupe » — jamais inventés — en attendant leur confirmation.
  */
 export const LegalNoticeView: React.FC<LegalNoticeViewProps> = ({ lang }) => {
   const t = TRANSLATIONS[lang];
