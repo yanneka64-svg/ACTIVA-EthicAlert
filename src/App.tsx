@@ -4,7 +4,7 @@
  * @license Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Language, UserProfile } from './types';
 import { storage } from './services/storage';
@@ -20,7 +20,16 @@ import { LegalNoticeView } from './components/LegalNoticeView';
 import { PrivacyPolicyView } from './components/PrivacyPolicyView';
 import { AlertSubmissionFlow } from './components/AlertSubmissionFlow';
 import { AlertTrackingView } from './components/AlertTrackingView';
-import { InvestigationDesk } from './components/InvestigationDesk';
+// === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, découpage de code) ===
+// Les écrans ci-dessous ne sont jamais nécessaires à un visiteur public
+// (lanceur d'alerte anonyme, page d'accueil, dépôt/suivi de signalement) —
+// seul un compte staff authentifié les atteint. Chargés à la demande
+// (`React.lazy`) plutôt qu'inclus dans le bundle initial : InvestigationDesk
+// à lui seul fait plus de 4 600 lignes (voir l'audit frontend), chargé
+// jusqu'ici même pour un lanceur d'alerte qui ne le verra jamais. Chaque
+// point de montage est enveloppé dans un `<Suspense>` (voir plus bas) —
+// aucun changement de comportement, seul le MOMENT du chargement change.
+const InvestigationDesk = lazy(() => import('./components/InvestigationDesk').then((m) => ({ default: m.InvestigationDesk })));
 // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — Boîte de réception /
 // À attribuer / En attente d'infos / Dossiers attribués) === remplace le
 // rendu InvestigationDesk+initialFilter des 4 onglets ci-dessous par ce
@@ -28,28 +37,30 @@ import { InvestigationDesk } from './components/InvestigationDesk';
 // panneau liste + détail pour la Boîte de réception) — voir le fichier
 // pour le détail. La fiche dossier complète (InvestigationDesk, inchangée)
 // reste accessible en un clic via `onOpenCase`/`navigateToCases`.
-import { OperatorCaseDesk } from './components/OperatorCaseDesk';
-import { ControlPanel } from './components/ControlPanel';
-import { ReportingDashboard } from './components/ReportingDashboard';
-import { ExecutiveDashboard } from './components/ExecutiveDashboard';
-import { AuditTrailView } from './components/AuditTrailView';
-import { AdminConfigView } from './components/AdminConfigView';
+const OperatorCaseDesk = lazy(() => import('./components/OperatorCaseDesk').then((m) => ({ default: m.OperatorCaseDesk })));
+const ControlPanel = lazy(() => import('./components/ControlPanel').then((m) => ({ default: m.ControlPanel })));
+const ReportingDashboard = lazy(() => import('./components/ReportingDashboard').then((m) => ({ default: m.ReportingDashboard })));
+const ExecutiveDashboard = lazy(() => import('./components/ExecutiveDashboard').then((m) => ({ default: m.ExecutiveDashboard })));
+const AuditTrailView = lazy(() => import('./components/AuditTrailView').then((m) => ({ default: m.AuditTrailView })));
+const AdminConfigView = lazy(() => import('./components/AdminConfigView').then((m) => ({ default: m.AdminConfigView })));
 import { QrCodeModal } from './components/QrCodeModal';
 import { StaffPortalLayout } from './components/StaffPortalLayout';
-import { CaseLookup } from './components/CaseLookup';
+const CaseLookup = lazy(() => import('./components/CaseLookup').then((m) => ({ default: m.CaseLookup })));
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) ===
-import { StaffSpaceHome } from './components/StaffSpaceHome';
+const StaffSpaceHome = lazy(() => import('./components/StaffSpaceHome').then((m) => ({ default: m.StaffSpaceHome })));
 // === AMÉLIORATION AJOUTÉE (Phase 9 — navigation restructurée façon maquette) ===
 // 4 écrans transverses réels (Tâches / Preuves / Communications / Actions
 // correctives), agrégeant des données déjà existantes sur `AlertRecord` —
 // voir chaque fichier pour le détail.
-import { TasksRegistry } from './components/TasksRegistry';
-import { EvidenceRegistry } from './components/EvidenceRegistry';
-import { CommunicationsRegistry } from './components/CommunicationsRegistry';
-import { CorrectiveActionsRegistry } from './components/CorrectiveActionsRegistry';
+const TasksRegistry = lazy(() => import('./components/TasksRegistry').then((m) => ({ default: m.TasksRegistry })));
+const EvidenceRegistry = lazy(() => import('./components/EvidenceRegistry').then((m) => ({ default: m.EvidenceRegistry })));
+const CommunicationsRegistry = lazy(() => import('./components/CommunicationsRegistry').then((m) => ({ default: m.CommunicationsRegistry })));
+const CorrectiveActionsRegistry = lazy(() => import('./components/CorrectiveActionsRegistry').then((m) => ({ default: m.CorrectiveActionsRegistry })));
 // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
-import { AdvancedSearchView } from './components/AdvancedSearchView';
+const AdvancedSearchView = lazy(() => import('./components/AdvancedSearchView').then((m) => ({ default: m.AdvancedSearchView })));
+// === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
+const StaffLoginView = lazy(() => import('./components/StaffLoginView').then((m) => ({ default: m.StaffLoginView })));
 import { ShieldOff } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE : correction post-fusion ===
 // Ces imports (routage par URL, garde-fous, pont RBAC, écran de connexion
@@ -62,7 +73,6 @@ import { ShieldOff } from 'lucide-react';
 import { resolveRoute, pathForTab } from './routing/routes';
 import { AuthenticatedRoute, PermissionGuard } from './routing/guards';
 import { isGlobalCaseViewer, canSeeAuditTrail, canManageConfiguration, userCan } from './services/authz';
-import { StaffLoginView } from './components/StaffLoginView';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -118,6 +128,24 @@ const STAFF_TAB_KEYS = [
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===
   'admin_entities', 'admin_categories', 'admin_database',
 ];
+
+// === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, découpage de code) ===
+// État de chargement partagé par tous les `<Suspense>` ci-dessous, pendant
+// le chargement à la demande d'un écran staff (`React.lazy`) — l'app n'en
+// avait jusqu'ici quasiment aucun (relevé par l'audit), la donnée étant par
+// ailleurs toujours synchrone (localStorage). En pratique quasi instantané
+// une fois le module mis en cache par le navigateur ; ne s'affiche
+// réellement qu'au tout premier accès à chaque écran.
+function StaffLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center py-24 text-slate-400">
+      <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+    </div>
+  );
+}
 
 // === AMÉLIORATION AJOUTÉE : correction post-fusion (Phase 12.2) ===
 // `App()` redevient un mince point d'entrée qui monte le routeur ; toute la
@@ -904,7 +932,11 @@ function AppShell() {
         )}
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) === */}
-        {currentTab === 'login' && <StaffLoginView onLogin={handleLogin} onGoToContact={() => goToTab('contact')} />}
+        {currentTab === 'login' && (
+          <Suspense fallback={<StaffLoadingFallback />}>
+            <StaffLoginView onLogin={handleLogin} onGoToContact={() => goToTab('contact')} />
+          </Suspense>
+        )}
 
         {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
             sélecteur en barre latérale) === Rendue à part, HORS de
@@ -914,7 +946,9 @@ function AppShell() {
             AuthenticatedRoute comme le reste de l'espace staff. */}
         {currentTab === 'space_home' && (
           <AuthenticatedRoute isAuthenticated={isStaffSessionActive} onGoToLogin={() => goToTab('login')}>
-            <StaffSpaceHome lang={lang} activeUser={activeUser} setCurrentTab={goToTab} />
+            <Suspense fallback={<StaffLoadingFallback />}>
+              <StaffSpaceHome lang={lang} activeUser={activeUser} setCurrentTab={goToTab} />
+            </Suspense>
           </AuthenticatedRoute>
         )}
 
@@ -931,7 +965,7 @@ function AppShell() {
               currentTab={currentTab}
               setCurrentTab={goToTab}
             >
-              {renderStaffContent()}
+              <Suspense fallback={<StaffLoadingFallback />}>{renderStaffContent()}</Suspense>
             </StaffPortalLayout>
           </AuthenticatedRoute>
         )}
@@ -940,7 +974,11 @@ function AppShell() {
             Independent of the local demo model above: real Firebase Auth +
             Firestore against the actual project (activa-ethicalert-47246).
             See src/components/CaseLookup.tsx and docs/FIREBASE-SETUP.md. */}
-        {currentTab === 'firebase_lookup' && <CaseLookup lang={lang} />}
+        {currentTab === 'firebase_lookup' && (
+          <Suspense fallback={<StaffLoadingFallback />}>
+            <CaseLookup lang={lang} />
+          </Suspense>
+        )}
       </main>
       </div>
 
