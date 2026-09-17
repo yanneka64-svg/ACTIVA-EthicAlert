@@ -688,7 +688,15 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'Aucune tâche ouverte restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign : période, graphiques, tableau) ===
-    cp_period_30d: '30 jours',
+    // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+    // `cp_period_30d` renommée : le bouton n'a jamais réellement limité
+    // l'affichage à 30 jours (seul le delta d'une carte KPI l'utilisait) —
+    // "30 jours" était donc trompeur. Devient le libellé par défaut
+    // "toute la période", cohérent avec le comportement réel une fois le
+    // filtre de période étendu à tout l'écran (voir ControlPanel.tsx).
+    cp_period_all_time: 'Toute la période',
+    cp_year_all: 'Toutes les années',
+    cp_btn_download_csv: 'Télécharger (CSV)',
     cp_section_trend: 'Tendance des alertes',
     cp_section_category: 'Alertes par catégorie',
     cp_section_priority: 'Alertes par priorité',
@@ -1515,7 +1523,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'No open tasks remaining',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
-    cp_period_30d: '30 Days',
+    cp_period_all_time: 'All time',
+    cp_year_all: 'All years',
+    cp_btn_download_csv: 'Download (CSV)',
     cp_section_trend: 'Alerts Trend',
     cp_section_category: 'Alerts by Category',
     cp_section_priority: 'Alerts by Priority',
@@ -2288,7 +2298,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     closure_check_tasks: 'Nenhuma tarefa em aberto restante',
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
-    cp_period_30d: '30 dias',
+    cp_period_all_time: 'Todo o período',
+    cp_year_all: 'Todos os anos',
+    cp_btn_download_csv: 'Baixar (CSV)',
     cp_section_trend: 'Tendência de alertas',
     cp_section_category: 'Alertas por categoria',
     cp_section_priority: 'Alertas por prioridade',
