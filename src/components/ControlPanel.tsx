@@ -39,6 +39,8 @@ import {
   ShieldAlert,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
   CheckCircle2,
+  // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+  Download,
 } from 'lucide-react';
 import { AlertRecord, Language, PriorityLevel, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -79,14 +81,22 @@ interface ControlPanelProps {
 const PRIORITY_RANK: Record<PriorityLevel, number> = { critique: 4, tres_elevee: 3, elevee: 2, faible: 1 };
 const CATEGORY_PALETTE = ['#2563eb', '#6366f1', '#f97316', '#9333ea', '#0891b2', '#f43f5e', '#10b981', '#64748b', '#eab308', '#14b8a6'];
 
-type PeriodKey = 'today' | '7d' | '30d' | 'custom';
+type PeriodKey = 'today' | '7d' | '30d' | 'custom' | 'year' | 'all_time';
 type TrendRange = '7d' | '30d' | '12m';
 
 function localeOf(lang: Language): string {
   return lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR';
 }
 
-function getPeriodWindow(period: PeriodKey, customStart: string, customEnd: string) {
+// === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+// `year` (nouveau) : filtre le Centre de Pilotage (KPIs, graphiques,
+// tableau) sur une année civile complète, en alternative au sélecteur de
+// plage personnalisée — jamais les deux en même temps (voir le handler
+// du <select> Année ci-dessous). `all_time` (nouveau, valeur par défaut) :
+// aucun filtre, tout l'historique — remplace l'ancien défaut '30d' qui ne
+// filtrait en réalité jamais l'affichage (seul le delta d'une carte KPI
+// l'utilisait), d'où le libellé "30 jours" trompeur retiré du bouton.
+function getPeriodWindow(period: PeriodKey, customStart: string, customEnd: string, selectedYear: number | null) {
   const now = new Date();
   let start: Date;
   let end: Date = now;
@@ -101,9 +111,21 @@ function getPeriodWindow(period: PeriodKey, customStart: string, customEnd: stri
       start = customStart ? new Date(customStart) : new Date(now.getTime() - 30 * 24 * 3600 * 1000);
       end = customEnd ? new Date(customEnd) : now;
       break;
+    case 'year': {
+      const y = selectedYear ?? now.getFullYear();
+      start = new Date(y, 0, 1);
+      end = new Date(y, 11, 31, 23, 59, 59, 999);
+      break;
+    }
     case '30d':
-    default:
       start = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+      break;
+    case 'all_time':
+    default:
+      // Pas de borne réelle : couvre toute donnée existante sans exclure
+      // les dossiers les plus anciens (voir `isScoped` plus bas, qui
+      // n'applique ce filtre à l'affichage que pour 'custom'/'year').
+      start = new Date(0);
       break;
   }
   const spanMs = Math.max(1, end.getTime() - start.getTime());
@@ -154,9 +176,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const t = TRANSLATIONS[lang];
   const locale = localeOf(lang);
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
-  const [period, setPeriod] = useState<PeriodKey>('30d');
+  const [period, setPeriod] = useState<PeriodKey>('all_time');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [trendRange, setTrendRange] = useState<TrendRange>('7d');
   // === AMÉLIORATION AJOUTÉE (calendrier de période pour le rapport) ===
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -192,36 +216,49 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
   const visible = useVisibleAlerts(alerts, activeUser);
 
+  // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+  // `period`/`getPeriodWindow` calculé ici (déplacé plus haut qu'avant,
+  // où il ne servait qu'au delta d'une seule carte KPI) pour pouvoir
+  // dériver `scopedVisible` avant tous les calculs ci-dessous. `isScoped`
+  // n'est vrai que pour 'custom'/'year' — 'all_time' (valeur par défaut)
+  // et les branches historiques 'today'/'7d'/'30d' (jamais réellement
+  // atteignables depuis l'interface aujourd'hui, boutons retirés — voir
+  // getPeriodWindow) laissent `scopedVisible` égal à `visible`, comportement
+  // par défaut inchangé (tout l'historique visible, comme avant ce filtre).
+  const { start: periodStart, end: periodEnd, prevStart, prevEnd } = getPeriodWindow(period, customStart, customEnd, selectedYear);
+  const isScoped = period === 'custom' || period === 'year';
+  const scopedVisible = isScoped ? visible.filter((a) => inWindow(a.createdAt, periodStart, periodEnd)) : visible;
+
   // --- KPIs ---
-  const totalCount = visible.length;
-  const criticalCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'critique').length;
-  const veryHighCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'tres_elevee').length;
-  const lowCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'faible').length;
-  const highCount = visible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'elevee').length;
+  const totalCount = scopedVisible.length;
+  const criticalCount = scopedVisible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'critique').length;
+  const veryHighCount = scopedVisible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'tres_elevee').length;
+  const lowCount = scopedVisible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'faible').length;
+  const highCount = scopedVisible.filter((a) => (a.overridePriority || a.riskEvaluation.priority) === 'elevee').length;
 
   // --- Alert management breakdown ---
   const STATUS_ORDER: AlertRecord['status'][] = ['new', 'under_review', 'investigation', 'corrective_action', 'closed', 'reopened', 'archived'];
   const statusBreakdown = STATUS_ORDER.map((status) => ({
     status,
-    count: visible.filter((a) => a.status === status).length,
+    count: scopedVisible.filter((a) => a.status === status).length,
   }));
 
   // --- SLA monitoring ---
-  const slaOnTrack = visible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'on_track').length;
-  const slaAtRisk = visible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'at_risk').length;
-  const slaOverdue = visible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'overdue').length;
+  const slaOnTrack = scopedVisible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'on_track').length;
+  const slaAtRisk = scopedVisible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'at_risk').length;
+  const slaOverdue = scopedVisible.filter((a) => ACTIVE_STATUSES.includes(a.status) && computeSlaStatus(a) === 'overdue').length;
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   // Remplace l'approximation précédente (dossiers en retard non réassignés,
   // documentée comme telle) par un vrai comptage : `workflowStatus` passe
   // désormais réellement à `'escalated'` via `storage.escalateAlert()`
   // (Phase 3/5), ce qui n'existait pas avant cette phase.
-  const slaEscalated = visible.filter((a) => a.workflowStatus === 'escalated').length;
+  const slaEscalated = scopedVisible.filter((a) => a.workflowStatus === 'escalated').length;
 
   // --- Investigation monitoring ---
-  const activeInvestigations = visible.filter((a) => a.status === 'investigation').length;
-  const pendingInfo = visible.filter((a) => a.status === 'under_review').length;
-  const investigationOverdue = visible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'overdue').length;
-  const investigationApproachingSla = visible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'at_risk').length;
+  const activeInvestigations = scopedVisible.filter((a) => a.status === 'investigation').length;
+  const pendingInfo = scopedVisible.filter((a) => a.status === 'under_review').length;
+  const investigationOverdue = scopedVisible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'overdue').length;
+  const investigationApproachingSla = scopedVisible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'at_risk').length;
 
   // --- Investigator workload ---
   // === AMÉLIORATION AJOUTÉE (Phase 12.3) === permission `cases.edit`
@@ -231,29 +268,36 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
   // Calcul déplacé dans domain/workloadCalc.ts (réutilisé par le moteur
   // d'attribution) — comportement inchangé, y compris le filtre "au moins
-  // 1 dossier actif" et le tri, propres à cet écran.
+  // 1 dossier actif" et le tri, propres à cet écran. Reste volontairement
+  // sur `alerts` (jamais `scopedVisible`) : la charge de travail d'un
+  // enquêteur est un instantané de MAINTENANT (dossiers actifs en ce
+  // moment), pas une donnée historique qu'un filtre de période/année
+  // devrait limiter — filtrer par année de création n'aurait aucun sens
+  // pour "combien de dossiers cet enquêteur a-t-il actuellement en cours".
   const workload: WorkloadRow[] = computeWorkload(investigatorUsers, alerts)
     .filter((row) => row.active > 0)
     .sort((a, b) => b.active - a.active);
 
   // --- Corrective actions ---
-  const allMeasures = visible.flatMap((a) => a.correctiveMeasures);
+  const allMeasures = scopedVisible.flatMap((a) => a.correctiveMeasures);
   const correctiveCompleted = allMeasures.filter((m) => m.status === 'implemented' || m.status === 'verified').length;
 
   // === AMÉLIORATION AJOUTÉE (Phase 6) === period-scoped delta for the Total
   // Alerts KPI ("+X% vs previous period") — a real comparison of alerts
   // created in the selected window vs. the immediately preceding window of
-  // equal length, never a fabricated percentage.
-  const { start: periodStart, end: periodEnd, prevStart, prevEnd } = getPeriodWindow(period, customStart, customEnd);
+  // equal length, never a fabricated percentage. Reste sur `visible` (pas
+  // `scopedVisible`) : la fenêtre "précédente" doit pouvoir remonter avant
+  // le début de la période sélectionnée pour exister (ex. l'année N-1
+  // entière pour un delta année sur année).
   const currentPeriodCount = visible.filter((a) => inWindow(a.createdAt, periodStart, periodEnd)).length;
   const previousPeriodCount = visible.filter((a) => inWindow(a.createdAt, prevStart, prevEnd)).length;
   const totalDeltaPct = previousPeriodCount === 0 ? (currentPeriodCount > 0 ? 100 : 0) : Math.round(((currentPeriodCount - previousPeriodCount) / previousPeriodCount) * 100);
 
   // === AMÉLIORATION AJOUTÉE (Phase 6) === chart data, all derived live.
-  const trendData = buildTrend(visible, trendRange, lang);
+  const trendData = buildTrend(scopedVisible, trendRange, lang);
 
   const categoryCounts = new Map<string, number>();
-  visible.forEach((a) => categoryCounts.set(a.category, (categoryCounts.get(a.category) || 0) + 1));
+  scopedVisible.forEach((a) => categoryCounts.set(a.category, (categoryCounts.get(a.category) || 0) + 1));
   const categoryData: DonutSlice[] = Array.from(categoryCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
@@ -266,7 +310,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // d'AlertStatus n'y correspond aujourd'hui (voir le commentaire du
   // fichier partagé, brief §32 — jamais de compteur fabriqué).
   const bucketCounts: Record<AlertStatusBucket, number> = { a_traiter: 0, en_cours: 0, en_attente: 0, clotures: 0, rejetes: 0 };
-  visible.forEach((a) => {
+  scopedVisible.forEach((a) => {
     bucketCounts[getAlertStatusBucket(a.status)] += 1;
   });
   // Delta période précédente par panier — même fenêtre glissante que
@@ -283,7 +327,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // sélecteur de période), volontairement distincte de la "Tendance des
   // alertes" interactive (7j/30j/12m) de la section existante plus bas —
   // évite un doublon strictement identique sur le même écran.
-  const mockupTrendData = buildTrend(visible, '7d', lang);
+  const mockupTrendData = buildTrend(scopedVisible, '7d', lang);
 
   // "Répartition par statut" — mêmes 5 paniers que les cartes KPI ci-dessus.
   const BUCKET_COLORS: Record<AlertStatusBucket, string> = {
@@ -305,7 +349,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // catégorie" existant plus bas), simplement tronqué à 5 plutôt que
   // recalculé une seconde fois.
   const countryCounts = new Map<string, number>();
-  visible.forEach((a) => countryCounts.set(a.country, (countryCounts.get(a.country) || 0) + 1));
+  scopedVisible.forEach((a) => countryCounts.set(a.country, (countryCounts.get(a.country) || 0) + 1));
   const topCountries: HBarDatum[] = Array.from(countryCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
@@ -323,7 +367,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // attention" lists — ranked by real priority + SLA state, each row deep
   // links straight to that case via the trackingNumber filter.
   const priorityRankOf = (a: AlertRecord) => PRIORITY_RANK[a.overridePriority || a.riskEvaluation.priority];
-  const urgentCases = visible
+  const urgentCases = scopedVisible
     .filter((a) => ACTIVE_STATUSES.includes(a.status))
     .slice()
     .sort((a, b) => {
@@ -335,7 +379,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     })
     .slice(0, 5);
 
-  const attentionCases = visible
+  const attentionCases = scopedVisible
     .filter(
       (a) =>
         ACTIVE_STATUSES.includes(a.status) &&
@@ -348,7 +392,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     })
     .slice(0, 5);
 
-  const recentAlerts = visible
+  const recentAlerts = scopedVisible
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8);
@@ -395,6 +439,59 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     },
   ];
 
+  // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+  // Années réellement présentes dans les dossiers visibles (jamais une
+  // plage fabriquée) — plus l'année civile en cours, toujours proposée
+  // même sans dossier encore créé cette année-là.
+  const availableYears = Array.from(
+    new Set([new Date().getFullYear(), ...visible.map((a) => new Date(a.createdAt).getFullYear())])
+  ).sort((a, b) => b - a);
+
+  // Exporte exactement les dossiers actuellement affichés (`scopedVisible`
+  // — tout l'historique par défaut, ou la plage/année sélectionnée),
+  // mêmes colonnes que le tableau "Dossiers récents" ci-dessus, jamais
+  // limité aux 8 lignes affichées à l'écran (`recentAlerts`).
+  const handleDownloadCsv = () => {
+    const headers = ['Dossier', 'Date', 'Catégorie', 'Pays', 'Entité', 'Priorité', 'Score de risque', 'Statut', 'Investigateur(s)', 'Échéance SLA'];
+    const rows = scopedVisible
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((a) => {
+        const p = a.overridePriority || a.riskEvaluation.priority;
+        return [
+          a.trackingNumber,
+          new Date(a.createdAt).toLocaleDateString(locale),
+          `"${a.category}"`,
+          `"${formatCountryLabel(storage.getCountries(), a.country)}"`,
+          `"${a.concernedEntity}"`,
+          t[`priority_${p}` as keyof typeof t],
+          `${a.riskEvaluation.totalScore}/16`,
+          t[`status_${a.status}` as keyof typeof t] ?? a.status,
+          `"${a.assignedInvestigatorNames.join(', ') || t.cp_unassigned_tag}"`,
+          a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '',
+        ];
+      });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const periodLabel = period === 'year' ? String(selectedYear ?? new Date().getFullYear())
+      : period === 'custom' ? `${customStart || 'debut'}_${customEnd || 'fin'}`
+      : 'toute-periode';
+    link.setAttribute('download', `activa-whistleblowing_CentreDePilotage_${periodLabel}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    storage.logAudit(
+      'REPORT_GENERATED',
+      `Téléchargement CSV des dossiers du Centre de Pilotage (${rows.length} dossier(s), période : ${periodLabel}) par ${activeUser.name}.`,
+      undefined,
+      activeUser
+    );
+  };
+
   return (
     <div className="max-w-[1500px] mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-5">
       {/* Header */}
@@ -416,16 +513,38 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          {/* === AMÉLIORATION AJOUTÉE (calendrier de période pour le rapport) ===
-              Sur demande explicite : remplace les boutons de période
-              (Aujourd'hui/7 jours/30 jours/Personnalisé) + la paire de
-              champs date affichée seulement en mode "Personnalisé" par un
-              unique déclencheur "calendrier" ouvrant un vrai sélecteur de
-              dates (Du/Au). `period` reste utilisé tel quel côté logique
-              (getPeriodWindow, KPIs, graphiques) — passe simplement à
-              'custom' dès qu'une date est choisie ici, avec repli sur les
-              30 derniers jours tant qu'aucune date n'est choisie (mêmes
-              valeurs par défaut qu'avant, voir getPeriodWindow ci-dessus). */}
+          {/* === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi
+              annuel) === Sur demande explicite : le bouton "30 jours"
+              (qui ne filtrait en réalité jamais l'affichage — seul le
+              delta d'une carte KPI l'utilisait, voir getPeriodWindow) est
+              retiré. Ce même déclencheur "calendrier" filtre désormais
+              réellement tout l'écran (KPIs, graphiques, tableau — voir
+              `scopedVisible`) sur la plage Du/Au choisie, avec un
+              sélecteur d'Année en alternative (jamais les deux en même
+              temps) pour le suivi année par année, et un bouton de
+              téléchargement CSV des dossiers de la période affichée. */}
+          <select
+            value={period === 'year' && selectedYear ? String(selectedYear) : ''}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === '') {
+                setPeriod('all_time');
+                setSelectedYear(null);
+              } else {
+                setSelectedYear(Number(v));
+                setPeriod('year');
+                setCustomStart('');
+                setCustomEnd('');
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+          >
+            <option value="">{t.cp_year_all}</option>
+            {availableYears.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+
           <div className="relative" ref={datePickerRef}>
             <button
               onClick={() => setShowDatePicker((v) => !v)}
@@ -433,9 +552,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
             >
               <CalendarRange className="w-3.5 h-3.5 text-blue-600" />
               <span>
-                {customStart && customEnd
+                {period === 'custom' && customStart && customEnd
                   ? `${new Date(customStart).toLocaleDateString(locale)} → ${new Date(customEnd).toLocaleDateString(locale)}`
-                  : t.cp_period_30d}
+                  : t.cp_period_all_time}
               </span>
             </button>
             {showDatePicker && (
@@ -443,19 +562,27 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
                 <input
                   type="date"
                   value={customStart}
-                  onChange={(e) => { setCustomStart(e.target.value); setPeriod('custom'); }}
+                  onChange={(e) => { setCustomStart(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
                   className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
                 />
                 <span className="text-slate-400">→</span>
                 <input
                   type="date"
                   value={customEnd}
-                  onChange={(e) => { setCustomEnd(e.target.value); setPeriod('custom'); }}
+                  onChange={(e) => { setCustomEnd(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
                   className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
                 />
               </div>
             )}
           </div>
+
+          <button
+            onClick={handleDownloadCsv}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-600" />
+            <span>{t.cp_btn_download_csv}</span>
+          </button>
         </div>
       </div>
 
