@@ -25,7 +25,7 @@
  * export, or navigation callback was removed; `onNavigateToNewCase` is a
  * new, additive prop.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Inbox,
   TrendingUp,
@@ -35,7 +35,6 @@ import {
   Activity,
   LayoutDashboard,
   AlertOctagon,
-  CalendarRange,
   ShieldAlert,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
   CheckCircle2,
@@ -182,9 +181,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [trendRange, setTrendRange] = useState<TrendRange>('7d');
-  // === AMÉLIORATION AJOUTÉE (calendrier de période pour le rapport) ===
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const datePickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = storage.subscribe(() => {
@@ -192,20 +188,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     });
     return unsub;
   }, []);
-
-  // === AMÉLIORATION AJOUTÉE (calendrier de période pour le rapport) ===
-  // Ferme le sélecteur de dates au clic en dehors, comme tout menu/popover
-  // de cet écran.
-  useEffect(() => {
-    if (!showDatePicker) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
-        setShowDatePicker(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showDatePicker]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
   // `visible` vient désormais du hook partagé, qui applique en plus le
@@ -514,12 +496,15 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           {/* === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi
-              annuel) === Sur demande explicite : le bouton "30 jours"
-              (qui ne filtrait en réalité jamais l'affichage — seul le
-              delta d'une carte KPI l'utilisait, voir getPeriodWindow) est
-              retiré. Ce même déclencheur "calendrier" filtre désormais
-              réellement tout l'écran (KPIs, graphiques, tableau — voir
-              `scopedVisible`) sur la plage Du/Au choisie, avec un
+              annuel) === Sur demande explicite : le bouton "30 jours" (qui
+              ne filtrait en réalité jamais l'affichage — seul le delta
+              d'une carte KPI l'utilisait, voir getPeriodWindow) est
+              retiré, ainsi que le bouton "calendrier" + popover qui l'a
+              remplacé un temps (libellé "Toute la période" retiré à son
+              tour, sur demande explicite) : les deux champs de date Du/Au
+              sont désormais affichés directement, sans étape de clic
+              intermédiaire. Filtrent réellement tout l'écran (KPIs,
+              graphiques, tableau — voir `scopedVisible`), avec un
               sélecteur d'Année en alternative (jamais les deux en même
               temps) pour le suivi année par année, et un bouton de
               téléchargement CSV des dossiers de la période affichée. */}
@@ -545,35 +530,20 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
             ))}
           </select>
 
-          <div className="relative" ref={datePickerRef}>
-            <button
-              onClick={() => setShowDatePicker((v) => !v)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
-            >
-              <CalendarRange className="w-3.5 h-3.5 text-blue-600" />
-              <span>
-                {period === 'custom' && customStart && customEnd
-                  ? `${new Date(customStart).toLocaleDateString(locale)} → ${new Date(customEnd).toLocaleDateString(locale)}`
-                  : t.cp_period_all_time}
-              </span>
-            </button>
-            {showDatePicker && (
-              <div className="absolute right-0 top-full mt-2 z-20 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex items-center gap-2 text-[11px]">
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => { setCustomStart(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
-                  className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
-                />
-                <span className="text-slate-400">→</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => { setCustomEnd(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
-                  className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800"
-                />
-              </div>
-            )}
+          <div className="flex items-center gap-2 text-[11px]">
+            <input
+              type="date"
+              value={customStart}
+              onChange={(e) => { setCustomStart(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
+              className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-800 shadow-2xs"
+            />
+            <span className="text-slate-400">→</span>
+            <input
+              type="date"
+              value={customEnd}
+              onChange={(e) => { setCustomEnd(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
+              className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-800 shadow-2xs"
+            />
           </div>
 
           <button
