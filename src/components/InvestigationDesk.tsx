@@ -2374,6 +2374,21 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               </button>
             </div>
 
+            {/* === BUG PRÉEXISTANT CORRIGÉ (bouton "+ Ajouter" de l'onglet
+                Preuves dédié) === Cet <input type="file"> caché n'était
+                jusqu'ici rendu que dans le bloc "Vue d'ensemble" ci-dessous
+                (conditionné par activeCaseTab === 'overview'), donc
+                démonté dès qu'un autre onglet était actif :
+                evidenceFileInputRef.current valait alors `null`, et le
+                bouton "+ Ajouter" de l'onglet Preuves dédié
+                (EvidenceSection.tsx) ne déclenchait rien. Remonté ici,
+                en dehors du switch par onglet, pour rester toujours monté
+                tant qu'un dossier est affiché en mode détail — les deux
+                boutons ("Vue d'ensemble" et "Preuves") continuent de
+                cliquer exactement le même <input>, comportement inchangé
+                pour le premier, corrigé pour le second. */}
+            <input ref={evidenceFileInputRef} type="file" className="hidden" onChange={handleAddEvidenceFile} />
+
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: 1. VUE
                 D'ENSEMBLE — reproduit exactement les 4 blocs de la maquette
                 (Description avec "Modifier", Personnes impliquées + Témoins
@@ -2570,7 +2585,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       <Plus className="w-3.5 h-3.5" />
                       {t.case_btn_add}
                     </button>
-                    <input ref={evidenceFileInputRef} type="file" className="hidden" onChange={handleAddEvidenceFile} />
                   </div>
                   {selectedAlert.evidences.length === 0 ? (
                     <p className="text-slate-400 italic">Aucun document joint</p>
