@@ -1,5 +1,8 @@
 // === AMÉLIORATION AJOUTÉE (Phase 0 — design system foundation) ===
 // Barrel export for the shared UI primitives introduced in this phase.
+// === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, design system) ===
+export { Button } from './Button';
+export type { ButtonVariant, ButtonSize } from './Button';
 export { StatusBadge } from './StatusBadge';
 export type { BadgeStatus } from './StatusBadge';
 export { PriorityBadge, nocaColor } from './PriorityBadge';

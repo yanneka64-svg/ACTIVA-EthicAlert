@@ -1,5 +1,36 @@
 @import "tailwindcss";
 
+/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, design system) ===
+   Jusqu'ici, la couleur de marque (navy) était répétée en dur en
+   hexadécimal (`bg-[#0B2545]`, `hover:bg-[#134074]`...) dans une vingtaine
+   de fichiers, avec une dérive déjà observée (2 valeurs de navy, 3 nuances
+   de survol différentes pour un même bouton "primaire" — voir l'audit).
+   Ce bloc `@theme` (syntaxe CSS-first de Tailwind v4) déclare ces couleurs
+   UNE SEULE FOIS et génère automatiquement les utilitaires correspondants
+   (`bg-brand`, `text-brand`, `border-brand`, `hover:bg-brand-hover`, etc.),
+   consommés par le nouveau composant `<Button>` (components/ui/Button.tsx)
+   et, au fil du temps, par les écrans migrés. Reprend la couleur déjà
+   dominante (`#0B2545`, 95 occurrences avant cette phase) comme unique
+   source de vérité — aucune nouvelle couleur inventée, rien de retiré des
+   fichiers qui utilisent encore l'ancien hex en dur (migration progressive,
+   jamais un changement de comportement forcé d'un coup). Couleurs
+   sémantiques (`critical`/`success`...) séparées des tons décoratifs des
+   cartes KPI, pour éviter la confusion "rose = urgent" vs "rose = décoratif"
+   relevée dans l'audit. */
+@theme {
+  --color-brand: #0b2545;
+  --color-brand-hover: #134074;
+  --color-brand-tint: #e7ecf3;
+
+  --color-critical: #e11d48;
+  --color-critical-hover: #be123c;
+  --color-high: #ea580c;
+  --color-medium: #d97706;
+  --color-success: #0f6b4f;
+  --color-success-hover: #0a5b41;
+  --color-progress: #4338ca;
+}
+
 /* === AMÉLIORATION AJOUTÉE (dézoom léger pour un meilleur affichage) ===
    Sur demande explicite de l'utilisateur : l'app utilise très majoritairement
    des unités Tailwind en `rem` (tailles de police, paddings, marges...), donc

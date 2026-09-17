@@ -236,7 +236,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_dates: 'Date(s) des faits constatés',
     no_future_dates_warning: 'La date ne peut pas être située dans le futur',
     label_location: 'Lieu précis de l’incident',
-    
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, correction i18n) ===
+    // BUG PRÉEXISTANT CORRIGÉ : ces 4 messages de validation étaient codés
+    // en dur en français dans AlertSubmissionFlow.tsx, ignorant la langue
+    // réellement choisie (fr/en/pt) — un utilisateur en anglais ou en
+    // portugais recevait ce texte en français malgré tout.
+    err_missing_description: 'Veuillez fournir une description détaillée des faits constatés.',
+    err_missing_date: 'Veuillez préciser la date ou la période des faits.',
+    err_missing_location: 'Veuillez préciser le lieu des faits.',
+    err_missing_desc_date_location: 'Veuillez renseigner la description, la date et le lieu des faits.',
+
     // Risk Matrix fields
     matrix_title: 'Évaluation automatique des risques (Matrice DARC)',
     label_financial_impact: 'Impact financier potentiel',
@@ -1299,6 +1308,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_dates: 'Date(s) of facts',
     no_future_dates_warning: 'Date cannot be in the future',
     label_location: 'Incident location',
+    err_missing_description: 'Please provide a detailed description of the facts.',
+    err_missing_date: 'Please specify the date or period of the facts.',
+    err_missing_location: 'Please specify the location of the facts.',
+    err_missing_desc_date_location: 'Please provide the description, date and location of the facts.',
 
     matrix_title: 'Automatic Risk Assessment (DARC Matrix)',
     label_financial_impact: 'Potential financial impact',
@@ -2239,6 +2252,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     label_dates: 'Data(s) dos fatos',
     no_future_dates_warning: 'A data não pode ser futura',
     label_location: 'Local do incidente',
+    err_missing_description: 'Por favor, forneça uma descrição detalhada dos fatos.',
+    err_missing_date: 'Por favor, indique a data ou o período dos fatos.',
+    err_missing_location: 'Por favor, indique o local dos fatos.',
+    err_missing_desc_date_location: 'Por favor, indique a descrição, a data e o local dos fatos.',
 
     matrix_title: 'Avaliação Automática de Riscos (Matriz DARC)',
     label_financial_impact: 'Impacto financeiro potencial',
