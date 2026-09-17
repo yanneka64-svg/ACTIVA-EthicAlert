@@ -42,7 +42,7 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
 
   return (
     <div
-      className="group [perspective:1200px] cursor-pointer"
+      className="group [perspective:1200px] cursor-pointer h-full"
       role="button"
       tabIndex={0}
       aria-pressed={flipped}
@@ -55,11 +55,11 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
       }}
     >
       <div
-        className="grid transition-transform duration-500 ease-in-out [transform-style:preserve-3d]"
+        className="grid h-full transition-transform duration-500 ease-in-out [transform-style:preserve-3d]"
         style={{ transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
       >
         {/* Face avant — balisage identique à l'origine */}
-        <div className="[grid-area:1/1] [backface-visibility:hidden] bg-white p-6 border border-slate-200 shadow-sm space-y-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-slate-300">
+        <div className="[grid-area:1/1] h-full [backface-visibility:hidden] bg-white p-6 border border-slate-200 shadow-sm space-y-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-slate-300">
           <div className="flex items-center gap-2.5">
             <span className="w-6 h-6 bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center shrink-0">
               {idx + 1}
@@ -74,7 +74,7 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
 
         {/* Face arrière */}
         <div
-          className="[grid-area:1/1] [backface-visibility:hidden] bg-white p-6 border border-slate-200 shadow-sm flex flex-col gap-2"
+          className="[grid-area:1/1] h-full [backface-visibility:hidden] bg-white p-6 border border-slate-200 shadow-sm flex flex-col gap-2"
           style={{ transform: 'rotateY(180deg)' }}
         >
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
