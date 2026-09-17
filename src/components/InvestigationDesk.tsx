@@ -75,6 +75,8 @@ import { storage } from '../services/storage';
 // section) === premier contenu d'onglet extrait dans son propre composant,
 // voir src/components/investigation/CaseTimelineSection.tsx.
 import { CaseTimelineSection } from './investigation/CaseTimelineSection';
+import { PersonRow } from './investigation/PersonRow';
+import { PersonsSection } from './investigation/PersonsSection';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
 import { PriorityBadge, StatusBadge, Breadcrumb, nocaColor, DataTable, ConfirmDialog } from './ui';
@@ -176,53 +178,11 @@ function LinkedAccountSelect({
   );
 }
 
-// === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
-// Ligne Personne impliquée/Témoin, partagée entre le résumé de l'onglet
-// Vue d'ensemble et l'onglet Personnes dédié — ces deux rendus affichaient
-// jusqu'ici un balisage identique dupliqué. Ajoute l'indicateur "Compte
-// lié" et l'affordance "Lier à un compte" sans changer le rendu existant
-// (avatar/nom/fonction/niveau hiérarchique) ; `dense` reproduit fidèlement
-// les deux légères différences de taille qui existaient déjà entre les
-// deux contextes (résumé compact vs. onglet dédié).
-function PersonRow({
-  person,
-  users,
-  dense,
-  onLinkClick,
-}: {
-  person: InvolvedPerson | Witness;
-  users: UserProfile[];
-  dense: boolean;
-  onLinkClick: () => void;
-}) {
-  const linkedUser = person.linkedUserId ? users.find((u) => u.id === person.linkedUserId) : undefined;
-  return (
-    <div className={`flex items-center gap-2.5 ${dense ? 'p-2' : 'p-2.5'} bg-slate-50 rounded-lg border border-slate-100`}>
-      <span className={`${dense ? 'w-8 h-8 text-[11px]' : 'w-9 h-9 text-xs'} rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0`}>
-        {(person.name || '??').slice(0, 2).toUpperCase()}
-      </span>
-      <div className="min-w-0 flex-1">
-        <span className="font-bold text-slate-900 block truncate">{person.name || 'Confidentiel'}</span>
-        <div className="text-[11px] text-slate-500 truncate">{person.position} • {person.hierarchyRole}</div>
-        {linkedUser && (
-          <div className="text-[10px] text-emerald-700 font-semibold truncate flex items-center gap-1 mt-0.5">
-            <Link2 className="w-3 h-3" />
-            Compte lié : {linkedUser.name}
-          </div>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={onLinkClick}
-        title="Lier à un compte"
-        className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-blue-700 hover:bg-blue-50"
-      >
-        <Link2 className="w-3.5 h-3.5" />
-      </button>
-      <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-    </div>
-  );
-}
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
+// section) === `PersonRow` déplacé tel quel dans
+// src/components/investigation/PersonRow.tsx (importé ci-dessus), partagé
+// entre le résumé "Vue d'ensemble" ci-dessous et l'onglet "Personnes"
+// dédié (voir PersonsSection.tsx).
 
 interface InvestigationDeskProps {
   lang: Language;
@@ -2724,43 +2684,19 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: PERSONNES
                 — vue dédiée (reprend Personnes impliquées + Témoins, avec
                 "+ Ajouter", partagée avec l'onglet Vue d'ensemble). */}
+            {/* === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk —
+                extraction par section) === contenu déplacé tel quel dans
+                son propre composant, voir
+                src/components/investigation/PersonsSection.tsx. */}
             {activeCaseTab === 'persons' && (
-              <div className="p-6 space-y-4 max-h-[640px] overflow-y-auto text-xs">
-                {(['subject', 'witness'] as const).map((kind) => {
-                  const list = kind === 'subject' ? selectedAlert.involvedPersons : selectedAlert.witnesses;
-                  return (
-                    <div key={kind} className="p-4 rounded-xl border border-slate-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <h5 className="font-bold text-slate-900">
-                          {kind === 'subject' ? 'Personnes impliquées' : 'Témoins'} ({list.length})
-                        </h5>
-                        <button
-                          onClick={() => setAddPersonKind(kind)}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          {t.case_btn_add}
-                        </button>
-                      </div>
-                      {list.length === 0 ? (
-                        <p className="text-slate-400 italic">Non spécifié</p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {list.map((p) => (
-                            <PersonRow
-                              key={p.id}
-                              person={p}
-                              users={allUsers}
-                              dense={false}
-                              onLinkClick={() => { setLinkingPerson({ kind, id: p.id, currentName: p.name }); setLinkingUserId(p.linkedUserId ?? ''); }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <PersonsSection
+                selectedAlert={selectedAlert}
+                allUsers={allUsers}
+                t={t}
+                setAddPersonKind={setAddPersonKind}
+                setLinkingPerson={setLinkingPerson}
+                setLinkingUserId={setLinkingUserId}
+              />
             )}
 
             {/* === AMÉLIORATION AJOUTÉE (Phase 11) === TAB CONTENT: PREUVES —
