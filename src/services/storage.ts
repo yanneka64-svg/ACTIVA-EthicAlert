@@ -421,19 +421,18 @@ class StorageService {
   // donne accès à Utilisateurs/Rôles & Permissions, condition nécessaire
   // pour recréer les autres comptes ensuite sans aide extérieure.
   //
-  // === AMÉLIORATION AJOUTÉE (identité réelle + mot de passe par défaut à
-  // changement obligatoire, demande explicite) === Compte réel (MEBADA
-  // EKANI Yannick, Group Forensic Analyst), plus un persona générique.
-  // `passwordHash`/`passwordSalt` ci-dessous sont le salage+hachage
-  // (services/crypto.ts, même algorithme) PRÉCALCULÉS du mot de passe par
-  // défaut `ActivaForensic2026!` — jamais stocké en clair, mais un mot de
-  // passe FIXE et connu (documenté ici et communiqué directement à
-  // l'administrateur), pas un secret aléatoire imprévisible : ce compte
-  // s'amorce sans écran admin pour en afficher un. `mustChangePassword:
-  // true` + `passwordSetAt` (calculé au moment réel de l'amorçage, jamais
-  // figé) imposent son remplacement dès la première connexion, avec la
-  // même expiration de 4h que tout autre mot de passe temporaire (voir
-  // TEMP_PASSWORD_TTL_MS) si non utilisé.
+  // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
+  // BUG PRÉEXISTANT CORRIGÉ : le mot de passe temporaire de ce compte de
+  // secours était jusqu'ici documenté EN CLAIR dans ce commentaire, lisible
+  // par quiconque a accès au dépôt. `passwordHash`/`passwordSalt`
+  // ci-dessous sont le salage+hachage (services/crypto.ts, même algorithme,
+  // inchangé) d'un NOUVEAU mot de passe temporaire généré aléatoirement,
+  // communiqué séparément et de façon sécurisée à l'administrateur (jamais
+  // committé en clair). `mustChangePassword: true` + `passwordSetAt`
+  // (calculé au moment réel de l'amorçage, jamais figé) imposent toujours
+  // son remplacement dès la première connexion, avec la même expiration de
+  // 4h que tout autre mot de passe temporaire (voir TEMP_PASSWORD_TTL_MS)
+  // si non utilisé.
   private emergencyAdminSeed(): UserProfile[] {
     return [
       {
@@ -448,8 +447,8 @@ class StorageService {
         countries: [],
         entities: [],
         active: true,
-        passwordHash: '7d9d8d7e6cddbeb7db34cef5567a0bb0fb8cb69969e64c1215a8cb4f7d329630',
-        passwordSalt: 'a4f19e2c7b3d8106',
+        passwordHash: 'ebea5dbccaaa1486532559de832900744b5ee8f92634be43a4abddf35fa52b6e',
+        passwordSalt: '624a5778a97e69a6feb6690fd06630e9',
         mustChangePassword: true,
         passwordSetAt: new Date().toISOString(),
       },

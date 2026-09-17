@@ -196,12 +196,21 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ack_success_title: 'Votre signalement a été soumis avec succès',
     ack_success_desc: 'Nous vous remercions pour votre confiance. Votre signalement a bien été enregistré et transmis aux équipes compétentes pour analyse.',
     ack_password_label: 'Mot de passe',
-    ack_credentials_note: 'Conservez précieusement cet identifiant et ce mot de passe. Ils vous permettront de suivre l’avancement de votre signalement en toute confidentialité.',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
+    // BUG PRÉEXISTANT CORRIGÉ : ce message ne précisait jamais ce qu'il se
+    // passe en cas de perte des identifiants, alors qu'ils sont en réalité
+    // irrécupérables — voir aussi `track_login_help` désormais affiché.
+    ack_credentials_note: 'Conservez précieusement cet identifiant et ce mot de passe : ils vous permettront de suivre l’avancement de votre signalement en toute confidentialité. En cas de perte, il ne sera pas possible de les récupérer ni de retrouver votre dossier.',
     ack_next_heading: 'Et ensuite ?',
     ack_next_track_title: 'Suivez votre signalement',
     ack_next_track_desc: 'Connectez-vous avec votre identifiant et votre mot de passe sur la plateforme pour consulter les mises à jour.',
-    ack_next_anon_title: 'Votre anonymat est garanti',
-    ack_next_anon_desc: 'Aucune information personnelle n’est requise. Tous les échanges restent confidentiels et sécurisés.',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
+    // BUG PRÉEXISTANT CORRIGÉ : « garanti » est une promesse absolue,
+    // juridiquement risquée et en tension avec l'avertissement sur les
+    // métadonnées des pièces jointes (`track_docs_metadata_warning`) —
+    // reformulé en langage honnête et vérifiable.
+    ack_next_anon_title: 'Votre anonymat est protégé',
+    ack_next_anon_desc: 'Aucune information personnelle n’est requise. Tous les échanges restent confidentiels et accessibles uniquement aux personnes habilitées.',
     ack_next_informed_title: 'Vous serez informé',
     ack_next_informed_desc: 'Vous recevrez des mises à jour dans votre espace sécurisé dès qu’une évolution sera disponible.',
     btn_copy_password: 'Copier',
@@ -367,7 +376,11 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Messaging
     // === AMÉLIORATION AJOUTÉE (Phase 33) === titre raccourci + sous-titre
     // séparé, conforme à la capture (bandeau vert avec les deux lignes).
-    msg_box_title: 'Messagerie sécurisée et chiffrée',
+    // === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
+    // BUG PRÉEXISTANT CORRIGÉ : « chiffrée » promettait un chiffrement de
+    // bout en bout qui ne correspond pas à l'architecture réelle (stockage
+    // local non chiffré) — reformulé en langage vérifiable.
+    msg_box_title: 'Messagerie confidentielle et sécurisée',
     msg_placeholder: 'Écrivez un message ou apportez un complément d’information...',
     btn_send_msg: 'Envoyer',
 
@@ -1249,12 +1262,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ack_success_title: 'Your report has been submitted successfully',
     ack_success_desc: 'Thank you for your trust. Your report has been recorded and forwarded to the relevant teams for analysis.',
     ack_password_label: 'Password',
-    ack_credentials_note: 'Keep this reference number and password safe. They will let you track the progress of your report confidentially.',
+    ack_credentials_note: 'Keep this reference number and password safe: they will let you track the progress of your report confidentially. If lost, they cannot be recovered and your report cannot be retrieved.',
     ack_next_heading: 'What happens next?',
     ack_next_track_title: 'Track your report',
     ack_next_track_desc: 'Log in with your reference number and password on the platform to view updates.',
-    ack_next_anon_title: 'Your anonymity is guaranteed',
-    ack_next_anon_desc: 'No personal information is required. All exchanges remain confidential and secure.',
+    ack_next_anon_title: 'Your anonymity is protected',
+    ack_next_anon_desc: 'No personal information is required. All exchanges remain confidential and accessible only to authorized staff.',
     ack_next_informed_title: 'You will be informed',
     ack_next_informed_desc: 'You will receive updates in your secure area as soon as progress is available.',
     btn_copy_password: 'Copy',
@@ -1405,7 +1418,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_you_label: 'You',
     track_field_status: 'Status',
 
-    msg_box_title: 'Secure, encrypted messaging',
+    msg_box_title: 'Confidential, secure messaging',
     msg_placeholder: 'Write a message or provide additional evidence...',
     btn_send_msg: 'Send Message',
 
@@ -2189,12 +2202,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ack_success_title: 'Sua denúncia foi enviada com sucesso',
     ack_success_desc: 'Agradecemos sua confiança. Sua denúncia foi registrada e encaminhada às equipes competentes para análise.',
     ack_password_label: 'Senha',
-    ack_credentials_note: 'Guarde com cuidado este identificador e esta senha. Eles permitirão acompanhar o andamento da sua denúncia com total confidencialidade.',
+    ack_credentials_note: 'Guarde com cuidado este identificador e esta senha: eles permitirão acompanhar o andamento da sua denúncia com total confidencialidade. Em caso de perda, não será possível recuperá-los nem localizar novamente o seu processo.',
     ack_next_heading: 'E agora?',
     ack_next_track_title: 'Acompanhe sua denúncia',
     ack_next_track_desc: 'Conecte-se com seu identificador e sua senha na plataforma para consultar as atualizações.',
-    ack_next_anon_title: 'Seu anonimato é garantido',
-    ack_next_anon_desc: 'Nenhuma informação pessoal é exigida. Todas as trocas permanecem confidenciais e seguras.',
+    ack_next_anon_title: 'O seu anonimato é protegido',
+    ack_next_anon_desc: 'Nenhuma informação pessoal é exigida. Todas as trocas permanecem confidenciais e acessíveis apenas a pessoas autorizadas.',
     ack_next_informed_title: 'Você será informado',
     ack_next_informed_desc: 'Você receberá atualizações em sua área segura assim que houver progresso.',
     btn_copy_password: 'Copiar',
@@ -2346,7 +2359,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     track_you_label: 'Você',
     track_field_status: 'Status',
 
-    msg_box_title: 'Mensagens seguras e encriptadas',
+    msg_box_title: 'Mensagens confidenciais e seguras',
     msg_placeholder: 'Escreva uma mensagem ou envie informações complementares...',
     btn_send_msg: 'Enviar',
 

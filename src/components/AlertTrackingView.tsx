@@ -460,7 +460,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
             <form onSubmit={handleLogin} className="activa-caret-blink space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="input-tracking-number" className="block text-xs font-semibold text-slate-700 mb-1">
                   {t.track_label_case_number} *
                 </label>
                 <input
@@ -474,7 +474,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="input-tracking-password" className="block text-xs font-semibold text-slate-700 mb-1">
                   {t.track_label_password} *
                 </label>
                 <div className="relative">
@@ -494,6 +494,11 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {/* === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
+                    BUG PRÉEXISTANT CORRIGÉ : `track_login_help` existait déjà dans
+                    les traductions (avertissement sur la non-récupérabilité des
+                    accès) mais n'était affiché nulle part dans l'application. */}
+                <p className="mt-1.5 text-[11px] text-slate-500">{t.track_login_help}</p>
               </div>
 
               <button
