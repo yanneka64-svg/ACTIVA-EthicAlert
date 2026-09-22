@@ -696,7 +696,14 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // désormais affichés directement, sans bouton ni libellé de repli
     // (voir ControlPanel.tsx).
     cp_year_all: 'Toutes les années',
-    cp_btn_download_csv: 'Télécharger (CSV)',
+    // === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) ===
+    // `cp_btn_download_csv` ("Télécharger (CSV)") renommée : sur demande
+    // explicite, CSV et PDF sont désormais encapsulés dans un seul bouton
+    // "Exporter" (menu déroulant), même principe que le bouton "Exporter
+    // (PDF / Excel)" déjà existant sur l'écran Rapports & Reporting.
+    cp_btn_export: 'Exporter',
+    cp_export_format_csv: 'CSV',
+    cp_export_format_pdf: 'PDF',
     cp_section_trend: 'Tendance des alertes',
     cp_section_category: 'Alertes par catégorie',
     cp_section_priority: 'Alertes par priorité',
@@ -1524,7 +1531,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
     cp_year_all: 'All years',
-    cp_btn_download_csv: 'Download (CSV)',
+    cp_btn_export: 'Export',
+    cp_export_format_csv: 'CSV',
+    cp_export_format_pdf: 'PDF',
     cp_section_trend: 'Alerts Trend',
     cp_section_category: 'Alerts by Category',
     cp_section_priority: 'Alerts by Priority',
@@ -2298,7 +2307,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // === AMÉLIORATION AJOUTÉE (Phase 6 — Control Panel redesign) ===
     cp_year_all: 'Todos os anos',
-    cp_btn_download_csv: 'Baixar (CSV)',
+    cp_btn_export: 'Exportar',
+    cp_export_format_csv: 'CSV',
+    cp_export_format_pdf: 'PDF',
     cp_section_trend: 'Tendência de alertas',
     cp_section_category: 'Alertas por categoria',
     cp_section_priority: 'Alertas por prioridade',

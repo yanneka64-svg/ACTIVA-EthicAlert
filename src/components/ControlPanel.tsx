@@ -25,7 +25,7 @@
  * export, or navigation callback was removed; `onNavigateToNewCase` is a
  * new, additive prop.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Inbox,
   TrendingUp,
@@ -38,8 +38,10 @@ import {
   ShieldAlert,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
   CheckCircle2,
-  // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
+  // === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) ===
   Download,
+  FileSpreadsheet,
+  Printer,
 } from 'lucide-react';
 import { AlertRecord, Language, PriorityLevel, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
@@ -57,6 +59,8 @@ import { ACTIVE_STATUSES, computeWorkload, WorkloadRow } from '../domain/workloa
 import { AlertStatusBucket, getAlertStatusBucket } from '../domain/alertStatusBuckets';
 import { KpiCard, DataTable, EmptyState, StatusBadge, MiniLineChart, MiniDonutChart, MiniBarChart, MiniHBarList } from './ui';
 import type { DataTableColumn, TrendPoint, DonutSlice, BarDatum, HBarDatum } from './ui';
+// === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) ===
+import { ControlPanelPrintView } from './ControlPanelPrintView';
 
 interface CasesFilter {
   status?: string;
@@ -181,6 +185,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [trendRange, setTrendRange] = useState<TrendRange>('7d');
+  // === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) ===
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showPrintReport, setShowPrintReport] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = storage.subscribe(() => {
@@ -188,6 +196,35 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     });
     return unsub;
   }, []);
+
+  // === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) ===
+  // Ferme le menu "Exporter" au clic en dehors, comme tout menu/popover
+  // de cet écran.
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportMenu]);
+
+  // === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) === Laisse
+  // React monter ControlPanelPrintView (rendu conditionnellement sur
+  // `showPrintReport`, plus bas) avant d'appeler `window.print()`, qui
+  // n'imprime alors QUE ce contenu grâce aux règles `.print-only`/
+  // `@media print` (index.css) — même mécanisme que
+  // ReportingPrintView.tsx/CaseReportPrintView.tsx.
+  useEffect(() => {
+    if (!showPrintReport) return;
+    const timer = window.setTimeout(() => {
+      window.print();
+      setShowPrintReport(false);
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [showPrintReport]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
   // `visible` vient désormais du hook partagé, qui applique en plus le
@@ -429,49 +466,82 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     new Set([new Date().getFullYear(), ...visible.map((a) => new Date(a.createdAt).getFullYear())])
   ).sort((a, b) => b - a);
 
+  // === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) ===
+  // Libellé de période partagé par les deux formats d'export (nom de
+  // fichier CSV, en-tête du PDF).
+  const exportPeriodLabel = period === 'year' ? String(selectedYear ?? new Date().getFullYear())
+    : period === 'custom' ? `${customStart || 'debut'}_${customEnd || 'fin'}`
+    : 'toute-periode';
+
+  const statusLabel = (status: AlertRecord['status']) => t[`status_${status}` as keyof typeof t] ?? status;
+
   // Exporte exactement les dossiers actuellement affichés (`scopedVisible`
   // — tout l'historique par défaut, ou la plage/année sélectionnée),
   // mêmes colonnes que le tableau "Dossiers récents" ci-dessus, jamais
-  // limité aux 8 lignes affichées à l'écran (`recentAlerts`).
-  const handleDownloadCsv = () => {
-    const headers = ['Dossier', 'Date', 'Catégorie', 'Pays', 'Entité', 'Priorité', 'Score de risque', 'Statut', 'Investigateur(s)', 'Échéance SLA'];
-    const rows = scopedVisible
+  // limité aux 8 lignes affichées à l'écran (`recentAlerts`). Construit une
+  // seule fois, partagée par l'export CSV et le PDF (voir
+  // ControlPanelPrintView.tsx) pour ne jamais dériver deux fois la même
+  // donnée.
+  const buildExportRows = () =>
+    scopedVisible
       .slice()
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((a) => {
         const p = a.overridePriority || a.riskEvaluation.priority;
-        return [
-          a.trackingNumber,
-          new Date(a.createdAt).toLocaleDateString(locale),
-          `"${a.category}"`,
-          `"${formatCountryLabel(storage.getCountries(), a.country)}"`,
-          `"${a.concernedEntity}"`,
-          t[`priority_${p}` as keyof typeof t],
-          `${a.riskEvaluation.totalScore}/16`,
-          t[`status_${a.status}` as keyof typeof t] ?? a.status,
-          `"${a.assignedInvestigatorNames.join(', ') || t.cp_unassigned_tag}"`,
-          a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '',
-        ];
+        return {
+          trackingNumber: a.trackingNumber,
+          date: new Date(a.createdAt).toLocaleDateString(locale),
+          category: a.category,
+          country: formatCountryLabel(storage.getCountries(), a.country),
+          entity: a.concernedEntity,
+          priority: t[`priority_${p}` as keyof typeof t],
+          riskScore: `${a.riskEvaluation.totalScore}/16`,
+          status: statusLabel(a.status),
+          assigned: a.assignedInvestigatorNames.join(', ') || t.cp_unassigned_tag,
+          sla: a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '',
+        };
       });
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const handleExportCsv = () => {
+    setShowExportMenu(false);
+    const headers = ['Dossier', 'Date', 'Catégorie', 'Pays', 'Entité', 'Priorité', 'Score de risque', 'Statut', 'Investigateur(s)', 'Échéance SLA'];
+    const rows = buildExportRows();
+    const csvContent = 'data:text/csv;charset=utf-8,' + [
+      headers.join(','),
+      ...rows.map((r) => [
+        r.trackingNumber, r.date, `"${r.category}"`, `"${r.country}"`, `"${r.entity}"`,
+        r.priority, r.riskScore, r.status, `"${r.assigned}"`, r.sla,
+      ].join(',')),
+    ].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    const periodLabel = period === 'year' ? String(selectedYear ?? new Date().getFullYear())
-      : period === 'custom' ? `${customStart || 'debut'}_${customEnd || 'fin'}`
-      : 'toute-periode';
-    link.setAttribute('download', `activa-whistleblowing_CentreDePilotage_${periodLabel}.csv`);
+    link.setAttribute('download', `activa-whistleblowing_CentreDePilotage_${exportPeriodLabel}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
     storage.logAudit(
       'REPORT_GENERATED',
-      `Téléchargement CSV des dossiers du Centre de Pilotage (${rows.length} dossier(s), période : ${periodLabel}) par ${activeUser.name}.`,
+      `Export CSV des dossiers du Centre de Pilotage (${rows.length} dossier(s), période : ${exportPeriodLabel}) par ${activeUser.name}.`,
       undefined,
       activeUser
     );
+  };
+
+  // === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) === Ferme le
+  // menu AVANT d'imprimer (jamais après) : sinon il resterait visible
+  // derrière la boîte de dialogue d'impression du navigateur, même
+  // correctif que l'export PDF déjà existant de Rapports & Reporting.
+  const handleExportPdf = () => {
+    setShowExportMenu(false);
+    storage.logAudit(
+      'REPORT_GENERATED',
+      `Export PDF des dossiers du Centre de Pilotage (${scopedVisible.length} dossier(s), période : ${exportPeriodLabel}) par ${activeUser.name}.`,
+      undefined,
+      activeUser
+    );
+    setShowPrintReport(true);
   };
 
   return (
@@ -546,13 +616,38 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
             />
           </div>
 
-          <button
-            onClick={handleDownloadCsv}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-blue-600" />
-            <span>{t.cp_btn_download_csv}</span>
-          </button>
+          {/* === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) ===
+              Sur demande explicite : "Télécharger (CSV)" devient
+              "Exporter", CSV et PDF encapsulés dans ce même bouton (menu
+              déroulant) — même principe que le bouton "Exporter (PDF /
+              Excel)" déjà existant sur l'écran Rapports & Reporting. */}
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setShowExportMenu((v) => !v)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition shadow-xs cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{t.cp_btn_export}</span>
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 top-full mt-2 z-20 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 flex flex-col gap-0.5 text-[11px] min-w-[150px]">
+                <button
+                  onClick={handleExportCsv}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 font-semibold hover:bg-slate-50 transition text-left"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{t.cp_export_format_csv}</span>
+                </button>
+                <button
+                  onClick={handleExportPdf}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 font-semibold hover:bg-slate-50 transition text-left"
+                >
+                  <Printer className="w-3.5 h-3.5 text-rose-600" />
+                  <span>{t.cp_export_format_pdf}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -855,6 +950,25 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           emptyTitle={t.cp_empty_recent_alerts}
         />
       </section>
+
+      {/* === AMÉLIORATION AJOUTÉE (Exporter — CSV/PDF encapsulés) === Rendu
+          inconditionnellement caché à l'écran (`.print-only`, voir
+          index.css) — ne devient visible que dans la boîte de dialogue
+          d'impression du navigateur, une fois `showPrintReport` à true
+          (voir le useEffect plus haut, qui appelle window.print() puis le
+          réinitialise). */}
+      {showPrintReport && (
+        <ControlPanelPrintView
+          generatedByName={activeUser.name}
+          locale={locale}
+          periodLabel={exportPeriodLabel}
+          totalCount={totalCount}
+          statusBreakdown={statusBreakdown}
+          statusLabel={statusLabel}
+          priorityBarData={priorityBarData}
+          rows={buildExportRows()}
+        />
+      )}
 
     </div>
   );
