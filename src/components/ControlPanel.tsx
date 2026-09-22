@@ -57,6 +57,8 @@ import { ACTIVE_STATUSES, computeWorkload, WorkloadRow } from '../domain/workloa
 import { AlertStatusBucket, getAlertStatusBucket } from '../domain/alertStatusBuckets';
 import { KpiCard, DataTable, EmptyState, StatusBadge, MiniLineChart, MiniDonutChart, MiniBarChart, MiniHBarList } from './ui';
 import type { DataTableColumn, TrendPoint, DonutSlice, BarDatum, HBarDatum } from './ui';
+// === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre de Pilotage) ===
+import { ControlPanelPrintView } from './ControlPanelPrintView';
 
 interface CasesFilter {
   status?: string;
@@ -188,6 +190,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // dupliquées), adaptée aux données réellement affichées sur CET écran.
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  // === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre
+  // de Pilotage) ===
+  const [showPrintReport, setShowPrintReport] = useState(false);
 
   useEffect(() => {
     const unsub = storage.subscribe(() => {
@@ -195,6 +200,23 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     });
     return unsub;
   }, []);
+
+  // === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre
+  // de Pilotage) === Laisse React monter ControlPanelPrintView (rendu
+  // conditionnellement sur `showPrintReport`, plus bas) avant d'appeler
+  // `window.print()`, qui n'imprime alors QUE ce contenu grâce aux règles
+  // `.print-only`/`@media print` (index.css) — même mécanisme que
+  // ReportingPrintView.tsx/CaseReportPrintView.tsx. Remplace l'appel direct
+  // à `window.print()` de `handlePrint` (BUG PRÉEXISTANT CORRIGÉ :
+  // imprimait toute la page — barre latérale, filtres compris).
+  useEffect(() => {
+    if (!showPrintReport) return;
+    const timer = window.setTimeout(() => {
+      window.print();
+      setShowPrintReport(false);
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [showPrintReport]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
   // `visible` vient désormais du hook partagé, qui applique en plus le
@@ -486,9 +508,38 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     );
   };
 
+  // === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre
+  // de Pilotage) === Même libellé de période et mêmes lignes que
+  // `handleExportCSV` ci-dessus (dossiers réellement affichés, colonnes
+  // identiques), reconstruits ici pour alimenter ControlPanelPrintView —
+  // jamais une donnée fabriquée ou divergente entre les deux formats.
+  const printPeriodLabel = period === 'year' ? String(selectedYear ?? new Date().getFullYear())
+    : period === 'custom' ? `${customStart || 'debut'}_${customEnd || 'fin'}`
+    : 'toute-periode';
+  const statusLabel = (status: AlertRecord['status']) => t[`status_${status}` as keyof typeof t] ?? status;
+  const buildPrintRows = () =>
+    scopedVisible
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((a) => {
+        const p = a.overridePriority || a.riskEvaluation.priority;
+        return {
+          trackingNumber: a.trackingNumber,
+          date: new Date(a.createdAt).toLocaleDateString(locale),
+          category: a.category,
+          country: formatCountryLabel(storage.getCountries(), a.country),
+          entity: a.concernedEntity,
+          priority: t[`priority_${p}` as keyof typeof t],
+          riskScore: `${a.riskEvaluation.totalScore}/16`,
+          status: statusLabel(a.status),
+          assigned: a.assignedInvestigatorNames.join(', ') || t.cp_unassigned_tag,
+          sla: a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '',
+        };
+      });
+
   const handlePrint = () => {
     storage.logAudit('REPORT_GENERATED', `Impression / Export PDF du Centre de Pilotage par ${activeUser.name}.`, undefined, activeUser);
-    window.print();
+    setShowPrintReport(true);
   };
 
   return (
@@ -934,6 +985,25 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           emptyTitle={t.cp_empty_recent_alerts}
         />
       </section>
+
+      {/* === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du
+          Centre de Pilotage) === Rendu inconditionnellement caché à
+          l'écran (`.print-only`, voir index.css) — ne devient visible que
+          dans la boîte de dialogue d'impression du navigateur, une fois
+          `showPrintReport` à true (voir le useEffect plus haut, qui
+          appelle window.print() puis le réinitialise). */}
+      {showPrintReport && (
+        <ControlPanelPrintView
+          generatedByName={activeUser.name}
+          locale={locale}
+          periodLabel={printPeriodLabel}
+          totalCount={totalCount}
+          statusBreakdown={statusBreakdown}
+          statusLabel={statusLabel}
+          priorityBarData={priorityBarData}
+          rows={buildPrintRows()}
+        />
+      )}
 
     </div>
   );
