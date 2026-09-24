@@ -191,10 +191,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                   « activa.whistleblowing » à la place du logo corporate
                   (ActivaLogo reste utilisé par les vues d'impression). */}
               <EthicAlertBrand className="h-10 shrink-0" />
+              {/* === AMÉLIORATION AJOUTÉE (topbar staff sans doublon) === Le
+                  logo « Activa.whistleblowing » contient déjà le nom de la
+                  plateforme : le titre + sous-titre répétaient ce nom juste à
+                  côté (sous-titre de plus tronqué). Séparateur et bloc texte
+                  masqués visuellement ; le titre reste lisible par les
+                  lecteurs d'écran (`sr-only`). */}
               {isStaffContext && (
                 <>
-                  <div className="hidden md:block w-px h-8 bg-slate-200" />
-                  <div className="hidden md:block leading-tight">
+                  <div className="hidden" />
+                  <div className="sr-only">
                     <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-blue-700 transition">
                       {t.app_title}
                     </h1>
@@ -333,7 +339,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Right cluster */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* === AMÉLIORATION AJOUTÉE (topbar staff) === `ml-auto` : la
+              recherche est plafonnée (`max-w-xl`), le cluster langue/profil
+              restait donc collé à elle avec un grand vide à droite sur les
+              écrans larges — il est désormais toujours aligné au bord droit. */}
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* === AMÉLIORATION AJOUTÉE (Phase 27) === Icône « cloche » (accès
                 espace collaborateur, ex-`#nav-btn-portal`) retirée de l'en-tête
                 public sur demande explicite. L'espace collaborateur reste
