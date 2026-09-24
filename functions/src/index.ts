@@ -32,7 +32,9 @@ import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { CallableRequest, HttpsError, onCall } from 'firebase-functions/v2/https';
+import { CallableRequest, HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
+// === AMÉLIORATION AJOUTÉE : secret Resend pour notifyEmail (Secret Manager, Blaze) ===
+import { defineSecret } from 'firebase-functions/params';
 
 import {
   Allegation,
@@ -1072,4 +1074,58 @@ export const getEvidenceDownloadUrl = onCall(async (request) => {
   await appendAudit({ actorId: user.userId, action: 'EVIDENCE_ACCESSED', caseId, objectType: 'evidence', objectId: evidenceId });
 
   return { url, expiresAt: new Date(Date.now() + EVIDENCE_URL_TTL_MS).toISOString() };
+});
+
+// === AMÉLIORATION AJOUTÉE : notifyEmail — portage Firebase de api/notify-email.ts ===
+// Même contrat exact que la fonction Vercel `api/notify-email.ts` (POST
+// {to, subject, body} → Resend), pour que `src/services/emailNotify.ts`
+// fonctionne sans modification une fois servi par Firebase Hosting.
+// Prête mais NON déployée tant que le projet reste sur Spark (Cloud Functions
+// exige Blaze). Activation : voir docs/FIREBASE-HOSTING.md §4 — secret
+// RESEND_API_KEY dans Secret Manager, puis réécriture Hosting
+// `/api/notify-email` → `notifyEmail`.
+// Mêmes garanties d'honnêteté que l'original : 503 si la clé manque, erreurs
+// Resend répercutées, jamais un faux 200.
+const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
+
+export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY] }, async (req, res) => {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed — use POST.' });
+    return;
+  }
+
+  const apiKey = RESEND_API_KEY.value();
+  if (!apiKey) {
+    res.status(503).json({ error: 'Email service not configured: RESEND_API_KEY is missing.' });
+    return;
+  }
+
+  const { to, subject, body } = (req.body ?? {}) as { to?: string; subject?: string; body?: string };
+  if (!to || !subject || !body) {
+    res.status(400).json({ error: 'to, subject and body are required.' });
+    return;
+  }
+
+  const fromAddress = process.env.NOTIFY_FROM_EMAIL || 'ACTIVA EthicAlert <onboarding@resend.dev>';
+
+  try {
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: fromAddress, to: [to], subject, text: body }),
+    });
+
+    if (!resendRes.ok) {
+      const errText = await resendRes.text().catch(() => '');
+      res.status(502).json({ error: `Resend error (${resendRes.status}): ${errText.slice(0, 300)}` });
+      return;
+    }
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error while calling Resend.' });
+  }
 });
