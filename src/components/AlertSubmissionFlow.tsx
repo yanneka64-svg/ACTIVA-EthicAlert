@@ -573,12 +573,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545] leading-tight">
               {t.confidentiality_gate_title}
             </h2>
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
+            {/* === AMÉLIORATION AJOUTÉE : texte de confidentialité justifié (text-justify) === */}
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify">
               {t.confidentiality_gate_body1_pre}
               <span className="font-bold text-slate-900">{t.confidentiality_gate_body1_bold}</span>
               {t.confidentiality_gate_body1_post}
             </p>
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify">
               {t.confidentiality_gate_body2_pre}
               <span className="font-bold text-slate-900">{t.confidentiality_gate_body2_bold}</span>
               {t.confidentiality_gate_body2_post}
