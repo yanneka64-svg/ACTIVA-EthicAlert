@@ -33,8 +33,9 @@ export const FaqView: React.FC<FaqViewProps> = ({ lang, onStartNewAlert }) => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       <div className="max-w-2xl space-y-2">
-        {/* === AMÉLIORATION AJOUTÉE === point d'interrogation en noir (demande utilisateur) */}
-        <div className="w-10 h-10 bg-amber-50 border border-amber-200 flex items-center justify-center text-black">
+        {/* === AMÉLIORATION AJOUTÉE === point d'interrogation noir sur fond
+            blanc (variante « B » choisie par l'utilisateur) */}
+        <div className="w-10 h-10 bg-white border border-slate-200 flex items-center justify-center text-black">
           <HelpCircle className="w-5 h-5" />
         </div>
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t.faq_title}</h1>
