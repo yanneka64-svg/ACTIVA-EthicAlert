@@ -226,7 +226,7 @@ export const GovernanceRecipientsTab: React.FC<GovernanceRecipientsTabProps> = (
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">{t.gov_identifier_req}</label>
-                  <input type="text" value={recipientIdentifiant} onChange={(e) => setRecipientIdentifiant(e.target.value)} placeholder={t.gov_identifier_ph} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+                  <input type="text" value={recipientIdentifiant} onChange={(e) => setRecipientIdentifiant(e.target.value)} /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.gov_identifier_ph}) */ className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">{t.users_email}</label>
@@ -245,7 +245,7 @@ export const GovernanceRecipientsTab: React.FC<GovernanceRecipientsTabProps> = (
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block font-semibold text-slate-700 mb-1">{t.gov_function_req}</label>
-                  <input type="text" value={recipientFonction} onChange={(e) => setRecipientFonction(e.target.value)} placeholder={t.gov_function_ph} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+                  <input type="text" value={recipientFonction} onChange={(e) => setRecipientFonction(e.target.value)} /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.gov_function_ph}) */ className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block font-semibold text-slate-700 mb-1">{t.gov_linked_account}</label>

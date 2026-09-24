@@ -158,7 +158,7 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ entities, countries, a
             <form onSubmit={handleSaveEntity} className="space-y-3">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t.ent_name_req}</label>
-                <input type="text" value={entityName} onChange={(e) => setEntityName(e.target.value)} placeholder={t.ent_name_ph} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+                <input type="text" value={entityName} onChange={(e) => setEntityName(e.target.value)} /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.ent_name_ph}) */ className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
               </div>
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t.ent_country_req}</label>
@@ -182,7 +182,7 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ entities, countries, a
                   type="text"
                   value={entityCode}
                   onChange={(e) => setEntityCode(e.target.value.toUpperCase())}
-                  placeholder={t.ent_code_ph}
+                  /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.ent_code_ph}) */
                   className="w-full px-3 py-1.5 border border-slate-300 rounded-lg font-mono uppercase"
                   maxLength={6}
                   pattern="[A-Za-z]{2,6}"

@@ -316,7 +316,7 @@ export const CategoriesTab: React.FC<CategoriesTabProps> = ({ categoriesConfig, 
             <form onSubmit={handleSaveCategory} className="space-y-3">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t.cat_name_req}</label>
-                <input type="text" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder={t.cat_name_ph} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+                <input type="text" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.cat_name_ph}) */ className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
               </div>
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button type="button" onClick={() => setShowCategoryModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">{t.btn_cancel}</button>

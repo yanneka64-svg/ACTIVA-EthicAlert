@@ -287,7 +287,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                       type="text"
                       value={userUsername}
                       onChange={(e) => setUserUsername(e.target.value)}
-                      placeholder={t.users_username_ph}
+                      /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.users_username_ph}) */
                       className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg font-mono"
                       required
                     />
@@ -319,7 +319,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">{t.users_job_title}</label>
-                  <input type="text" value={userRoleTitle} onChange={(e) => setUserRoleTitle(e.target.value)} placeholder={t.users_job_title_ph} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" />
+                  <input type="text" value={userRoleTitle} onChange={(e) => setUserRoleTitle(e.target.value)} /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.users_job_title_ph}) */ className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" />
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">{t.op_col_entity}</label>

@@ -227,7 +227,7 @@ export const CaseLookup: React.FC<CaseLookupProps> = ({ lang }) => {
                 id="fb-lookup-email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="prenom.nom@group-activa.com"
+                /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré */
                 required
                 className="w-full px-3 py-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
@@ -291,7 +291,7 @@ export const CaseLookup: React.FC<CaseLookupProps> = ({ lang }) => {
                 id="fb-lookup-caseid-input"
                 value={caseIdInput}
                 onChange={(e) => setCaseIdInput(e.target.value)}
-                placeholder={t.fb_lookup_search_placeholder}
+                /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.fb_lookup_search_placeholder}) */
                 className="flex-1 px-3 py-2.5 text-xs font-mono border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
               <button
