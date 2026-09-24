@@ -973,6 +973,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     login_username: 'Identifiant',
     login_password: 'Mot de passe',
     login_forgot: 'Mot de passe oublié ?',
+    // === AMÉLIORATION AJOUTÉE : page « Mot de passe oublié ? » ===
+    login_forgot_title: 'Mot de passe oublié',
+    login_forgot_message: 'Veuillez contacter l\'équipe support pour réinitialiser votre mot de passe.',
+    login_forgot_back: 'Retour à la connexion',
     login_show_password: 'Afficher le mot de passe',
     login_hide_password: 'Masquer le mot de passe',
     login_submit: 'Se connecter',
@@ -2418,6 +2422,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     login_username: 'Username',
     login_password: 'Password',
     login_forgot: 'Forgot password?',
+    // === AMÉLIORATION AJOUTÉE : « Forgot password? » page ===
+    login_forgot_title: 'Forgot password',
+    login_forgot_message: 'Please contact the support team to reset your password.',
+    login_forgot_back: 'Back to sign in',
     login_show_password: 'Show password',
     login_hide_password: 'Hide password',
     login_submit: 'Sign in',
@@ -3863,6 +3871,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     login_username: 'Identificador',
     login_password: 'Palavra-passe',
     login_forgot: 'Esqueceu a palavra-passe?',
+    // === AMÉLIORATION AJOUTÉE : página « Esqueceu a palavra-passe? » ===
+    login_forgot_title: 'Palavra-passe esquecida',
+    login_forgot_message: 'Por favor, contacte a equipa de suporte para redefinir a sua palavra-passe.',
+    login_forgot_back: 'Voltar ao início de sessão',
     login_show_password: 'Mostrar palavra-passe',
     login_hide_password: 'Ocultar palavra-passe',
     login_submit: 'Iniciar sessão',

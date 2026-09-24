@@ -31,7 +31,7 @@
  * oublié ?"), distincte de l'identifiant de connexion.
  */
 import React, { useState } from 'react';
-import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 // === AMÉLIORATION AJOUTÉE : page de connexion traduite (FR/EN/PT) ===
 import { TRANSLATIONS } from '../i18n/translations';
@@ -76,6 +76,11 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changeError, setChangeError] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  // === AMÉLIORATION AJOUTÉE : page « Mot de passe oublié ? » ===
+  // Le lien affiche désormais une page dédiée (même carte, même
+  // emplacement) invitant à contacter l'équipe support, avec un retour à
+  // l'écran de connexion — au lieu de rediriger vers la page Contact.
+  const [showForgot, setShowForgot] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +188,33 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
   // première connexion) === même carte/emplacement que l'écran de
   // connexion, contenu remplacé tant que `pendingUser` est défini — aucun
   // accès (onLogin) n'est accordé avant que ce formulaire soit validé.
+  // === AMÉLIORATION AJOUTÉE : page « Mot de passe oublié ? » ===
+  if (showForgot) {
+    return (
+      <div className="min-h-full flex items-center justify-center px-4 pt-32">
+        <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 activa-fade-in">
+          <div className="text-center">
+            <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
+              <KeyRound className="w-6 h-6" />
+            </span>
+            <p className="text-xs font-bold text-slate-900">{t.login_forgot_title}</p>
+            <div className="w-10 h-1 rounded-full bg-blue-500 mx-auto mt-3" />
+            <p id="forgot-password-message" className="text-sm text-slate-700 mt-5 leading-relaxed">{t.login_forgot_message}</p>
+          </div>
+          <button
+            type="button"
+            id="btn-forgot-back"
+            onClick={() => setShowForgot(false)}
+            className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-xs font-bold tracking-wide shadow-md shadow-[#0B2545]/25 hover:bg-[#12294f] transition"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {t.login_forgot_back}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (pendingUser) {
     return (
       <div className="min-h-full flex items-center justify-center px-4 pt-32">
@@ -280,7 +312,8 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
               {onGoToContact && (
                 <button
                   type="button"
-                  onClick={onGoToContact}
+                  // === AMÉLIORATION AJOUTÉE : ouvre la page « Mot de passe oublié ? » ===
+                  onClick={() => setShowForgot(true)}
                   className="text-[10px] font-semibold text-blue-700 hover:underline"
                 >
                   {t.login_forgot}
