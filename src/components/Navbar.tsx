@@ -9,6 +9,7 @@ import {
   // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
   // barre latérale) ===
   ArrowLeftRight,
+  ChevronRight,
 } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (Phase 27) === `QrCode` et `Lock` retirés : ils ne
 // servaient plus qu'aux icônes de l'en-tête public retirées cette phase.
@@ -22,6 +23,8 @@ import { ActivaLogo, EthicAlertBrand } from './ui';
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) ===
 import { computeAvailableSpaces } from '../domain/staffSpaces';
+// === AMÉLIORATION AJOUTÉE : fil d'Ariane de l'espace staff ===
+import { useStaffBreadcrumb } from '../services/staffBreadcrumb';
 
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) === Extraite en fonction de module (comportement et
@@ -98,6 +101,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const t = TRANSLATIONS[lang];
+  // === AMÉLIORATION AJOUTÉE : « Espace › Page » publié par le menu latéral ===
+  const staffBreadcrumb = useStaffBreadcrumb();
   const [showUserDropdown, setShowUserDropdown] = React.useState(false);
   const [showLangDropdown, setShowLangDropdown] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
@@ -191,10 +196,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                   « activa.whistleblowing » à la place du logo corporate
                   (ActivaLogo reste utilisé par les vues d'impression). */}
               <EthicAlertBrand className="h-10 shrink-0" />
+              {/* === AMÉLIORATION AJOUTÉE (topbar staff sans doublon) === Le
+                  logo « Activa.whistleblowing » contient déjà le nom de la
+                  plateforme : le titre + sous-titre répétaient ce nom juste à
+                  côté (sous-titre de plus tronqué). Séparateur et bloc texte
+                  masqués visuellement ; le titre reste lisible par les
+                  lecteurs d'écran (`sr-only`). */}
               {isStaffContext && (
                 <>
-                  <div className="hidden md:block w-px h-8 bg-slate-200" />
-                  <div className="hidden md:block leading-tight">
+                  <div className="hidden" />
+                  <div className="sr-only">
                     <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-blue-700 transition">
                       {t.app_title}
                     </h1>
@@ -245,6 +256,31 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {isStaffContext ? (
             <>
+              {/* === AMÉLIORATION AJOUTÉE (fil d'Ariane de navigation) ===
+                  « Espace › Page » (publié par StaffPortalLayout.tsx via
+                  services/staffBreadcrumb.ts), mis à jour à chaque changement
+                  d'onglet avec un léger fondu (`activa-fade-in`, désactivé si
+                  l'utilisateur préfère réduire les animations). Affiché à
+                  partir de `md` ; rien n'est retiré de la topbar existante. */}
+              {staffBreadcrumb && (staffBreadcrumb.section || staffBreadcrumb.page) && (
+                <nav aria-label={t.nav_breadcrumb} className="hidden md:flex items-center gap-2 min-w-0 shrink-0 pl-4 border-l border-slate-200 text-xs">
+                  <span key={`s-${staffBreadcrumb.section}`} className="activa-fade-in text-slate-500 font-medium whitespace-nowrap">
+                    {staffBreadcrumb.section}
+                  </span>
+                  {staffBreadcrumb.page && (
+                    <>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                      <span
+                        key={`p-${staffBreadcrumb.page}`}
+                        aria-current="page"
+                        className="activa-fade-in font-bold text-[#0B2545] whitespace-nowrap truncate max-w-[220px]"
+                      >
+                        {staffBreadcrumb.page}
+                      </span>
+                    </>
+                  )}
+                </nav>
+              )}
               {/* Search bar (staff portal) === AMÉLIORATION AJOUTÉE
                   (correctif débordement en-tête) === même correctif que le
                   nav public ci-dessous : aligné sur `lg` pour ne jamais se
@@ -333,7 +369,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Right cluster */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* === AMÉLIORATION AJOUTÉE (topbar staff) === `ml-auto` : la
+              recherche est plafonnée (`max-w-xl`), le cluster langue/profil
+              restait donc collé à elle avec un grand vide à droite sur les
+              écrans larges — il est désormais toujours aligné au bord droit. */}
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* === AMÉLIORATION AJOUTÉE (Phase 27) === Icône « cloche » (accès
                 espace collaborateur, ex-`#nav-btn-portal`) retirée de l'en-tête
                 public sur demande explicite. L'espace collaborateur reste
@@ -395,10 +435,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   id="nav-btn-new-alert"
                   onClick={() => setCurrentTab('new_alert')}
-                  className="order-3 lg:order-none flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+                  className="order-3 lg:order-none flex items-center gap-1.5 px-2.5 xl:px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+                  // === AMÉLIORATION AJOUTÉE (débordement en-tête 640–1279px) ===
+                  // Libellé affiché à partir de `xl` seulement : entre `sm` et
+                  // `xl`, le logo complet + « Suivre mon signalement » +
+                  // langue + Connexion ne laissaient plus la place à ce
+                  // libellé long, qui sortait de l'écran. Icône seule en
+                  // dessous, avec info-bulle et libellé accessible.
+                  title={t.btn_new_alert}
+                  aria-label={t.btn_new_alert}
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{t.btn_new_alert}</span>
+                  <span className="hidden xl:inline">{t.btn_new_alert}</span>
                 </button>
                 <div className="hidden md:block w-px h-6 bg-slate-200" />
               </>
