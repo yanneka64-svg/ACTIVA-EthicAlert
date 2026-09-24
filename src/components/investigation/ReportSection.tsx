@@ -69,7 +69,7 @@ export const ReportSection: React.FC<ReportSectionProps> = ({
           <div><span className="text-slate-500">Statut :</span> {selectedAlert.status.toUpperCase()}</div>
           <div><span className="text-slate-500">Investigateur(s) :</span> {selectedAlert.assignedInvestigatorNames.join(', ') || t.case_info_unassigned}</div>
           <div><span className="text-slate-500">Mesures correctives :</span> {selectedAlert.correctiveMeasures.length}</div>
-          <div><span className="text-slate-500">Clôturé le :</span> {selectedAlert.closedAt ? new Date(selectedAlert.closedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR') : '—'}</div>
+          <div><span className="text-slate-500">Clôturé le :</span> {selectedAlert.closedAt ? new Date(selectedAlert.closedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR') : '—'}</div>
         </div>
         {selectedAlert.closureSummary && (
           <p className="pt-2 border-t border-slate-200 text-slate-700 leading-relaxed">{selectedAlert.closureSummary}</p>
@@ -128,7 +128,7 @@ export const ReportSection: React.FC<ReportSectionProps> = ({
             <div key={note.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="font-bold text-[#0B2545]">{note.authorName} ({note.authorRole})</span>
-                <span className="text-slate-400">{new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'fr-FR')}</span>
+                <span className="text-slate-400">{new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}</span>
               </div>
               <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{note.content}</p>
             </div>

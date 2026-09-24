@@ -367,7 +367,7 @@ export const CaseLookup: React.FC<CaseLookupProps> = ({ lang }) => {
                       <Calendar className="w-3 h-3" /> {t.fb_lookup_field_received}
                     </span>
                     <span className="font-semibold text-slate-800">
-                      {new Date(searchResult.receivedAt).toLocaleString(lang === 'en' ? 'en-US' : 'fr-FR')}
+                      {new Date(searchResult.receivedAt).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
                     </span>
                   </div>
                   <div>

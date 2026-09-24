@@ -213,7 +213,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
   const handleAddSupplement = () => {
     if (!supplementText.trim() || !activeAlert) return;
 
-    const timestampStr = new Date().toLocaleString(lang === 'en' ? 'en-US' : 'fr-FR');
+    const timestampStr = new Date().toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR');
     const updatedDesc = `${activeAlert.detailedDescription}\n\n--- [Complément apporté le ${timestampStr}] ---\n${supplementText.trim()}`;
 
     const updatedAlert: AlertRecord = {

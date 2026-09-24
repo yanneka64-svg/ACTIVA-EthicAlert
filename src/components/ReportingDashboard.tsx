@@ -352,7 +352,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
               </h2>
             </div>
             <p className="text-xs text-slate-600">
-              Indicateurs de performance, de conformité et de cartographie des risques éthiques du Groupe ACTIVA.
+              {t.rep_subtitle}
             </p>
           </div>
 
@@ -434,19 +434,19 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
       <div id="report-anchor-activity" className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
-            Total des alertes reçues
+            {t.rep_total_received}
           </div>
           <div className="text-3xl font-extrabold text-[#0B2545] mt-1">{totalAlerts}</div>
           <div className="text-[11px] text-slate-500 mt-2 flex items-center gap-1">
-            <span className="font-semibold text-blue-700">{activeAlerts} actives</span>
+            <span className="font-semibold text-blue-700">{t.rep_active_n.replace('{n}', String(activeAlerts))}</span>
             <span>•</span>
-            <span className="font-semibold text-emerald-700">{closedAlerts} résolues</span>
+            <span className="font-semibold text-emerald-700">{t.rep_resolved_n.replace('{n}', String(closedAlerts))}</span>
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
-            Taux de résolution
+            {t.rep_resolution_rate}
           </div>
           <div className="text-3xl font-extrabold text-emerald-700 mt-1">{resolutionRate}%</div>
           <div className="w-full bg-slate-100 rounded-full h-1.5 mt-3 overflow-hidden">
@@ -456,21 +456,21 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
 
         <div id="report-anchor-sla" className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
-            Délai moyen de traitement
+            {t.rep_avg_processing}
           </div>
-          <div className="text-3xl font-extrabold text-blue-800 mt-1">{avgResolutionDays} j</div>
+          <div className="text-3xl font-extrabold text-blue-800 mt-1">{t.rep_avg_days.replace('{n}', String(avgResolutionDays))}</div>
           <div className="text-[11px] text-slate-500 mt-2">
-            Objectif SLA moyen Groupe : &le; 20 jours
+            {t.rep_sla_goal}
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
-            Signalements anonymes
+            {t.rep_anonymous}
           </div>
           <div className="text-3xl font-extrabold text-amber-700 mt-1">{anonymousPct}%</div>
           <div className="text-[11px] text-slate-500 mt-2">
-            {anonymousCount} anonymes vs {identifiedCount} identifiés
+            {t.rep_anon_vs_identified.replace('{a}', String(anonymousCount)).replace('{b}', String(identifiedCount))}
           </div>
         </div>
       </div>
@@ -481,16 +481,16 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Répartition selon la gravité (Matrice NOCA - Annexe 9)
+              {t.rep_severity_breakdown}
             </h3>
-            <span className="text-[11px] text-slate-500 font-medium">Score 4 à 16</span>
+            <span className="text-[11px] text-slate-500 font-medium">{t.rep_score_range}</span>
           </div>
 
           <div className="space-y-3 text-xs">
             {/* NOCA 4 */}
             <div>
               <div className="flex justify-between font-semibold mb-1">
-                <span className="text-rose-800">NOCA 4 - Critique (Action immédiate 48h)</span>
+                <span className="text-rose-800">{t.rep_noca4}</span>
                 <span className="text-slate-700">{noca4Count} ({totalAlerts > 0 ? Math.round((noca4Count / totalAlerts) * 100) : 0}%)</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -504,7 +504,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
             {/* NOCA 3 */}
             <div>
               <div className="flex justify-between font-semibold mb-1">
-                <span className="text-orange-800">NOCA 3 - Très élevé (Enquête urgente 7j)</span>
+                <span className="text-orange-800">{t.rep_noca3}</span>
                 <span className="text-slate-700">{noca3Count} ({totalAlerts > 0 ? Math.round((noca3Count / totalAlerts) * 100) : 0}%)</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -518,7 +518,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
             {/* NOCA 2 */}
             <div>
               <div className="flex justify-between font-semibold mb-1">
-                <span className="text-amber-800">NOCA 2 - Élevée (Suivi renforcé 15j)</span>
+                <span className="text-amber-800">{t.rep_noca2}</span>
                 <span className="text-slate-700">{noca2Count} ({totalAlerts > 0 ? Math.round((noca2Count / totalAlerts) * 100) : 0}%)</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -532,7 +532,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
             {/* NOCA 1 */}
             <div>
               <div className="flex justify-between font-semibold mb-1">
-                <span className="text-emerald-800">NOCA 1 - Faible (Traitement standard 30j)</span>
+                <span className="text-emerald-800">{t.rep_noca1}</span>
                 <span className="text-slate-700">{noca1Count} ({totalAlerts > 0 ? Math.round((noca1Count / totalAlerts) * 100) : 0}%)</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -549,9 +549,9 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         <div id="report-anchor-category" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Répartition par catégorie de manquement
+              {t.rep_by_category}
             </h3>
-            <span className="text-[11px] text-slate-500 font-medium">{Object.keys(categoryCounts).length} catégories</span>
+            <span className="text-[11px] text-slate-500 font-medium">{t.rep_categories_n.replace('{n}', String(Object.keys(categoryCounts).length))}</span>
           </div>
 
           <div className="space-y-3 text-xs">
@@ -584,9 +584,9 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
                   Libellés dynamiques (visibleCountries/visibleEntities), plus
                   de "10 pays"/"16 entités" en dur — s'ajuste au périmètre du
                   compte ET aux pays/entités réellement configurés (Phase 8). */}
-              Répartition géographique ({visibleCountries.length} pays d'implantation)
+              {t.rep_geo_title.replace('{n}', String(visibleCountries.length))}
             </h3>
-            <span className="text-[11px] text-slate-500 font-medium">{visibleEntities.length} entités</span>
+            <span className="text-[11px] text-slate-500 font-medium">{t.rep_entities_n.replace('{n}', String(visibleEntities.length))}</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
@@ -614,28 +614,28 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              Canaux de signalement & Conformité
+              {t.rep_channels}
             </h3>
-            <span className="text-[11px] text-slate-500 font-medium">Audité DARC</span>
+            <span className="text-[11px] text-slate-500 font-medium">{t.rep_audited}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
-              <span className="text-[11px] font-semibold text-slate-500 block mb-1">Portail Web Sécurisé</span>
+              <span className="text-[11px] font-semibold text-slate-500 block mb-1">{t.rep_web_portal}</span>
               <div className="text-2xl font-extrabold text-[#0B2545]">{webChannelCount}</div>
-              <p className="text-[10px] text-slate-500 mt-1">Navigateur desktop / mobile</p>
+              <p className="text-[10px] text-slate-500 mt-1">{t.rep_browser}</p>
             </div>
 
             <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
-              <span className="text-[11px] font-semibold text-slate-500 block mb-1">QR Code Affiches Filiales</span>
+              <span className="text-[11px] font-semibold text-slate-500 block mb-1">{t.rep_qr_posters}</span>
               <div className="text-2xl font-extrabold text-amber-700">{qrChannelCount}</div>
-              <p className="text-[10px] text-slate-500 mt-1">Accès direct smartphone</p>
+              <p className="text-[10px] text-slate-500 mt-1">{t.rep_direct_mobile}</p>
             </div>
           </div>
 
           <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span>Toutes les mesures conservatoires et les délais de prescription de 10 ans sont respectés.</span>
+            <span>{t.rep_compliance_note}</span>
           </div>
         </div>
       </div>
@@ -697,7 +697,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
                         }}
                         className="rounded text-blue-600 focus:ring-blue-500"
                       />
-                      <span className="text-slate-700">{g.label}</span>
+                      <span className="text-slate-700">{({ general: t.rep_group_general, status_dates: t.rep_group_status_dates, geo: t.rep_group_country_entity, persons: t.rep_group_persons, corrective: t.rep_group_measures } as Record<string, string>)[g.key] ?? g.label}</span>
                     </label>
                   ))}
                 </div>
