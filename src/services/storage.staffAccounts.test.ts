@@ -229,17 +229,74 @@ describe('storage — comptes staff (identifiant + mot de passe)', () => {
       const wrongDemo = await freshStorage.verifyStaffLogin('y.mebadaekani', 'demo');
       expect(wrongDemo).toEqual({ ok: false, reason: 'wrong_password' });
 
-      // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
-      // Mot de passe temporaire mis à jour en cohérence avec le nouveau
-      // hash/sel de `emergencyAdminSeed()` (storage.ts) — l'ancien mot de
-      // passe n'est plus documenté en clair dans le code source de
-      // l'application, seulement ici pour ce test unitaire.
-      const login = await freshStorage.verifyStaffLogin('y.mebadaekani', 'ij@KvmaH5qvbWS@u');
+      // === AMÉLIORATION AJOUTÉE : plus aucun mot de passe en clair dans le
+      // dépôt === Le mot de passe temporaire n'est plus écrit ici : le cycle
+      // complet est vérifié via une régénération (même chemin que l'admin).
+      const temp = await freshStorage.resetUserPassword(users[0].id, users[0]);
+      const login = await freshStorage.verifyStaffLogin('y.mebadaekani', temp);
       expect(login.ok).toBe(true);
       if (login.ok) expect(login.mustChangePassword).toBe(true);
 
       // L'état vide cassé a bien été remplacé en localStorage (pas seulement en mémoire).
       expect(JSON.parse(mockLocalStorage.getItem(USERS_STORAGE_KEY) || '[]')).toHaveLength(1);
+    });
+
+    // === AMÉLIORATION AJOUTÉE : récupération du compte de secours ===
+    it("aligne un compte de secours jamais utilisé (ancien mot de passe, expiré) sur le mot de passe temporaire actuel", async () => {
+      const mockLocalStorage = makeLocalStorageMock();
+      const staleSeed = {
+        id: 'usr-emergency-admin',
+        name: 'MEBADA EKANI Yannick',
+        email: 'by.ekani@group-activa.com',
+        username: 'y.mebadaekani',
+        role: 'system_admin',
+        roleTitle: 'Group Forensic Analyst',
+        entity: 'Toutes entités',
+        country: 'Groupe ACTIVA',
+        countries: [],
+        entities: [],
+        active: true,
+        passwordHash: 'ebea5dbccaaa1486532559de832900744b5ee8f92634be43a4abddf35fa52b6e',
+        passwordSalt: '624a5778a97e69a6feb6690fd06630e9',
+        mustChangePassword: true,
+        passwordSetAt: '2020-01-01T00:00:00.000Z',
+      };
+      mockLocalStorage.setItem(USERS_STORAGE_KEY, JSON.stringify([staleSeed]));
+      vi.stubGlobal('localStorage', mockLocalStorage);
+
+      const { storage: freshStorage } = await import('./storage');
+      const [admin] = freshStorage.getUsers();
+      expect(admin.passwordHash).not.toBe(staleSeed.passwordHash);
+      expect(admin.mustChangePassword).toBe(true);
+      expect(new Date(admin.passwordSetAt as string).getTime()).toBeGreaterThan(Date.now() - 60_000);
+    });
+
+    it("ne touche jamais un compte de secours dont l'administrateur a déjà défini son propre mot de passe", async () => {
+      const mockLocalStorage = makeLocalStorageMock();
+      const ownPassword = {
+        id: 'usr-emergency-admin',
+        name: 'MEBADA EKANI Yannick',
+        email: 'by.ekani@group-activa.com',
+        username: 'y.mebadaekani',
+        role: 'system_admin',
+        roleTitle: 'Group Forensic Analyst',
+        entity: 'Toutes entités',
+        country: 'Groupe ACTIVA',
+        countries: [],
+        entities: [],
+        active: true,
+        passwordHash: 'aaaa',
+        passwordSalt: 'bbbb',
+        mustChangePassword: false,
+        passwordSetAt: '2026-01-01T00:00:00.000Z',
+      };
+      mockLocalStorage.setItem(USERS_STORAGE_KEY, JSON.stringify([ownPassword]));
+      vi.stubGlobal('localStorage', mockLocalStorage);
+
+      const { storage: freshStorage } = await import('./storage');
+      const [admin] = freshStorage.getUsers();
+      expect(admin.passwordHash).toBe('aaaa');
+      expect(admin.passwordSalt).toBe('bbbb');
     });
 
     // === AMÉLIORATION AJOUTÉE (correctif — écran bloqué indéfiniment sur
