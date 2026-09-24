@@ -35,9 +35,11 @@ interface HowItWorksCardProps {
   backTitle: string;
   backDesc: string;
   backButtonLabel: string;
+  // === AMÉLIORATION AJOUTÉE : « Étape n · catégorie » traduit par l'appelant ===
+  stepLabel?: string;
 }
 
-function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle, backDesc, backButtonLabel }: HowItWorksCardProps) {
+function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle, backDesc, backButtonLabel, stepLabel = `Étape ${idx + 1} · ${category}` }: HowItWorksCardProps) {
   const [flipped, setFlipped] = React.useState(false);
 
   return (
@@ -78,7 +80,7 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
           style={{ transform: 'rotateY(180deg)' }}
         >
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Étape {idx + 1} · {category}
+            {stepLabel}
           </span>
           <h4 className="font-bold text-slate-900 text-sm">{backTitle}</h4>
           <p className="text-xs text-slate-600 leading-relaxed flex-1 text-justify">{backDesc}</p>
@@ -423,6 +425,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 backTitle={step.backTitle}
                 backDesc={step.backDesc}
                 backButtonLabel={t.process_back_button}
+                stepLabel={t.home_step_category.replace('{n}', String(idx + 1)).replace('{category}', step.category)}
               />
             );
           })}

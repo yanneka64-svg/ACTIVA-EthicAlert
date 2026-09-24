@@ -130,14 +130,16 @@ const DEFAULT_FOLLOWUP_MESSAGE = "Merci de nous transmettre les informations com
 // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === même repli que
 // `InvestigationDesk.getConfidentialityBadge` — rien pour standard/restreint
 // (jamais alarmant par défaut), un badge discret sinon.
-function ConfidentialityBadge({ level }: { level?: ConfidentialityLevel }) {
+// === AMÉLIORATION AJOUTÉE : libellé traduit (lang optionnel, FR par défaut) ===
+function ConfidentialityBadge({ level, lang = 'fr' }: { level?: ConfidentialityLevel; lang?: Language }) {
+  const tr = TRANSLATIONS[lang];
   const lvl = level ?? 'restricted';
   if (lvl === 'restricted' || lvl === 'standard') return null;
   const style = lvl === 'highly_confidential' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-700 border-amber-200';
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border whitespace-nowrap ${style}`} title="Niveau de confidentialité du dossier">
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border whitespace-nowrap ${style}`} title={tr.desk_confidentiality_level}>
       <Lock className="w-2.5 h-2.5" />
-      {CONFIDENTIALITY_LABELS[lvl]}
+      {({ standard: tr.op_conf_standard, restricted: tr.op_conf_restricted, confidential: tr.desk_confidential, highly_confidential: tr.confidentiality_highly_confidential } as Record<ConfidentialityLevel, string>)[lvl] ?? CONFIDENTIALITY_LABELS[lvl]}
     </span>
   );
 }
@@ -303,6 +305,11 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   const t = TRANSLATIONS[lang];
   const cfg = MODE_CONFIG[mode];
   const dateLocale = lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR';
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (les constantes FR de module restent le repli) ===
+  const channelLabels: Record<AlertRecord['channel'], string> = { ...CHANNEL_LABELS, direct: t.op_channel_direct };
+  const severityLabels: Record<SeverityLevel, string> = { mineure: t.op_sev_minor, moderee: t.op_sev_moderate, majeure: t.op_sev_major, critique: t.op_critical };
+  const urgencyLabels: Record<PriorityLevel, string> = { faible: t.op_urg_low, elevee: t.op_urg_high, tres_elevee: t.op_urg_very_high, critique: t.op_critical };
+  const defaultFollowupMessage = t.op_followup_default || DEFAULT_FOLLOWUP_MESSAGE;
   const displayTitle = titleOverride ?? t[cfg.titleKey];
   const displaySubtitle = subtitleOverride ?? t[cfg.subtitleKey];
   const displayEmpty = emptyOverride ?? t[cfg.emptyKey];
@@ -407,24 +414,24 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   const kpis: { value: number | string; label: string; tone: KpiTone }[] =
     mode === 'inbox'
       ? [
-          { value: modeAlerts.length, label: 'Total à trier', tone: 'blue' },
-          { value: unassignedCount, label: 'Non attribués', tone: 'amber' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
-          { value: receivedTodayCount, label: 'Reçus aujourd’hui', tone: 'emerald' },
+          { value: modeAlerts.length, label: t.op_kpi_total_to_sort, tone: 'blue' },
+          { value: unassignedCount, label: t.op_kpi_unassigned, tone: 'amber' },
+          { value: urgentCount, label: t.op_kpi_urgent, tone: 'rose' },
+          { value: receivedTodayCount, label: t.op_kpi_received_today, tone: 'emerald' },
         ]
       : mode === 'to_assign'
       ? [
-          { value: modeAlerts.length, label: 'Total à attribuer', tone: 'blue' },
-          { value: unassignedCount, label: 'Non attribués', tone: 'amber' },
-          { value: modeAlerts.filter((a) => a.status === 'under_review').length, label: "En attente d’infos", tone: 'purple' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          { value: modeAlerts.length, label: t.op_kpi_total_to_assign, tone: 'blue' },
+          { value: unassignedCount, label: t.op_kpi_unassigned, tone: 'amber' },
+          { value: modeAlerts.filter((a) => a.status === 'under_review').length, label: t.op_kpi_awaiting_info, tone: 'purple' },
+          { value: urgentCount, label: t.op_kpi_urgent, tone: 'rose' },
         ]
       : mode === 'pending_info'
       ? [
-          { value: modeAlerts.length, label: 'Total en attente', tone: 'purple' },
-          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: waitingLongCount, label: 'En attente > 7 jours', tone: 'orange' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          { value: modeAlerts.length, label: t.op_kpi_total_pending, tone: 'purple' },
+          { value: overdueCount, label: t.op_kpi_overdue, tone: 'rose' },
+          { value: waitingLongCount, label: t.op_kpi_waiting_7d, tone: 'orange' },
+          { value: urgentCount, label: t.op_kpi_urgent, tone: 'rose' },
         ]
       : mode === 'assigned'
       ? // === AMÉLIORATION AJOUTÉE (Dossiers ouverts) === "Clôturés"
@@ -433,23 +440,23 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         // à 0 — remplacé par "Urgents / critiques", cohérent avec les
         // autres écrans "de travail".
         [
-          { value: modeAlerts.length, label: 'Total ouverts', tone: 'blue' },
-          { value: inProgressCount, label: 'En cours', tone: 'indigo' },
-          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          { value: modeAlerts.length, label: t.op_kpi_total_open, tone: 'blue' },
+          { value: inProgressCount, label: t.op_kpi_in_progress, tone: 'indigo' },
+          { value: overdueCount, label: t.op_kpi_overdue, tone: 'rose' },
+          { value: urgentCount, label: t.op_kpi_urgent, tone: 'rose' },
         ]
       : mode === 'review'
       ? [
-          { value: modeAlerts.length, label: 'Total en revue', tone: 'indigo' },
-          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: waitingLongCount, label: 'En attente > 7 jours', tone: 'orange' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          { value: modeAlerts.length, label: t.op_kpi_total_review, tone: 'indigo' },
+          { value: overdueCount, label: t.op_kpi_overdue, tone: 'rose' },
+          { value: waitingLongCount, label: t.op_kpi_waiting_7d, tone: 'orange' },
+          { value: urgentCount, label: t.op_kpi_urgent, tone: 'rose' },
         ]
       : mode === 'closed'
       ? [
-          { value: modeAlerts.length, label: 'Total clôturés', tone: 'emerald' },
-          { value: modeAlerts.filter((a) => a.closedAt && isToday(a.closedAt)).length, label: 'Clôturés aujourd’hui', tone: 'blue' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          { value: modeAlerts.length, label: t.op_kpi_total_closed, tone: 'emerald' },
+          { value: modeAlerts.filter((a) => a.closedAt && isToday(a.closedAt)).length, label: t.op_kpi_closed_today, tone: 'blue' },
+          { value: urgentCount, label: t.op_kpi_urgent, tone: 'rose' },
           {
             value: (() => {
               const withDates = modeAlerts.filter((a) => a.closedAt);
@@ -460,23 +467,23 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
               );
               return Math.round(totalDays / withDates.length);
             })(),
-            label: 'Délai moyen (jours)',
+            label: t.op_kpi_avg_days,
             tone: 'indigo',
           },
         ]
       : mode === 'my_cases'
       ? [
-          { value: modeAlerts.length, label: 'Total mes dossiers', tone: 'blue' },
-          { value: inProgressCount, label: 'En cours', tone: 'indigo' },
-          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          { value: modeAlerts.length, label: t.op_kpi_total_mine, tone: 'blue' },
+          { value: inProgressCount, label: t.op_kpi_in_progress, tone: 'indigo' },
+          { value: overdueCount, label: t.op_kpi_overdue, tone: 'rose' },
+          { value: urgentCount, label: t.op_kpi_urgent, tone: 'rose' },
         ]
       : mode === 'to_process'
       ? [
-          { value: modeAlerts.length, label: 'Total à traiter', tone: 'blue' },
-          { value: modeAlerts.filter((a) => a.status === 'under_review').length, label: "En attente d’infos", tone: 'purple' },
-          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          { value: modeAlerts.length, label: t.op_kpi_total_to_process, tone: 'blue' },
+          { value: modeAlerts.filter((a) => a.status === 'under_review').length, label: t.op_kpi_awaiting_info, tone: 'purple' },
+          { value: overdueCount, label: t.op_kpi_overdue, tone: 'rose' },
+          { value: urgentCount, label: t.op_kpi_urgent, tone: 'rose' },
         ]
       : mode === 'inv_inbox'
       ? // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
@@ -492,10 +499,10 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
           { value: `${alerts.length > 0 ? Math.round((alerts.filter((a) => a.status === 'closed').length / alerts.length) * 100) : 0}%`, label: t.portal_closed_rate, tone: 'emerald' },
         ]
       : [
-          { value: modeAlerts.length, label: 'Total en cours', tone: 'indigo' },
-          { value: overdueCount, label: 'En retard (SLA)', tone: 'rose' },
-          { value: waitingLongCount, label: 'Sans mise à jour > 7 jours', tone: 'orange' },
-          { value: urgentCount, label: 'Urgents / critiques', tone: 'rose' },
+          { value: modeAlerts.length, label: t.op_kpi_total_in_progress, tone: 'indigo' },
+          { value: overdueCount, label: t.op_kpi_overdue, tone: 'rose' },
+          { value: waitingLongCount, label: t.op_kpi_no_update_7d, tone: 'orange' },
+          { value: urgentCount, label: t.op_kpi_urgent, tone: 'rose' },
         ];
 
   // Sélection multiple
@@ -589,7 +596,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   // lanceur d'alerte concerné.
   const handleConfirmFollowup = () => {
     if (!followupTargetIds) return;
-    const content = followupText.trim() || DEFAULT_FOLLOWUP_MESSAGE;
+    const content = followupText.trim() || defaultFollowupMessage;
     followupTargetIds.forEach((id) => {
       const alert = alerts.find((a) => a.id === id);
       if (!alert) return;
@@ -644,18 +651,18 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Référence, description, entité, lieu..."
+          placeholder={t.op_search_ph}
           className="w-full pl-8 pr-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs"
         />
       </div>
       <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className={selectClass}>
-        <option value="all">Tous les pays</option>
+        <option value="all">{t.op_all_countries}</option>
         {countries.map((c) => (
           <option key={c} value={c}>{c}</option>
         ))}
       </select>
       <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className={selectClass}>
-        <option value="all">Toutes les entités</option>
+        <option value="all">{t.report_filter_entity_all}</option>
         {entities.map((e) => (
           <option key={e.id} value={e.name}>{e.flag} {e.name}</option>
         ))}
@@ -672,7 +679,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       {hasActiveFilters && (
         <button onClick={resetFilters} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs font-semibold">
           <RotateCcw className="w-3.5 h-3.5" />
-          Réinitialiser
+          {t.op_reset}
         </button>
       )}
     </div>
@@ -680,7 +687,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
 
   const bulkBar = cfg.rowAction !== 'none' && selectedIds.size > 0 && (
     <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-xs">
-      <span className="font-semibold text-blue-900">{selectedIds.size} dossier(s) sélectionné(s)</span>
+      <span className="font-semibold text-blue-900">{t.op_selected_count.replace('{n}', String(selectedIds.size))}</span>
       <div className="flex items-center gap-2">
         {cfg.rowAction === 'assign' && canAssign && (
           <Button
@@ -688,7 +695,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             icon={<UserPlus className="w-3.5 h-3.5" />}
             onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
           >
-            Attribuer
+            {t.op_assign}
           </Button>
         )}
         {cfg.rowAction === 'reassign' && canAssign && (
@@ -697,7 +704,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             icon={<UserCog className="w-3.5 h-3.5" />}
             onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
           >
-            Réattribuer
+            {t.op_reassign}
           </Button>
         )}
         {cfg.rowAction === 'followup' && (
@@ -706,11 +713,11 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             icon={<Send className="w-3.5 h-3.5" />}
             onClick={() => { setFollowupTargetIds(Array.from(selectedIds)); setFollowupText(''); }}
           >
-            Relancer
+            {t.op_followup}
           </Button>
         )}
         <Button variant="secondary" size="sm" onClick={() => setSelectedIds(new Set())}>
-          Désélectionner
+          {t.op_deselect}
         </Button>
       </div>
     </div>
@@ -737,19 +744,19 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   const closedColumns: DataTableColumn<AlertRecord>[] = [
     {
       key: 'id',
-      header: 'Réf.',
+      header: t.op_col_ref,
       render: (a) => (
         <div className="whitespace-nowrap">
           <span className="font-mono font-bold text-[#0B2545] block">{a.trackingNumber}</span>
-          <ConfidentialityBadge level={a.confidentialityLevel} />
+          <ConfidentialityBadge level={a.confidentialityLevel} lang={lang} />
         </div>
       ),
     },
-    { key: 'nature', header: 'Nature', render: (a) => <span className="truncate max-w-[160px] inline-block">{a.category}</span>, hideOnMobile: true },
-    { key: 'country', header: 'Pays', render: (a) => a.country, hideOnMobile: true },
+    { key: 'nature', header: t.op_col_nature, render: (a) => <span className="truncate max-w-[160px] inline-block">{a.category}</span>, hideOnMobile: true },
+    { key: 'country', header: t.op_col_country, render: (a) => a.country, hideOnMobile: true },
     {
       key: 'entity',
-      header: 'Entité',
+      header: t.op_col_entity,
       render: (a) => (
         <span className="flex items-center gap-1 truncate max-w-[160px] text-slate-800">
           <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
@@ -760,17 +767,17 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
     },
     {
       key: 'received',
-      header: 'Reçu le',
+      header: t.desk_col_received,
       render: (a) => new Date(a.createdAt).toLocaleDateString(dateLocale),
     },
     {
       key: 'closed',
-      header: 'Clôturé le',
+      header: t.op_col_closed,
       render: (a) => (a.closedAt ? new Date(a.closedAt).toLocaleDateString(dateLocale) : '—'),
     },
     {
       key: 'summary',
-      header: 'Résumé',
+      header: t.op_col_summary,
       render: (a) => (
         <span className="block max-w-xs truncate text-slate-600" title={a.closureSummary || a.detailedDescription}>
           {a.closureSummary || a.detailedDescription}
@@ -799,17 +806,17 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       : []),
     {
       key: 'id',
-      header: 'N° Dossier',
+      header: t.cp_col_case_id,
       render: (a) => (
         <div className="whitespace-nowrap">
           <span className="font-mono font-bold text-[#0B2545] block">{a.trackingNumber}</span>
-          <ConfidentialityBadge level={a.confidentialityLevel} />
+          <ConfidentialityBadge level={a.confidentialityLevel} lang={lang} />
         </div>
       ),
     },
     {
       key: 'entity',
-      header: 'Pays / Entité',
+      header: t.desk_col_country_entity,
       render: (a) => (
         <div className="max-w-[160px]">
           <span className="flex items-center gap-1 truncate text-slate-800">
@@ -821,10 +828,10 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       ),
       hideOnMobile: true,
     },
-    { key: 'nature', header: 'Nature', render: (a) => <span className="truncate max-w-[160px] inline-block">{a.category}</span>, hideOnMobile: true },
+    { key: 'nature', header: t.op_col_nature, render: (a) => <span className="truncate max-w-[160px] inline-block">{a.category}</span>, hideOnMobile: true },
     {
       key: 'noca',
-      header: 'Criticité',
+      header: t.op_col_criticality,
       render: (a) => (
         <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${NOCA_TONE[a.riskEvaluation.nocaThreshold]}`}>
           {a.riskEvaluation.nocaThreshold}
@@ -833,17 +840,17 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
     },
     {
       key: 'urgency',
-      header: 'Sévérité / Urgence',
+      header: t.op_col_sev_urg,
       render: (a) => (
         <div className="space-y-1 whitespace-nowrap">
-          <PriorityBadge priority={effectivePriority(a)} label={URGENCY_LABELS[effectivePriority(a)]} />
-          {a.severity && <span className="block text-[10px] text-slate-500">{SEVERITY_LABELS[a.severity]}</span>}
+          <PriorityBadge priority={effectivePriority(a)} label={urgencyLabels[effectivePriority(a)]} />
+          {a.severity && <span className="block text-[10px] text-slate-500">{severityLabels[a.severity]}</span>}
         </div>
       ),
     },
     {
       key: 'received',
-      header: 'Reçu le',
+      header: t.desk_col_received,
       render: (a) => new Date(a.createdAt).toLocaleDateString(dateLocale),
       hideOnMobile: true,
     },
@@ -867,11 +874,11 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                 className="flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 whitespace-nowrap"
               >
                 {cfg.rowAction === 'followup' ? (
-                  <><Send className="w-3 h-3" /> Relancer</>
+                  <><Send className="w-3 h-3" /> {t.op_followup}</>
                 ) : cfg.rowAction === 'reassign' ? (
-                  <><UserCog className="w-3 h-3" /> Réattribuer</>
+                  <><UserCog className="w-3 h-3" /> {t.op_reassign}</>
                 ) : (
-                  <><UserPlus className="w-3 h-3" /> Attribuer</>
+                  <><UserPlus className="w-3 h-3" /> {t.op_assign}</>
                 )}
               </button>
             ),
@@ -917,7 +924,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
               <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
                 {canActOnRows && <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} className="rounded text-blue-600" />}
-                {filteredAlerts.length} signalement(s)
+                {t.op_reports_count.replace('{n}', String(filteredAlerts.length))}
               </label>
             </div>
             {filteredAlerts.length === 0 ? (
@@ -942,10 +949,10 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-mono font-bold text-[#0B2545] text-xs">{a.trackingNumber}</span>
-                        <PriorityBadge priority={effectivePriority(a)} label={URGENCY_LABELS[effectivePriority(a)]} size="sm" />
+                        <PriorityBadge priority={effectivePriority(a)} label={urgencyLabels[effectivePriority(a)]} size="sm" />
                       </div>
                       <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{a.category} — {a.concernedEntity}</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{new Date(a.createdAt).toLocaleDateString(dateLocale)} · {CHANNEL_LABELS[a.channel]}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{new Date(a.createdAt).toLocaleDateString(dateLocale)} · {channelLabels[a.channel]}</p>
                     </div>
                   </button>
                 ))}
@@ -955,14 +962,14 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
 
           <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
             {!panelAlert ? (
-              <EmptyState icon={Inbox} title="Sélectionnez un signalement pour le consulter" description="Le détail, la messagerie et l'attribution rapide s'affichent ici." />
+              <EmptyState icon={Inbox} title={t.op_select_prompt} description={t.op_select_prompt_desc} />
             ) : (
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-[#0B2545]">{panelAlert.trackingNumber}</span>
-                      <ConfidentialityBadge level={panelAlert.confidentialityLevel} />
+                      <ConfidentialityBadge level={panelAlert.confidentialityLevel} lang={lang} />
                     </div>
                     <p className="text-xs text-slate-600 mt-1">{panelAlert.category} — {panelAlert.subCategory}</p>
                     <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1"><Building2 className="w-3 h-3" /> {panelAlert.concernedEntity} ({formatCountryLabel(storage.getCountries(), panelAlert.country)})</p>
@@ -974,16 +981,16 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
 
                 <div className="flex items-center gap-2 flex-wrap text-[11px]">
                   <span className={`px-2 py-0.5 rounded font-bold border ${NOCA_TONE[panelAlert.riskEvaluation.nocaThreshold]}`}>{panelAlert.riskEvaluation.nocaThreshold}</span>
-                  <PriorityBadge priority={effectivePriority(panelAlert)} label={URGENCY_LABELS[effectivePriority(panelAlert)]} />
-                  {panelAlert.severity && <span className="px-2 py-0.5 rounded font-bold border bg-slate-100 text-slate-700 border-slate-200">{SEVERITY_LABELS[panelAlert.severity]}</span>}
-                  <span className="px-2 py-0.5 rounded font-bold border bg-slate-100 text-slate-700 border-slate-200">{CHANNEL_LABELS[panelAlert.channel]}</span>
+                  <PriorityBadge priority={effectivePriority(panelAlert)} label={urgencyLabels[effectivePriority(panelAlert)]} />
+                  {panelAlert.severity && <span className="px-2 py-0.5 rounded font-bold border bg-slate-100 text-slate-700 border-slate-200">{severityLabels[panelAlert.severity]}</span>}
+                  <span className="px-2 py-0.5 rounded font-bold border bg-slate-100 text-slate-700 border-slate-200">{channelLabels[panelAlert.channel]}</span>
                 </div>
 
                 <p className="text-xs text-slate-700 bg-slate-50 rounded-xl p-3 border border-slate-100 line-clamp-4">{panelAlert.detailedDescription}</p>
 
                 <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                   <span className="text-[11px] text-slate-500">
-                    {panelAlert.assignedInvestigatorNames.length > 0 ? `Attribué à : ${panelAlert.assignedInvestigatorNames.join(', ')}` : 'Non attribué'}
+                    {panelAlert.assignedInvestigatorNames.length > 0 ? t.op_assigned_to.replace('{names}', panelAlert.assignedInvestigatorNames.join(', ')) : t.op_not_assigned}
                   </span>
                   {canAssign && (
                     <Button
@@ -991,19 +998,19 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                       icon={<UserPlus className="w-3.5 h-3.5" />}
                       onClick={() => { setAssignTargetIds([panelAlert.id]); setAssignSelectedInvestigatorIds(panelAlert.assignedInvestigators); }}
                     >
-                      Attribuer
+                      {t.op_assign}
                     </Button>
                   )}
                 </div>
 
                 <div className="border-t border-slate-100 pt-3">
-                  <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block">Répondre au lanceur d'alerte</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block">{t.op_reply_wb}</label>
                   <div className="flex items-end gap-2">
                     <textarea
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                       rows={2}
-                      placeholder="Message confidentiel..."
+                      placeholder={t.op_reply_ph}
                       className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm"
                     />
                     <button onClick={handleQuickReply} disabled={!replyText.trim()} className="p-2.5 rounded-xl bg-brand text-white disabled:opacity-40 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 transition">
@@ -1016,7 +1023,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                   onClick={() => onOpenCase(panelAlert.trackingNumber)}
                   className="w-full text-center py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
                 >
-                  Ouvrir le dossier complet →
+                  {t.op_open_full}
                 </button>
               </div>
             )}
@@ -1028,7 +1035,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             <div className="flex items-center gap-2 mb-3 text-xs">
               <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
                 <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} className="rounded text-blue-600" />
-                Tout sélectionner
+                {t.op_select_all}
               </label>
             </div>
           )}
@@ -1055,26 +1062,26 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setAssignTargetIds(null)}>
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900">Attribution de l'enquêteur</h3>
+              <h3 className="font-bold text-slate-900">{t.op_assign_title}</h3>
               <button onClick={() => setAssignTargetIds(null)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-slate-500">{assignTargetIds.length} dossier(s) sélectionné(s).</p>
+            <p className="text-xs text-slate-500">{t.op_selected_count_dot.replace('{n}', String(assignTargetIds.length))}</p>
 
             {assignCandidates.compatible.length === 0 && assignCandidates.groupAuthorized.length === 0 ? (
               <EmptyState
                 icon={UserPlus}
-                title="Aucun enquêteur compatible"
+                title={t.op_no_compatible}
                 description={
                   assignTargetIds.length > 1
-                    ? "Les dossiers sélectionnés n'ont aucun enquêteur compatible en commun. Attribuez-les individuellement, ou affinez la sélection."
-                    : "Aucun enquêteur ne remplit les conditions (périmètre, confidentialité, disponibilité, absence de conflit) pour ce dossier."
+                    ? t.op_no_compatible_multi
+                    : t.op_no_compatible_single
                 }
               />
             ) : (
               <div className="space-y-3">
                 {assignCandidates.compatible.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">Enquêteurs compatibles (même périmètre)</p>
+                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">{t.op_compatible_same_scope}</p>
                     <div className="space-y-1.5">
                       {assignCandidates.compatible.map((c) => (
                         <AssignCandidateRow
@@ -1089,7 +1096,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                 )}
                 {assignCandidates.groupAuthorized.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">Autorisés Groupe</p>
+                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">{t.op_group_authorised}</p>
                     <div className="space-y-1.5">
                       {assignCandidates.groupAuthorized.map((c) => (
                         <AssignCandidateRow
@@ -1106,13 +1113,13 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <Button variant="secondary" size="sm" onClick={() => setAssignTargetIds(null)}>Annuler</Button>
+              <Button variant="secondary" size="sm" onClick={() => setAssignTargetIds(null)}>{t.btn_cancel}</Button>
               <Button
                 size="sm"
                 disabled={assignSelectedInvestigatorIds.length === 0}
                 onClick={handleConfirmAssign}
               >
-                Confirmer l'attribution
+                {t.op_confirm_assign}
               </Button>
             </div>
           </div>
@@ -1124,21 +1131,21 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setFollowupTargetIds(null)}>
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900">Relancer la demande d'informations</h3>
+              <h3 className="font-bold text-slate-900">{t.op_followup_title}</h3>
               <button onClick={() => setFollowupTargetIds(null)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-slate-500">{followupTargetIds.length} dossier(s) — un message sera envoyé au lanceur d'alerte de chacun.</p>
+            <p className="text-xs text-slate-500">{t.op_followup_count.replace('{n}', String(followupTargetIds.length))}</p>
             <textarea
               value={followupText}
               onChange={(e) => setFollowupText(e.target.value)}
-              placeholder={DEFAULT_FOLLOWUP_MESSAGE}
+              placeholder={defaultFollowupMessage}
               rows={4}
               className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
             />
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setFollowupTargetIds(null)}>Annuler</Button>
+              <Button variant="secondary" size="sm" onClick={() => setFollowupTargetIds(null)}>{t.btn_cancel}</Button>
               <Button size="sm" icon={<Send className="w-3.5 h-3.5" />} onClick={handleConfirmFollowup}>
-                Envoyer
+                {t.common_send}
               </Button>
             </div>
           </div>

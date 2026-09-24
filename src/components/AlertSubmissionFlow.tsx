@@ -473,7 +473,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
           id: 'msg-init',
           sender: 'admin',
           senderDisplayName: 'DARC Groupe ACTIVA',
-          content: `Votre signalement a été reçu sous la référence ${trackingNumber}. Il est actuellement classé au niveau ${liveRisk.nocaThreshold} (${liveRisk.expectedTreatment}). Vous pouvez utiliser cette messagerie sécurisée pour échanger avec la DARC.`,
+          // === AMÉLIORATION AJOUTÉE : premier message rédigé dans la langue du déclarant ===
+          content: t.sub_auto_first_message.replace('{tracking}', trackingNumber).replace('{level}', liveRisk.nocaThreshold).replace('{treatment}', liveRisk.expectedTreatment),
           createdAt: new Date().toISOString(),
         }
       ],
@@ -1129,7 +1130,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                         involvedPersons.map((p, idx) => (
                           <div key={p.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-700">Personne #{idx + 1}</span>
+                              <span className="text-xs font-bold text-slate-700">{t.sub_person_n.replace('{n}', String(idx + 1))}</span>
                               <button
                                 type="button"
                                 onClick={() => removeInvolvedPerson(p.id)}

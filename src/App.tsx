@@ -380,7 +380,7 @@ function AppShell() {
   const renderStaffContent = () => {
     if (currentTab === 'control_panel') {
       return (
-        <PermissionGuard lang={lang} allowed={isGlobalViewer} label="Centre de Pilotage">
+        <PermissionGuard lang={lang} allowed={isGlobalViewer} label={t.cp_title}>
           <ControlPanel
             lang={lang}
             activeUser={activeUser}
@@ -450,9 +450,9 @@ function AppShell() {
               lang={lang}
               activeUser={activeUser}
               mode="my_cases"
-              titleOverride="Dossiers"
-              subtitleOverride="Consultez et suivez l'ensemble des dossiers signalés dans le cadre d'activa-whistleblowing."
-              emptyOverride="Aucun dossier à afficher pour le moment."
+              titleOverride={t.cases_readonly_title}
+              subtitleOverride={t.cases_readonly_subtitle}
+              emptyOverride={t.cases_readonly_empty}
               onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })}
             />
           ) : (
@@ -475,7 +475,7 @@ function AppShell() {
     // `reports.read` pour les 3 registres transverses dédiés.
     if (currentTab === 'triage') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="Nouveaux signalements">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.guard_label_new_reports}>
           <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ status: 'new' }} />
         </PermissionGuard>
       );
@@ -489,7 +489,7 @@ function AppShell() {
     }
     if (currentTab === 'my_cases') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="Mes dossiers">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.sidebar_inv_my_cases}>
           <InvestigationDesk key={currentTab} lang={lang} activeUser={activeUser} onCreateNewCase={() => goToTab('new_alert')} initialFilter={{ myCasesOnly: true }} />
         </PermissionGuard>
       );
@@ -503,7 +503,7 @@ function AppShell() {
     }
     if (currentTab === 'tasks') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="Suivi des investigations">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.reg_investigations_title}>
           <TasksRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
@@ -524,7 +524,7 @@ function AppShell() {
     }
     if (currentTab === 'corrective_actions') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="Suivi des recommandations">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.reg_recommendations_title}>
           <CorrectiveActionsRegistry lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
@@ -538,7 +538,7 @@ function AppShell() {
     }
     if (currentTab === 'executive') {
       return (
-        <PermissionGuard lang={lang} allowed={isGlobalViewer} label="Vue Exécutive">
+        <PermissionGuard lang={lang} allowed={isGlobalViewer} label={t.guard_label_executive}>
           <ExecutiveDashboard lang={lang} activeUser={activeUser} />
         </PermissionGuard>
       );
@@ -549,7 +549,7 @@ function AppShell() {
       // n'a plus accès aux dossiers mais garde bien accès à la piste
       // d'audit (il a `audit.read`), exactement comme dans l'ancien modèle.
       return (
-        <PermissionGuard lang={lang} allowed={canSeeAuditTrail(activeUser)} label="Piste d’Audit">
+        <PermissionGuard lang={lang} allowed={canSeeAuditTrail(activeUser)} label={t.nav_audit}>
           <AuditTrailView lang={lang} activeUser={activeUser} />
         </PermissionGuard>
       );
@@ -567,7 +567,7 @@ function AppShell() {
     // sélecteur d'onglets complet reste visible pour ne rien masquer.
     if (currentTab === 'admin_users') {
       return (
-        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label="Utilisateurs & Rôles">
+        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label={t.guard_label_users_roles}>
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="users" />
         </PermissionGuard>
       );
@@ -584,7 +584,7 @@ function AppShell() {
     // départ différent.
     if (currentTab === 'admin_roles') {
       return (
-        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label="Rôles & Permissions">
+        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label={t.sidebar_admin_roles}>
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="roles" />
         </PermissionGuard>
       );
@@ -598,7 +598,7 @@ function AppShell() {
     // nouveaux chemins.
     if (currentTab === 'op_dashboard') {
       return (
-        <PermissionGuard lang={lang} allowed={isGlobalViewer} label="Tableau de bord Opérateur">
+        <PermissionGuard lang={lang} allowed={isGlobalViewer} label={t.guard_label_operator_dashboard}>
           <ControlPanel
             lang={lang}
             activeUser={activeUser}
@@ -631,14 +631,14 @@ function AppShell() {
     // totale au sein de l'espace Opérateur.
     if (currentTab === 'op_inbox') {
       return (
-        <PermissionGuard lang={lang} allowed={isGlobalViewer} label="Boîte de réception">
+        <PermissionGuard lang={lang} allowed={isGlobalViewer} label={t.sidebar_op_inbox}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
     }
     if (currentTab === 'op_pending_info') {
       return (
-        <PermissionGuard lang={lang} allowed={isGlobalViewer} label="En attente d’infos">
+        <PermissionGuard lang={lang} allowed={isGlobalViewer} label={t.sidebar_op_pending}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
@@ -652,7 +652,7 @@ function AppShell() {
     }
     if (currentTab === 'op_processed') {
       return (
-        <PermissionGuard lang={lang} allowed={isGlobalViewer} label="Dossiers ouverts">
+        <PermissionGuard lang={lang} allowed={isGlobalViewer} label={t.sidebar_op_processed}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="assigned" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
@@ -661,7 +661,7 @@ function AppShell() {
     // envoyés en revue) ===
     if (currentTab === 'op_review') {
       return (
-        <PermissionGuard lang={lang} allowed={isGlobalViewer} label="En revue">
+        <PermissionGuard lang={lang} allowed={isGlobalViewer} label={t.case_status_review}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="review" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
@@ -669,7 +669,7 @@ function AppShell() {
     // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
     if (currentTab === 'op_closed') {
       return (
-        <PermissionGuard lang={lang} allowed={isGlobalViewer} label="Dossiers clôturés">
+        <PermissionGuard lang={lang} allowed={isGlobalViewer} label={t.sidebar_op_closed}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="closed" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
@@ -721,7 +721,7 @@ function AppShell() {
     // (déjà utilisée pour 'portal'/'triage'/'my_cases' ci-dessus).
     if (currentTab === 'inv_dashboard') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="Boîte de réception">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.sidebar_op_inbox}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="inv_inbox" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
@@ -737,28 +737,28 @@ function AppShell() {
     // (même règle, même action "Relancer"), avec son libellé propre.
     if (currentTab === 'inv_my_cases') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="Mes dossiers">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.sidebar_inv_my_cases}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="my_cases" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
     }
     if (currentTab === 'inv_to_process') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="À traiter">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.db_bucket_a_traiter}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="to_process" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
     }
     if (currentTab === 'inv_in_progress') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="En cours">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.corrective_status_in_progress}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="in_progress" onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
     }
     if (currentTab === 'inv_pending') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="En attente">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.db_bucket_en_attente}>
           <OperatorCaseDesk key={currentTab} lang={lang} activeUser={activeUser} mode="pending_info" titleOverride={t.sidebar_inv_pending} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
@@ -773,7 +773,7 @@ function AppShell() {
     // === AMÉLIORATION AJOUTÉE (Audit frontend — correction critique) ===
     if (currentTab === 'advanced_search') {
       return (
-        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label="Recherche avancée">
+        <PermissionGuard lang={lang} allowed={userCan(activeUser, 'cases.read')} label={t.nav_search_advanced}>
           <AdvancedSearchView lang={lang} activeUser={activeUser} onOpenCase={(tn) => navigateToCases({ trackingNumber: tn })} />
         </PermissionGuard>
       );
@@ -781,14 +781,14 @@ function AppShell() {
 
     if (currentTab === 'admin_audit') {
       return (
-        <PermissionGuard lang={lang} allowed={canSeeAuditTrail(activeUser)} label="Piste d’Audit">
+        <PermissionGuard lang={lang} allowed={canSeeAuditTrail(activeUser)} label={t.nav_audit}>
           <AuditTrailView lang={lang} activeUser={activeUser} />
         </PermissionGuard>
       );
     }
     if (currentTab === 'admin_reports') {
       return (
-        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label="Rapports système">
+        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label={t.guard_label_system_reports}>
           <ReportingDashboard lang={lang} activeUser={activeUser} />
         </PermissionGuard>
       );
@@ -817,14 +817,14 @@ function AppShell() {
     // admin_governance ci-dessus.
     if (currentTab === 'admin_entities') {
       return (
-        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label="Entités du Groupe">
+        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label={t.guard_label_group_entities}>
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="entities" />
         </PermissionGuard>
       );
     }
     if (currentTab === 'admin_categories') {
       return (
-        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label="Catégories d'alerte">
+        <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label={t.guard_label_alert_categories}>
           <AdminConfigView lang={lang} activeUser={activeUser} initialTab="categories" />
         </PermissionGuard>
       );

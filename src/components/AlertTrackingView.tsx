@@ -1030,7 +1030,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                           type="button"
                           onClick={() => setOpenFileMenuId(openFileMenuId === ev.id ? null : ev.id)}
                           className="p-1.5 rounded hover:bg-slate-200 text-slate-500"
-                          title="Options"
+                          title={t.common_options}
                         >
                           <MoreVertical className="w-3.5 h-3.5" />
                         </button>

@@ -207,7 +207,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {!isStaffContext && (
                 <button
                   type="button"
-                  aria-label="Menu"
+                  aria-label={t.common_menu}
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowMobileNavMenu(!showMobileNavMenu);
