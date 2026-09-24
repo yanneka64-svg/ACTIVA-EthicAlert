@@ -949,7 +949,7 @@ function AppShell() {
         {/* === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) === */}
         {currentTab === 'login' && (
           <Suspense fallback={<StaffLoadingFallback />}>
-            <StaffLoginView onLogin={handleLogin} onGoToContact={() => goToTab('contact')} />
+            <StaffLoginView lang={lang} onLogin={handleLogin} onGoToContact={() => goToTab('contact')} />
           </Suspense>
         )}
 

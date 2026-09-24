@@ -32,7 +32,9 @@
  */
 import React, { useState } from 'react';
 import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert } from 'lucide-react';
-import { UserProfile } from '../types';
+import { Language, UserProfile } from '../types';
+// === AMÉLIORATION AJOUTÉE : page de connexion traduite (FR/EN/PT) ===
+import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { getLockStatus, recordFailedAttempt, clearAttempts, formatRemaining } from '../services/rateLimiter';
 
@@ -46,9 +48,12 @@ interface StaffLoginViewProps {
   // administrateur peut aussi régénérer un mot de passe temporaire depuis
   // AdminConfigView.tsx.
   onGoToContact?: () => void;
+  // === AMÉLIORATION AJOUTÉE : langue d'affichage (défaut FR, comportement inchangé) ===
+  lang?: Language;
 }
 
-export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToContact }) => {
+export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToContact, lang = 'fr' }) => {
+  const t = TRANSLATIONS[lang];
   // === AMÉLIORATION AJOUTÉE : suppression du sélecteur "Compte" ===
   // Le menu déroulant "Compte" (retiré) exposait publiquement, sans
   // authentification, la liste complète du personnel (noms + fonctions) —
@@ -81,7 +86,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
     const rateLimitKey = trimmedUsername;
     const lockStatus = getLockStatus(rateLimitKey);
     if (lockStatus.locked) {
-      setLoginError(`Trop de tentatives incorrectes. Réessayez dans ${formatRemaining(lockStatus.remainingMs)}.`);
+      setLoginError(t.login_error_locked_retry.replace('{time}', formatRemaining(lockStatus.remainingMs)));
       return;
     }
 
@@ -104,7 +109,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
       // correct), `=== false` rétrécit correctement dans les deux cas.
       if (result.ok === false) {
         if (result.reason === 'expired') {
-          setLoginError('Ce mot de passe temporaire a expiré (validité 4h). Contactez un administrateur pour en obtenir un nouveau.');
+          setLoginError(t.login_error_expired);
           return;
         }
         const status = recordFailedAttempt(rateLimitKey);
@@ -119,8 +124,8 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
         );
         setLoginError(
           status.locked
-            ? `Trop de tentatives incorrectes. Accès verrouillé ${formatRemaining(status.remainingMs)}.`
-            : 'Identifiant ou mot de passe incorrect.'
+            ? t.login_error_locked.replace('{time}', formatRemaining(status.remainingMs))
+            : t.login_error_invalid
         );
         return;
       }
@@ -133,7 +138,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
       }
       onLogin(result.user);
     } catch {
-      setLoginError('Une erreur inattendue est survenue. Réessayez, ou contactez un administrateur si le problème persiste.');
+      setLoginError(t.login_error_unexpected);
     } finally {
       setIsVerifying(false);
     }
@@ -144,11 +149,11 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
     setChangeError('');
     if (!pendingUser) return;
     if (newPassword.length < 8) {
-      setChangeError('Le mot de passe doit contenir au moins 8 caractères.');
+      setChangeError(t.login_error_too_short);
       return;
     }
     if (newPassword !== confirmPassword) {
-      setChangeError('Les deux mots de passe ne correspondent pas.');
+      setChangeError(t.login_error_mismatch);
       return;
     }
     setIsChangingPassword(true);
@@ -186,9 +191,9 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
             <span className="inline-flex w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 items-center justify-center mx-auto mb-4">
               <ShieldAlert className="w-6 h-6" />
             </span>
-            <p className="text-xs font-bold text-slate-900">Changez votre mot de passe</p>
+            <p className="text-xs font-bold text-slate-900">{t.login_change_title}</p>
             <p className="text-[11px] text-slate-500 mt-1.5">
-              Première connexion de {pendingUser.name} : un nouveau mot de passe est requis avant d'accéder à votre espace.
+              {t.login_change_intro.replace('{name}', pendingUser.name)}
             </p>
             <div className="w-10 h-1 rounded-full bg-amber-500 mx-auto mt-3" />
           </div>
@@ -196,20 +201,20 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
           <form onSubmit={handleChangePassword} className="activa-caret-blink space-y-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
-                Nouveau mot de passe
+                {t.login_new_password}
               </label>
               <input
                 type="password"
                 id="input-new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="8 caractères minimum"
+                placeholder={t.login_new_password_hint}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
-                Confirmer le nouveau mot de passe
+                {t.login_confirm_password}
               </label>
               <input
                 type="password"
@@ -230,7 +235,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
               disabled={isChangingPassword}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-xs font-bold hover:bg-[#0B2545]/90 disabled:opacity-50 transition"
             >
-              {isChangingPassword ? 'Mise à jour…' : 'Définir ce mot de passe'}
+              {isChangingPassword ? t.login_change_pending : t.login_change_submit}
             </button>
           </form>
         </div>
@@ -245,14 +250,14 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
           <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
             <User className="w-6 h-6" />
           </span>
-          <p className="text-xs font-bold text-slate-900">Accédez à votre espace de travail sécurisé</p>
+          <p className="text-xs font-bold text-slate-900">{t.login_heading}</p>
           <div className="w-10 h-1 rounded-full bg-blue-500 mx-auto mt-3" />
         </div>
 
         <form onSubmit={handleSubmit} className="activa-caret-blink space-y-4">
           <div>
             <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
-              Identifiant
+              {t.login_username}
             </label>
             <div className="relative">
               <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -261,7 +266,6 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 id="input-login-username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="ex : y.mebadaekani"
                 autoComplete="username"
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
@@ -271,7 +275,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide">
-                Mot de passe
+                {t.login_password}
               </label>
               {onGoToContact && (
                 <button
@@ -279,7 +283,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                   onClick={onGoToContact}
                   className="text-[10px] font-semibold text-blue-700 hover:underline"
                 >
-                  Mot de passe oublié ?
+                  {t.login_forgot}
                 </button>
               )}
             </div>
@@ -289,7 +293,6 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
                 className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
               <button
@@ -297,6 +300,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 tabIndex={-1}
+                aria-label={showPassword ? t.login_hide_password : t.login_show_password}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -328,7 +332,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
             ) : (
               <LogIn className="w-4 h-4" />
             )}
-            {isVerifying ? 'Vérification…' : 'Se connecter'}
+            {isVerifying ? t.login_verifying : t.login_submit}
           </button>
         </form>
       </div>
