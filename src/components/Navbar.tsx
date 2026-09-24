@@ -18,7 +18,7 @@ import {
 import { Language, UserProfile, UserRole } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
-import { ActivaLogo } from './ui';
+import { ActivaLogo, EthicAlertBrand } from './ui';
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) ===
 import { computeAvailableSpaces } from '../domain/staffSpaces';
@@ -185,7 +185,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setCurrentTab('home')}
               className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
             >
-              <ActivaLogo className="h-10 shrink-0" />
+              {/* === AMÉLIORATION AJOUTÉE === icône EthicAlert + nom
+                  « activa.whistleblowing » à la place du logo corporate
+                  (ActivaLogo reste utilisé par les vues d'impression). */}
+              <EthicAlertBrand className="h-10 shrink-0" />
               {isStaffContext && (
                 <>
                   <div className="hidden md:block w-px h-8 bg-slate-200" />
