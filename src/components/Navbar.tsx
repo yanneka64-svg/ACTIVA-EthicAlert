@@ -190,7 +190,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* === AMÉLIORATION AJOUTÉE === icône EthicAlert + nom
                   « activa.whistleblowing » à la place du logo corporate
                   (ActivaLogo reste utilisé par les vues d'impression). */}
-              <EthicAlertBrand className="h-10 shrink-0" />
+              {/* === AMÉLIORATION AJOUTÉE (slogan sous le logo) === Sous-titre
+                  de la plateforme (t.app_subtitle, traduit FR/EN/PT) placé
+                  sous le logo, calé sur sa largeur ; masqué sous `sm` où la
+                  place manque (le logo y est déjà réduit). */}
+              <div className="flex flex-col items-start shrink-0">
+                <EthicAlertBrand className="h-10 shrink-0" />
+                <p className="hidden sm:block mt-1 max-w-[262px] text-[10px] leading-snug text-slate-500">
+                  {t.app_subtitle}
+                </p>
+              </div>
               {/* === AMÉLIORATION AJOUTÉE (topbar staff sans doublon) === Le
                   logo « Activa.whistleblowing » contient déjà le nom de la
                   plateforme : le titre + sous-titre répétaient ce nom juste à
@@ -405,10 +414,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   id="nav-btn-new-alert"
                   onClick={() => setCurrentTab('new_alert')}
-                  className="order-3 lg:order-none flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+                  className="order-3 lg:order-none flex items-center gap-1.5 px-2.5 xl:px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+                  // === AMÉLIORATION AJOUTÉE (débordement en-tête 640–1279px) ===
+                  // Libellé affiché à partir de `xl` seulement : entre `sm` et
+                  // `xl`, le logo complet + « Suivre mon signalement » +
+                  // langue + Connexion ne laissaient plus la place à ce
+                  // libellé long, qui sortait de l'écran. Icône seule en
+                  // dessous, avec info-bulle et libellé accessible.
+                  title={t.btn_new_alert}
+                  aria-label={t.btn_new_alert}
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{t.btn_new_alert}</span>
+                  <span className="hidden xl:inline">{t.btn_new_alert}</span>
                 </button>
                 <div className="hidden md:block w-px h-6 bg-slate-200" />
               </>
