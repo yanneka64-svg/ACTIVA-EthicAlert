@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivaLogo } from './ui/ActivaLogo';
 import { AlertRecord } from '../types';
+import { currentT } from '../i18n/currentLang';
 
 /**
  * === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre
@@ -51,6 +52,8 @@ export const ControlPanelPrintView: React.FC<ControlPanelPrintViewProps> = ({
   priorityBarData,
   rows,
 }) => {
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
+  const t = currentT();
   const now = new Date();
 
   return (
@@ -58,19 +61,19 @@ export const ControlPanelPrintView: React.FC<ControlPanelPrintViewProps> = ({
       <header className="flex items-start justify-between border-b-2 border-[#0B2545] pb-4 mb-6">
         <ActivaLogo className="h-12" />
         <div className="text-right">
-          <p className="text-sm font-extrabold text-[#0B2545]">Centre de Pilotage</p>
+          <p className="text-sm font-extrabold text-[#0B2545]">{t.cp_title}</p>
           <p className="text-slate-500">
-            Généré le {now.toLocaleDateString(locale)} à {now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} — période : {periodLabel}
+            {t.print_generated_on.replace('{date}', now.toLocaleDateString(locale)).replace('{time}', now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))}{t.print_period.replace('{period}', periodLabel)}
           </p>
         </div>
       </header>
 
       <section className="mb-6">
-        <h2 className="text-sm font-bold mb-2">Indicateurs clés</h2>
+        <h2 className="text-sm font-bold mb-2">{t.print_kpis}</h2>
         <table className="w-full border-collapse">
           <tbody>
             <tr>
-              <td className="font-semibold py-1 pr-4 w-56 align-top">Total signalements</td>
+              <td className="font-semibold py-1 pr-4 w-56 align-top">{t.print_total_reports}</td>
               <td>{totalCount}</td>
             </tr>
           </tbody>
@@ -78,7 +81,7 @@ export const ControlPanelPrintView: React.FC<ControlPanelPrintViewProps> = ({
       </section>
 
       <section className="mb-6 break-inside-avoid">
-        <h2 className="text-sm font-bold mb-2">Répartition par statut</h2>
+        <h2 className="text-sm font-bold mb-2">{t.print_by_status}</h2>
         <table className="w-full border-collapse">
           <tbody>
             {statusBreakdown.map((s) => (
@@ -92,7 +95,7 @@ export const ControlPanelPrintView: React.FC<ControlPanelPrintViewProps> = ({
       </section>
 
       <section className="mb-6 break-inside-avoid">
-        <h2 className="text-sm font-bold mb-2">Répartition par priorité</h2>
+        <h2 className="text-sm font-bold mb-2">{t.print_by_priority}</h2>
         <table className="w-full border-collapse">
           <tbody>
             {priorityBarData.map((p) => (
@@ -106,23 +109,23 @@ export const ControlPanelPrintView: React.FC<ControlPanelPrintViewProps> = ({
       </section>
 
       <section className="mb-6 break-inside-avoid">
-        <h2 className="text-sm font-bold mb-2">Dossiers ({rows.length})</h2>
+        <h2 className="text-sm font-bold mb-2">{t.desk_cases_count.replace('{n}', String(rows.length))}</h2>
         {rows.length === 0 ? (
-          <p className="italic text-slate-400">Aucun dossier pour cette période.</p>
+          <p className="italic text-slate-400">{t.print_no_cases_period}</p>
         ) : (
           <table className="w-full border-collapse text-[10px]">
             <thead>
               <tr className="border-b border-slate-300 text-left">
-                <th className="py-1 pr-2">Dossier</th>
-                <th className="py-1 pr-2">Date</th>
-                <th className="py-1 pr-2">Catégorie</th>
-                <th className="py-1 pr-2">Pays</th>
-                <th className="py-1 pr-2">Entité</th>
-                <th className="py-1 pr-2">Priorité</th>
-                <th className="py-1 pr-2">Risque</th>
-                <th className="py-1 pr-2">Statut</th>
-                <th className="py-1 pr-2">Investigateur(s)</th>
-                <th className="py-1">Échéance SLA</th>
+                <th className="py-1 pr-2">{t.srch_col_case}</th>
+                <th className="py-1 pr-2">{t.print_date}</th>
+                <th className="py-1 pr-2">{t.desk_col_category}</th>
+                <th className="py-1 pr-2">{t.op_col_country}</th>
+                <th className="py-1 pr-2">{t.op_col_entity}</th>
+                <th className="py-1 pr-2">{t.desk_col_priority}</th>
+                <th className="py-1 pr-2">{t.print_risk}</th>
+                <th className="py-1 pr-2">{t.desk_col_status}</th>
+                <th className="py-1 pr-2">{t.print_investigators}</th>
+                <th className="py-1">{t.print_sla_due}</th>
               </tr>
             </thead>
             <tbody>
@@ -146,8 +149,8 @@ export const ControlPanelPrintView: React.FC<ControlPanelPrintViewProps> = ({
       </section>
 
       <footer className="mt-10 pt-4 border-t border-slate-200 text-slate-400 flex justify-between text-[10px]">
-        <span>Document confidentiel — activa-whistleblowing — Généré par {generatedByName}</span>
-        <span>Groupe ACTIVA</span>
+        <span>{t.print_footer.replace('{name}', generatedByName)}</span>
+        <span>{t.users_group_activa}</span>
       </footer>
     </div>
   );

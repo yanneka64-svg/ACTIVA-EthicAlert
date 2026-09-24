@@ -24,6 +24,7 @@
 import React from 'react';
 import { Link2, ChevronRight } from 'lucide-react';
 import { InvolvedPerson, Witness, UserProfile } from '../../types';
+import { currentT } from '../../i18n/currentLang';
 
 export function PersonRow({
   person,
@@ -36,6 +37,8 @@ export function PersonRow({
   dense: boolean;
   onLinkClick: () => void;
 }) {
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
+  const t = currentT();
   const linkedUser = person.linkedUserId ? users.find((u) => u.id === person.linkedUserId) : undefined;
   return (
     <div className={`flex items-center gap-2.5 ${dense ? 'p-2' : 'p-2.5'} bg-slate-50 rounded-lg border border-slate-100`}>
@@ -43,19 +46,19 @@ export function PersonRow({
         {(person.name || '??').slice(0, 2).toUpperCase()}
       </span>
       <div className="min-w-0 flex-1">
-        <span className="font-bold text-slate-900 block truncate">{person.name || 'Confidentiel'}</span>
+        <span className="font-bold text-slate-900 block truncate">{person.name || t.desk_confidential}</span>
         <div className="text-[11px] text-slate-500 truncate">{person.position} • {person.hierarchyRole}</div>
         {linkedUser && (
           <div className="text-[10px] text-emerald-700 font-semibold truncate flex items-center gap-1 mt-0.5">
             <Link2 className="w-3 h-3" />
-            Compte lié : {linkedUser.name}
+            {t.inv_linked_account.replace('{name}', linkedUser.name)}
           </div>
         )}
       </div>
       <button
         type="button"
         onClick={onLinkClick}
-        title="Lier à un compte"
+        title={t.inv_link_account}
         className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-blue-700 hover:bg-blue-50"
       >
         <Link2 className="w-3.5 h-3.5" />

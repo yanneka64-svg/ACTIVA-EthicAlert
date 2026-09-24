@@ -252,12 +252,12 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // (déjà la bonne route) porte donc directement le libellé "Paramètres
   // système" de la référence.
   const adminItems: NavItem[] = [
-    { key: 'admin_organization', label: 'Organisation', icon: <Globe2 className="w-4 h-4" />, group: '' },
-    { key: 'admin_entities', label: 'Entités du Groupe', icon: <Building2 className="w-4 h-4" />, group: '' },
-    { key: 'admin_categories', label: 'Catégories', icon: <Tag className="w-4 h-4" />, group: '' },
+    { key: 'admin_organization', label: t.side_organisation, icon: <Globe2 className="w-4 h-4" />, group: '' },
+    { key: 'admin_entities', label: t.guard_label_group_entities, icon: <Building2 className="w-4 h-4" />, group: '' },
+    { key: 'admin_categories', label: t.side_categories, icon: <Tag className="w-4 h-4" />, group: '' },
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
-    { key: 'admin_governance', label: 'Gouvernance', icon: <Network className="w-4 h-4" />, group: '' },
+    { key: 'admin_governance', label: t.side_governance, icon: <Network className="w-4 h-4" />, group: '' },
     // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
     // données" retiré) === Entrée "Base de données" retirée d'ici, sur
     // demande explicite de l'utilisateur — l'écran (rattachement Firebase)
@@ -294,13 +294,13 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   // de la référence.
   const GENERAL_TOOLS: Array<{ key: string; label: string; icon: React.ReactNode; permission: Permission }> = [
     { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" />, permission: 'cases.read' },
-    { key: 'evidence', label: 'Preuves', icon: <Paperclip className="w-4 h-4" />, permission: 'evidence.read' },
-    { key: 'communications', label: 'Communications', icon: <MessageSquare className="w-4 h-4" />, permission: 'communications.read' },
+    { key: 'evidence', label: t.nav_evidence, icon: <Paperclip className="w-4 h-4" />, permission: 'evidence.read' },
+    { key: 'communications', label: t.nav_communications, icon: <MessageSquare className="w-4 h-4" />, permission: 'communications.read' },
     { key: 'reports', label: t.sidebar_reports_exports, icon: <LayoutGrid className="w-4 h-4" />, permission: 'reports.read' },
   ];
   const generalItems: NavItem[] = [
     ...(canSeeControlPanel ? [{ key: 'control_panel', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' }] : []),
-    ...(userCan(activeUser, 'cases.read') ? [{ key: 'portal', label: 'Dossiers', icon: <FolderOpen className="w-4 h-4" />, group: '' }] : []),
+    ...(userCan(activeUser, 'cases.read') ? [{ key: 'portal', label: t.breadcrumb_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' }] : []),
     ...GENERAL_TOOLS.filter((i) => userCan(activeUser, i.permission)).map(({ permission: _permission, ...i }) => ({ ...i, group: '' })),
     // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) === "Piste
     // d'Audit" (`audit`, déjà un écran réel — AuditTrailView.tsx, gardé par
@@ -422,7 +422,7 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
               <Settings className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">Panneau de configuration</p>
+              <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">{t.space_home_admin_title}</p>
             </div>
           </div>
         )}
@@ -439,8 +439,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
               <Eye className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <p className="font-extrabold text-slate-900 text-sm leading-tight">Consultation</p>
-              <p className="text-[10px] text-slate-500 leading-snug">Accès en lecture seule, limité à vos habilitations</p>
+              <p className="font-extrabold text-slate-900 text-sm leading-tight">{t.roles_consultation}</p>
+              <p className="text-[10px] text-slate-500 leading-snug">{t.side_readonly_hint}</p>
             </div>
           </div>
         )}

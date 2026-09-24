@@ -46,6 +46,8 @@ interface Thread {
 }
 
 export const CommunicationsRegistry: React.FC<CommunicationsRegistryProps> = ({ lang, activeUser, onOpenCase }) => {
+  // === AMÉLIORATION AJOUTÉE : libellés d'expéditeur traduits (SENDER_LABEL reste le repli FR) ===
+  const senderLabel: Record<CaseMessage['sender'], string> = { ...SENDER_LABEL, whistleblower: TRANSLATIONS[lang].role_badge_reporter, investigator: TRANSLATIONS[lang].users_role_investigator, admin: TRANSLATIONS[lang].comm_sender_admin };
   const t = TRANSLATIONS[lang];
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
@@ -138,7 +140,7 @@ export const CommunicationsRegistry: React.FC<CommunicationsRegistryProps> = ({ 
                   </div>
                   <p className="text-[11px] text-slate-500 truncate mt-0.5">{th.alert.category}</p>
                   <p className="text-[11px] text-slate-700 line-clamp-1 mt-1">
-                    <span className="font-semibold">{SENDER_LABEL[last.sender]} : </span>
+                    <span className="font-semibold">{senderLabel[last.sender]} : </span>
                     {last.content}
                   </p>
                   <span className="inline-block mt-1 text-[10px] font-bold text-blue-700 bg-blue-50 rounded-full px-1.5 py-0.5">
@@ -172,7 +174,7 @@ export const CommunicationsRegistry: React.FC<CommunicationsRegistryProps> = ({ 
                     <div key={m.id} className={`flex ${isStaff ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 text-xs ${isStaff ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-800'}`}>
                         <div className={`text-[10px] font-bold mb-0.5 ${isStaff ? 'text-blue-100' : 'text-slate-500'}`}>
-                          {m.senderDisplayName || SENDER_LABEL[m.sender]}
+                          {m.senderDisplayName || senderLabel[m.sender]}
                         </div>
                         <p className="whitespace-pre-wrap break-words">{m.content}</p>
                         <div className={`text-[9px] mt-1 ${isStaff ? 'text-blue-100/80' : 'text-slate-400'}`}>

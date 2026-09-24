@@ -69,7 +69,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
         <div className="flex items-center justify-between mb-2">
           <h4 className="font-bold text-slate-900 flex items-center gap-2">
             <FileText className="w-4 h-4 text-blue-600" />
-            Description détaillée des faits
+            {t.inv_facts}
           </h4>
           {!editingDescription && (
             <button
@@ -90,8 +90,8 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
               className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setEditingDescription(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
-              <button onClick={handleSaveDescription} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">Enregistrer</button>
+              <button onClick={() => setEditingDescription(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">{t.btn_cancel}</button>
+              <button onClick={handleSaveDescription} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">{t.users_save}</button>
             </div>
           </div>
         ) : (
@@ -206,7 +206,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
             <div key={kind} className="p-4 rounded-xl border border-slate-200">
               <div className="flex items-center justify-between mb-2">
                 <h5 className="font-bold text-slate-900">
-                  {kind === 'subject' ? 'Personnes impliquées' : 'Témoins'} ({list.length})
+                  {(kind === 'subject' ? t.inv_persons_involved_n : t.inv_witnesses_n).replace('{n}', String(list.length))}
                 </h5>
                 <button
                   onClick={() => setAddPersonKind(kind)}
@@ -217,7 +217,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
                 </button>
               </div>
               {list.length === 0 ? (
-                <p className="text-slate-400 italic">Non spécifié</p>
+                <p className="text-slate-400 italic">{t.inv_not_specified}</p>
               ) : (
                 <div className="space-y-1.5">
                   {list.map((p) => (
@@ -241,7 +241,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
         <div className="flex items-center justify-between mb-2">
           <h5 className="font-bold text-slate-900 flex items-center gap-2">
             <Paperclip className="w-4 h-4 text-blue-600" />
-            Preuves & pièces jointes ({selectedAlert.evidences.length})
+            {t.inv_evidence_n.replace('{n}', String(selectedAlert.evidences.length))}
           </h5>
           <button
             onClick={() => evidenceFileInputRef.current?.click()}
@@ -252,7 +252,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
           </button>
         </div>
         {selectedAlert.evidences.length === 0 ? (
-          <p className="text-slate-400 italic">Aucun document joint</p>
+          <p className="text-slate-400 italic">{t.inv_no_documents}</p>
         ) : (
           <div className="space-y-1.5">
             {selectedAlert.evidences.map((ev) => (

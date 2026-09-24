@@ -86,13 +86,13 @@ export const AddPersonModal: React.FC<AddPersonModalProps> = ({
           autoFocus
           value={personNameInput}
           onChange={(e) => setPersonNameInput(e.target.value)}
-          placeholder="Nom (ou « Confidentiel »)"
+          placeholder={t.inv_person_name_ph}
           className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
         <input
           value={personPositionInput}
           onChange={(e) => setPersonPositionInput(e.target.value)}
-          placeholder="Fonction / Poste"
+          placeholder={t.inv_person_position_ph}
           className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
         <select
@@ -100,18 +100,18 @@ export const AddPersonModal: React.FC<AddPersonModalProps> = ({
           onChange={(e) => setPersonHierarchyInput(e.target.value as InvolvedPerson['hierarchyRole'])}
           className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white"
         >
-          <option value="Employé">Employé</option>
-          <option value="Cadre">Cadre</option>
-          <option value="Sous-Directeur">Sous-Directeur</option>
-          <option value="Directeur+">Directeur+</option>
+          <option value={t.sub_hier_employee}>{t.sub_hier_employee}</option>
+          <option value={t.sub_hier_manager}>{t.sub_hier_manager}</option>
+          <option value={t.sub_hier_deputy_director}>{t.sub_hier_deputy_director}</option>
+          <option value={t.sub_hier_director}>{t.sub_hier_director}</option>
         </select>
         {/* === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) === */}
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Rattachement à un compte (facultatif)</label>
+          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{t.inv_person_link_optional}</label>
           <LinkedAccountSelect users={allUsers} value={personLinkedUserId} onChange={setPersonLinkedUserId} />
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <button type="button" onClick={() => setAddPersonKind(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+          <button type="button" onClick={() => setAddPersonKind(null)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">{t.btn_cancel}</button>
           <button type="submit" disabled={!personNameInput.trim()} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold">{t.case_btn_add}</button>
         </div>
       </form>

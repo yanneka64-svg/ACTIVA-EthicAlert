@@ -19,6 +19,7 @@ import React from 'react';
 import { AlertRecord } from '../../types';
 import { AssignmentCandidates } from '../../domain/assignmentEngine';
 import { AssignCandidateRow } from './AssignCandidateRow';
+import { currentT } from '../../i18n/currentLang';
 
 interface AssignModalProps {
   selectedAlert: AlertRecord;
@@ -37,15 +38,17 @@ export const AssignModal: React.FC<AssignModalProps> = ({
   setShowAssignModal,
   handleAssignInvestigators,
 }) => {
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
+  const t = currentT();
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
         <div className="border-b border-slate-100 pb-3">
           <h3 className="text-sm font-bold text-slate-900">
-            Attribuer l'alerte à un ou plusieurs gestionnaires
+            {t.inv_assign_title}
           </h3>
           <p className="text-slate-500 text-[11px] mt-0.5">
-            Dossier {selectedAlert.trackingNumber} ({selectedAlert.concernedEntity})
+            {t.inv_assign_case_line.replace('{tracking}', selectedAlert.trackingNumber).replace('{entity}', selectedAlert.concernedEntity)}
           </p>
         </div>
 
@@ -62,14 +65,14 @@ export const AssignModal: React.FC<AssignModalProps> = ({
         <div className="space-y-3 max-h-72 overflow-y-auto">
           {assignCandidates && assignCandidates.compatible.length === 0 && assignCandidates.groupAuthorized.length === 0 && (
             <p className="text-slate-500 text-[11px] italic p-2">
-              Aucun enquêteur compatible ou autorisé Groupe pour ce dossier (périmètre, confidentialité, conflit d'intérêt ou disponibilité).
+              {t.inv_assign_none}
             </p>
           )}
 
           {assignCandidates && assignCandidates.compatible.length > 0 && (
             <div className="space-y-1.5">
               <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                Enquêteurs compatibles ({selectedAlert.concernedEntity})
+                {t.inv_compatible_entity.replace('{entity}', selectedAlert.concernedEntity)}
               </div>
               {assignCandidates.compatible.map((c) => (
                 <AssignCandidateRow
@@ -91,7 +94,7 @@ export const AssignModal: React.FC<AssignModalProps> = ({
           {assignCandidates && assignCandidates.groupAuthorized.length > 0 && (
             <div className="space-y-1.5">
               <div className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-                Enquêteurs autorisés Groupe (vision Groupe)
+                {t.inv_assign_group}
               </div>
               {assignCandidates.groupAuthorized.map((c) => (
                 <AssignCandidateRow
@@ -116,13 +119,13 @@ export const AssignModal: React.FC<AssignModalProps> = ({
             onClick={() => setShowAssignModal(false)}
             className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
           >
-            Annuler
+            {t.btn_cancel}
           </button>
           <button
             onClick={handleAssignInvestigators}
             className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
           >
-            Enregistrer l'attribution
+            {t.inv_assign_save}
           </button>
         </div>
       </div>

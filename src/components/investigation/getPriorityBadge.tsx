@@ -11,14 +11,17 @@
 import React from 'react';
 import { AlertRecord } from '../../types';
 import { PriorityBadge } from '../ui';
+import { currentT } from '../../i18n/currentLang';
 
 export function getPriorityBadge(alert: AlertRecord) {
   const p = alert.overridePriority || alert.riskEvaluation.priority;
+  // === AMÉLIORATION AJOUTÉE : libellés traduits selon la langue courante (FR/EN/PT) ===
+  const t = currentT();
   const labels: Record<typeof p, string> = {
-    critique: 'CRITIQUE (48h)',
-    tres_elevee: 'TRÈS ÉLEVÉE (7j)',
-    elevee: 'ÉLEVÉE (15j)',
-    faible: 'FAIBLE (30j)',
+    critique: t.inv_prio_critical,
+    tres_elevee: t.inv_prio_very_high,
+    elevee: t.inv_prio_high,
+    faible: t.inv_prio_low,
   };
   return <PriorityBadge priority={p} label={labels[p]} />;
 }

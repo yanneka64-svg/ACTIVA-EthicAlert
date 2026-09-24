@@ -17,6 +17,7 @@
  */
 import React from 'react';
 import { UserProfile } from '../../types';
+import { currentT } from '../../i18n/currentLang';
 
 export function LinkedAccountSelect({
   users,
@@ -27,13 +28,15 @@ export function LinkedAccountSelect({
   value: string;
   onChange: (userId: string) => void;
 }) {
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
+  const t = currentT();
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white"
     >
-      <option value="">Aucun (personne externe)</option>
+      <option value="">{t.inv_no_account}</option>
       {users.map((u) => (
         <option key={u.id} value={u.id}>{u.name} — {u.roleTitle}</option>
       ))}

@@ -51,6 +51,13 @@ export const TriageSection: React.FC<TriageSectionProps> = ({
   setPriorityOverrideReason,
   setShowPriorityModal,
 }) => {
+  // === AMÉLIORATION AJOUTÉE : libellés des axes de risque traduits (RISK_AXIS_LABELS reste le repli FR) ===
+  const axisLabels: typeof RISK_AXIS_LABELS = {
+    financialImpact: { 1: `${t.risk_low_01} : < 5 000 Euro`, 2: `${t.risk_high_02} : 5 000 - 10 000 Euro`, 3: `${t.risk_very_high_03} : 10 000 - 20 000 Euro`, 4: `${t.risk_critical_04} : > 20 000 Euro` },
+    hierarchyLevel: { 1: `${t.risk_low_01} : ${t.sub_hier_employee}`, 2: `${t.risk_high_02} : ${t.sub_hier_manager}`, 3: `${t.risk_very_high_03} : ${t.sub_hier_deputy_director}`, 4: `${t.risk_critical_04} : ${t.risk_director}` },
+    recidivism: { 1: `${t.risk_low_01} : ${t.risk_none}`, 2: `${t.risk_high_02} : ${t.risk_possible}`, 3: `${t.risk_very_high_03} : ${t.risk_confirmed}`, 4: `${t.risk_critical_04} : ${t.risk_confirmed_major}` },
+    reputationRisk: { 1: `${t.risk_low_01} : ${t.risk_negligible}`, 2: `${t.risk_high_02} : ${t.risk_moderate}`, 3: `${t.risk_very_high_03} : ${t.risk_high}`, 4: `${t.risk_critical_04} : ${t.risk_high_media}` },
+  };
   return (
     <div className="p-6 space-y-5 max-h-[640px] overflow-y-auto text-xs">
       {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Onglet Allégations) ===
@@ -142,19 +149,19 @@ export const TriageSection: React.FC<TriageSectionProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="p-3 bg-white rounded-lg border border-slate-200">
             <div className="text-slate-500 text-[11px]">{t.triage_axis_financial}</div>
-            <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.financialImpact[selectedAlert.riskEvaluation.financialImpact]}</div>
+            <div className="font-bold text-slate-900 mt-0.5">{axisLabels.financialImpact[selectedAlert.riskEvaluation.financialImpact]}</div>
           </div>
           <div className="p-3 bg-white rounded-lg border border-slate-200">
             <div className="text-slate-500 text-[11px]">{t.triage_axis_hierarchy}</div>
-            <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.hierarchyLevel[selectedAlert.riskEvaluation.hierarchyLevel]}</div>
+            <div className="font-bold text-slate-900 mt-0.5">{axisLabels.hierarchyLevel[selectedAlert.riskEvaluation.hierarchyLevel]}</div>
           </div>
           <div className="p-3 bg-white rounded-lg border border-slate-200">
             <div className="text-slate-500 text-[11px]">{t.triage_axis_recidivism}</div>
-            <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.recidivism[selectedAlert.riskEvaluation.recidivism]}</div>
+            <div className="font-bold text-slate-900 mt-0.5">{axisLabels.recidivism[selectedAlert.riskEvaluation.recidivism]}</div>
           </div>
           <div className="p-3 bg-white rounded-lg border border-slate-200">
             <div className="text-slate-500 text-[11px]">{t.triage_axis_reputation}</div>
-            <div className="font-bold text-slate-900 mt-0.5">{RISK_AXIS_LABELS.reputationRisk[selectedAlert.riskEvaluation.reputationRisk]}</div>
+            <div className="font-bold text-slate-900 mt-0.5">{axisLabels.reputationRisk[selectedAlert.riskEvaluation.reputationRisk]}</div>
           </div>
         </div>
       </div>

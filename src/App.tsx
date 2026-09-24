@@ -9,6 +9,8 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-ro
 import { Language, UserProfile } from './types';
 import { storage } from './services/storage';
 import { TRANSLATIONS } from './i18n/translations';
+// === AMÉLIORATION AJOUTÉE : langue courante partagée avec les petits composants ===
+import { setCurrentLang } from './i18n/currentLang';
 import { Navbar } from './components/Navbar';
 import { WhistleblowerHome } from './components/WhistleblowerHome';
 // === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
@@ -175,6 +177,7 @@ function AppShell() {
 
   const [lang, setLang] = useState<Language>('fr');
   const t = TRANSLATIONS[lang];
+  setCurrentLang(lang);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
   // === AMÉLIORATION AJOUTÉE (Phase 5) === filter the Control Panel's KPI
@@ -1017,7 +1020,7 @@ function AppShell() {
       <footer className="shrink-0 bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* === AMÉLIORATION AJOUTÉE (Phase 20) === logo retiré du pied de page sur demande explicite (ajouté Phase 17). */}
-          <span>© {new Date().getFullYear()} Groupe ACTIVA. Tous droits réservés.</span>
+          <span>{t.footer_copyright.replace('{year}', String(new Date().getFullYear()))}</span>
           {/* === AMÉLIORATION AJOUTÉE (liens réels du pied de page) === Les
               3 boutons étaient décoratifs (aucun `onClick`, aucune
               destination) — reliés désormais à de vrais onglets publics via

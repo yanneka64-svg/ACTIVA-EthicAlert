@@ -45,7 +45,7 @@ export const PersonsSection: React.FC<PersonsSectionProps> = ({
           <div key={kind} className="p-4 rounded-xl border border-slate-200">
             <div className="flex items-center justify-between mb-2">
               <h5 className="font-bold text-slate-900">
-                {kind === 'subject' ? 'Personnes impliquées' : 'Témoins'} ({list.length})
+                {(kind === 'subject' ? t.inv_persons_involved_n : t.inv_witnesses_n).replace('{n}', String(list.length))}
               </h5>
               <button
                 onClick={() => setAddPersonKind(kind)}
@@ -56,7 +56,7 @@ export const PersonsSection: React.FC<PersonsSectionProps> = ({
               </button>
             </div>
             {list.length === 0 ? (
-              <p className="text-slate-400 italic">Non spécifié</p>
+              <p className="text-slate-400 italic">{t.inv_not_specified}</p>
             ) : (
               <div className="space-y-1.5">
                 {list.map((p) => (

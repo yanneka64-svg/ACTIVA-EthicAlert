@@ -42,7 +42,7 @@ export const EvidenceSection: React.FC<EvidenceSectionProps> = ({ selectedAlert,
       </div>
       {selectedAlert.evidences.length === 0 ? (
         <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
-          Aucun document joint
+          {t.inv_no_documents}
         </div>
       ) : (
         <div className="space-y-1.5">
