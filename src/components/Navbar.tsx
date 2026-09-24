@@ -190,15 +190,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* === AMÉLIORATION AJOUTÉE === icône EthicAlert + nom
                   « activa.whistleblowing » à la place du logo corporate
                   (ActivaLogo reste utilisé par les vues d'impression). */}
-              {/* === AMÉLIORATION AJOUTÉE (slogan sous le logo) === Sous-titre
-                  de la plateforme (t.app_subtitle, traduit FR/EN/PT) placé
-                  sous le logo, calé sur sa largeur ; masqué sous `sm` où la
-                  place manque (le logo y est déjà réduit). */}
+              {/* === AMÉLIORATION AJOUTÉE (mention sous le logo, espace
+                  connecté uniquement) === « Canal de gestion des alertes du
+                  Groupe ACTIVA » (t.hero_eyebrow, FR/EN/PT) sous le logo pour
+                  les utilisateurs connectés ; rien sur les pages publiques.
+                  Masquée sous `sm` où la place manque. */}
               <div className="flex flex-col items-start shrink-0">
                 <EthicAlertBrand className="h-10 shrink-0" />
-                <p className="hidden sm:block mt-1 max-w-[262px] text-[10px] leading-snug text-slate-500">
-                  {t.app_subtitle}
-                </p>
+                {isStaffContext && (
+                  <p className="hidden sm:block mt-1 max-w-[262px] text-[10px] leading-snug text-slate-500">
+                    {t.hero_eyebrow}
+                  </p>
+                )}
               </div>
               {/* === AMÉLIORATION AJOUTÉE (topbar staff sans doublon) === Le
                   logo « Activa.whistleblowing » contient déjà le nom de la
