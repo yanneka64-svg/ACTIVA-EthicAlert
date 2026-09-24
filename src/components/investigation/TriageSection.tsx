@@ -23,6 +23,8 @@ import React from 'react';
 import { UserPlus, SlidersHorizontal } from 'lucide-react';
 import { AlertRecord, PriorityLevel } from '../../types';
 import { getPriorityBadge } from './getPriorityBadge';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../../i18n/dataLabels';
 
 // === AMÉLIORATION AJOUTÉE (Phase 6 — Triage) === exact wording already
 // used at submission time (AlertSubmissionFlow's step 4), reused here so
@@ -80,8 +82,8 @@ export const TriageSection: React.FC<TriageSectionProps> = ({
           pour que l'onglet "Allégations" présente d'abord ce que
           le dossier reproche avant la matrice de risque. */}
       <div className="p-4 rounded-xl border border-slate-200 space-y-2">
-        <div className="font-bold text-slate-900">{selectedAlert.category}</div>
-        <div className="text-slate-600">{selectedAlert.subCategory}</div>
+        <div className="font-bold text-slate-900">{trData(selectedAlert.category)}</div>
+        <div className="text-slate-600">{trData(selectedAlert.subCategory)}</div>
         {selectedAlert.customViolationType && (
           <div className="text-slate-500 italic">{selectedAlert.customViolationType}</div>
         )}
@@ -173,7 +175,7 @@ export const TriageSection: React.FC<TriageSectionProps> = ({
         </div>
         <div className="p-3.5 rounded-xl border border-slate-200 bg-white text-center">
           <div className="text-2xl font-extrabold text-[#0B2545]">{selectedAlert.riskEvaluation.nocaThreshold}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">{selectedAlert.riskEvaluation.expectedTreatment}</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">{trData(selectedAlert.riskEvaluation.expectedTreatment)}</div>
         </div>
       </div>
 

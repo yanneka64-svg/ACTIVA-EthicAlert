@@ -1,6 +1,8 @@
 import React from 'react';
 import { ActivaLogo } from './ui/ActivaLogo';
 import { currentT } from '../i18n/currentLang';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 /**
  * === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de bord Statistiques) ===
@@ -147,7 +149,7 @@ export const ReportingPrintView: React.FC<ReportingPrintViewProps> = ({
             <tbody>
               {Object.entries(categoryCounts).map(([cat, count]) => (
                 <tr key={cat} className="border-b border-slate-100">
-                  <td className="py-1 pr-3">{cat}</td>
+                  <td className="py-1 pr-3">{trData(cat)}</td>
                   <td className="py-1 pr-3">{count}</td>
                   <td className="py-1">{pct(count, totalAlerts)}%</td>
                 </tr>

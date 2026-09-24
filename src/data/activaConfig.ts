@@ -8,6 +8,8 @@ import {
   UserRole,
   EscalationRecipient
 } from '../types';
+// === AMÉLIORATION AJOUTÉE : traduction d'affichage des données par défaut ===
+import { trData } from '../i18n/dataLabels';
 
 // === AMÉLIORATION AJOUTÉE : code officiel de numérotation des dossiers ===
 // `code` est le préfixe utilisé dans le numéro de dossier officiel Groupe
@@ -128,7 +130,8 @@ export function getCountryFlag(countries: CountryDef[], name: string | undefined
 // soi-même à chaque site d'affichage.
 export function formatCountryLabel(countries: CountryDef[], name: string | undefined): string {
   const flag = getCountryFlag(countries, name);
-  return flag ? `${flag} ${name}` : name ?? '';
+  // === AMÉLIORATION AJOUTÉE : nom de pays traduit à l'affichage (FR/EN/PT) ===
+  return flag ? `${flag} ${trData(name)}` : trData(name);
 }
 
 export const ACTIVA_ENTITIES: EntityDef[] = [

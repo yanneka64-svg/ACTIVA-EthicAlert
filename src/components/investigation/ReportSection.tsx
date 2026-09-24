@@ -28,6 +28,8 @@
 import React from 'react';
 import { ClipboardList, Printer, Lock, UserCog } from 'lucide-react';
 import { AlertRecord, Language } from '../../types';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../../i18n/dataLabels';
 
 interface ReportSectionProps {
   selectedAlert: AlertRecord;
@@ -64,7 +66,7 @@ export const ReportSection: React.FC<ReportSectionProps> = ({
           {t.inv_case_summary}
         </h4>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-700">
-          <div><span className="text-slate-500">{t.inv_summary_category}</span> {selectedAlert.category}</div>
+          <div><span className="text-slate-500">{t.inv_summary_category}</span> {trData(selectedAlert.category)}</div>
           <div><span className="text-slate-500">{t.inv_summary_entity}</span> {selectedAlert.concernedEntity}</div>
           <div><span className="text-slate-500">{t.inv_summary_status}</span> {selectedAlert.status.toUpperCase()}</div>
           <div><span className="text-slate-500">{t.inv_summary_investigators}</span> {selectedAlert.assignedInvestigatorNames.join(', ') || t.case_info_unassigned}</div>

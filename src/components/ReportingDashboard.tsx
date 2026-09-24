@@ -26,6 +26,8 @@ import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import type ExcelJS from 'exceljs';
 // === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de bord Statistiques) ===
 import { ReportingPrintView } from './ReportingPrintView';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 interface ReportingDashboardProps {
   lang: Language;
@@ -395,7 +397,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
           <option value="all">{t.report_filter_country_all}</option>
           {visibleCountries.map((c) => (
-            <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
+            <option key={c.code} value={c.name}>{c.flag} {trData(c.name, lang)}</option>
           ))}
         </select>
         <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
@@ -407,7 +409,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
         <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
           <option value="all">{t.report_filter_category_all}</option>
           {categoriesConfig.map((c) => (
-            <option key={c.id} value={c.name}>{c.name}</option>
+            <option key={c.id} value={c.name}>{trData(c.name, lang)}</option>
           ))}
         </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
@@ -560,7 +562,7 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
               return (
                 <div key={cat}>
                   <div className="flex justify-between font-semibold mb-1">
-                    <span className="text-slate-800 truncate max-w-[280px]">{cat}</span>
+                    <span className="text-slate-800 truncate max-w-[280px]">{trData(cat, lang)}</span>
                     <span className="text-slate-600">{count} ({pct}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">

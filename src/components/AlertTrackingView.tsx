@@ -39,6 +39,8 @@ import { storage } from '../services/storage';
 import { verifyPassword } from '../services/crypto';
 import { getLockStatus, recordFailedAttempt, clearAttempts, formatRemaining } from '../services/rateLimiter';
 import { formatCountryLabel } from '../data/activaConfig';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 interface AlertTrackingViewProps {
   lang: Language;
@@ -790,7 +792,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                   {[
                     { icon: FileText, label: t.track_field_case_number, value: activeAlert.trackingNumber },
                     { icon: Building2, label: t.track_field_entity, value: `${activeAlert.concernedEntity} (${formatCountryLabel(storage.getCountries(), activeAlert.country)})` },
-                    { icon: Tag, label: t.track_field_category, value: activeAlert.category, sub: activeAlert.subCategory },
+                    { icon: Tag, label: t.track_field_category, value: trData(activeAlert.category, lang), sub: trData(activeAlert.subCategory, lang) },
                     { icon: Calendar, label: t.track_field_dates, value: activeAlert.incidentDates },
                     { icon: MapPin, label: t.track_field_location, value: activeAlert.incidentLocation },
                   ].map((f, i) => {

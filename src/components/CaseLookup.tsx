@@ -44,6 +44,8 @@ import { getPhase4Firebase, isPhase4Configured } from '../services/firebaseClien
 import { Case } from '../domain/caseTypes';
 import { CASE_STATUS_LABELS } from '../domain/workflow';
 import { ACTIVA_COUNTRIES, formatCountryLabel } from '../data/activaConfig';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 interface CaseLookupProps {
   lang: Language;
@@ -349,7 +351,7 @@ export const CaseLookup: React.FC<CaseLookupProps> = ({ lang }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <span className="text-slate-500 block">{t.fb_lookup_field_category}</span>
-                    <span className="font-semibold text-slate-800">{searchResult.category}</span>
+                    <span className="font-semibold text-slate-800">{trData(searchResult.category, lang)}</span>
                     {searchResult.subcategory && (
                       <div className="text-[11px] text-slate-500">{searchResult.subcategory}</div>
                     )}

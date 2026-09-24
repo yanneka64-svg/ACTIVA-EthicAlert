@@ -16,6 +16,8 @@ import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { KpiCard, MiniLineChart, MiniDonutChart } from './ui';
 import type { TrendPoint, DonutSlice } from './ui';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 interface ExecutiveDashboardProps {
   lang: Language;
@@ -64,7 +66,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ lang, ac
   const categoryData: DonutSlice[] = Array.from(categoryCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
-    .map(([label, value], i) => ({ label, value, color: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length] }));
+    .map(([label, value], i) => ({ label: trData(label, lang), value, color: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length] }));
 
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-5">

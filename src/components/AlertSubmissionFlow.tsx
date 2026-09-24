@@ -55,6 +55,8 @@ import { generateSalt, hashPassword, generateAccessPassword } from '../services/
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { isGlobalCaseViewer } from '../services/authz';
 import { notifyNewAlertToOperators } from '../services/emailNotify';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 interface AlertSubmissionFlowProps {
   lang: Language;
@@ -474,7 +476,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
           sender: 'admin',
           senderDisplayName: 'DARC Groupe ACTIVA',
           // === AMÉLIORATION AJOUTÉE : premier message rédigé dans la langue du déclarant ===
-          content: t.sub_auto_first_message.replace('{tracking}', trackingNumber).replace('{level}', liveRisk.nocaThreshold).replace('{treatment}', liveRisk.expectedTreatment),
+          content: t.sub_auto_first_message.replace('{tracking}', trackingNumber).replace('{level}', liveRisk.nocaThreshold).replace('{treatment}', trData(liveRisk.expectedTreatment, lang)),
           createdAt: new Date().toISOString(),
         }
       ],
@@ -826,8 +828,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                               <Icon className="w-5 h-5" />
                             </span>
                             <span className="flex-1">
-                              <span className="block font-bold text-slate-900 text-sm">{cat.name}</span>
-                              <span className="block text-xs text-slate-500 mt-1">{cat.subCategories.join(', ')}.</span>
+                              <span className="block font-bold text-slate-900 text-sm">{trData(cat.name, lang)}</span>
+                              <span className="block text-xs text-slate-500 mt-1">{cat.subCategories.map((s) => trData(s, lang)).join(', ')}.</span>
                             </span>
                             <span
                               className={`mt-1 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
@@ -974,7 +976,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             <option value="">—</option>
                             {ACTIVA_COUNTRIES.map((c) => (
                               <option key={c.code} value={c.name}>
-                                {c.flag} {c.name}
+                                {c.flag} {trData(c.name, lang)}
                               </option>
                             ))}
                           </select>
@@ -1086,7 +1088,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           >
                             {entities.map((ent) => (
                               <option key={ent.id} value={ent.name}>
-                                {ent.flag} {ent.name} ({ent.country})
+                                {ent.flag} {ent.name} ({trData(ent.country, lang)})
                               </option>
                             ))}
                           </select>
@@ -1295,7 +1297,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           >
                             {currentCategoryDef?.subCategories.map((sub, idx) => (
                               <option key={idx} value={sub}>
-                                {sub}
+                                {trData(sub, lang)}
                               </option>
                             ))}
                           </select>
@@ -1310,7 +1312,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           >
                             {IMPACT_TYPES.map((imp, idx) => (
                               <option key={idx} value={imp}>
-                                {imp}
+                                {trData(imp, lang)}
                               </option>
                             ))}
                           </select>
@@ -1517,7 +1519,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                       </div>
                       <div className="p-4 text-xs">
                         <span className="text-slate-500">{t.label_category}</span>
-                        <div className="font-medium text-slate-800 mt-0.5">{selectedCategory}</div>
+                        <div className="font-medium text-slate-800 mt-0.5">{trData(selectedCategory, lang)}</div>
                       </div>
                     </div>
 
@@ -1610,15 +1612,15 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                         </div>
                         <div>
                           <span className="text-slate-500">{t.label_incident_category}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{selectedSubCategory}</div>
+                          <div className="font-medium text-slate-800 mt-0.5">{trData(selectedSubCategory, lang)}</div>
                         </div>
                         <div>
                           <span className="text-slate-500">{t.label_impact_potential}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{impactType}</div>
+                          <div className="font-medium text-slate-800 mt-0.5">{trData(impactType, lang)}</div>
                         </div>
                         <div>
                           <span className="text-slate-500">{t.label_situation_ongoing}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{isOngoing ? 'Oui' : 'Non'}</div>
+                          <div className="font-medium text-slate-800 mt-0.5">{isOngoing ? t.common_yes : t.common_no}</div>
                         </div>
                         <div className="sm:col-span-2">
                           <span className="text-slate-500">{t.label_description}</span>

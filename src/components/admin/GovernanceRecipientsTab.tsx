@@ -168,7 +168,7 @@ export const GovernanceRecipientsTab: React.FC<GovernanceRecipientsTabProps> = (
                         </td>
                         <td className="py-2 pr-3">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${r.active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'}`}>
-                            {r.active ? 'Actif' : 'Inactif'}
+                            {r.active ? t.gov_col_active : t.common_inactive}
                           </span>
                         </td>
                         <td className="py-2">

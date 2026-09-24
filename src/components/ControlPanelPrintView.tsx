@@ -2,6 +2,8 @@ import React from 'react';
 import { ActivaLogo } from './ui/ActivaLogo';
 import { AlertRecord } from '../types';
 import { currentT } from '../i18n/currentLang';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 /**
  * === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre
@@ -133,8 +135,8 @@ export const ControlPanelPrintView: React.FC<ControlPanelPrintViewProps> = ({
                 <tr key={r.trackingNumber} className="border-b border-slate-100">
                   <td className="py-1 pr-2">{r.trackingNumber}</td>
                   <td className="py-1 pr-2">{r.date}</td>
-                  <td className="py-1 pr-2">{r.category}</td>
-                  <td className="py-1 pr-2">{r.country}</td>
+                  <td className="py-1 pr-2">{trData(r.category)}</td>
+                  <td className="py-1 pr-2">{trData(r.country)}</td>
                   <td className="py-1 pr-2">{r.entity}</td>
                   <td className="py-1 pr-2">{r.priority}</td>
                   <td className="py-1 pr-2">{r.riskScore}</td>
