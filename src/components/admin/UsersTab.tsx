@@ -20,7 +20,9 @@
  */
 import React, { useState } from 'react';
 import { Plus, Pencil, Trash2, KeyRound, Copy, CheckCircle2 } from 'lucide-react';
-import { UserProfile, UserRole } from '../../types';
+import { Language, UserProfile, UserRole } from '../../types';
+// === AMÉLIORATION AJOUTÉE : onglet traduit (FR/EN/PT) ===
+import { TRANSLATIONS } from '../../i18n/translations';
 import { EntityDef, CountryDef, formatCountryLabel } from '../../data/activaConfig';
 import { storage } from '../../services/storage';
 // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire) ===
@@ -34,9 +36,11 @@ interface UsersTabProps {
   activeUser: UserProfile;
   onSaved: (msg: string) => void;
   slugify: (name: string) => string;
+  lang?: Language;
 }
 
-export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, activeUser, onSaved, slugify }) => {
+export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, activeUser, onSaved, slugify, lang = 'fr' }) => {
+  const t = TRANSLATIONS[lang];
   // --- Users CRUD state ---
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -115,7 +119,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
       .getUsers()
       .some((u) => u.id !== editingUserId && u.username.toLowerCase() === normalizedUsername);
     if (usernameTaken) {
-      alert(`L'identifiant "${normalizedUsername}" est déjà utilisé par un autre compte.`);
+      alert(t.users_username_taken.replace('{username}', normalizedUsername));
       return;
     }
     setIsSavingUser(true);
@@ -125,7 +129,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
         { name: userName.trim(), email: userEmail.trim(), username: normalizedUsername, role: userRole, roleTitle: userRoleTitle.trim(), entity: userEntity.trim(), country: userCountry.trim() },
         activeUser
       );
-      onSaved(`Compte "${userName.trim()}" mis à jour.`);
+      onSaved(t.users_updated.replace('{name}', userName.trim()));
       setShowUserModal(false);
     } else {
       const id = 'usr-' + Date.now().toString(36);
@@ -149,7 +153,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
         },
         activeUser
       );
-      onSaved(`Compte "${userName.trim()}" créé.`);
+      onSaved(t.users_created.replace('{name}', userName.trim()));
       setShowUserModal(false);
       setGeneratedCredentials({ name: userName.trim(), username: normalizedUsername, password: tempPassword });
     }
@@ -157,7 +161,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
   };
   const handleDeleteUser = (u: UserProfile) => {
     if (u.id === activeUser.id) {
-      alert('Vous ne pouvez pas supprimer votre propre compte actif.');
+      alert(t.users_cannot_delete_self);
       setDeleteUserConfirmId(null);
       return;
     }
@@ -171,14 +175,14 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
         .getUsers()
         .filter((other) => other.id !== u.id && other.role === 'system_admin' && other.active).length;
       if (remainingActiveAdmins === 0) {
-        alert('Impossible de supprimer ce compte : il s\'agit du dernier administrateur système actif. Créez ou activez un autre compte "Administrateur système" avant de supprimer celui-ci.');
+        alert(t.users_last_admin);
         setDeleteUserConfirmId(null);
         return;
       }
     }
     storage.deleteUser(u.id, activeUser);
     setDeleteUserConfirmId(null);
-    onSaved(`Compte "${u.name}" supprimé.`);
+    onSaved(t.users_deleted.replace('{name}', u.name));
   };
 
   // === AMÉLIORATION AJOUTÉE (régénération du mot de passe temporaire) ===
@@ -197,14 +201,14 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
         <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900">
-              Profils et Habilitations
+              {t.users_title}
             </h3>
           </div>
           <button
             onClick={openAddUser}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
           >
-            <Plus className="w-3.5 h-3.5" /> Ajouter un compte
+            <Plus className="w-3.5 h-3.5" /> {t.users_add_account}
           </button>
         </div>
 
@@ -224,7 +228,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                   </span>
                   <div className="text-[10px] text-slate-400 mt-0.5">{u.roleTitle}</div>
                 </div>
-                <button onClick={() => openEditUser(u)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="Modifier">
+                <button onClick={() => openEditUser(u)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title={t.btn_modify}>
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 {/* === AMÉLIORATION AJOUTÉE (régénération du mot de passe
@@ -233,21 +237,21 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                     transmission a échoué. */}
                 {resetPasswordConfirmId === u.id ? (
                   <div className="flex items-center gap-1">
-                    <button onClick={() => handleResetPassword(u)} className="px-1.5 py-1 rounded bg-amber-600 text-white font-bold text-[10px]">Confirmer</button>
-                    <button onClick={() => setResetPasswordConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">Annuler</button>
+                    <button onClick={() => handleResetPassword(u)} className="px-1.5 py-1 rounded bg-amber-600 text-white font-bold text-[10px]">{t.common_confirm}</button>
+                    <button onClick={() => setResetPasswordConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">{t.btn_cancel}</button>
                   </div>
                 ) : (
-                  <button onClick={() => setResetPasswordConfirmId(u.id)} className="p-1.5 rounded-lg hover:bg-amber-100 text-amber-700" title="Régénérer le mot de passe">
+                  <button onClick={() => setResetPasswordConfirmId(u.id)} className="p-1.5 rounded-lg hover:bg-amber-100 text-amber-700" title={t.users_regen_password}>
                     <KeyRound className="w-3.5 h-3.5" />
                   </button>
                 )}
                 {deleteUserConfirmId === u.id ? (
                   <div className="flex items-center gap-1">
-                    <button onClick={() => handleDeleteUser(u)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">Confirmer</button>
-                    <button onClick={() => setDeleteUserConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">Annuler</button>
+                    <button onClick={() => handleDeleteUser(u)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">{t.common_confirm}</button>
+                    <button onClick={() => setDeleteUserConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">{t.btn_cancel}</button>
                   </div>
                 ) : (
-                  <button onClick={() => setDeleteUserConfirmId(u.id)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title="Supprimer">
+                  <button onClick={() => setDeleteUserConfirmId(u.id)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title={t.common_delete}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -263,38 +267,38 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">
-                {editingUserId ? 'Modifier le compte' : 'Ajouter un compte'}
+                {editingUserId ? t.users_edit_account : t.users_add_account}
               </h3>
             </div>
             <form onSubmit={handleSaveUser} className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Nom complet *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.users_full_name}</label>
                   <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Email *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.users_email}</label>
                   <input type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block font-semibold text-slate-700 mb-1">Identifiant de connexion *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.users_username}</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={userUsername}
                       onChange={(e) => setUserUsername(e.target.value)}
-                      placeholder="ex : y.mebadaekani"
+                      placeholder={t.users_username_ph}
                       className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg font-mono"
                       required
                     />
                     <button type="button" onClick={suggestUsername} className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 font-semibold whitespace-nowrap">
-                      Suggérer
+                      {t.users_suggest}
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1">Distinct de l'email — c'est avec cet identifiant que le compte se connecte.</p>
+                  <p className="text-[10px] text-slate-500 mt-1">{t.users_username_hint}</p>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Rôle *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.users_role}</label>
                   {/* === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du
                       modèle de rôles) === les 10 rôles réels de l'application
                       (auparavant 4 options ne couvrant que l'ancien modèle à
@@ -302,34 +306,34 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                       plus, un compte créé ici étant toujours un compte
                       collaborateur). */}
                   <select value={userRole} onChange={(e) => setUserRole(e.target.value as UserRole)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
-                    <option value="investigator">Investigateur</option>
-                    <option value="senior_investigator">Investigateur senior</option>
-                    <option value="functional_admin">Administrateur fonctionnel</option>
-                    <option value="darc_compliance">Conformité DARC</option>
-                    <option value="consultation">Consultation / Audit</option>
-                    <option value="executive">Direction / Exécutif</option>
-                    <option value="system_admin">Administrateur système</option>
-                    <option value="security_admin">Administrateur sécurité</option>
-                    <option value="audit_committee">Comité d’Audit</option>
+                    <option value="investigator">{t.users_role_investigator}</option>
+                    <option value="senior_investigator">{t.users_role_senior_investigator}</option>
+                    <option value="functional_admin">{t.users_role_functional_admin}</option>
+                    <option value="darc_compliance">{t.role_badge_darc_compliance}</option>
+                    <option value="consultation">{t.role_badge_consultation}</option>
+                    <option value="executive">{t.role_badge_executive}</option>
+                    <option value="system_admin">{t.users_role_system_admin}</option>
+                    <option value="security_admin">{t.users_role_security_admin}</option>
+                    <option value="audit_committee">{t.role_badge_audit_committee}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Intitulé de poste</label>
-                  <input type="text" value={userRoleTitle} onChange={(e) => setUserRoleTitle(e.target.value)} placeholder="Ex : Investigatrice DARC" className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" />
+                  <label className="block font-semibold text-slate-700 mb-1">{t.users_job_title}</label>
+                  <input type="text" value={userRoleTitle} onChange={(e) => setUserRoleTitle(e.target.value)} placeholder={t.users_job_title_ph} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Entité</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.op_col_entity}</label>
                   <select value={userEntity} onChange={(e) => setUserEntity(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
-                    <option value="">Toutes entités</option>
+                    <option value="">{t.users_all_entities}</option>
                     {entities.map((e) => (
                       <option key={e.id} value={e.name}>{e.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Pays</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t.op_col_country}</label>
                   <select value={userCountry} onChange={(e) => setUserCountry(e.target.value)} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
-                    <option value="">Groupe ACTIVA</option>
+                    <option value="">{t.users_group_activa}</option>
                     {countries.map((c) => (
                       <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
                     ))}
@@ -337,9 +341,9 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button type="button" onClick={() => setShowUserModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">Annuler</button>
+                <button type="button" onClick={() => setShowUserModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">{t.btn_cancel}</button>
                 <button type="submit" disabled={isSavingUser} className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] disabled:opacity-60 text-white font-bold">
-                  {isSavingUser ? 'Enregistrement…' : editingUserId ? 'Enregistrer' : 'Ajouter'}
+                  {isSavingUser ? t.users_saving : editingUserId ? t.users_save : t.users_add}
                 </button>
               </div>
             </form>
@@ -369,36 +373,36 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                 <KeyRound className="w-4.5 h-4.5" />
               </span>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Identifiants temporaires générés</h3>
-                <p className="text-slate-500 text-[11px] mt-0.5">Pour {generatedCredentials.name}</p>
+                <h3 className="text-sm font-bold text-slate-900">{t.users_temp_creds_title}</h3>
+                <p className="text-slate-500 text-[11px] mt-0.5">{t.users_for_name.replace('{name}', generatedCredentials.name)}</p>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="min-w-0">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Identifiant</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{t.login_username}</div>
                   <div className="font-mono text-sm text-slate-900 truncate">{generatedCredentials.username}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => copyCredentialField('username', generatedCredentials.username)}
                   className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 shrink-0"
-                  title="Copier l'identifiant"
+                  title={t.users_copy_username}
                 >
                   {copiedField === 'username' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
               <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="min-w-0">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Mot de passe temporaire</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{t.users_temp_password}</div>
                   <div className="font-mono font-bold text-sm text-slate-900 tracking-wider truncate">{generatedCredentials.password}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => copyCredentialField('password', generatedCredentials.password)}
                   className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 shrink-0"
-                  title="Copier le mot de passe"
+                  title={t.users_copy_password}
                 >
                   {copiedField === 'password' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
@@ -406,7 +410,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
             </div>
 
             <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
-              Ce mot de passe ne sera plus jamais affiché. Transmettez-le à l'utilisateur — il devra le changer dès sa première connexion. Il expire dans 4 heures s'il n'est pas utilisé.
+              {t.users_temp_password_note}
             </p>
 
             {/* === AMÉLIORATION AJOUTÉE (libellés raccourcis, boutons sur une
@@ -421,11 +425,11 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
               >
                 {copiedField === 'both' ? (
                   <>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Copié
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> {t.users_copied}
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" /> Copier tout
+                    <Copy className="w-3.5 h-3.5" /> {t.users_copy_all}
                   </>
                 )}
               </button>
@@ -434,7 +438,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                 onClick={() => { setGeneratedCredentials(null); setCopiedField(null); }}
                 className="px-4 py-2 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white font-bold"
               >
-                Terminé
+                {t.users_done}
               </button>
             </div>
           </div>

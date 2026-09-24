@@ -19,7 +19,9 @@
  */
 import React, { useState } from 'react';
 import { ShieldCheck, ChevronRight, ChevronDown } from 'lucide-react';
-import { UserProfile } from '../../types';
+import { Language, UserProfile } from '../../types';
+// === AMÉLIORATION AJOUTÉE : onglet traduit (FR/EN/PT) ===
+import { TRANSLATIONS } from '../../i18n/translations';
 import { storage } from '../../services/storage';
 import { Permission } from '../../domain/permissions';
 import { RoleId } from '../../domain/caseTypes';
@@ -27,9 +29,11 @@ import { RoleId } from '../../domain/caseTypes';
 interface RolesPermissionsTabProps {
   activeUser: UserProfile;
   onSaved: (msg: string) => void;
+  lang?: Language;
 }
 
-export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ activeUser, onSaved }) => {
+export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ activeUser, onSaved, lang = 'fr' }) => {
+  const t = TRANSLATIONS[lang];
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
   // --- Role permissions state --- même motif seed-then-edit-then-save que
@@ -88,7 +92,7 @@ export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ active
         changedCount += 1;
       }
     }
-    onSaved(changedCount > 0 ? `Permissions mises à jour pour ${changedCount} rôle(s).` : 'Aucune modification à enregistrer.');
+    onSaved(changedCount > 0 ? t.roles_saved.replace('{n}', String(changedCount)) : t.roles_no_change);
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
@@ -110,62 +114,62 @@ export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ active
   // celles qu'aucun compte de démonstration n'utilise encore.
   const ALL_ROLE_IDS: RoleId[] = ['reporter', 'investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation', 'system_admin', 'security_admin', 'audit_committee', 'executive'];
   const ROLE_ID_LABELS: Record<RoleId, string> = {
-    reporter: 'Lanceur d’alerte',
-    investigator: 'Investigateur',
-    senior_investigator: 'Investigateur senior',
-    functional_admin: 'Administrateur fonctionnel',
-    darc_compliance: 'Conformité DARC',
-    consultation: 'Consultation',
-    system_admin: 'Administrateur système',
-    security_admin: 'Administrateur sécurité',
-    audit_committee: 'Comité d’audit',
-    executive: 'Direction / Exécutif',
+    reporter: t.role_badge_reporter,
+    investigator: t.users_role_investigator,
+    senior_investigator: t.users_role_senior_investigator,
+    functional_admin: t.users_role_functional_admin,
+    darc_compliance: t.role_badge_darc_compliance,
+    consultation: t.roles_consultation,
+    system_admin: t.users_role_system_admin,
+    security_admin: t.users_role_security_admin,
+    audit_committee: t.roles_audit_committee,
+    executive: t.role_badge_executive,
   };
   const PERMISSION_GROUPS: { group: string; permissions: { key: Permission; label: string }[] }[] = [
     {
-      group: 'Dossiers',
+      group: t.roles_group_cases,
       permissions: [
-        { key: 'cases.read', label: 'Consulter les dossiers' },
-        { key: 'cases.create', label: 'Créer un dossier' },
-        { key: 'cases.assign', label: 'Attribuer un dossier' },
-        { key: 'cases.reassign', label: 'Réattribuer un dossier' },
-        { key: 'cases.edit', label: 'Modifier un dossier' },
-        { key: 'cases.close', label: 'Clôturer un dossier' },
-        { key: 'cases.reopen', label: 'Rouvrir un dossier' },
-        { key: 'cases.archive', label: 'Archiver un dossier' },
-        { key: 'cases.export', label: 'Exporter les dossiers' },
+        { key: 'cases.read', label: t.perm_cases_read },
+        { key: 'cases.create', label: t.perm_cases_create },
+        { key: 'cases.assign', label: t.perm_cases_assign },
+        { key: 'cases.reassign', label: t.perm_cases_reassign },
+        { key: 'cases.edit', label: t.perm_cases_edit },
+        { key: 'cases.close', label: t.perm_cases_close },
+        { key: 'cases.reopen', label: t.perm_cases_reopen },
+        { key: 'cases.archive', label: t.perm_cases_archive },
+        { key: 'cases.export', label: t.perm_cases_export },
       ],
     },
     {
-      group: 'Preuves',
+      group: t.roles_group_evidence,
       permissions: [
-        { key: 'evidence.read', label: 'Consulter les preuves' },
-        { key: 'evidence.upload', label: 'Téléverser des preuves' },
-        { key: 'evidence.delete', label: 'Supprimer des preuves' },
+        { key: 'evidence.read', label: t.perm_evidence_read },
+        { key: 'evidence.upload', label: t.perm_evidence_upload },
+        { key: 'evidence.delete', label: t.perm_evidence_delete },
       ],
     },
     {
-      group: 'Communications',
+      group: t.roles_group_communications,
       permissions: [
-        { key: 'communications.read', label: 'Consulter les messages' },
-        { key: 'communications.send', label: 'Envoyer des messages' },
+        { key: 'communications.read', label: t.perm_comms_read },
+        { key: 'communications.send', label: t.perm_comms_send },
       ],
     },
     {
-      group: 'Rapports',
+      group: t.roles_group_reports,
       permissions: [
-        { key: 'reports.read', label: 'Consulter les rapports' },
-        { key: 'reports.export', label: 'Exporter les rapports' },
+        { key: 'reports.read', label: t.perm_reports_read },
+        { key: 'reports.export', label: t.perm_reports_export },
       ],
     },
     {
-      group: 'Administration',
+      group: t.roles_group_admin,
       permissions: [
-        { key: 'configuration.manage', label: 'Gérer la configuration' },
-        { key: 'users.manage', label: 'Gérer les comptes utilisateurs' },
-        { key: 'audit.read', label: 'Consulter la piste d’audit' },
+        { key: 'configuration.manage', label: t.perm_config_manage },
+        { key: 'users.manage', label: t.perm_users_manage },
+        { key: 'audit.read', label: t.perm_audit_read },
         // === AMÉLIORATION AJOUTÉE (Phase 12 — RBAC étendu) ===
-        { key: 'security.manage', label: 'Gérer la sécurité (authentification, MFA, sessions)' },
+        { key: 'security.manage', label: t.perm_security_manage },
       ],
     },
   ];
@@ -176,7 +180,7 @@ export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ active
         <div>
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-blue-700" />
-            Matrice des rôles & permissions
+            {t.roles_matrix_title}
           </h3>
           {/* === AMÉLIORATION AJOUTÉE (suppression du texte explicatif)
               === sur demande explicite de l'utilisateur : le paragraphe
@@ -191,7 +195,7 @@ export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ active
           type="submit"
           className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
         >
-          Enregistrer les permissions
+          {t.roles_save}
         </button>
       </div>
 
@@ -238,7 +242,7 @@ export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ active
                             checked={checked}
                             disabled={protectedCell}
                             onChange={() => toggleRolePermissionDraft(r, p.key)}
-                            title={protectedCell ? 'Protégé : nécessaire pour conserver l\'accès à cet écran' : undefined}
+                            title={protectedCell ? t.roles_protected : undefined}
                             className={`accent-blue-600 w-3.5 h-3.5 ${protectedCell ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                           />
                         </td>
