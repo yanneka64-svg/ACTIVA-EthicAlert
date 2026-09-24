@@ -1624,6 +1624,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     print_summary_report: 'Rapport de synthèse',
     // === AMÉLIORATION AJOUTÉE : pied de page (FR/EN/PT) ===
     footer_copyright: '© {year} Groupe ACTIVA. Tous droits réservés.',
+    // === AMÉLIORATION AJOUTÉE : Oui/Non, Actif/Inactif (FR/EN/PT) ===
+    common_yes: 'Oui',
+    common_no: 'Non',
+    common_inactive: 'Inactif',
   },
   en: {
     // app_title/app_subtitle are defined further below, in the "Phase 11" block.
@@ -3063,6 +3067,10 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     print_summary_report: 'Summary report',
     // === AMÉLIORATION AJOUTÉE : pied de page (FR/EN/PT) ===
     footer_copyright: '© {year} ACTIVA Group. All rights reserved.',
+    // === AMÉLIORATION AJOUTÉE : Oui/Non, Actif/Inactif (FR/EN/PT) ===
+    common_yes: 'Yes',
+    common_no: 'No',
+    common_inactive: 'Inactive',
   },
   pt: {
     // app_title/app_subtitle são definidos mais abaixo, no bloco "Phase 11".
@@ -4502,5 +4510,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     print_summary_report: 'Relatório de síntese',
     // === AMÉLIORATION AJOUTÉE : pied de page (FR/EN/PT) ===
     footer_copyright: '© {year} Grupo ACTIVA. Todos os direitos reservados.',
+    // === AMÉLIORATION AJOUTÉE : Oui/Non, Actif/Inactif (FR/EN/PT) ===
+    common_yes: 'Sim',
+    common_no: 'Não',
+    common_inactive: 'Inativo',
   }
 };

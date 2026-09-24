@@ -120,6 +120,8 @@ import { AlertStatusBucket, getAlertStatusBucket, isRejectedBucket } from '../do
 // jamais réimplémentées à la main pour cette modale.
 import { computeRiskEvaluation, formatCountryLabel } from '../data/activaConfig';
 import { generateSalt, hashPassword, generateAccessPassword } from '../services/crypto';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
 // section) === `AssignCandidateRow` déplacé tel quel dans
@@ -1666,7 +1668,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       ),
                       hideOnMobile: true,
                     },
-                    { key: 'category', header: t.desk_col_category, render: (alert) => alert.category },
+                    { key: 'category', header: t.desk_col_category, render: (alert) => trData(alert.category, lang) },
                     {
                       key: 'status',
                       header: t.desk_col_status,
@@ -2110,7 +2112,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 <Tag className="w-4 h-4" />
               </span>
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.case_info_category}</div>
-              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.category}>{selectedAlert.category}</div>
+              <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedAlert.category}>{trData(selectedAlert.category, lang)}</div>
             </div>
             <div className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
               <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2">
@@ -3256,7 +3258,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     >
                       <option value="">—</option>
                       {countries.map((c) => (
-                        <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
+                        <option key={c.code} value={c.name}>{c.flag} {trData(c.name, lang)}</option>
                       ))}
                     </select>
                   </div>
@@ -3293,7 +3295,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   >
                     <option value="">—</option>
                     {categoriesConfig.map((c) => (
-                      <option key={c.name} value={c.name}>{c.name}</option>
+                      <option key={c.name} value={c.name}>{trData(c.name, lang)}</option>
                     ))}
                   </select>
                 </div>

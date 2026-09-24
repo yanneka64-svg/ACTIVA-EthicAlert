@@ -70,6 +70,8 @@ import type { DataTableColumn, KpiTone } from './ui';
 // d'InvestigationDesk.tsx (composant désormais exporté depuis ce fichier
 // pour cette seule raison, aucun autre changement).
 import { AssignCandidateRow } from './investigation/AssignCandidateRow';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace Enquêteur) ===
 // 3 nouveaux modes purement additifs : `my_cases`/`to_process`/`in_progress`
@@ -752,7 +754,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         </div>
       ),
     },
-    { key: 'nature', header: t.op_col_nature, render: (a) => <span className="truncate max-w-[160px] inline-block">{a.category}</span>, hideOnMobile: true },
+    { key: 'nature', header: t.op_col_nature, render: (a) => <span className="truncate max-w-[160px] inline-block">{trData(a.category, lang)}</span>, hideOnMobile: true },
     { key: 'country', header: t.op_col_country, render: (a) => a.country, hideOnMobile: true },
     {
       key: 'entity',
@@ -828,7 +830,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       ),
       hideOnMobile: true,
     },
-    { key: 'nature', header: t.op_col_nature, render: (a) => <span className="truncate max-w-[160px] inline-block">{a.category}</span>, hideOnMobile: true },
+    { key: 'nature', header: t.op_col_nature, render: (a) => <span className="truncate max-w-[160px] inline-block">{trData(a.category, lang)}</span>, hideOnMobile: true },
     {
       key: 'noca',
       header: t.op_col_criticality,
@@ -951,7 +953,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                         <span className="font-mono font-bold text-[#0B2545] text-xs">{a.trackingNumber}</span>
                         <PriorityBadge priority={effectivePriority(a)} label={urgencyLabels[effectivePriority(a)]} size="sm" />
                       </div>
-                      <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{a.category} — {a.concernedEntity}</p>
+                      <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{trData(a.category, lang)} — {a.concernedEntity}</p>
                       <p className="text-[10px] text-slate-500 mt-0.5">{new Date(a.createdAt).toLocaleDateString(dateLocale)} · {channelLabels[a.channel]}</p>
                     </div>
                   </button>
@@ -971,7 +973,7 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
                       <span className="font-mono font-bold text-[#0B2545]">{panelAlert.trackingNumber}</span>
                       <ConfidentialityBadge level={panelAlert.confidentialityLevel} lang={lang} />
                     </div>
-                    <p className="text-xs text-slate-600 mt-1">{panelAlert.category} — {panelAlert.subCategory}</p>
+                    <p className="text-xs text-slate-600 mt-1">{trData(panelAlert.category, lang)} — {trData(panelAlert.subCategory, lang)}</p>
                     <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1"><Building2 className="w-3 h-3" /> {panelAlert.concernedEntity} ({formatCountryLabel(storage.getCountries(), panelAlert.country)})</p>
                   </div>
                   <button onClick={() => setPanelAlertId(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 lg:hidden">

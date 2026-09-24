@@ -2,6 +2,8 @@ import React from 'react';
 import { AlertRecord } from '../types';
 import { ActivaLogo } from './ui/ActivaLogo';
 import { currentT } from '../i18n/currentLang';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 /**
  * === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
@@ -57,7 +59,7 @@ export const CaseReportPrintView: React.FC<CaseReportPrintViewProps> = ({ alert,
           <tbody>
             <tr>
               <td className="font-semibold py-1 pr-4 w-44 align-top">{t.desk_col_category}</td>
-              <td>{alert.category}</td>
+              <td>{trData(alert.category)}</td>
             </tr>
             <tr>
               <td className="font-semibold py-1 pr-4 align-top">{t.op_col_entity}</td>
@@ -69,7 +71,7 @@ export const CaseReportPrintView: React.FC<CaseReportPrintViewProps> = ({ alert,
             </tr>
             <tr>
               <td className="font-semibold py-1 pr-4 align-top">{t.print_investigators}</td>
-              <td>{alert.assignedInvestigatorNames.join(', ') || 'Non attribué'}</td>
+              <td>{alert.assignedInvestigatorNames.join(', ') || t.op_not_assigned}</td>
             </tr>
             <tr>
               <td className="font-semibold py-1 pr-4 align-top">{t.desk_status_corrective}</td>

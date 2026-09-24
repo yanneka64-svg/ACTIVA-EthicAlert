@@ -25,6 +25,8 @@ import React from 'react';
 import { Link2, ChevronRight } from 'lucide-react';
 import { InvolvedPerson, Witness, UserProfile } from '../../types';
 import { currentT } from '../../i18n/currentLang';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../../i18n/dataLabels';
 
 export function PersonRow({
   person,
@@ -47,7 +49,7 @@ export function PersonRow({
       </span>
       <div className="min-w-0 flex-1">
         <span className="font-bold text-slate-900 block truncate">{person.name || t.desk_confidential}</span>
-        <div className="text-[11px] text-slate-500 truncate">{person.position} • {person.hierarchyRole}</div>
+        <div className="text-[11px] text-slate-500 truncate">{person.position} • {trData(person.hierarchyRole)}</div>
         {linkedUser && (
           <div className="text-[10px] text-emerald-700 font-semibold truncate flex items-center gap-1 mt-0.5">
             <Link2 className="w-3 h-3" />

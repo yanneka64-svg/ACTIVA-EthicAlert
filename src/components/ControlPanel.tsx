@@ -59,6 +59,8 @@ import { KpiCard, DataTable, EmptyState, StatusBadge, MiniLineChart, MiniDonutCh
 import type { DataTableColumn, TrendPoint, DonutSlice, BarDatum, HBarDatum } from './ui';
 // === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre de Pilotage) ===
 import { ControlPanelPrintView } from './ControlPanelPrintView';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 interface CasesFilter {
   status?: string;
@@ -312,7 +314,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const categoryData: DonutSlice[] = Array.from(categoryCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
-    .map(([label, value], i) => ({ label, value, color: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length] }));
+    .map(([label, value], i) => ({ label: trData(label, lang), value, color: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length] }));
 
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
   // Regroupement des dossiers visibles en 5 paniers façon maquette (voir
@@ -424,7 +426,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   const recentAlertsColumns: DataTableColumn<AlertRecord>[] = [
     { key: 'id', header: t.cp_col_case_id, render: (r) => <span className="font-bold text-blue-700">{r.trackingNumber}</span> },
     { key: 'date', header: t.cp_col_date, render: (r) => new Date(r.createdAt).toLocaleDateString(locale), hideOnMobile: true },
-    { key: 'category', header: t.cp_col_category, render: (r) => r.category },
+    { key: 'category', header: t.cp_col_category, render: (r) => trData(r.category, lang) },
     { key: 'country', header: t.cp_col_country, render: (r) => formatCountryLabel(storage.getCountries(), r.country), hideOnMobile: true },
     { key: 'entity', header: t.cp_col_entity, render: (r) => r.concernedEntity, hideOnMobile: true },
     {

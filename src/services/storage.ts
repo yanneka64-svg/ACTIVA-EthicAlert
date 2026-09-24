@@ -158,7 +158,10 @@ class StorageService {
           // compte chargé sans `username` reçoit désormais un identifiant de
           // secours dérivé de son email, et l'état corrigé est repersisté —
           // plus jamais de compte injoignable silencieusement.
-          const migrated = parsedUsers.map((u) => (u.username ? u : { ...u, username: u.email.split('@')[0] }));
+          const migrated = parsedUsers
+            .map((u) => (u.username ? u : { ...u, username: u.email.split('@')[0] }))
+            // === AMÉLIORATION AJOUTÉE : compte de secours jamais utilisé → mot de passe temporaire actuel ===
+            .map((u) => this.upgradeEmergencySeed(u));
           this.users = migrated;
           if (migrated.some((u, i) => u !== parsedUsers[i])) this.persistUsers();
         } else {
@@ -447,12 +450,46 @@ class StorageService {
         countries: [],
         entities: [],
         active: true,
-        passwordHash: 'ebea5dbccaaa1486532559de832900744b5ee8f92634be43a4abddf35fa52b6e',
-        passwordSalt: '624a5778a97e69a6feb6690fd06630e9',
+        // === AMÉLIORATION AJOUTÉE : nouveau mot de passe temporaire (communiqué
+        // séparément à l'administrateur, jamais committé en clair) ===
+        passwordHash: StorageService.EMERGENCY_SEED_HASH,
+        passwordSalt: StorageService.EMERGENCY_SEED_SALT,
         mustChangePassword: true,
         passwordSetAt: new Date().toISOString(),
       },
     ];
+  }
+
+  // === AMÉLIORATION AJOUTÉE : identifiants du compte de secours ===
+  // Hash/sel du mot de passe temporaire actuel (services/crypto.ts). Les
+  // empreintes des anciens mots de passe de secours sont conservées pour que
+  // `upgradeEmergencySeed` aligne un compte de secours jamais utilisé (mot
+  // de passe perdu ou expiré) sur le mot de passe temporaire actuel.
+  private static readonly EMERGENCY_SEED_HASH = '667119d165a09b0db2cc89b70c540d87dec4b0ce20ec90a13cf9e27ae105fe9e';
+  private static readonly EMERGENCY_SEED_SALT = '7d4568809bc28c1cf187701d809b0a44';
+  private static readonly EMERGENCY_SEED_HASHES = [
+    'ebea5dbccaaa1486532559de832900744b5ee8f92634be43a4abddf35fa52b6e',
+    StorageService.EMERGENCY_SEED_HASH,
+  ];
+
+  /**
+   * === AMÉLIORATION AJOUTÉE : récupération du compte de secours ===
+   * Tant que le compte de secours n'a jamais été utilisé (empreinte d'un mot
+   * de passe de secours toujours en place ET changement obligatoire en
+   * attente), il reçoit le mot de passe temporaire actuel avec une nouvelle
+   * fenêtre de validité : l'administrateur ne peut plus être bloqué par un
+   * mot de passe perdu ou expiré. Dès qu'il a défini son propre mot de
+   * passe, ce compte n'est plus jamais modifié ici.
+   */
+  private upgradeEmergencySeed(u: UserProfile): UserProfile {
+    if (u.id !== 'usr-emergency-admin' || !u.mustChangePassword) return u;
+    if (!u.passwordHash || !StorageService.EMERGENCY_SEED_HASHES.includes(u.passwordHash)) return u;
+    return {
+      ...u,
+      passwordHash: StorageService.EMERGENCY_SEED_HASH,
+      passwordSalt: StorageService.EMERGENCY_SEED_SALT,
+      passwordSetAt: new Date().toISOString(),
+    };
   }
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===

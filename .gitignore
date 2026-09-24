@@ -15,3 +15,6 @@ service-account*.json
 firebase-adminsdk*.json
 .firebase/
 *.firebase-key.json
+
+# Réglages Claude Code personnels (non partagés)
+.claude/settings.local.json

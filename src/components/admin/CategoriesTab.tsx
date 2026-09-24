@@ -196,7 +196,7 @@ export const CategoriesTab: React.FC<CategoriesTabProps> = ({ categoriesConfig, 
                             title={isActive ? t.cat_click_deactivate : t.cat_click_reactivate}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                            {isActive ? 'Actif' : 'Inactif'}
+                            {isActive ? t.gov_col_active : t.common_inactive}
                           </button>
                         </td>
                         <td className="py-3 pr-3 text-slate-700 font-semibold">{caseCount}</td>

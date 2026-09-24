@@ -24,6 +24,8 @@ import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { AdvancedSearchCriteria, hasActiveCriteria, searchAlerts } from '../domain/advancedSearch';
 import { DataTable, DataTableColumn, PriorityBadge, StatusBadge, BadgeStatus } from './ui';
 import { formatCountryLabel } from '../data/activaConfig';
+// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
+import { trData } from '../i18n/dataLabels';
 
 interface AdvancedSearchViewProps {
   lang: Language;
@@ -109,8 +111,8 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
       header: t.desk_col_category,
       render: (a) => (
         <div>
-          <div className="font-semibold text-slate-900 truncate max-w-[220px]">{a.category}</div>
-          <div className="text-[11px] text-slate-500 truncate max-w-[220px]">{a.subCategory}</div>
+          <div className="font-semibold text-slate-900 truncate max-w-[220px]">{trData(a.category, lang)}</div>
+          <div className="text-[11px] text-slate-500 truncate max-w-[220px]">{trData(a.subCategory, lang)}</div>
         </div>
       ),
     },
@@ -186,7 +188,7 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
             <select value={criteria.countryId ?? ''} onChange={(e) => setField('countryId', e.target.value)} className={selectClass}>
               <option value="">{t.op_all_countries}</option>
               {countries.map((c) => (
-                <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
+                <option key={c.code} value={c.code}>{c.flag} {trData(c.name, lang)}</option>
               ))}
             </select>
           </div>
@@ -208,7 +210,7 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
             <select value={criteria.category ?? ''} onChange={(e) => setField('category', e.target.value)} className={selectClass}>
               <option value="">{t.srch_all_categories}</option>
               {categories.map((c) => (
-                <option key={c.id} value={c.name}>{c.name}</option>
+                <option key={c.id} value={c.name}>{trData(c.name, lang)}</option>
               ))}
             </select>
           </div>
