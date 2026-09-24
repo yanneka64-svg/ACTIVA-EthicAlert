@@ -296,10 +296,11 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
 
             {/* === AMÉLIORATION AJOUTÉE (lisibilité de la mention anonymat) ===
                 Petit texte gris posé directement sur la photo du hero :
-                contraste insuffisant. Pastille blanche semi-opaque (flou
-                d'arrière-plan), texte plus foncé et un peu plus grand. */}
-            <p className="inline-flex items-center gap-2 mt-1 px-3.5 py-2 rounded-2xl sm:rounded-full bg-white/90 backdrop-blur-sm border border-slate-200 shadow-sm text-xs sm:text-sm font-semibold text-slate-800">
-              <Lock className="w-4 h-4 text-blue-700 shrink-0" />
+                contraste insuffisant. Sans pastille (demande utilisateur) :
+                texte quasi noir, en gras, un peu plus grand, avec un léger
+                halo blanc qui le détache de la photo. */}
+            <p className="flex items-center gap-2 pt-1 text-xs sm:text-sm font-bold text-slate-900 [text-shadow:0_0_2px_#fff,0_0_6px_#fff,0_0_10px_rgba(255,255,255,0.9)]">
+              <Lock className="w-4 h-4 text-blue-700 shrink-0 drop-shadow-[0_0_3px_#fff]" />
               {t.hero_anonymous_note}
             </p>
           </div>
