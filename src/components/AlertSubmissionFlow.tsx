@@ -578,11 +578,15 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
               {t.confidentiality_gate_body1_pre}
               <span className="font-bold text-slate-900">{t.confidentiality_gate_body1_bold}</span>
               {t.confidentiality_gate_body1_post}
-            </p>
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify">
+              {/* === AMÉLIORATION AJOUTÉE : « Vous pouvez choisir de rester
+                  anonyme. » déplacé à la fin du premier paragraphe (mêmes
+                  clés de traduction, simple réorganisation de l'affichage) === */}
+              {' '}
               {t.confidentiality_gate_body2_pre}
               <span className="font-bold text-slate-900">{t.confidentiality_gate_body2_bold}</span>
-              {t.confidentiality_gate_body2_post}
+            </p>
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify">
+              {t.confidentiality_gate_body2_post.trim()}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
