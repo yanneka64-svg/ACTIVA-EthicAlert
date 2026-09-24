@@ -17,6 +17,7 @@
  */
 import React from 'react';
 import { PriorityLevel } from '../../types';
+import { currentT } from '../../i18n/currentLang';
 
 interface PriorityModalProps {
   newPriority: PriorityLevel;
@@ -39,34 +40,36 @@ export const PriorityModal: React.FC<PriorityModalProps> = ({
   setShowPriorityModal,
   handleUpdatePriority,
 }) => {
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
+  const t = currentT();
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
         <div className="border-b border-slate-100 pb-3">
           <h3 className="text-sm font-bold text-slate-900">
-            Modifier la classification et les délais de traitement
+            {t.inv_prio_title}
           </h3>
           <p className="text-slate-500 text-[11px] mt-0.5">
-            Le point de contact peut ajuster la priorité et les délais préconfigurés.
+            {t.inv_prio_hint}
           </p>
         </div>
 
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">Niveau de priorité</label>
+          <label className="block font-semibold text-slate-700 mb-1">{t.inv_prio_level}</label>
           <select
             value={newPriority}
             onChange={(e: any) => setNewPriority(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-bold"
           >
-            <option value="critique">Critique (Action immédiate 48h)</option>
-            <option value="tres_elevee">Très élevée (Enquête urgente 7j)</option>
-            <option value="elevee">Élevée (Suivi renforcé 15j)</option>
-            <option value="faible">Faible (Traitement standard 30j)</option>
+            <option value="critique">{t.inv_prio_opt_critical}</option>
+            <option value="tres_elevee">{t.inv_prio_opt_very_high}</option>
+            <option value="elevee">{t.inv_prio_opt_high}</option>
+            <option value="faible">{t.inv_prio_opt_low}</option>
           </select>
         </div>
 
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">Délai de traitement cible (en jours)</label>
+          <label className="block font-semibold text-slate-700 mb-1">{t.inv_prio_days}</label>
           <input
             type="number"
             value={newSlaDays}
@@ -76,12 +79,12 @@ export const PriorityModal: React.FC<PriorityModalProps> = ({
         </div>
 
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">Motif de l'ajustement</label>
+          <label className="block font-semibold text-slate-700 mb-1">{t.inv_prio_reason}</label>
           <input
             type="text"
             value={priorityOverrideReason}
             onChange={(e) => setPriorityOverrideReason(e.target.value)}
-            placeholder="Ex: Confirmation d'un préjudice supérieur à 20k€..."
+            placeholder={t.inv_prio_reason_ph}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg"
           />
         </div>
@@ -91,13 +94,13 @@ export const PriorityModal: React.FC<PriorityModalProps> = ({
             onClick={() => setShowPriorityModal(false)}
             className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
           >
-            Annuler
+            {t.btn_cancel}
           </button>
           <button
             onClick={handleUpdatePriority}
             className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold"
           >
-            Appliquer les modifications
+            {t.inv_prio_apply}
           </button>
         </div>
       </div>

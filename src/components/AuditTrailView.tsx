@@ -73,17 +73,17 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
             <div className="flex items-center gap-2 mb-1">
               <History className="w-5 h-5 text-purple-700" />
               <h2 className="text-xl font-bold text-slate-900">
-                Piste d’Audit Immuable & Traçabilité
+                {t.audit_title}
               </h2>
             </div>
             <p className="text-xs text-slate-600">
-              Historisation intégrale des accès, modifications, consultations et décisions. Durée de conservation : 10 ans.
+              {t.audit_subtitle}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-              Registre d'audit intègre & scellé
+              {t.audit_sealed}
             </span>
 
             <button
@@ -91,7 +91,7 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-white text-xs font-bold transition shadow-xs"
             >
               <Download className="w-4 h-4 text-amber-400" />
-              <span>Export Audit Ad-Hoc</span>
+              <span>{t.audit_export}</span>
             </button>
           </div>
         </div>
@@ -104,7 +104,7 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
               type="text"
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Rechercher dans l'audit par auteur, référence, mot-clé..."
+              placeholder={t.audit_search_ph}
               className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
             />
           </div>
@@ -114,28 +114,28 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
             onChange={(e) => setActionTypeFilter(e.target.value)}
             className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700"
           >
-            <option value="all">Tous types d'actions</option>
-            <option value="ALERT_SUBMITTED">Création d'alerte</option>
-            <option value="ALERT_ACCESSED">Consultation de dossier</option>
-            <option value="ACCESS_DENIED">Accès refusé (échec authentification)</option>
-            <option value="INVESTIGATOR_ASSIGNED">Attribution de gestionnaire</option>
+            <option value="all">{t.audit_all_actions}</option>
+            <option value="ALERT_SUBMITTED">{t.audit_act_submitted}</option>
+            <option value="ALERT_ACCESSED">{t.audit_act_accessed}</option>
+            <option value="ACCESS_DENIED">{t.audit_act_denied}</option>
+            <option value="INVESTIGATOR_ASSIGNED">{t.audit_act_assigned}</option>
             {/* === AMÉLIORATION AJOUTÉE (Phase 9 — évolution multi-pays/multi-entité) === */}
-            <option value="CASE_ESCALATED">Escalade vers la DARC Groupe</option>
-            <option value="STATUS_CHANGED">Changement de statut</option>
-            <option value="PRIORITY_MODIFIED">Modification de priorité</option>
-            <option value="INTERNAL_NOTE_ADDED">Note interne ajoutée</option>
+            <option value="CASE_ESCALATED">{t.audit_act_escalated}</option>
+            <option value="STATUS_CHANGED">{t.audit_act_status}</option>
+            <option value="PRIORITY_MODIFIED">{t.audit_act_priority}</option>
+            <option value="INTERNAL_NOTE_ADDED">{t.audit_act_note}</option>
             {/* === AMÉLIORATION AJOUTÉE (Phase 9 — évolution multi-pays/multi-entité) === */}
-            <option value="MESSAGE_SENT">Message envoyé au lanceur d'alerte</option>
-            <option value="CORRECTIVE_MEASURE_ADDED">Mesure corrective</option>
-            <option value="ALERT_CLOSED">Clôture de dossier</option>
-            <option value="ALERT_REOPENED">Réouverture de dossier</option>
+            <option value="MESSAGE_SENT">{t.audit_act_message}</option>
+            <option value="CORRECTIVE_MEASURE_ADDED">{t.audit_act_measure}</option>
+            <option value="ALERT_CLOSED">{t.audit_act_closed}</option>
+            <option value="ALERT_REOPENED">{t.audit_act_reopened}</option>
             {/* === AMÉLIORATION AJOUTÉE (Phase 9 — évolution multi-pays/multi-entité) === */}
-            <option value="ALERT_ARCHIVED">Archivage légal</option>
-            <option value="REPORT_GENERATED">Export de rapport</option>
-            <option value="CONFIG_UPDATED">Configuration mise à jour</option>
+            <option value="ALERT_ARCHIVED">{t.audit_act_archived}</option>
+            <option value="REPORT_GENERATED">{t.audit_act_report}</option>
+            <option value="CONFIG_UPDATED">{t.audit_act_config}</option>
             {/* === AMÉLIORATION AJOUTÉE (Phase 7 — routage indépendant) === */}
-            <option value="INDEPENDENT_ROUTING_TRIGGERED">Routage indépendant déclenché</option>
-            <option value="NO_INDEPENDENT_AUTHORITY_FOUND">Aucune autorité indépendante disponible</option>
+            <option value="INDEPENDENT_ROUTING_TRIGGERED">{t.audit_act_routing}</option>
+            <option value="NO_INDEPENDENT_AUTHORITY_FOUND">{t.audit_act_no_authority}</option>
           </select>
         </div>
       </div>
@@ -146,26 +146,26 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[10px]">
-                <th className="p-3.5 font-bold">Horodatage (UTC)</th>
-                <th className="p-3.5 font-bold">Auteur & Rôle</th>
-                <th className="p-3.5 font-bold">Action</th>
-                <th className="p-3.5 font-bold">Dossier</th>
-                <th className="p-3.5 font-bold">Détails de l'opération</th>
-                <th className="p-3.5 font-bold">Passerelle IP</th>
+                <th className="p-3.5 font-bold">{t.audit_col_time}</th>
+                <th className="p-3.5 font-bold">{t.audit_col_author}</th>
+                <th className="p-3.5 font-bold">{t.audit_col_action}</th>
+                <th className="p-3.5 font-bold">{t.srch_col_case}</th>
+                <th className="p-3.5 font-bold">{t.audit_col_details}</th>
+                <th className="p-3.5 font-bold">{t.audit_col_ip}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredLogs.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-slate-400">
-                    Aucune entrée d'audit trouvée.
+                    {t.audit_none}
                   </td>
                 </tr>
               ) : (
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/80 transition">
                     <td className="p-3.5 whitespace-nowrap text-slate-600 font-mono text-[11px]">
-                      {new Date(log.timestamp).toLocaleString(lang === 'en' ? 'en-US' : 'fr-FR')}
+                      {new Date(log.timestamp).toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
                     </td>
                     <td className="p-3.5 whitespace-nowrap">
                       <div className="font-semibold text-slate-900">{log.authorName}</div>

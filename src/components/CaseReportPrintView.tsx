@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertRecord } from '../types';
 import { ActivaLogo } from './ui/ActivaLogo';
+import { currentT } from '../i18n/currentLang';
 
 /**
  * === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
@@ -34,6 +35,8 @@ const formatDate = (iso: string | undefined, locale: string) =>
   iso ? new Date(iso).toLocaleDateString(locale) : '—';
 
 export const CaseReportPrintView: React.FC<CaseReportPrintViewProps> = ({ alert, generatedByName, locale }) => {
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
+  const t = currentT();
   const now = new Date();
 
   return (
@@ -41,39 +44,39 @@ export const CaseReportPrintView: React.FC<CaseReportPrintViewProps> = ({ alert,
       <header className="flex items-start justify-between border-b-2 border-[#0B2545] pb-4 mb-6">
         <ActivaLogo className="h-12" />
         <div className="text-right">
-          <p className="text-sm font-extrabold text-[#0B2545]">Rapport de synthèse</p>
+          <p className="text-sm font-extrabold text-[#0B2545]">{t.print_summary_report}</p>
           <p className="text-slate-500">
-            Généré le {now.toLocaleDateString(locale)} à {now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+            {t.print_generated_on.replace('{date}', now.toLocaleDateString(locale)).replace('{time}', now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))}
           </p>
         </div>
       </header>
 
       <section className="mb-6">
-        <h2 className="text-sm font-bold mb-2">Référence : {alert.trackingNumber}</h2>
+        <h2 className="text-sm font-bold mb-2">{t.print_reference.replace('{tracking}', alert.trackingNumber)}</h2>
         <table className="w-full border-collapse">
           <tbody>
             <tr>
-              <td className="font-semibold py-1 pr-4 w-44 align-top">Catégorie</td>
+              <td className="font-semibold py-1 pr-4 w-44 align-top">{t.desk_col_category}</td>
               <td>{alert.category}</td>
             </tr>
             <tr>
-              <td className="font-semibold py-1 pr-4 align-top">Entité</td>
+              <td className="font-semibold py-1 pr-4 align-top">{t.op_col_entity}</td>
               <td>{alert.concernedEntity}</td>
             </tr>
             <tr>
-              <td className="font-semibold py-1 pr-4 align-top">Statut</td>
+              <td className="font-semibold py-1 pr-4 align-top">{t.desk_col_status}</td>
               <td>{alert.status.toUpperCase()}</td>
             </tr>
             <tr>
-              <td className="font-semibold py-1 pr-4 align-top">Investigateur(s)</td>
+              <td className="font-semibold py-1 pr-4 align-top">{t.print_investigators}</td>
               <td>{alert.assignedInvestigatorNames.join(', ') || 'Non attribué'}</td>
             </tr>
             <tr>
-              <td className="font-semibold py-1 pr-4 align-top">Mesures correctives</td>
+              <td className="font-semibold py-1 pr-4 align-top">{t.desk_status_corrective}</td>
               <td>{alert.correctiveMeasures.length}</td>
             </tr>
             <tr>
-              <td className="font-semibold py-1 pr-4 align-top">Clôturé le</td>
+              <td className="font-semibold py-1 pr-4 align-top">{t.op_col_closed}</td>
               <td>{formatDate(alert.closedAt, locale)}</td>
             </tr>
           </tbody>
@@ -84,8 +87,8 @@ export const CaseReportPrintView: React.FC<CaseReportPrintViewProps> = ({ alert,
       </section>
 
       <footer className="mt-10 pt-4 border-t border-slate-200 text-slate-400 flex justify-between text-[10px]">
-        <span>Document confidentiel — activa-whistleblowing — Généré par {generatedByName}</span>
-        <span>Groupe ACTIVA</span>
+        <span>{t.print_footer.replace('{name}', generatedByName)}</span>
+        <span>{t.users_group_activa}</span>
       </footer>
     </div>
   );

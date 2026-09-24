@@ -1073,7 +1073,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     if (!selectedAlert) return;
 
     if (selectedAlert.correctiveMeasures.length === 0) {
-      alert("La documentation préalable d'au moins une mesure corrective est obligatoire avant toute clôture de dossier.");
+      alert(t.desk_closure_requires_measure);
       setActiveCaseTab('corrective');
       setShowCloseModal(false);
       return;
@@ -1337,9 +1337,9 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       level === 'highly_confidential'
         ? 'bg-rose-50 text-rose-700 border-rose-200'
         : 'bg-amber-50 text-amber-700 border-amber-200';
-    const label = level === 'highly_confidential' ? 'Très confidentiel' : 'Confidentiel';
+    const label = level === 'highly_confidential' ? t.confidentiality_highly_confidential : t.desk_confidential;
     return (
-      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border ${style}`} title="Niveau de confidentialité du dossier">
+      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border ${style}`} title={t.desk_confidentiality_level}>
         <Lock className="w-2.5 h-2.5" />
         {label}
       </span>
@@ -1374,8 +1374,8 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             </div>
             <p className="text-xs text-slate-600">
               {isGlobalViewer
-                ? 'Vue Groupe ACTIVA complète (DARC & Point de Contact)'
-                : `Vue Gestionnaire restreinte à vos dossiers attribués (${activeUser.name})`}
+                ? t.desk_scope_global
+                : t.desk_scope_restricted.replace('{name}', activeUser.name)}
             </p>
           </div>
 
@@ -1429,7 +1429,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       {hasConfidentialRoutingExclusion && (
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">
           <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span>Certains signalements sont soumis à un routage confidentiel.</span>
+          <span>{t.desk_confidential_routing_note}</span>
         </div>
       )}
 
@@ -1469,7 +1469,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           onChange={(e) => setEntityFilter(e.target.value)}
           className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700"
         >
-          <option value="all">Toutes les entités ACTIVA</option>
+          <option value="all">{t.desk_all_entities}</option>
           {entities.map(e => (
             <option key={e.id} value={e.name}>{e.flag} {e.name}</option>
           ))}
@@ -1479,7 +1479,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             onClick={() => { setEntityFilter('all'); setSearchQuery(''); }}
             className="text-blue-700 hover:underline font-semibold"
           >
-            Réinitialiser filtres
+            {t.desk_reset_filters}
           </button>
         )}
       </div>
@@ -1503,13 +1503,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700"
         >
-          <option value="all">Tous les statuts</option>
-          <option value="new">Nouveaux</option>
-          <option value="investigation">En investigation</option>
-          <option value="corrective_action">Mesures correctives</option>
-          <option value="closed">Clôturés</option>
-          <option value="reopened">Rouverts</option>
-          <option value="archived">Archivés</option>
+          <option value="all">{t.report_filter_status_all}</option>
+          <option value="new">{t.desk_status_new}</option>
+          <option value="investigation">{t.case_status_investigation}</option>
+          <option value="corrective_action">{t.desk_status_corrective}</option>
+          <option value="closed">{t.desk_status_closed}</option>
+          <option value="reopened">{t.desk_status_reopened}</option>
+          <option value="archived">{t.desk_status_archived}</option>
         </select>
 
         {/* Entity Filter */}
@@ -1518,7 +1518,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           onChange={(e) => setEntityFilter(e.target.value)}
           className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700"
         >
-          <option value="all">Toutes les entités ACTIVA</option>
+          <option value="all">{t.desk_all_entities}</option>
           {entities.map(e => (
             <option key={e.id} value={e.name}>{e.flag} {e.name}</option>
           ))}
@@ -1530,21 +1530,21 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           onChange={(e) => setNocaFilter(e.target.value)}
           className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700"
         >
-          <option value="all">Toutes criticités NOCA</option>
-          <option value="NOCA 4">NOCA 4 (Critique - 48h)</option>
-          <option value="NOCA 3">NOCA 3 (Très élevé - 7j)</option>
-          <option value="NOCA 2">NOCA 2 (Élevée - 15j)</option>
-          <option value="NOCA 1">NOCA 1 (Faible - 30j)</option>
+          <option value="all">{t.desk_all_noca}</option>
+          <option value="NOCA 4">{t.desk_noca4}</option>
+          <option value="NOCA 3">{t.desk_noca3}</option>
+          <option value="NOCA 2">{t.desk_noca2}</option>
+          <option value="NOCA 1">{t.desk_noca1}</option>
         </select>
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 5) === Control-Panel-driven filters */}
         <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700 cursor-pointer">
           <input type="checkbox" checked={unassignedOnlyFilter} onChange={(e) => setUnassignedOnlyFilter(e.target.checked)} className="accent-blue-600" />
-          Non attribués uniquement
+          {t.desk_unassigned_only}
         </label>
         <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700 cursor-pointer">
           <input type="checkbox" checked={overdueOnlyFilter} onChange={(e) => setOverdueOnlyFilter(e.target.checked)} className="accent-rose-600" />
-          En retard uniquement
+          {t.desk_overdue_only}
         </label>
 
         {(statusFilter !== 'all' || entityFilter !== 'all' || nocaFilter !== 'all' || searchQuery || unassignedOnlyFilter || overdueOnlyFilter) && (
@@ -1559,7 +1559,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             }}
             className="text-blue-700 hover:underline font-semibold"
           >
-            Réinitialiser filtres
+            {t.desk_reset_filters}
           </button>
         )}
       </div>
@@ -1628,10 +1628,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
               <span className="font-bold text-slate-700 uppercase tracking-wider">
-                Dossiers ({visibleAlerts.length})
+                {t.desk_cases_count.replace('{n}', String(visibleAlerts.length))}
               </span>
               <span className="text-[11px] text-slate-500">
-                {isGlobalViewer ? 'Toutes filiales' : 'Assignés'}
+                {isGlobalViewer ? t.desk_all_subsidiaries : t.desk_assigned}
               </span>
             </div>
 
@@ -1641,7 +1641,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   [
                     {
                       key: 'id',
-                      header: 'N° Dossier',
+                      header: t.cp_col_case_id,
                       render: (alert) => (
                         <span className="font-mono font-bold text-[#0B2545] flex items-center gap-1.5">
                           {alert.trackingNumber}
@@ -1651,13 +1651,13 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     },
                     {
                       key: 'object',
-                      header: 'Objet',
+                      header: t.desk_col_subject,
                       render: (alert) => <span className="line-clamp-1 max-w-[220px]">{alert.detailedDescription}</span>,
                       hideOnMobile: true,
                     },
                     {
                       key: 'country_entity',
-                      header: 'Pays / Entité',
+                      header: t.desk_col_country_entity,
                       render: (alert) => (
                         <span className="flex items-center gap-1 truncate max-w-[160px]">
                           <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
@@ -1666,10 +1666,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                       ),
                       hideOnMobile: true,
                     },
-                    { key: 'category', header: 'Catégorie', render: (alert) => alert.category },
+                    { key: 'category', header: t.desk_col_category, render: (alert) => alert.category },
                     {
                       key: 'status',
-                      header: 'Statut',
+                      header: t.desk_col_status,
                       render: (alert) => (
                         <StatusBadge
                           status={alert.status === 'corrective_action' ? 'closed' : (alert.status as any)}
@@ -1678,10 +1678,10 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                         />
                       ),
                     },
-                    { key: 'priority', header: 'Priorité', render: (alert) => getPriorityBadge(alert) },
+                    { key: 'priority', header: t.desk_col_priority, render: (alert) => getPriorityBadge(alert) },
                     {
                       key: 'received',
-                      header: 'Reçu le',
+                      header: t.desk_col_received,
                       render: (alert) => new Date(alert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'),
                       hideOnMobile: true,
                     },
@@ -1699,14 +1699,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     activeUser
                   );
                 }}
-                emptyTitle="Aucun dossier ne correspond à vos critères de filtrage."
+                emptyTitle={t.desk_no_match}
               />
             </div>
 
             {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === */}
             {visibleAlerts.length > 0 && totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-[11px] text-slate-500">
-                <span>{visibleAlerts.length} résultats</span>
+                <span>{t.desk_results_count.replace('{n}', String(visibleAlerts.length))}</span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -2159,7 +2159,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                   </div>
                   {daysDelta !== null && (
                     <div className={`text-[11px] font-semibold mt-0.5 ${valueClass}`}>
-                      {daysDelta >= 0 ? `Dans ${daysDelta} jour${daysDelta === 1 ? '' : 's'}` : `${t.case_info_late} (${Math.abs(daysDelta)} j)`}
+                      {daysDelta >= 0 ? t.desk_due_in_days.replace('{n}', String(daysDelta)) : `${t.case_info_late} (${Math.abs(daysDelta)} ${t.desk_days_short})`}
                     </div>
                   )}
                 </div>
@@ -2208,7 +2208,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
               >
                 <span>{t.tab_allegations}</span>
                 {selectedAlert.overridePriority && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Priorité ajustée" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title={t.desk_priority_adjusted} />
                 )}
               </button>
               <button
@@ -2667,7 +2667,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center text-slate-400 text-xs space-y-3">
-            <p>Aucun dossier ne correspond à vos critères de filtrage.</p>
+            <p>{t.desk_no_match}</p>
             <button
               onClick={() => setViewMode('list')}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:underline"
@@ -2886,7 +2886,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                Clôturer formellement le dossier {selectedAlert.trackingNumber}
+                {t.desk_close_title.replace('{tracking}', selectedAlert.trackingNumber)}
               </h3>
             </div>
 
@@ -2941,26 +2941,26 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Synthèse interne de clôture pour le dossier d'enquête
+                {t.desk_closure_summary_label}
               </label>
               <textarea
                 rows={3}
                 value={closureSummary}
                 onChange={(e) => setClosureSummary(e.target.value)}
-                placeholder="Résumé des conclusions de l'investigation et résultats..."
+                placeholder={t.desk_closure_summary_ph}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg"
               />
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Message officiel transmis au lanceur d'alerte
+                {t.desk_closure_message_label}
               </label>
               <textarea
                 rows={3}
                 value={closureMessageToWb}
                 onChange={(e) => setClosureMessageToWb(e.target.value)}
-                placeholder="Rédigez le message de conclusion destiné au lanceur d'alerte..."
+                placeholder={t.desk_closure_message_ph}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg"
               />
             </div>
@@ -2971,14 +2971,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 onClick={() => setShowCloseModal(false)}
                 className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
               >
-                Annuler
+                {t.btn_cancel}
               </button>
               <button
                 type="button"
                 onClick={handleCloseAlert}
                 className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
               >
-                Confirmer la clôture
+                {t.desk_confirm_closure}
               </button>
             </div>
           </div>
@@ -2994,16 +2994,16 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       {selectedAlert && (
         <ConfirmDialog
           open={showReopenModal}
-          title={`Rouvrir le dossier ${selectedAlert.trackingNumber}`}
-          description="Règle stricte : Motif de réouverture obligatoire consigné en piste d'audit."
-          confirmLabel="Valider la réouverture"
-          cancelLabel="Annuler"
+          title={t.desk_reopen_title.replace('{tracking}', selectedAlert.trackingNumber)}
+          description={t.desk_reopen_desc}
+          confirmLabel={t.desk_reopen_confirm}
+          cancelLabel={t.btn_cancel}
           tone="danger"
           icon={<RotateCcw className="w-4 h-4" />}
           titleClassName="text-rose-700"
           requireReason
-          reasonLabel="Motif obligatoire de réouverture *"
-          reasonPlaceholder="Précisez les nouveaux faits constatés, l'incomplétude identifiée ou la demande du Comité d'audit..."
+          reasonLabel={t.desk_reopen_reason_label}
+          reasonPlaceholder={t.desk_reopen_reason_ph}
           reason={reopenReason}
           onReasonChange={setReopenReason}
           onConfirm={handleReopenAlert}
@@ -3024,7 +3024,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           title={`${t.request_info_modal_title} — ${selectedAlert.trackingNumber}`}
           description={t.request_info_modal_desc}
           confirmLabel={t.request_info_modal_submit}
-          cancelLabel="Annuler"
+          cancelLabel={t.btn_cancel}
           icon={<HelpCircle className="w-4 h-4" />}
           titleClassName="text-purple-700"
           confirmVariant="accent"
@@ -3110,7 +3110,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                 onClick={() => setShowReportModal(false)}
                 className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
               >
-                Annuler
+                {t.btn_cancel}
               </button>
               <button
                 type="button"

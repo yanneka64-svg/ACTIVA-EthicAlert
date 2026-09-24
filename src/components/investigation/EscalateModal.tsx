@@ -78,13 +78,13 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
         </div>
 
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">Motif de l'escalade *</label>
+          <label className="block font-semibold text-slate-700 mb-1">{t.inv_escalate_reason}</label>
           <textarea
             rows={3}
             value={escalateReason}
             onChange={(e) => setEscalateReason(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-            placeholder="Justification de l'escalade..."
+            placeholder={t.inv_escalate_reason_ph}
             required
           />
         </div>
@@ -94,14 +94,14 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
             onClick={() => setShowEscalateModal(false)}
             className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
           >
-            Annuler
+            {t.btn_cancel}
           </button>
           <button
             onClick={handleEscalate}
             disabled={!escalateReason.trim() || !escalateOwnerId}
             className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold"
           >
-            Confirmer l'escalade
+            {t.inv_escalate_confirm}
           </button>
         </div>
       </div>

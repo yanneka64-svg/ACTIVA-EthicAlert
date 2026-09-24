@@ -473,7 +473,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
           id: 'msg-init',
           sender: 'admin',
           senderDisplayName: 'DARC Groupe ACTIVA',
-          content: `Votre signalement a été reçu sous la référence ${trackingNumber}. Il est actuellement classé au niveau ${liveRisk.nocaThreshold} (${liveRisk.expectedTreatment}). Vous pouvez utiliser cette messagerie sécurisée pour échanger avec la DARC.`,
+          // === AMÉLIORATION AJOUTÉE : premier message rédigé dans la langue du déclarant ===
+          content: t.sub_auto_first_message.replace('{tracking}', trackingNumber).replace('{level}', liveRisk.nocaThreshold).replace('{treatment}', liveRisk.expectedTreatment),
           createdAt: new Date().toISOString(),
         }
       ],
@@ -797,7 +798,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                 {currentStep === 1 && (
                   <div className="space-y-6 animate-fadeIn">
                     <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Étape 1 sur 6</span>
+                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '1')}</span>
                       <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step1_title}</h2>
                       <p className="text-sm text-slate-600 mt-1">{t.wizard_step1_hint}</p>
                     </div>
@@ -850,10 +851,10 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                     <div className="flex justify-between pt-4">
                       <Button type="button" variant="secondary" onClick={onCancel}>
-                        Annuler
+                        {t.btn_cancel}
                       </Button>
                       <Button type="button" id="btn-step1-next" onClick={() => setCurrentStep(2)}>
-                        <span>Suivant</span>
+                        <span>{t.common_next}</span>
                         <ArrowRight className="w-4 h-4" />
                       </Button>
                     </div>
@@ -864,7 +865,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                 {currentStep === 2 && (
                   <div className="space-y-6 animate-fadeIn">
                     <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Étape 2 sur 6</span>
+                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '2')}</span>
                       <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step2_title_optional}</h2>
                       <p className="text-sm text-slate-600 mt-1">{t.wizard_step2_hint}</p>
                     </div>
@@ -880,7 +881,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                         mot `wizard_step2_hint` déjà affiché juste sous le
                         titre de l'étape. */}
                     <div className="space-y-4">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Identité</span>
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_identity}</span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="input-declarant-firstname" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_first_name}</label>
@@ -889,7 +890,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={declarantFirstName}
                             onChange={(e) => setDeclarantFirstName(e.target.value)}
-                            placeholder="Ex: Jean"
+                            placeholder={t.sub_ph_first_name}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -900,7 +901,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={declarantLastName}
                             onChange={(e) => setDeclarantLastName(e.target.value)}
-                            placeholder="Ex: Dupont"
+                            placeholder={t.sub_ph_last_name}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -911,7 +912,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={declarantJob}
                             onChange={(e) => setDeclarantJob(e.target.value)}
-                            placeholder="Ex: Auditeur interne, Chef de section..."
+                            placeholder={t.sub_ph_job}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -922,7 +923,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={declarantDept}
                             onChange={(e) => setDeclarantDept(e.target.value)}
-                            placeholder="Ex: Sinistres, Comptabilité, IT..."
+                            placeholder={t.sub_ph_dept}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -934,18 +935,18 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             onChange={(e: any) => setDeclarantType(e.target.value)}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
                           >
-                            <option value="Employé">Employé(e) du Groupe ACTIVA</option>
-                            <option value="Consultant">Consultant(e)</option>
-                            <option value="Prestataire">Prestataire / Fournisseur</option>
-                            <option value="Client">Client / Partenaire assuré</option>
-                            <option value="Autre">Autre tiers</option>
+                            <option value="Employé">{t.sub_type_employee}</option>
+                            <option value="Consultant">{t.sub_type_consultant}</option>
+                            <option value="Prestataire">{t.sub_type_supplier}</option>
+                            <option value="Client">{t.sub_type_client}</option>
+                            <option value="Autre">{t.sub_type_other}</option>
                           </select>
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-4 pt-2 border-t border-slate-100">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Coordonnées & contexte</span>
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_contact_context}</span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="input-declarant-entity" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_entity}</label>
@@ -985,7 +986,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="email"
                             value={declarantEmail}
                             onChange={(e) => setDeclarantEmail(e.target.value)}
-                            placeholder="votre.email@group-activa.com"
+                            placeholder={t.sub_ph_email}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -1000,7 +1001,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                               type="tel"
                               value={declarantPhone}
                               onChange={(e) => setDeclarantPhone(e.target.value)}
-                              placeholder="+237 ... ou +225 ..."
+                              placeholder={t.sub_ph_phone}
                               className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             />
                           </div>
@@ -1010,14 +1011,14 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                     <div className="flex flex-wrap justify-between items-center gap-3 pt-4">
                       <Button type="button" variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => setCurrentStep(1)}>
-                        <span>Précédent</span>
+                        <span>{t.common_previous}</span>
                       </Button>
                       <div className="flex items-center gap-3">
                         <Button type="button" variant="secondary" id="btn-save-and-exit" onClick={handleSaveAndExit}>
                           {t.btn_save_and_exit}
                         </Button>
                         <Button type="button" id="btn-step2-next" onClick={() => setCurrentStep(3)}>
-                          <span>Suivant</span>
+                          <span>{t.common_next}</span>
                           <ArrowRight className="w-4 h-4" />
                         </Button>
                       </div>
@@ -1029,7 +1030,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                 {currentStep === 3 && (
                   <div className="space-y-6 animate-fadeIn">
                     <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Étape 3 sur 6</span>
+                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '3')}</span>
                       <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step3_title}</h2>
                       <p className="text-sm text-slate-600 mt-1">{t.wizard_step3_desc}</p>
                     </div>
@@ -1041,7 +1042,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                         impliquées"/"Témoins éventuels" plus bas — aucun
                         champ, aucune logique n'est modifié. */}
                     <div className="space-y-4">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Contexte de l'incident</span>
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_incident_context}</span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="input-incident-dates" className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
@@ -1053,7 +1054,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={incidentDates}
                             onChange={(e) => setIncidentDates(e.target.value)}
-                            placeholder="Ex: Du 10 au 25 août 2026, ou Date précise"
+                            placeholder={t.sub_ph_dates}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                           <p className="text-[10px] text-slate-500 mt-0.5">{t.no_future_dates_warning}</p>
@@ -1065,7 +1066,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={incidentLocation}
                             onChange={(e) => setIncidentLocation(e.target.value)}
-                            placeholder="Ex: Siège Douala, Agence Plateau Abidjan, Entrepôt..."
+                            placeholder={t.sub_ph_location}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -1091,13 +1092,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           </select>
                         </div>
                         <div>
-                          <label htmlFor="input-custom-entity" className="block text-xs font-semibold text-slate-700 mb-1">Autre entité (si non listée)</label>
+                          <label htmlFor="input-custom-entity" className="block text-xs font-semibold text-slate-700 mb-1">{t.sub_other_entity}</label>
                           <input
                             id="input-custom-entity"
                             type="text"
                             value={customEntityInput}
                             onChange={(e) => setCustomEntityInput(e.target.value)}
-                            placeholder="Possibilité d'ajouter une entité"
+                            placeholder={t.sub_ph_other_entity}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -1123,13 +1124,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                       {involvedPersons.length === 0 ? (
                         <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-500">
-                          Aucune personne enregistrée. Cliquez ci-dessus pour ajouter une personne impliquée.
+                          {t.sub_no_persons}
                         </div>
                       ) : (
                         involvedPersons.map((p, idx) => (
                           <div key={p.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-700">Personne #{idx + 1}</span>
+                              <span className="text-xs font-bold text-slate-700">{t.sub_person_n.replace('{n}', String(idx + 1))}</span>
                               <button
                                 type="button"
                                 onClick={() => removeInvolvedPerson(p.id)}
@@ -1141,39 +1142,39 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                               <div>
-                                <label htmlFor={`input-person-${p.id}-name`} className="block text-[11px] font-medium text-slate-600 mb-1">Nom / Prénom</label>
+                                <label htmlFor={`input-person-${p.id}-name`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_full_name}</label>
                                 <input
                                   id={`input-person-${p.id}-name`}
                                   type="text"
                                   value={p.name}
                                   onChange={(e) => updateInvolvedPerson(p.id, 'name', e.target.value)}
-                                  placeholder="Nom de la personne"
+                                  placeholder={t.sub_ph_person_name}
                                   className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
                                 />
                               </div>
                               <div>
-                                <label htmlFor={`input-person-${p.id}-position`} className="block text-[11px] font-medium text-slate-600 mb-1">Poste / Fonction</label>
+                                <label htmlFor={`input-person-${p.id}-position`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_position_function}</label>
                                 <input
                                   id={`input-person-${p.id}-position`}
                                   type="text"
                                   value={p.position}
                                   onChange={(e) => updateInvolvedPerson(p.id, 'position', e.target.value)}
-                                  placeholder="Poste occupé"
+                                  placeholder={t.sub_ph_position}
                                   className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
                                 />
                               </div>
                               <div>
-                                <label htmlFor={`input-person-${p.id}-hierarchy`} className="block text-[11px] font-medium text-slate-600 mb-1">Rôle hiérarchique</label>
+                                <label htmlFor={`input-person-${p.id}-hierarchy`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_hierarchy}</label>
                                 <select
                                   id={`input-person-${p.id}-hierarchy`}
                                   value={p.hierarchyRole}
                                   onChange={(e: any) => updateInvolvedPerson(p.id, 'hierarchyRole', e.target.value)}
                                   className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
                                 >
-                                  <option value="Employé">Employé</option>
-                                  <option value="Cadre">Cadre</option>
-                                  <option value="Sous-Directeur">Sous-Directeur</option>
-                                  <option value="Directeur+">Directeur+</option>
+                                  <option value="Employé">{t.sub_hier_employee}</option>
+                                  <option value="Cadre">{t.sub_hier_manager}</option>
+                                  <option value="Sous-Directeur">{t.sub_hier_deputy_director}</option>
+                                  <option value="Directeur+">{t.sub_hier_director}</option>
                                 </select>
                               </div>
                             </div>
@@ -1185,7 +1186,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                     {/* Témoins éventuels — liste dynamique conservée */}
                     <div className="space-y-3 pt-2 border-t border-slate-100">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Témoins éventuels (optionnel)</span>
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_witnesses_optional}</span>
                         <button
                           type="button"
                           id="btn-add-witness"
@@ -1199,13 +1200,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                       {witnesses.length === 0 ? (
                         <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-500">
-                          Aucun témoin renseigné.
+                          {t.sub_no_witnesses}
                         </div>
                       ) : (
                         witnesses.map((w, idx) => (
                           <div key={w.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-700">Témoin #{idx + 1}</span>
+                              <span className="text-xs font-bold text-slate-700">{t.sub_witness_n.replace('{n}', String(idx + 1))}</span>
                               <button
                                 type="button"
                                 onClick={() => removeWitness(w.id)}
@@ -1217,39 +1218,39 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                               <div>
-                                <label htmlFor={`input-witness-${w.id}-name`} className="block text-[11px] font-medium text-slate-600 mb-1">Nom / Prénom</label>
+                                <label htmlFor={`input-witness-${w.id}-name`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_full_name}</label>
                                 <input
                                   id={`input-witness-${w.id}-name`}
                                   type="text"
                                   value={w.name}
                                   onChange={(e) => updateWitness(w.id, 'name', e.target.value)}
-                                  placeholder="Nom du témoin"
+                                  placeholder={t.sub_ph_witness_name}
                                   className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
                                 />
                               </div>
                               <div>
-                                <label htmlFor={`input-witness-${w.id}-position`} className="block text-[11px] font-medium text-slate-600 mb-1">Poste</label>
+                                <label htmlFor={`input-witness-${w.id}-position`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_position}</label>
                                 <input
                                   id={`input-witness-${w.id}-position`}
                                   type="text"
                                   value={w.position}
                                   onChange={(e) => updateWitness(w.id, 'position', e.target.value)}
-                                  placeholder="Poste occupé"
+                                  placeholder={t.sub_ph_position}
                                   className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
                                 />
                               </div>
                               <div>
-                                <label htmlFor={`input-witness-${w.id}-hierarchy`} className="block text-[11px] font-medium text-slate-600 mb-1">Rôle hiérarchique</label>
+                                <label htmlFor={`input-witness-${w.id}-hierarchy`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_hierarchy}</label>
                                 <select
                                   id={`input-witness-${w.id}-hierarchy`}
                                   value={w.hierarchyRole}
                                   onChange={(e: any) => updateWitness(w.id, 'hierarchyRole', e.target.value)}
                                   className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
                                 >
-                                  <option value="Employé">Employé</option>
-                                  <option value="Cadre">Cadre</option>
-                                  <option value="Sous-Directeur">Sous-Directeur</option>
-                                  <option value="Directeur+">Directeur+</option>
+                                  <option value="Employé">{t.sub_hier_employee}</option>
+                                  <option value="Cadre">{t.sub_hier_manager}</option>
+                                  <option value="Sous-Directeur">{t.sub_hier_deputy_director}</option>
+                                  <option value="Directeur+">{t.sub_hier_director}</option>
                                 </select>
                               </div>
                             </div>
@@ -1282,7 +1283,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                         intitulé "Qualification" — même convention que les
                         sections ci-dessus. */}
                     <div className="space-y-4 pt-2 border-t border-slate-100">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Qualification de l'incident</span>
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_incident_qualification}</span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="input-subcategory" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_incident_category} *</label>
@@ -1324,7 +1325,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={customViolation}
                             onChange={(e) => setCustomViolation(e.target.value)}
-                            placeholder="Explicitez le type spécifique de manquement constaté"
+                            placeholder={t.sub_ph_custom_violation}
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -1332,14 +1333,14 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                       <div>
                         <label htmlFor="input-estimated-impact" className="block text-xs font-semibold text-slate-700 mb-1">
-                          Impact financier ou préjudice estimé
+                          {t.sub_estimated_impact}
                         </label>
                         <input
                           id="input-estimated-impact"
                           type="text"
                           value={estimatedImpactValue}
                           onChange={(e) => setEstimatedImpactValue(e.target.value)}
-                          placeholder="Ex: 15 000 €, 10M FCFA, Perte d'agrément..."
+                          placeholder={t.sub_ph_impact}
                           className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
                         />
                       </div>
@@ -1383,7 +1384,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                     <div className="flex justify-between pt-4">
                       <Button type="button" variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => setCurrentStep(2)}>
-                        <span>Précédent</span>
+                        <span>{t.common_previous}</span>
                       </Button>
 
                       <Button
@@ -1398,7 +1399,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           setCurrentStep(4);
                         }}
                       >
-                        <span>Suivant</span>
+                        <span>{t.common_next}</span>
                         <ArrowRight className="w-4 h-4" />
                       </Button>
                     </div>
@@ -1409,7 +1410,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                 {currentStep === 4 && (
                   <div className="space-y-6 animate-fadeIn">
                     <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Étape 4 sur 6</span>
+                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '4')}</span>
                       <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step4_title_optional}</h2>
                       <p className="text-sm text-slate-600 mt-1">{t.wizard_step4_hint}</p>
                     </div>
@@ -1478,11 +1479,11 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                     <div className="flex justify-between pt-4">
                       <Button type="button" variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => setCurrentStep(3)}>
-                        <span>Précédent</span>
+                        <span>{t.common_previous}</span>
                       </Button>
 
                       <Button type="button" id="btn-step4-next" onClick={() => setCurrentStep(5)}>
-                        <span>Suivant</span>
+                        <span>{t.common_next}</span>
                         <ArrowRight className="w-4 h-4" />
                       </Button>
                     </div>
@@ -1493,7 +1494,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                 {currentStep === 5 && (
                   <div className="space-y-6 animate-fadeIn">
                     <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Étape 5 sur 6</span>
+                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '5')}</span>
                       <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step5_title}</h2>
                       <p className="text-sm text-slate-600 mt-1">{t.wizard_step5_hint}</p>
                     </div>
@@ -1566,7 +1567,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           <div className="font-medium text-slate-800 mt-0.5">{declarantPhone || notProvided}</div>
                         </div>
                         <div>
-                          <span className="text-slate-500">Mode</span>
+                          <span className="text-slate-500">{t.sub_review_mode}</span>
                           <div className="font-medium text-slate-800 mt-0.5">
                             {isAnonymous ? t.choice_anonymous : t.choice_identified}
                           </div>
@@ -1603,7 +1604,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           <span className="text-slate-500">{t.label_involved_persons_optional}</span>
                           <div className="font-medium text-slate-800 mt-0.5">
                             {involvedPersons.length > 0 || witnesses.length > 0
-                              ? `${involvedPersons.length + witnesses.length} personne(s)`
+                              ? t.sub_review_persons_count.replace('{n}', String(involvedPersons.length + witnesses.length))
                               : notProvided}
                           </div>
                         </div>
@@ -1626,7 +1627,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           </div>
                         </div>
                         <div className="sm:col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
-                          <span className="text-slate-500">Classification automatique</span>
+                          <span className="text-slate-500">{t.sub_auto_classification}</span>
                           <span
                             className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${
                               liveRisk.nocaThreshold === 'NOCA 4'
@@ -1682,7 +1683,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
                     <div className="flex justify-between pt-4">
                       <Button type="button" variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => setCurrentStep(4)}>
-                        <span>Précédent</span>
+                        <span>{t.common_previous}</span>
                       </Button>
 
                       {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, design
@@ -1699,7 +1700,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                         className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
                       >
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>{isSubmitting ? 'Sécurisation en cours…' : t.btn_send_report}</span>
+                        <span>{isSubmitting ? t.sub_submitting : t.btn_send_report}</span>
                       </button>
                     </div>
                   </div>

@@ -14,6 +14,7 @@
  */
 import React from 'react';
 import { CorrectiveMeasure } from '../../types';
+import { currentT } from '../../i18n/currentLang';
 
 interface AddMeasureModalProps {
   measureTitle: string;
@@ -44,38 +45,40 @@ export const AddMeasureModal: React.FC<AddMeasureModalProps> = ({
   setShowAddMeasureModal,
   handleAddCorrectiveMeasure,
 }) => {
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
+  const t = currentT();
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
         <div className="border-b border-slate-100 pb-3">
           <h3 className="text-sm font-bold text-slate-900">
-            Documenter une mesure corrective
+            {t.inv_measure_title}
           </h3>
           <p className="text-slate-500 text-[11px] mt-0.5">
-            Exigence obligatoire avant toute clôture de dossier.
+            {t.inv_measure_required}
           </p>
         </div>
 
         <form onSubmit={handleAddCorrectiveMeasure} className="space-y-3">
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">Intitulé de la mesure *</label>
+            <label className="block font-semibold text-slate-700 mb-1">{t.inv_measure_name}</label>
             <input
               type="text"
               value={measureTitle}
               onChange={(e) => setMeasureTitle(e.target.value)}
-              placeholder="Ex: Audit approfondi des sinistres matériels, sanctions disciplinaires..."
+              placeholder={t.inv_measure_name_ph}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg"
               required
             />
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">Description des actions à mener *</label>
+            <label className="block font-semibold text-slate-700 mb-1">{t.inv_measure_desc}</label>
             <textarea
               rows={3}
               value={measureDesc}
               onChange={(e) => setMeasureDesc(e.target.value)}
-              placeholder="Détaillez le plan d'action préventif ou curatif..."
+              placeholder={t.inv_measure_desc_ph}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg"
               required
             />
@@ -83,18 +86,18 @@ export const AddMeasureModal: React.FC<AddMeasureModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Responsable désigné</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t.inv_measure_owner}</label>
               <input
                 type="text"
                 value={measureResp}
                 onChange={(e) => setMeasureResp(e.target.value)}
-                placeholder="Ex: DRH Groupe, Directeur Technique..."
+                placeholder={t.inv_measure_owner_ph}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Échéance de réalisation</label>
+              <label className="block font-semibold text-slate-700 mb-1">{t.inv_measure_deadline}</label>
               <input
                 type="date"
                 value={measureDueDate}
@@ -105,16 +108,16 @@ export const AddMeasureModal: React.FC<AddMeasureModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">Statut initial de la mesure</label>
+            <label className="block font-semibold text-slate-700 mb-1">{t.inv_measure_status}</label>
             <select
               value={measureStatus}
               onChange={(e: any) => setMeasureStatus(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
             >
-              <option value="planned">Planifiée</option>
-              <option value="in_progress">En cours de déploiement</option>
-              <option value="implemented">Déployée / Réalisée</option>
-              <option value="verified">Vérifiée par la DARC</option>
+              <option value="planned">{t.inv_measure_planned}</option>
+              <option value="in_progress">{t.inv_measure_in_progress}</option>
+              <option value="implemented">{t.inv_measure_implemented}</option>
+              <option value="verified">{t.inv_measure_verified}</option>
             </select>
           </div>
 
@@ -124,13 +127,13 @@ export const AddMeasureModal: React.FC<AddMeasureModalProps> = ({
               onClick={() => setShowAddMeasureModal(false)}
               className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
             >
-              Annuler
+              {t.btn_cancel}
             </button>
             <button
               type="submit"
               className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
             >
-              Enregistrer la mesure
+              {t.inv_measure_save}
             </button>
           </div>
         </form>

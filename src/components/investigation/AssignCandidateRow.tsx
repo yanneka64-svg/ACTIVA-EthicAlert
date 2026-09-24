@@ -28,6 +28,7 @@ import React from 'react';
 import { AssignmentCandidate } from '../../domain/assignmentEngine';
 import { formatCountryLabel } from '../../data/activaConfig';
 import { storage } from '../../services/storage';
+import { currentT } from '../../i18n/currentLang';
 
 export function AssignCandidateRow({
   candidate,
@@ -38,6 +39,8 @@ export function AssignCandidateRow({
   checked: boolean;
   onToggle: (checked: boolean) => void;
 }) {
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
+  const t = currentT();
   const { user: inv, workload } = candidate;
   return (
     <label
@@ -49,8 +52,8 @@ export function AssignCandidateRow({
         <div className="text-slate-900">{inv.name}</div>
         <div className="text-[11px] text-slate-500">{inv.roleTitle} • {formatCountryLabel(storage.getCountries(), inv.country)}</div>
         <div className="text-[10px] text-slate-400 mt-0.5">
-          {workload.active} dossier(s) actif(s)
-          {workload.overdue > 0 && <span className="text-rose-600 font-semibold"> · {workload.overdue} en retard</span>}
+          {t.inv_active_cases.replace('{n}', String(workload.active))}
+          {workload.overdue > 0 && <span className="text-rose-600 font-semibold"> · {t.inv_overdue_n.replace('{n}', String(workload.overdue))}</span>}
         </div>
       </div>
       <input

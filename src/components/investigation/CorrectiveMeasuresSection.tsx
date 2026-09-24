@@ -31,7 +31,7 @@ export const CorrectiveMeasuresSection: React.FC<CorrectiveMeasuresSectionProps>
       <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-950">
         <h4 className="font-bold uppercase tracking-wider text-[11px] mb-1 flex items-center gap-1.5">
           <FileCheck2 className="w-4 h-4 text-indigo-700" />
-          Mesures correctives & disciplinaires
+          {t.inv_measures_title}
         </h4>
         <p className="text-[11px] text-indigo-800">
           {t.corrective_required_note}
@@ -40,7 +40,7 @@ export const CorrectiveMeasuresSection: React.FC<CorrectiveMeasuresSectionProps>
 
       <div className="flex justify-between items-center">
         <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-          Mesures enregistrées ({selectedAlert.correctiveMeasures.length})
+          {t.inv_measures_count.replace('{n}', String(selectedAlert.correctiveMeasures.length))}
         </span>
         <button
           id="btn-add-measure-trigger"
@@ -54,7 +54,7 @@ export const CorrectiveMeasuresSection: React.FC<CorrectiveMeasuresSectionProps>
 
       {selectedAlert.correctiveMeasures.length === 0 ? (
         <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-500">
-          Aucune mesure corrective documentée pour l'instant. Vous devez en formaliser au moins une pour clôturer le dossier.
+          {t.inv_measures_none}
         </div>
       ) : (
         <div className="space-y-3">
@@ -72,9 +72,9 @@ export const CorrectiveMeasuresSection: React.FC<CorrectiveMeasuresSectionProps>
               </div>
               <p className="text-slate-700 leading-relaxed">{cm.description}</p>
               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-                <div><strong className="text-slate-700">Responsable :</strong> {cm.responsiblePerson}</div>
-                <div><strong className="text-slate-700">Échéance :</strong> {cm.dueDate}</div>
-                <div><strong className="text-slate-700">Documenté par :</strong> {cm.documentedBy}</div>
+                <div><strong className="text-slate-700">{t.inv_measure_responsible}</strong> {cm.responsiblePerson}</div>
+                <div><strong className="text-slate-700">{t.inv_measure_due}</strong> {cm.dueDate}</div>
+                <div><strong className="text-slate-700">{t.inv_measure_by}</strong> {cm.documentedBy}</div>
               </div>
             </div>
           ))}

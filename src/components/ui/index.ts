@@ -24,3 +24,5 @@ export type { HBarDatum } from './Charts';
 
 // === AMÉLIORATION AJOUTÉE (Phase 13 — vrai logo ACTIVA) ===
 export { ActivaLogo } from './ActivaLogo';
+// === AMÉLIORATION AJOUTÉE : icône + nom de la plateforme (en-tête) ===
+export { EthicAlertBrand } from './EthicAlertBrand';

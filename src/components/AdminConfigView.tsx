@@ -158,7 +158,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           === AMÉLIORATION AJOUTÉE (Refactor AdminConfigView — extraction par
           onglet) === contenu déplacé tel quel dans son propre composant,
           voir src/components/admin/RiskMatrixSlaTab.tsx. */}
-      {configTab === 'matrix' && <RiskMatrixSlaTab activeUser={activeUser} onSaved={flashBanner} />}
+      {configTab === 'matrix' && <RiskMatrixSlaTab lang={lang} activeUser={activeUser} onSaved={flashBanner} />}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
           2. ENTITIES TAB.
@@ -167,7 +167,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           voir src/components/admin/EntitiesTab.tsx (modale Ajouter/Modifier
           entité incluse). */}
       {configTab === 'entities' && (
-        <EntitiesTab entities={entities} countries={countries} activeUser={activeUser} onSaved={flashBanner} slugify={slugify} />
+        <EntitiesTab lang={lang} entities={entities} countries={countries} activeUser={activeUser} onSaved={flashBanner} slugify={slugify} />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
@@ -182,7 +182,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           voir src/components/admin/OrganizationCountriesTab.tsx (modale
           Ajouter/Modifier pays incluse). */}
       {configTab === 'organization' && (
-        <OrganizationCountriesTab countries={countries} entities={entities} activeUser={activeUser} onSaved={flashBanner} />
+        <OrganizationCountriesTab lang={lang} countries={countries} entities={entities} activeUser={activeUser} onSaved={flashBanner} />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
@@ -204,6 +204,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           gestion des sous-catégories + modale Ajouter/Renommer incluses). */}
       {configTab === 'categories' && (
         <CategoriesTab
+          lang={lang}
           categoriesConfig={categoriesConfig}
           allAlertsForCategoryCounts={allAlertsForCategoryCounts}
           activeUser={activeUser}
@@ -220,7 +221,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           voir src/components/admin/UsersTab.tsx (modale Ajouter/Modifier +
           modale d'identifiants générés incluses). */}
       {configTab === 'users' && (
-        <UsersTab users={users} entities={entities} countries={countries} activeUser={activeUser} onSaved={flashBanner} slugify={slugify} />
+        <UsersTab lang={lang} users={users} entities={entities} countries={countries} activeUser={activeUser} onSaved={flashBanner} slugify={slugify} />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
@@ -236,7 +237,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           === AMÉLIORATION AJOUTÉE (Refactor AdminConfigView — extraction par
           onglet) === contenu déplacé tel quel dans son propre composant,
           voir src/components/admin/RolesPermissionsTab.tsx. */}
-      {configTab === 'roles' && <RolesPermissionsTab activeUser={activeUser} onSaved={flashBanner} />}
+      {configTab === 'roles' && <RolesPermissionsTab lang={lang} activeUser={activeUser} onSaved={flashBanner} />}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
           GOUVERNANCE TAB. La hiérarchie par rôle utilisée par
@@ -251,6 +252,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           Ajouter/Modifier destinataire incluse). */}
       {configTab === 'governance' && (
         <GovernanceRecipientsTab
+          lang={lang}
           escalationRecipients={escalationRecipients}
           users={users}
           activeUser={activeUser}

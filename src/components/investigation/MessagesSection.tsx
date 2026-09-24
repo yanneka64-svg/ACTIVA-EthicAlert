@@ -17,6 +17,7 @@
 import React from 'react';
 import { Send } from 'lucide-react';
 import { AlertRecord } from '../../types';
+import { currentT } from '../../i18n/currentLang';
 
 interface MessagesSectionProps {
   selectedAlert: AlertRecord;
@@ -31,14 +32,16 @@ export const MessagesSection: React.FC<MessagesSectionProps> = ({
   setInvestigatorMsgText,
   handleSendInvestigatorMessage,
 }) => {
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
+  const t = currentT();
   return (
     <div className="p-6 flex flex-col h-[560px] text-xs">
       <div className="border-b border-slate-100 pb-3 mb-4">
         <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-          Canal d'échange sécurisé avec le lanceur d'alerte
+          {t.inv_msg_title}
         </h4>
         <p className="text-slate-500 text-[11px]">
-          Le déclarant consulte ces messages en se connectant avec sa référence et son mot de passe.
+          {t.inv_msg_hint}
         </p>
       </div>
 
@@ -71,7 +74,7 @@ export const MessagesSection: React.FC<MessagesSectionProps> = ({
           type="text"
           value={investigatorMsgText}
           onChange={(e) => setInvestigatorMsgText(e.target.value)}
-          placeholder="Demander des compléments d'informations au déclarant..."
+          placeholder={t.inv_msg_ph}
           className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
         <button
@@ -79,7 +82,7 @@ export const MessagesSection: React.FC<MessagesSectionProps> = ({
           disabled={!investigatorMsgText.trim()}
           className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold flex items-center gap-1.5"
         >
-          <span>Envoyer</span>
+          <span>{t.common_send}</span>
           <Send className="w-3.5 h-3.5" />
         </button>
       </form>

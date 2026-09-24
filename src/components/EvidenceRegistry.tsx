@@ -172,7 +172,7 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
   const columns: DataTableColumn<EvidenceRow>[] = [
     {
       key: 'name',
-      header: 'Nom du fichier',
+      header: t.ev_col_file,
       render: (r) => (
         <span className="font-semibold text-slate-900 flex items-center gap-2 max-w-[200px]" title={r.evidence.name}>
           {iconOfBucket(bucketOfType(r.evidence.type))}
@@ -187,24 +187,24 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t.ev_col_desc,
       render: (r) => <span className="text-[11px] text-slate-600">{r.evidence.description ?? '—'}</span>,
       hideOnMobile: true,
     },
     {
       key: 'source',
-      header: 'Source',
+      header: t.ev_col_source,
       render: (r) => <span className="text-[11px] text-slate-500">{r.evidence.uploadedBy ? 'Collecté' : '—'}</span>,
       hideOnMobile: true,
     },
     {
       key: 'uploadedBy',
-      header: 'Ajouté par',
+      header: t.ev_col_added_by,
       render: (r) => <span className="text-[11px] text-slate-700">{r.evidence.uploadedBy ?? '—'}</span>,
     },
     {
       key: 'date',
-      header: 'Date d’ajout',
+      header: t.ev_col_date,
       render: (r) => {
         const d = new Date(r.evidence.uploadedAt);
         return (
@@ -217,19 +217,19 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
     },
     {
       key: 'size',
-      header: 'Taille',
+      header: t.ev_col_size,
       render: (r) => formatSize(r.evidence.size),
       hideOnMobile: true,
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t.cat_col_actions,
       render: (r) => (
         <div className="flex items-center gap-1">
           <button
             onClick={(e) => handleDownload(r, e)}
             disabled={!r.evidence.dataUrl}
-            title={r.evidence.dataUrl ? 'Télécharger' : 'Fichier non disponible (donnée de démonstration)'}
+            title={r.evidence.dataUrl ? t.common_download : t.ev_file_unavailable}
             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-700 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
             <Download className="w-3.5 h-3.5" />
@@ -237,14 +237,14 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
           <button
             onClick={(e) => handleView(r, e)}
             disabled={!r.evidence.dataUrl}
-            title={r.evidence.dataUrl ? 'Aperçu' : 'Fichier non disponible (donnée de démonstration)'}
+            title={r.evidence.dataUrl ? t.ev_preview : t.ev_file_unavailable}
             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-700 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onOpenCase(r.alert.trackingNumber); }}
-            title="Ouvrir le dossier"
+            title={t.ev_open_case}
             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-700 hover:bg-blue-50"
           >
             <ExternalLink className="w-3.5 h-3.5" />
@@ -276,27 +276,27 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Nom de fichier, description, dossier..."
+                placeholder={t.ev_search_ph}
                 className="w-full pl-8 pr-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs"
               />
             </div>
             <select value={caseFilter} onChange={(e) => setCaseFilter(e.target.value)} className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700 text-xs">
-              <option value="all">Tous les dossiers</option>
+              <option value="all">{t.ev_all_cases}</option>
               {caseOptions.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
             <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)} className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700 text-xs">
-              <option value="all">Toutes les personnes</option>
+              <option value="all">{t.ev_all_people}</option>
               {personOptions.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
             </select>
             <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value as DateBucket)} className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700 text-xs">
-              <option value="all">Toutes les dates</option>
-              <option value="7d">7 derniers jours</option>
-              <option value="30d">30 derniers jours</option>
-              <option value="90d">90 derniers jours</option>
+              <option value="all">{t.ev_all_dates}</option>
+              <option value="7d">{t.ev_last_7}</option>
+              <option value="30d">{t.ev_last_30}</option>
+              <option value="90d">{t.ev_last_90}</option>
             </select>
           </div>
 
@@ -312,12 +312,12 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
           {rows.length > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-500">
               <span>
-                Affichage de {(currentPage - 1) * pageSize + 1} à {Math.min(currentPage * pageSize, rows.length)} sur {rows.length} résultats
+                {t.ev_showing.replace('{from}', String((currentPage - 1) * pageSize + 1)).replace('{to}', String(Math.min(currentPage * pageSize, rows.length))).replace('{total}', String(rows.length))}
               </span>
               <div className="flex items-center gap-3">
                 <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="px-2 py-1 border border-slate-300 rounded-lg bg-white text-[11px]">
                   {PAGE_SIZE_OPTIONS.map((n) => (
-                    <option key={n} value={n}>{n} / page</option>
+                    <option key={n} value={n}>{t.ev_per_page.replace('{n}', String(n))}</option>
                   ))}
                 </select>
                 {totalPages > 1 && (

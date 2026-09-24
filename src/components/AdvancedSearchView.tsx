@@ -67,6 +67,11 @@ const EMPTY_CRITERIA: AdvancedSearchCriteria = {};
 
 export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, activeUser, onOpenCase }) => {
   const t = TRANSLATIONS[lang];
+  // === AMÉLIORATION AJOUTÉE : libellés traduits (les constantes FR de module restent le repli) ===
+  const statusLabels: Record<AlertStatus, string> = { ...STATUS_LABELS, new: t.srch_status_new, under_review: t.case_status_review, investigation: t.case_status_investigation, corrective_action: t.desk_status_corrective, closed: t.srch_status_closed, archived: t.srch_status_archived, reopened: t.srch_status_reopened };
+  const severityLabels: Record<SeverityLevel, string> = { ...SEVERITY_LABELS, mineure: t.op_sev_minor, moderee: t.op_sev_moderate, majeure: t.op_sev_major, critique: t.op_critical };
+  const confidentialityLabels: Record<ConfidentialityLevel, string> = { ...CONFIDENTIALITY_LABELS, standard: t.op_conf_standard, restricted: t.op_conf_restricted, confidential: t.desk_confidential, highly_confidential: t.confidentiality_highly_confidential };
+  const channelLabels: Record<AlertRecord['channel'], string> = { ...CHANNEL_LABELS, direct: t.srch_channel_direct };
   const [alerts, setAlerts] = useState<AlertRecord[]>(storage.getAlerts());
   const [criteria, setCriteria] = useState<AdvancedSearchCriteria>(EMPTY_CRITERIA);
 
@@ -96,12 +101,12 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
   const columns: DataTableColumn<AlertRecord>[] = [
     {
       key: 'ref',
-      header: 'Dossier',
+      header: t.srch_col_case,
       render: (a) => <span className="font-mono font-bold text-[#0B2545]">{a.trackingNumber}</span>,
     },
     {
       key: 'category',
-      header: 'Catégorie',
+      header: t.desk_col_category,
       render: (a) => (
         <div>
           <div className="font-semibold text-slate-900 truncate max-w-[220px]">{a.category}</div>
@@ -111,7 +116,7 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
     },
     {
       key: 'entity',
-      header: 'Entité / Pays',
+      header: t.srch_col_entity_country,
       render: (a) => (
         <div>
           <div className="text-slate-800">{a.concernedEntity}</div>
@@ -122,18 +127,18 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
     },
     {
       key: 'status',
-      header: 'Statut',
-      render: (a) => <StatusBadge status={a.status as BadgeStatus} label={STATUS_LABELS[a.status]} size="sm" />,
+      header: t.desk_col_status,
+      render: (a) => <StatusBadge status={a.status as BadgeStatus} label={statusLabels[a.status]} size="sm" />,
     },
     {
       key: 'priority',
-      header: 'Priorité',
+      header: t.desk_col_priority,
       render: (a) => <PriorityBadge priority={a.riskEvaluation.priority} label={a.riskEvaluation.nocaThreshold} size="sm" />,
       hideOnMobile: true,
     },
     {
       key: 'date',
-      header: 'Reçu le',
+      header: t.desk_col_received,
       render: (a) => new Date(a.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'),
       hideOnMobile: true,
     },
@@ -158,28 +163,28 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs font-semibold"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Réinitialiser
+            {t.op_reset}
           </button>
         )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4 text-xs">
         <div>
-          <label className={labelClass}>Mots-clés</label>
+          <label className={labelClass}>{t.srch_keywords}</label>
           <input
             type="text"
             value={criteria.keyword ?? ''}
             onChange={(e) => setField('keyword', e.target.value)}
-            placeholder="Référence, description, entité, lieu..."
+            placeholder={t.op_search_ph}
             className={selectClass}
           />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <div>
-            <label className={labelClass}>Pays</label>
+            <label className={labelClass}>{t.op_col_country}</label>
             <select value={criteria.countryId ?? ''} onChange={(e) => setField('countryId', e.target.value)} className={selectClass}>
-              <option value="">Tous les pays</option>
+              <option value="">{t.op_all_countries}</option>
               {countries.map((c) => (
                 <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
               ))}
@@ -187,9 +192,9 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
           </div>
 
           <div>
-            <label className={labelClass}>Entité</label>
+            <label className={labelClass}>{t.op_col_entity}</label>
             <select value={criteria.entityId ?? ''} onChange={(e) => setField('entityId', e.target.value)} className={selectClass}>
-              <option value="">Toutes les entités</option>
+              <option value="">{t.report_filter_entity_all}</option>
               {entities
                 .filter((e) => !criteria.countryId || countries.find((c) => c.code === criteria.countryId)?.name === e.country)
                 .map((e) => (
@@ -199,9 +204,9 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
           </div>
 
           <div>
-            <label className={labelClass}>Catégorie</label>
+            <label className={labelClass}>{t.desk_col_category}</label>
             <select value={criteria.category ?? ''} onChange={(e) => setField('category', e.target.value)} className={selectClass}>
-              <option value="">Toutes les catégories</option>
+              <option value="">{t.srch_all_categories}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.name}>{c.name}</option>
               ))}
@@ -209,14 +214,14 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
           </div>
 
           <div>
-            <label className={labelClass}>Sous-catégorie</label>
+            <label className={labelClass}>{t.srch_subcategory}</label>
             <select
               value={criteria.subCategory ?? ''}
               onChange={(e) => setField('subCategory', e.target.value)}
               disabled={!selectedCategory}
               className={`${selectClass} ${!selectedCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <option value="">Toutes</option>
+              <option value="">{t.srch_all_f}</option>
               {(selectedCategory?.subCategories ?? []).map((sub) => (
                 <option key={sub} value={sub}>{sub}</option>
               ))}
@@ -224,19 +229,19 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
           </div>
 
           <div>
-            <label className={labelClass}>Statut</label>
+            <label className={labelClass}>{t.desk_col_status}</label>
             <select value={criteria.status ?? ''} onChange={(e) => setField('status', e.target.value as AlertStatus)} className={selectClass}>
-              <option value="">Tous les statuts</option>
+              <option value="">{t.report_filter_status_all}</option>
               {(Object.keys(STATUS_LABELS) as AlertStatus[]).map((s) => (
-                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                <option key={s} value={s}>{statusLabels[s]}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className={labelClass}>Criticité (NOCA)</label>
+            <label className={labelClass}>{t.srch_noca}</label>
             <select value={criteria.noca ?? ''} onChange={(e) => setField('noca', e.target.value as NocaThreshold)} className={selectClass}>
-              <option value="">Toutes criticités</option>
+              <option value="">{t.srch_all_noca}</option>
               {NOCA_OPTIONS.map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
@@ -244,42 +249,42 @@ export const AdvancedSearchView: React.FC<AdvancedSearchViewProps> = ({ lang, ac
           </div>
 
           <div>
-            <label className={labelClass}>Sévérité</label>
+            <label className={labelClass}>{t.srch_severity}</label>
             <select value={criteria.severity ?? ''} onChange={(e) => setField('severity', e.target.value as SeverityLevel)} className={selectClass}>
-              <option value="">Toutes sévérités</option>
+              <option value="">{t.srch_all_severities}</option>
               {(Object.keys(SEVERITY_LABELS) as SeverityLevel[]).map((s) => (
-                <option key={s} value={s}>{SEVERITY_LABELS[s]}</option>
+                <option key={s} value={s}>{severityLabels[s]}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className={labelClass}>Sensibilité</label>
+            <label className={labelClass}>{t.srch_sensitivity}</label>
             <select value={criteria.confidentiality ?? ''} onChange={(e) => setField('confidentiality', e.target.value as ConfidentialityLevel)} className={selectClass}>
-              <option value="">Toutes sensibilités</option>
+              <option value="">{t.srch_all_sensitivities}</option>
               {(Object.keys(CONFIDENTIALITY_LABELS) as ConfidentialityLevel[]).map((c) => (
-                <option key={c} value={c}>{CONFIDENTIALITY_LABELS[c]}</option>
+                <option key={c} value={c}>{confidentialityLabels[c]}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className={labelClass}>Canal</label>
+            <label className={labelClass}>{t.srch_channel}</label>
             <select value={criteria.channel ?? ''} onChange={(e) => setField('channel', e.target.value as AlertRecord['channel'])} className={selectClass}>
-              <option value="">Tous canaux</option>
+              <option value="">{t.srch_all_channels}</option>
               {(Object.keys(CHANNEL_LABELS) as AlertRecord['channel'][]).map((c) => (
-                <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
+                <option key={c} value={c}>{channelLabels[c]}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className={labelClass}>Date de début</label>
+            <label className={labelClass}>{t.srch_start_date}</label>
             <input type="date" value={criteria.dateFrom ?? ''} onChange={(e) => setField('dateFrom', e.target.value)} className={selectClass} />
           </div>
 
           <div>
-            <label className={labelClass}>Date de fin</label>
+            <label className={labelClass}>{t.srch_end_date}</label>
             <input type="date" value={criteria.dateTo ?? ''} onChange={(e) => setField('dateTo', e.target.value)} className={selectClass} />
           </div>
         </div>
