@@ -294,8 +294,13 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               </button>
             </div>
 
-            <p className="flex items-center gap-2 text-xs font-semibold text-slate-600 pt-1">
-              <Lock className="w-4 h-4 text-blue-600 shrink-0" />
+            {/* === AMÉLIORATION AJOUTÉE (lisibilité de la mention anonymat) ===
+                Petit texte gris posé directement sur la photo du hero :
+                contraste insuffisant. Sans pastille (demande utilisateur),
+                option « 2 » retenue : bleu marine ACTIVA (#0B2545), très
+                gras, un peu plus grand, sans halo. */}
+            <p className="flex items-center gap-2 pt-1 text-xs sm:text-sm font-extrabold text-[#0B2545]">
+              <Lock className="w-4 h-4 text-blue-700 shrink-0 drop-shadow-[0_0_3px_#fff]" />
               {t.hero_anonymous_note}
             </p>
           </div>
