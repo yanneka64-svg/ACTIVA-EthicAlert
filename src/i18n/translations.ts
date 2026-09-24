@@ -1628,6 +1628,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     common_yes: 'Oui',
     common_no: 'Non',
     common_inactive: 'Inactif',
+    // === AMÉLIORATION AJOUTÉE : fil d'Ariane de la topbar staff ===
+    nav_breadcrumb: 'Fil d’Ariane',
   },
   en: {
     // app_title/app_subtitle are defined further below, in the "Phase 11" block.
@@ -3071,6 +3073,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     common_yes: 'Yes',
     common_no: 'No',
     common_inactive: 'Inactive',
+    // === AMÉLIORATION AJOUTÉE : fil d'Ariane de la topbar staff ===
+    nav_breadcrumb: 'Breadcrumb',
   },
   pt: {
     // app_title/app_subtitle são definidos mais abaixo, no bloco "Phase 11".
@@ -4514,5 +4518,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     common_yes: 'Sim',
     common_no: 'Não',
     common_inactive: 'Inativo',
+    // === AMÉLIORATION AJOUTÉE : fil d'Ariane de la topbar staff ===
+    nav_breadcrumb: 'Trilho de navegação',
   }
 };

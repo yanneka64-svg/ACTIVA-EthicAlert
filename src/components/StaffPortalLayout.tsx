@@ -48,6 +48,8 @@ import { Permission } from '../domain/permissions';
 // barre latérale) === logique de disponibilité des espaces désormais
 // partagée avec StaffSpaceHome.tsx et App.tsx (voir domain/staffSpaces.ts).
 import { SpaceKey, computeAvailableSpaces } from '../domain/staffSpaces';
+// === AMÉLIORATION AJOUTÉE : fil d'Ariane partagé avec la topbar ===
+import { setStaffBreadcrumb } from '../services/staffBreadcrumb';
 
 /**
  * === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
@@ -318,6 +320,22 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     general: generalItems,
   };
   const navItems = itemsBySpace[selectedSpace];
+
+  // === AMÉLIORATION AJOUTÉE : fil d'Ariane « Espace › Page » dans la topbar ===
+  // Publie l'espace affiché et le libellé de l'onglet actif (celui du menu
+  // ci-dessous) pour que Navbar.tsx les affiche ; effacé en quittant l'espace.
+  const spaceTitles: Record<SpaceKey, string> = {
+    operator: t.space_home_operator_title,
+    investigator: t.space_home_investigator_title,
+    admin: t.space_home_admin_title,
+    general: t.space_home_general_title,
+  };
+  const activeNavLabel = navItems.find((i) => i.key === currentTab)?.label ?? '';
+  useEffect(() => {
+    setStaffBreadcrumb({ section: spaceTitles[selectedSpace] ?? '', page: activeNavLabel });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSpace, activeNavLabel, lang]);
+  useEffect(() => () => setStaffBreadcrumb(null), []);
 
   let lastGroup: string | null = null;
 

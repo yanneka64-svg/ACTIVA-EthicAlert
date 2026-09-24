@@ -9,6 +9,7 @@ import {
   // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
   // barre latérale) ===
   ArrowLeftRight,
+  ChevronRight,
 } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (Phase 27) === `QrCode` et `Lock` retirés : ils ne
 // servaient plus qu'aux icônes de l'en-tête public retirées cette phase.
@@ -22,6 +23,8 @@ import { ActivaLogo, EthicAlertBrand } from './ui';
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) ===
 import { computeAvailableSpaces } from '../domain/staffSpaces';
+// === AMÉLIORATION AJOUTÉE : fil d'Ariane de l'espace staff ===
+import { useStaffBreadcrumb } from '../services/staffBreadcrumb';
 
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) === Extraite en fonction de module (comportement et
@@ -98,6 +101,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const t = TRANSLATIONS[lang];
+  // === AMÉLIORATION AJOUTÉE : « Espace › Page » publié par le menu latéral ===
+  const staffBreadcrumb = useStaffBreadcrumb();
   const [showUserDropdown, setShowUserDropdown] = React.useState(false);
   const [showLangDropdown, setShowLangDropdown] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
@@ -190,19 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* === AMÉLIORATION AJOUTÉE === icône EthicAlert + nom
                   « activa.whistleblowing » à la place du logo corporate
                   (ActivaLogo reste utilisé par les vues d'impression). */}
-              {/* === AMÉLIORATION AJOUTÉE (mention sous le logo, espace
-                  connecté uniquement) === « Canal de gestion des alertes du
-                  Groupe ACTIVA » (t.hero_eyebrow, FR/EN/PT) sous le logo pour
-                  les utilisateurs connectés ; rien sur les pages publiques.
-                  Masquée sous `sm` où la place manque. */}
-              <div className="flex flex-col items-start shrink-0">
-                <EthicAlertBrand className="h-10 shrink-0" />
-                {isStaffContext && (
-                  <p className="hidden sm:block mt-1 max-w-[262px] text-[10px] leading-snug text-slate-500">
-                    {t.hero_eyebrow}
-                  </p>
-                )}
-              </div>
+              <EthicAlertBrand className="h-10 shrink-0" />
               {/* === AMÉLIORATION AJOUTÉE (topbar staff sans doublon) === Le
                   logo « Activa.whistleblowing » contient déjà le nom de la
                   plateforme : le titre + sous-titre répétaient ce nom juste à
@@ -263,6 +256,31 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {isStaffContext ? (
             <>
+              {/* === AMÉLIORATION AJOUTÉE (fil d'Ariane de navigation) ===
+                  « Espace › Page » (publié par StaffPortalLayout.tsx via
+                  services/staffBreadcrumb.ts), mis à jour à chaque changement
+                  d'onglet avec un léger fondu (`activa-fade-in`, désactivé si
+                  l'utilisateur préfère réduire les animations). Affiché à
+                  partir de `md` ; rien n'est retiré de la topbar existante. */}
+              {staffBreadcrumb && (staffBreadcrumb.section || staffBreadcrumb.page) && (
+                <nav aria-label={t.nav_breadcrumb} className="hidden md:flex items-center gap-2 min-w-0 shrink-0 pl-4 border-l border-slate-200 text-xs">
+                  <span key={`s-${staffBreadcrumb.section}`} className="activa-fade-in text-slate-500 font-medium whitespace-nowrap">
+                    {staffBreadcrumb.section}
+                  </span>
+                  {staffBreadcrumb.page && (
+                    <>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                      <span
+                        key={`p-${staffBreadcrumb.page}`}
+                        aria-current="page"
+                        className="activa-fade-in font-bold text-[#0B2545] whitespace-nowrap truncate max-w-[220px]"
+                      >
+                        {staffBreadcrumb.page}
+                      </span>
+                    </>
+                  )}
+                </nav>
+              )}
               {/* Search bar (staff portal) === AMÉLIORATION AJOUTÉE
                   (correctif débordement en-tête) === même correctif que le
                   nav public ci-dessous : aligné sur `lg` pour ne jamais se
