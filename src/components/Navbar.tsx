@@ -28,28 +28,30 @@ import { computeAvailableSpaces } from '../domain/staffSpaces';
 // libellés strictement inchangés — simple déplacement hors du composant)
 // pour que StaffSpaceHome.tsx puisse réutiliser exactement le même libellé
 // de rôle que la barre supérieure, sans dupliquer ce switch.
-export const getRoleBadge = (role: UserRole) => {
+// === AMÉLIORATION AJOUTÉE : libellé traduit (paramètre `lang` optionnel, FR par défaut) ===
+export const getRoleBadge = (role: UserRole, lang: Language = 'fr') => {
+  const tr = TRANSLATIONS[lang];
   switch (role) {
     case 'functional_admin':
-      return { label: 'Admin Fonctionnel / DARC', color: 'bg-amber-50 text-amber-800 border-amber-200' };
+      return { label: tr.role_badge_functional_admin, color: 'bg-amber-50 text-amber-800 border-amber-200' };
     case 'investigator':
-      return { label: 'Investigateur DARC', color: 'bg-blue-50 text-blue-800 border-blue-200' };
+      return { label: tr.role_badge_investigator, color: 'bg-blue-50 text-blue-800 border-blue-200' };
     case 'senior_investigator':
-      return { label: 'Investigateur Senior DARC', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+      return { label: tr.role_badge_senior_investigator, color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
     case 'darc_compliance':
-      return { label: 'Conformité DARC', color: 'bg-teal-50 text-teal-800 border-teal-200' };
+      return { label: tr.role_badge_darc_compliance, color: 'bg-teal-50 text-teal-800 border-teal-200' };
     case 'system_admin':
-      return { label: 'Admin Système', color: 'bg-purple-50 text-purple-800 border-purple-200' };
+      return { label: tr.role_badge_system_admin, color: 'bg-purple-50 text-purple-800 border-purple-200' };
     case 'security_admin':
-      return { label: 'Admin Sécurité', color: 'bg-rose-50 text-rose-800 border-rose-200' };
+      return { label: tr.role_badge_security_admin, color: 'bg-rose-50 text-rose-800 border-rose-200' };
     case 'consultation':
-      return { label: 'Consultation / Audit', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+      return { label: tr.role_badge_consultation, color: 'bg-slate-100 text-slate-700 border-slate-200' };
     case 'audit_committee':
-      return { label: 'Comité d’Audit', color: 'bg-cyan-50 text-cyan-800 border-cyan-200' };
+      return { label: tr.role_badge_audit_committee, color: 'bg-cyan-50 text-cyan-800 border-cyan-200' };
     case 'executive':
-      return { label: 'Direction / Exécutif', color: 'bg-slate-800 text-white border-slate-700' };
+      return { label: tr.role_badge_executive, color: 'bg-slate-800 text-white border-slate-700' };
     case 'reporter':
-      return { label: 'Lanceur d’alerte', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
+      return { label: tr.role_badge_reporter, color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
   }
 };
 
@@ -139,7 +141,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   // permission `cases.read` + visibilité globale (src/services/authz.ts).
   const isStaffUser = activeUser.role !== 'reporter';
 
-  const badge = getRoleBadge(activeUser.role);
+  const badge = getRoleBadge(activeUser.role, lang);
 
   // === AMÉLIORATION AJOUTÉE (Phase 11) === two-letter initials ("B. Y.
   // Ekani" → "BY"), matching the avatar shown in the reference mockup.
@@ -422,7 +424,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? 'px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600'
                     : 'px-2 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50'
                 }`}
-                title="Changer de langue"
+                title={t.nav_change_language}
               >
                 <span className="font-bold uppercase">{lang}</span>
                 <ChevronDown className="w-3 h-3 opacity-70" />
@@ -574,7 +576,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onClick={onLogout}
                       className="w-full flex items-center gap-2 text-left px-3 py-2 hover:bg-rose-50 text-rose-700 font-medium border-t border-slate-100"
                     >
-                      <LogOut className="w-3.5 h-3.5" /> Se déconnecter
+                      <LogOut className="w-3.5 h-3.5" /> {t.nav_logout}
                     </button>
                   )}
                 </div>

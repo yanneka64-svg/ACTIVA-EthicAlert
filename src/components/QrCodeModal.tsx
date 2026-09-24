@@ -44,10 +44,10 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           </div>
 
           <h3 className="text-lg font-bold">
-            Accès Mobile Sécurisé (QR Code)
+            {t.qr_title}
           </h3>
           <p className="text-xs text-slate-300 mt-1">
-            À afficher dans les locaux des 16 filiales Groupe ACTIVA pour un signalement confidentiel immédiat.
+            {t.qr_subtitle}
           </p>
         </div>
 
@@ -110,7 +110,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
           <div className="text-xs text-slate-600 flex items-center justify-center gap-1.5 font-medium">
             <Smartphone className="w-4 h-4 text-blue-700" />
-            <span>Scannez avec un smartphone pour ouvrir le formulaire anonyme</span>
+            <span>{t.qr_scan_hint}</span>
           </div>
 
           <div className="pt-2 flex items-center justify-center gap-2">
@@ -119,7 +119,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-xs font-semibold text-slate-700 transition"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Lien copié' : 'Copier le lien direct'}</span>
+              <span>{copied ? t.qr_link_copied : t.qr_copy_link}</span>
             </button>
 
             <button
@@ -127,7 +127,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] text-xs font-semibold text-white transition"
             >
               <Printer className="w-3.5 h-3.5 text-amber-400" />
-              <span>Imprimer l'affiche</span>
+              <span>{t.qr_print_poster}</span>
             </button>
           </div>
         </div>

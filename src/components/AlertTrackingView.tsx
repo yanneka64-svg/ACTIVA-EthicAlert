@@ -133,7 +133,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     const lockStatus = getLockStatus(trimmedNum);
     if (lockStatus.locked) {
       setLoginError(
-        `Trop de tentatives incorrectes. Réessayez dans ${formatRemaining(lockStatus.remainingMs)}.`
+        t.track_error_locked_retry.replace('{time}', formatRemaining(lockStatus.remainingMs))
       );
       return;
     }
@@ -143,7 +143,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
     if (!alert) {
       recordFailedAttempt(trimmedNum);
-      setLoginError('Numéro de dossier introuvable. Veuillez vérifier votre saisie.');
+      setLoginError(t.track_error_not_found);
       setIsVerifying(false);
       return;
     }
@@ -161,8 +161,8 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
       );
       setLoginError(
         status.locked
-          ? `Trop de tentatives incorrectes. Accès verrouillé ${formatRemaining(status.remainingMs)}.`
-          : 'Mot de passe incorrect pour ce numéro de dossier.'
+          ? t.track_error_locked.replace('{time}', formatRemaining(status.remainingMs))
+          : t.track_error_wrong_password
       );
       setIsVerifying(false);
       return;
@@ -412,7 +412,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
           <div className="relative hidden lg:flex flex-col justify-end p-6 sm:p-8 min-h-[260px] text-white overflow-hidden bg-[#0B2545]">
             <img
               src="/brand/track-login-bg.jpg"
-              alt="Espace de travail avec vue sur la ville"
+              alt={t.space_img_alt}
               fetchPriority="high"
               decoding="async"
               className="absolute inset-0 w-full h-full object-cover object-left"
@@ -507,7 +507,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                 disabled={isVerifying}
                 className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-bold shadow transition flex items-center justify-center gap-2"
               >
-                <span>{isVerifying ? 'Vérification…' : t.btn_login_tracking}</span>
+                <span>{isVerifying ? t.common_verifying : t.btn_login_tracking}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
@@ -590,7 +590,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
   ];
   const realEvents = [
     ...activeAlert.messages.map((m) => ({
-      title: m.sender === 'whistleblower' ? 'Message envoyé' : 'Message reçu',
+      title: m.sender === 'whistleblower' ? t.track_event_msg_sent : t.track_event_msg_received,
       sortTime: new Date(m.createdAt).getTime(),
     })),
     ...reporterUpdates
@@ -609,7 +609,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     // — elle doit apparaître comme "current" (pastille bleue), pas comme
     // une étape future grisée ; seules les étapes suivantes sont "à venir".
     const isCurrent = s.n === currentStepNumber;
-    const desc = isCurrent ? 'En cours de traitement.' : i === remainingStages.length - 1 ? 'À venir.' : 'En attente.';
+    const desc = isCurrent ? t.track_step_in_progress : i === remainingStages.length - 1 ? t.track_step_upcoming : t.track_step_pending;
     timelineItems.push({ title: s.label, desc, state: isCurrent ? 'current' : 'pending' });
   });
 
@@ -717,7 +717,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                     <span>{activeAlert.concernedEntity} ({formatCountryLabel(storage.getCountries(), activeAlert.country)})</span>
                     <span>•</span>
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Déposé le {new Date(activeAlert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}</span>
+                    <span>{t.track_submitted_on.replace('{date}', new Date(activeAlert.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR'))}</span>
                   </p>
                 </div>
 
@@ -764,7 +764,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                   <div className="mt-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
                     <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                      Conclusion formelle transmise par la DARC
+                      {t.track_final_conclusion}
                     </h4>
                     <p className="text-xs text-emerald-800 whitespace-pre-wrap leading-relaxed">
                       {activeAlert.closureMessageToWhistleblower}
@@ -781,7 +781,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                       type="button"
                       onClick={() => setShowSupplementModal(true)}
                       className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline"
-                      title="Ajouter des informations complémentaires au dossier"
+                      title={t.track_add_info_title}
                     >
                       <Pencil className="w-3 h-3" />
                       {t.btn_modify}
@@ -827,23 +827,23 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                           className="text-rose-600 hover:text-rose-800 text-[11px] font-semibold flex items-center gap-1"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>Supprimer ma déclaration</span>
+                          <span>{t.track_delete_report}</span>
                         </button>
                       ) : (
                         <div className="p-2 bg-rose-50 rounded border border-rose-200 text-center max-w-xs">
-                          <p className="text-[11px] text-rose-800 font-semibold mb-2">Confirmer la suppression irréversible ?</p>
+                          <p className="text-[11px] text-rose-800 font-semibold mb-2">{t.track_delete_confirm}</p>
                           <div className="flex justify-center gap-2">
                             <button
                               onClick={handleDeleteAlert}
                               className="px-2 py-1 bg-rose-600 text-white rounded text-[10px] font-bold"
                             >
-                              Oui, supprimer
+                              {t.track_delete_yes}
                             </button>
                             <button
                               onClick={() => setDeleteConfirm(false)}
                               className="px-2 py-1 bg-slate-200 text-slate-700 rounded text-[10px]"
                             >
-                              Annuler
+                              {t.btn_cancel}
                             </button>
                           </div>
                         </div>
@@ -879,7 +879,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    Télécharger le récépissé
+                    {t.track_download_receipt}
                   </button>
                 </div>
               </div>
@@ -904,7 +904,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                 <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
                   {activeAlert.messages.length === 0 ? (
                     <div className="text-center py-12 text-slate-400 text-xs">
-                      Aucun message pour le moment. Vous pouvez poser une question ou ajouter des éléments aux enquêteurs.
+                      {t.track_no_messages}
                     </div>
                   ) : (
                     activeAlert.messages.map((m) => {
@@ -1013,7 +1013,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
               <div className="space-y-1.5 mt-4">
                 {activeAlert.evidences.length === 0 ? (
-                  <span className="text-slate-400 italic text-[11px]">Aucune pièce déposée</span>
+                  <span className="text-slate-400 italic text-[11px]">{t.track_no_evidence}</span>
                 ) : (
                   activeAlert.evidences.map((ev) => (
                     <div key={ev.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 text-[11px]">
@@ -1022,7 +1022,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                         <span className="truncate">{ev.name}</span>
                       </span>
                       <span className="text-slate-400 shrink-0 hidden sm:inline">
-                        {new Date(ev.uploadedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR')}
+                        {new Date(ev.uploadedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
                       </span>
                       <span className="text-slate-400 shrink-0">{(ev.size / 1024).toFixed(0)} Ko</span>
                       <div className="relative shrink-0">
@@ -1045,14 +1045,14 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                               disabled={!ev.dataUrl}
                               className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                             >
-                              <Download className="w-3.5 h-3.5" /> Télécharger
+                              <Download className="w-3.5 h-3.5" /> {t.common_download}
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteEvidence(ev.id)}
                               className="w-full text-left px-3 py-1.5 hover:bg-rose-50 flex items-center gap-2 text-rose-600"
                             >
-                              <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                              <Trash2 className="w-3.5 h-3.5" /> {t.common_delete}
                             </button>
                           </div>
                         )}
@@ -1155,7 +1155,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                 onClick={() => setShowSupplementModal(false)}
                 className="px-3 py-1.5 text-xs text-slate-600 rounded-lg hover:bg-slate-100"
               >
-                Annuler
+                {t.btn_cancel}
               </button>
               <button
                 type="button"

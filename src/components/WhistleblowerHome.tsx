@@ -158,7 +158,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
       <div className="relative overflow-hidden border-b border-slate-200 min-h-[400px] sm:min-h-[460px] flex items-center bg-slate-100">
         <img
           src="/brand/activa-hq-hero.jpg"
-          alt="Siège du Groupe ACTIVA"
+          alt={t.home_hero_img_alt}
           fetchPriority="high"
           decoding="async"
           className="absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"

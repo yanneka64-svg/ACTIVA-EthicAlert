@@ -21,6 +21,9 @@
  */
 import React from 'react';
 import { ShieldOff, LogIn } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE : messages d'accès traduits (FR/EN/PT, FR par défaut) ===
+import { Language } from '../types';
+import { TRANSLATIONS } from '../i18n/translations';
 
 /**
  * Marks a screen as intentionally public — no check performed. Exists so
@@ -35,6 +38,7 @@ interface AuthenticatedRouteProps {
   isAuthenticated: boolean;
   onGoToLogin: () => void;
   children: React.ReactNode;
+  lang?: Language;
 }
 
 /**
@@ -44,23 +48,23 @@ interface AuthenticatedRouteProps {
  * explicit that this is a demo session gate, never a claim of real
  * server-verified authentication.
  */
-export const AuthenticatedRoute: React.FC<AuthenticatedRouteProps> = ({ isAuthenticated, onGoToLogin, children }) => {
+export const AuthenticatedRoute: React.FC<AuthenticatedRouteProps> = ({ isAuthenticated, onGoToLogin, children, lang = 'fr' }) => {
   if (isAuthenticated) return <>{children}</>;
+  const t = TRANSLATIONS[lang];
   return (
     <div className="max-w-md mx-auto py-20 px-4 text-center">
       <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto mb-4 text-blue-600">
         <LogIn className="w-7 h-7" />
       </div>
-      <h2 className="text-lg font-bold text-slate-900">Connexion requise</h2>
+      <h2 className="text-lg font-bold text-slate-900">{t.guard_login_required}</h2>
       <p className="text-xs text-slate-600 mt-2">
-        Cet espace est réservé aux collaborateurs habilités du Groupe ACTIVA. Merci de vous
-        connecter pour continuer.
+        {t.guard_login_required_body}
       </p>
       <button
         onClick={onGoToLogin}
         className="mt-5 px-4 py-2 rounded-xl bg-[#0B2545] text-white text-xs font-bold hover:bg-[#0B2545]/90 transition"
       >
-        Aller à la page de connexion
+        {t.guard_go_to_login}
       </button>
     </div>
   );
@@ -70,6 +74,7 @@ interface PermissionGuardProps {
   allowed: boolean;
   label: string;
   children: React.ReactNode;
+  lang?: Language;
 }
 
 /**
@@ -79,17 +84,17 @@ interface PermissionGuardProps {
  * `renderAccessDenied` (Phase 5) so every screen shares one implementation
  * instead of re-deriving the same "access denied" card.
  */
-export const PermissionGuard: React.FC<PermissionGuardProps> = ({ allowed, label, children }) => {
+export const PermissionGuard: React.FC<PermissionGuardProps> = ({ allowed, label, children, lang = 'fr' }) => {
   if (allowed) return <>{children}</>;
+  const t = TRANSLATIONS[lang];
   return (
     <div className="max-w-xl mx-auto py-16 px-4 text-center">
       <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto mb-4 text-rose-600">
         <ShieldOff className="w-7 h-7" />
       </div>
-      <h2 className="text-lg font-bold text-slate-900">Accès restreint</h2>
+      <h2 className="text-lg font-bold text-slate-900">{t.guard_access_restricted}</h2>
       <p className="text-xs text-slate-600 mt-2">
-        Votre profil ne dispose pas des habilitations nécessaires pour consulter « {label} ».
-        Cette restriction est appliquée conformément au principe du moindre privilège.
+        {t.guard_access_restricted_body.replace('{label}', label)}
       </p>
     </div>
   );

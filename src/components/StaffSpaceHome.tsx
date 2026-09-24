@@ -152,7 +152,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
               flou ferait apparaître sur les contours de l'image. */}
           <img
             src="/brand/space-home-bg.jpg"
-            alt="Espace de travail avec vue sur la ville"
+            alt={t.space_img_alt}
             fetchPriority="high"
             decoding="async"
             className="absolute inset-0 w-full h-full object-cover object-left blur-[2px] scale-105"
@@ -177,7 +177,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
                 Bonjour<br />M. {greetingName}
               </h2>
               <p className="text-lg font-semibold text-blue-200">
-                Bienvenue sur activa-whistleblowing
+                {t.space_welcome}
               </p>
             </div>
           </div>
