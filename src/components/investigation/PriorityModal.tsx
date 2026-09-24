@@ -84,7 +84,7 @@ export const PriorityModal: React.FC<PriorityModalProps> = ({
             type="text"
             value={priorityOverrideReason}
             onChange={(e) => setPriorityOverrideReason(e.target.value)}
-            placeholder={t.inv_prio_reason_ph}
+            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.inv_prio_reason_ph}) */
             className="w-full px-3 py-2 border border-slate-300 rounded-lg"
           />
         </div>

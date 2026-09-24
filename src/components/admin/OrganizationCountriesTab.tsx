@@ -168,7 +168,7 @@ export const OrganizationCountriesTab: React.FC<OrganizationCountriesTabProps> =
                   type="text"
                   value={countryCode}
                   onChange={(e) => setCountryCode(e.target.value.toUpperCase())}
-                  placeholder={t.ctry_code_ph}
+                  /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.ctry_code_ph}) */
                   maxLength={4}
                   disabled={!!editingCountryCode}
                   className="w-full px-3 py-1.5 border border-slate-300 rounded-lg disabled:bg-slate-100 disabled:text-slate-500"
@@ -180,7 +180,7 @@ export const OrganizationCountriesTab: React.FC<OrganizationCountriesTabProps> =
               </div>
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t.ctry_name_req}</label>
-                <input type="text" value={countryName} onChange={(e) => setCountryName(e.target.value)} placeholder={t.ctry_name_ph} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
+                <input type="text" value={countryName} onChange={(e) => setCountryName(e.target.value)} /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.ctry_name_ph}) */ className="w-full px-3 py-1.5 border border-slate-300 rounded-lg" required />
               </div>
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t.ent_flag_emoji}</label>

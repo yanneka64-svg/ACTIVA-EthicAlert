@@ -470,7 +470,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
                   id="input-tracking-number"
                   value={trackingNumberInput}
                   onChange={(e) => setTrackingNumberInput(e.target.value)}
-                  placeholder={t.track_placeholder_case_number}
+                  /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.track_placeholder_case_number}) */
                   className="w-full px-3 py-2.5 text-xs font-mono font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 uppercase tracking-wider"
                 />
               </div>

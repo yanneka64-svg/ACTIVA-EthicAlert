@@ -3164,7 +3164,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
                     rows={3}
                     value={conflictDetails}
                     onChange={(e) => setConflictDetails(e.target.value)}
-                    placeholder={t.conflict_details_placeholder}
+                    /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.conflict_details_placeholder}) */
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
                     required
                   />

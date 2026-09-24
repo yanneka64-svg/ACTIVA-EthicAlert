@@ -66,7 +66,7 @@ export const AddMeasureModal: React.FC<AddMeasureModalProps> = ({
               type="text"
               value={measureTitle}
               onChange={(e) => setMeasureTitle(e.target.value)}
-              placeholder={t.inv_measure_name_ph}
+              /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.inv_measure_name_ph}) */
               className="w-full px-3 py-2 border border-slate-300 rounded-lg"
               required
             />
@@ -91,7 +91,7 @@ export const AddMeasureModal: React.FC<AddMeasureModalProps> = ({
                 type="text"
                 value={measureResp}
                 onChange={(e) => setMeasureResp(e.target.value)}
-                placeholder={t.inv_measure_owner_ph}
+                /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.inv_measure_owner_ph}) */
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg"
               />
             </div>

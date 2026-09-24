@@ -215,7 +215,7 @@ service cloud.firestore {
               type="text"
               value={fbSnippet}
               onChange={(e) => setFbSnippet(e.target.value)}
-              placeholder="Ex: const firebaseConfig = { apiKey: 'AIza...', projectId: 'activa-ethicalert', ... };"
+              /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré */
               className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-mono"
             />
             <button

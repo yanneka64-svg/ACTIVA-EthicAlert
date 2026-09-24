@@ -892,7 +892,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={declarantFirstName}
                             onChange={(e) => setDeclarantFirstName(e.target.value)}
-                            placeholder={t.sub_ph_first_name}
+                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_first_name}) */
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -903,7 +903,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={declarantLastName}
                             onChange={(e) => setDeclarantLastName(e.target.value)}
-                            placeholder={t.sub_ph_last_name}
+                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_last_name}) */
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -914,7 +914,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={declarantJob}
                             onChange={(e) => setDeclarantJob(e.target.value)}
-                            placeholder={t.sub_ph_job}
+                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_job}) */
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -925,7 +925,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={declarantDept}
                             onChange={(e) => setDeclarantDept(e.target.value)}
-                            placeholder={t.sub_ph_dept}
+                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_dept}) */
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -988,7 +988,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="email"
                             value={declarantEmail}
                             onChange={(e) => setDeclarantEmail(e.target.value)}
-                            placeholder={t.sub_ph_email}
+                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_email}) */
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -1003,7 +1003,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                               type="tel"
                               value={declarantPhone}
                               onChange={(e) => setDeclarantPhone(e.target.value)}
-                              placeholder={t.sub_ph_phone}
+                              /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_phone}) */
                               className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             />
                           </div>
@@ -1056,7 +1056,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={incidentDates}
                             onChange={(e) => setIncidentDates(e.target.value)}
-                            placeholder={t.sub_ph_dates}
+                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_dates}) */
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                           <p className="text-[10px] text-slate-500 mt-0.5">{t.no_future_dates_warning}</p>
@@ -1068,7 +1068,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                             type="text"
                             value={incidentLocation}
                             onChange={(e) => setIncidentLocation(e.target.value)}
-                            placeholder={t.sub_ph_location}
+                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_location}) */
                             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
@@ -1342,7 +1342,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                           type="text"
                           value={estimatedImpactValue}
                           onChange={(e) => setEstimatedImpactValue(e.target.value)}
-                          placeholder={t.sub_ph_impact}
+                          /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_impact}) */
                           className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
                         />
                       </div>
