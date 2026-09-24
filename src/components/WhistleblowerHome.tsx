@@ -294,8 +294,12 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               </button>
             </div>
 
-            <p className="flex items-center gap-2 text-xs font-semibold text-slate-600 pt-1">
-              <Lock className="w-4 h-4 text-blue-600 shrink-0" />
+            {/* === AMÉLIORATION AJOUTÉE (lisibilité de la mention anonymat) ===
+                Petit texte gris posé directement sur la photo du hero :
+                contraste insuffisant. Pastille blanche semi-opaque (flou
+                d'arrière-plan), texte plus foncé et un peu plus grand. */}
+            <p className="inline-flex items-center gap-2 mt-1 px-3.5 py-2 rounded-2xl sm:rounded-full bg-white/90 backdrop-blur-sm border border-slate-200 shadow-sm text-xs sm:text-sm font-semibold text-slate-800">
+              <Lock className="w-4 h-4 text-blue-700 shrink-0" />
               {t.hero_anonymous_note}
             </p>
           </div>
