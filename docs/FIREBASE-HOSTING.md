@@ -63,12 +63,23 @@ Hosting ne l'exécute pas. Sur Firebase Hosting, `POST /api/notify-email`
 échec dans l'Audit Trail (jamais un faux succès). Le reste de l'application
 n'est pas affecté.
 
-Pour réactiver les e-mails sur Firebase, il faut une Cloud Function
-(plan **Blaze** obligatoire, voir `docs/FIREBASE-SETUP.md`) portant la même
-logique, puis une réécriture `{"source": "/api/notify-email", "function":
-"notifyEmail"}` placée **avant** la réécriture `**` dans `firebase.json`.
-Ne pas ajouter cette réécriture tant que la fonction n'est pas déployée :
-`firebase deploy --only hosting` échouerait.
+### Plus tard, au passage à Blaze : activer les e-mails
+
+La Cloud Function `notifyEmail` est **déjà écrite** dans
+`functions/src/index.ts` (même contrat que `api/notify-email.ts`). Il reste :
+
+1. Console Firebase → *Utilisation et facturation* → passer au plan **Blaze**.
+2. Enregistrer la clé Resend dans Secret Manager :
+   `firebase functions:secrets:set RESEND_API_KEY`
+3. Déployer les fonctions : `firebase deploy --only functions`
+4. Dans `firebase.json`, ajouter **avant** la réécriture `**` :
+   ```json
+   { "source": "/api/notify-email", "function": { "functionId": "notifyEmail", "region": "us-central1" } },
+   ```
+5. Redéployer l'hébergement : `npm run deploy:hosting`
+
+Ne pas faire l'étape 4 avant l'étape 3 : `firebase deploy --only hosting`
+échouerait tant que la fonction n'existe pas.
 
 ## 5. Firebase Auth
 
