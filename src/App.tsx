@@ -296,6 +296,16 @@ function AppShell() {
   };
 
   const handleLogout = () => {
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 6) === best-
+    // effort, jamais attendu : évite qu'une session Firebase Auth réelle
+    // établie par syncStaffAuthSession (staffAuthSync.ts) pour ce compte
+    // reste ouverte et fuite vers le prochain compte connecté localement
+    // dans ce même navigateur. Import dynamique : `staffAuthSync.ts` importe
+    // `firebase/auth` (via staffAuth.ts) — App.tsx est le point d'entrée
+    // principal, chargé par CHAQUE visiteur y compris le formulaire public
+    // anonyme, donc jamais d'import statique de ce module ici (même
+    // discipline que services/firebaseClient.ts/getPhase4Functions).
+    import('./services/staffAuthSync').then(({ clearStaffAuthSession }) => clearStaffAuthSession()).catch(() => {});
     setIsStaffSessionActive(false);
     navigate(pathForTab('login'));
   };

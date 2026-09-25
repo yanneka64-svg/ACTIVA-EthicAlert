@@ -37,6 +37,10 @@ import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { getLockStatus, recordFailedAttempt, clearAttempts, formatRemaining } from '../services/rateLimiter';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 6) === voir
+// staffAuthSync.ts pour le détail : tentative best-effort, plafonnée à une
+// fois par compte et par navigateur, jamais bloquante pour le login local.
+import { syncStaffAuthSession } from '../services/staffAuthSync';
 
 interface StaffLoginViewProps {
   onLogin: (user: UserProfile) => void;
@@ -141,6 +145,11 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
         setPendingUser(result.user);
         return;
       }
+      // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 6) ===
+      // Tentative best-effort, en arrière-plan, jamais attendue : ne retarde
+      // jamais ni ne peut faire échouer cette connexion locale, seule source
+      // de vérité pour onLogin ci-dessous.
+      syncStaffAuthSession(result.user.email, password).catch(() => {});
       onLogin(result.user);
     } catch {
       setLoginError(t.login_error_unexpected);
@@ -164,6 +173,10 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
     setIsChangingPassword(true);
     await storage.changePassword(pendingUser.id, newPassword, pendingUser);
     setIsChangingPassword(false);
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 6) === même
+    // tentative best-effort qu'au login direct ci-dessus, avec le nouveau
+    // mot de passe qui vient d'être défini localement.
+    syncStaffAuthSession(pendingUser.email, newPassword).catch(() => {});
     onLogin({ ...pendingUser, mustChangePassword: false });
   };
 
