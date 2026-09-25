@@ -54,6 +54,8 @@ import {
 } from '../../src/domain/caseTypes';
 import { can, implicatedUserIdsFromPersons, Permission } from '../../src/domain/permissions';
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
+import { CaseListFilter, filterVisibleCases } from '../../src/domain/caseVisibility';
 // === AMÉLIORATION AJOUTÉE : réutilise le HASH/SALT existant, jamais réimplémenté ===
 // Same salted, iterated-SHA256 verification already used by the legacy
 // client-side AlertTrackingView (src/components/AlertTrackingView.tsx) —
@@ -224,6 +226,46 @@ export const createCase = onCall(async (request) => {
   await appendAudit({ actorId: user.userId, action: 'CASE_CREATED', caseId, newValue: kase.status });
 
   return { caseId, caseNumber: kase.caseNumber };
+});
+
+// ---------------------------------------------------------------------------
+// listCases
+// ---------------------------------------------------------------------------
+
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
+// La pièce manquante identifiée par l'investigation du bug "les alertes
+// externes n'arrivent jamais dans la Boîte de réception de l'opérateur" :
+// aucune fonction ne permettait jusqu'ici de lister plusieurs dossiers à la
+// fois — `firestore.rules` rejette catégoriquement toute requête `list` sur
+// `cases` (la contrainte de provabilité des règles Firestore ne peut pas
+// évaluer `isNotImplicated`/`isInScope` sur un champ non filtrable), et
+// aucune Cloud Function ne couvrait ce cas avant celle-ci. Réutilise
+// `filterVisibleCases` (domain/caseVisibility.ts), la même logique déjà
+// partagée par `LocalCaseRepository.listCases` et
+// `scripts/firestoreAdminRepository.ts`'s `listCases` — dont ce dernier est
+// le patron direct de lecture Admin SDK repris ici (voir son commentaire
+// sur le balayage complet, toujours valable ici pour la même raison :
+// volume de dossiers réel encore faible).
+export const listCases = onCall(async (request) => {
+  const user = requireAppUser(request);
+  if (!can(user, 'cases.read')) {
+    throw new HttpsError('permission-denied', 'This role cannot read cases.');
+  }
+
+  const data = (request.data ?? {}) as { filter?: CaseListFilter; limit?: number; offset?: number };
+  const filter = data.filter ?? {};
+  const limit = typeof data.limit === 'number' ? data.limit : 25;
+  const offset = typeof data.offset === 'number' ? data.offset : 0;
+
+  const snap = await db.collection('cases').get();
+  const cases = snap.docs.map((doc) => doc.data() as Case);
+  const personsByCase = new Map<string, Person[]>();
+  for (const kase of cases) {
+    const personsSnap = await db.collection('cases').doc(kase.caseId).collection('persons').get();
+    personsByCase.set(kase.caseId, personsSnap.docs.map((d) => d.data() as Person));
+  }
+
+  return filterVisibleCases(cases, personsByCase, filter, user, limit, offset);
 });
 
 // ---------------------------------------------------------------------------

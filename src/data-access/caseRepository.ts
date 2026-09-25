@@ -41,6 +41,15 @@ import {
 } from '../domain/caseTypes';
 import { can, implicatedUserIdsFromPersons, Permission } from '../domain/permissions';
 import { checkTransition, deriveOverallFinding, TransitionCheckResult } from '../domain/workflow';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
+// `CaseListFilter`/`Page`/`filterVisibleCases` déplacés dans ce nouveau
+// module pur (réutilisé aussi par scripts/firestoreAdminRepository.ts et la
+// future Cloud Function `listCases`) — réexportés ci-dessous pour que ce
+// fichier reste le point d'import habituel, sans changement pour les
+// appelants existants.
+import { CaseListFilter, filterVisibleCases, Page } from '../domain/caseVisibility';
+
+export type { CaseListFilter, Page };
 
 // ---------------------------------------------------------------------------
 // Audit event (v2) — intentionally separate from the legacy `AuditLogEntry`
@@ -58,21 +67,6 @@ export interface AuditEventV2 {
   newValue?: unknown;
   reason?: string;
   timestamp: string;
-}
-
-export interface CaseListFilter {
-  status?: CaseStatus;
-  country?: string;
-  entity?: string;
-  category?: string;
-  priority?: string;
-  assignee?: string;
-}
-
-export interface Page<T> {
-  items: T[];
-  total: number;
-  nextOffset?: number;
 }
 
 export interface CaseRepository {
@@ -248,21 +242,21 @@ export class LocalCaseRepository implements CaseRepository {
     return kase;
   }
 
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
+  // Logique de filtrage déplacée telle quelle dans `filterVisibleCases`
+  // (domain/caseVisibility.ts), désormais partagée avec
+  // scripts/firestoreAdminRepository.ts et la Cloud Function `listCases` —
+  // comportement strictement inchangé ici, seul le regroupement des
+  // `Person` par dossier change de forme (`Map` au lieu d'un filtre répété).
   async listCases(filter: CaseListFilter, requestingUser: AppUser, limit = 25, offset = 0): Promise<Page<Case>> {
     const persons = loadArray<Person>(KEYS.persons);
-    const all = loadArray<Case>(KEYS.cases).filter((kase) => {
-      const implicated = implicatedUserIdsFromPersons(persons.filter((p) => p.caseId === kase.caseId));
-      if (!can(requestingUser, 'cases.read', { case: kase, implicatedUserIds: implicated })) return false;
-      if (filter.status && kase.status !== filter.status) return false;
-      if (filter.country && kase.country !== filter.country) return false;
-      if (filter.entity && kase.entity !== filter.entity) return false;
-      if (filter.category && kase.category !== filter.category) return false;
-      if (filter.priority && kase.priority !== filter.priority) return false;
-      if (filter.assignee && kase.assignee !== filter.assignee) return false;
-      return true;
-    });
-    const items = all.slice(offset, offset + limit);
-    return { items, total: all.length, nextOffset: offset + limit < all.length ? offset + limit : undefined };
+    const personsByCase = new Map<string, Person[]>();
+    for (const p of persons) {
+      const list = personsByCase.get(p.caseId);
+      if (list) list.push(p);
+      else personsByCase.set(p.caseId, [p]);
+    }
+    return filterVisibleCases(loadArray<Case>(KEYS.cases), personsByCase, filter, requestingUser, limit, offset);
   }
 
   async changeCaseStatus(
