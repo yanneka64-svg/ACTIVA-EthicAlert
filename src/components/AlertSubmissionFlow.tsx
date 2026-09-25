@@ -574,18 +574,23 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
               {t.confidentiality_gate_title}
             </h2>
             {/* === AMÉLIORATION AJOUTÉE : texte de confidentialité justifié (text-justify) === */}
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify">
+            {/* === AMÉLIORATION AJOUTÉE : espaces trop larges entre les mots corrigés ===
+                `hyphens-auto` + `lang` : le navigateur coupe les mots longs en fin de
+                ligne (dictionnaire de la langue affichée), ce qui évite les grands
+                blancs du texte justifié dans cette colonne étroite. Le gras a été
+                retiré (demande explicite) : les <span> restent, sans style. */}
+            <p lang={lang} className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify hyphens-auto">
               {t.confidentiality_gate_body1_pre}
-              <span className="font-bold text-slate-900">{t.confidentiality_gate_body1_bold}</span>
+              <span>{t.confidentiality_gate_body1_bold}</span>
               {t.confidentiality_gate_body1_post}
               {/* === AMÉLIORATION AJOUTÉE : « Vous pouvez choisir de rester
                   anonyme. » déplacé à la fin du premier paragraphe (mêmes
                   clés de traduction, simple réorganisation de l'affichage) === */}
               {' '}
               {t.confidentiality_gate_body2_pre}
-              <span className="font-bold text-slate-900">{t.confidentiality_gate_body2_bold}</span>
+              <span>{t.confidentiality_gate_body2_bold}</span>
             </p>
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify">
+            <p lang={lang} className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify hyphens-auto">
               {t.confidentiality_gate_body2_post.trim()}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
