@@ -477,7 +477,15 @@ export const setAllegationFinding = onCall(async (request) => {
   await appendTimeline(existing.caseId, 'FINDING_DOCUMENTED', user.userId, finding);
   await appendAudit({ actorId: user.userId, action: 'FINDING_DOCUMENTED', caseId: existing.caseId, objectType: 'allegation', objectId: allegationId, newValue: finding });
 
-  return { ok: true };
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 3 :
+  // FirestoreCaseRepository) === `caseId` ajouté à la réponse : l'appelant
+  // (allegationId seul, sans caseId, par signature de CaseRepository) n'a
+  // sinon aucun moyen de relire le document à jour ensuite (une
+  // collectionGroup query côté client n'est pas autorisée par
+  // firestore.rules — même contrainte de « provabilité » que `listCases`,
+  // voir son commentaire). Ajout pur, aucun changement de comportement pour
+  // le reste de la fonction.
+  return { ok: true, caseId: existing.caseId };
 });
 
 // ---------------------------------------------------------------------------

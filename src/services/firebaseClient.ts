@@ -32,6 +32,14 @@
 import { FirebaseApp, getApps, initializeApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 3 :
+// FirestoreCaseRepository) === type-only : le SDK `firebase/functions`
+// lui-même est chargé dynamiquement (voir getPhase4Functions ci-dessous),
+// jamais importé statiquement ici — `CaseLookup.tsx`, seul consommateur
+// actuellement expédié de ce fichier, n'a besoin ni de charger ni
+// d'initialiser Cloud Functions ; un import statique aurait fait grossir
+// son chunk (~6 kB gzip) sans aucun bénéfice pour cet écran.
+import type { Functions } from 'firebase/functions';
 
 const APP_NAME = 'activa-hotline-phase4';
 
@@ -84,4 +92,29 @@ export function getPhase4Firebase(): { app: FirebaseApp; auth: Auth; db: Firesto
   auth = getAuth(app);
   db = getFirestore(app, config.databaseId);
   return { app, auth, db };
+}
+
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 3 :
+// FirestoreCaseRepository) ===
+let fns: Functions | null = null;
+
+/**
+ * Même instance Firebase nommée que `getPhase4Firebase()` ci-dessus, pour
+ * appeler les Cloud Functions (functions/src/index.ts) sans recréer un
+ * second point d'entrée. Chargement dynamique du SDK `firebase/functions`
+ * (jamais un import statique en haut de ce fichier) : seul
+ * `FirestoreCaseRepository` (data-access/firestoreCaseRepository.ts) a
+ * besoin de Cloud Functions — `CaseLookup.tsx`, seul consommateur
+ * actuellement expédié de `getPhase4Firebase()`, n'en a jamais besoin, et
+ * ne doit donc jamais payer le coût de ce SDK dans son propre chunk.
+ */
+export async function getPhase4Functions(): Promise<Functions> {
+  if (fns) return fns;
+  const { app: phase4App } = getPhase4Firebase();
+  const { getFunctions } = await import('firebase/functions');
+  // Pas de région explicite : les Cloud Functions (functions/src/index.ts)
+  // sont déclarées sans `region()`, donc `us-central1` par défaut des deux
+  // côtés — jamais besoin de le préciser ici tant que ça reste vrai.
+  fns = getFunctions(phase4App);
+  return fns;
 }
