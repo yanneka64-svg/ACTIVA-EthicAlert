@@ -11,9 +11,12 @@
          favicon.ico (16/32/48/64 px) pour tous les navigateurs, favicon.png
          (192 px, transparent) pour les écrans haute densité,
          apple-touch-icon.png (180 px, fond blanc) pour l'écran d'accueil iOS. -->
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- === AMÉLIORATION AJOUTÉE : nouveau logo (bulle + coche) === « ?v=3 »
+         force les navigateurs et les robots d'aperçu (WhatsApp, LinkedIn…) à
+         recharger les nouvelles images au lieu de leur copie en cache. -->
+    <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
     <meta name="description" content="Plateforme sécurisée et multilingue de gestion et de signalement confidentiel ou anonyme des alertes éthiques pour le Groupe ACTIVA." />
     <!-- === AMÉLIORATION AJOUTÉE : aperçu du lien partagé (WhatsApp, Teams,
          LinkedIn, e-mail…) === logo de l'application + « Canal de gestion des
@@ -24,8 +27,8 @@
     <meta property="og:description" content="Canal de gestion des alertes du Groupe ACTIVA" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://activa-ethicalert-47246.web.app/" />
-    <meta property="og:image" content="https://activa-ethicalert-47246.web.app/brand/og-image.png" />
-    <meta property="og:image:secure_url" content="https://activa-ethicalert-47246.web.app/brand/og-image.png" />
+    <meta property="og:image" content="https://activa-ethicalert-47246.web.app/brand/og-image.png?v=3" />
+    <meta property="og:image:secure_url" content="https://activa-ethicalert-47246.web.app/brand/og-image.png?v=3" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -36,7 +39,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="activa.whistleblowing" />
     <meta name="twitter:description" content="Canal de gestion des alertes du Groupe ACTIVA" />
-    <meta name="twitter:image" content="https://activa-ethicalert-47246.web.app/brand/og-image.png" />
+    <meta name="twitter:image" content="https://activa-ethicalert-47246.web.app/brand/og-image.png?v=3" />
     <!-- === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
          BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : la photo du
          siège (page d'accueil publique, destination naturelle après
