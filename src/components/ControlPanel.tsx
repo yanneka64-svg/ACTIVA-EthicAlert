@@ -25,7 +25,7 @@
  * export, or navigation callback was removed; `onNavigateToNewCase` is a
  * new, additive prop.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Inbox,
   TrendingUp,
@@ -44,6 +44,8 @@ import {
 import { AlertRecord, Language, PriorityLevel, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 5) ===
+import { fetchMirroredCasesForControlPanel } from '../services/controlPanelCloudSync';
 import { computeSlaStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { isGlobalCaseViewer, userCan } from '../services/authz';
@@ -203,6 +205,26 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     return unsub;
   }, []);
 
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 5 : fusion
+  // Centre de Pilotage) === Dossiers qui n'existent QUE dans le vrai
+  // backend (soumis depuis un autre navigateur, jamais reçus localement —
+  // voir services/controlPanelCloudSync.ts pour le mécanisme complet et
+  // ses limites documentées). Toujours vide et sans effet visible tant que
+  // les Cloud Functions ne sont pas déployées ET que le personnel n'est
+  // pas réellement connecté à Firebase Auth (voir le commentaire de ce
+  // service) — `fetchMirroredCasesForControlPanel` ne rejette jamais,
+  // cet état reste `[]` en cas d'échec, jamais une erreur visible ici.
+  const [mirroredCases, setMirroredCases] = useState<AlertRecord[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchMirroredCasesForControlPanel().then((cases) => {
+      if (!cancelled) setMirroredCases(cases);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre
   // de Pilotage) === Laisse React monter ControlPanelPrintView (rendu
   // conditionnellement sur `showPrintReport`, plus bas) avant d'appeler
@@ -227,7 +249,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // séparément : encore utilisé plus bas pour le filtre du fil d'activité
   // (ligne ~250).
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
-  const visible = useVisibleAlerts(alerts, activeUser);
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 5) === fusion
+  // avec les dossiers miroir du vrai backend, jamais un remplacement — voir
+  // `mirroredCases` ci-dessus. `useMemo` évite de reconstruire ce tableau
+  // fusionné à chaque rendu alors que `mirroredCases` ne change presque
+  // jamais (un seul fetch au montage).
+  const alertsWithMirrored = useMemo(() => [...alerts, ...mirroredCases], [alerts, mirroredCases]);
+  const visible = useVisibleAlerts(alertsWithMirrored, activeUser);
 
   // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
   // `period`/`getPeriodWindow` calculé ici (déplacé plus haut qu'avant,

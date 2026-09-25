@@ -55,7 +55,16 @@
  */
 
 import { doc, getDoc } from 'firebase/firestore';
-import { FunctionsError, httpsCallable } from 'firebase/functions';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 5) === type-only :
+// le SDK `firebase/functions` lui-même est chargé dynamiquement (voir `call`
+// et `isFunctionsError` ci-dessous), jamais importé statiquement ici — même
+// discipline que `services/firebaseClient.ts`'s `getPhase4Functions()`
+// (Phase 3). Sans ça, tout écran import ant `FirestoreCaseRepository` (même
+// sans jamais appeler une seule de ses méthodes, comme ControlPanel.tsx
+// quand Firebase n'est pas configuré) chargerait ce SDK pour rien —
+// régression concrètement observée et corrigée pendant la Phase 5 (chunk
+// ControlPanel + requête réseau `firebase_functions.js` inutiles en dev).
+import type { FunctionsError } from 'firebase/functions';
 
 import {
   Allegation,
@@ -104,12 +113,23 @@ export class ListNotYetAvailableError extends Error {
 
 async function call<Req, Res>(name: string) {
   const functions = await getPhase4Functions();
+  const { httpsCallable } = await import('firebase/functions');
   return httpsCallable<Req, Res>(functions, name);
+}
+
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 5) === contrôle
+// structurel plutôt que `instanceof FunctionsError` : évite d'avoir besoin
+// d'importer la classe elle-même (voir le commentaire sur l'import
+// type-only ci-dessus). `.code` d'une vraie `FunctionsError` est toujours
+// de la forme `functions/<code>` (voir @firebase/functions) — suffisant
+// pour distinguer une erreur serveur structurée d'une panne réseau/autre.
+function isFunctionsError(err: unknown): err is FunctionsError {
+  return typeof err === 'object' && err !== null && 'code' in err && typeof (err as { code: unknown }).code === 'string' && (err as { code: string }).code.startsWith('functions/');
 }
 
 /** Traduit une erreur `httpsCallable` en une erreur du vocabulaire `CaseRepository` — jamais un code Firebase brut qui fuiterait un détail d'implémentation à l'appelant. */
 function translateError(err: unknown): never {
-  if (err instanceof FunctionsError) {
+  if (isFunctionsError(err)) {
     if (err.code === 'functions/permission-denied') throw new CaseAccessDeniedError(err.message);
     if (err.code === 'functions/not-found') throw new Error(err.message);
     if (err.code === 'functions/invalid-argument' || err.code === 'functions/failed-precondition') throw new Error(err.message);
@@ -184,7 +204,7 @@ export class FirestoreCaseRepository implements CaseRepository {
       await fn({ caseId, to, reason });
       return { case: await getCaseDoc(caseId), result: { allowed: true } };
     } catch (err) {
-      if (err instanceof FunctionsError && err.code === 'functions/failed-precondition') {
+      if (isFunctionsError(err) && err.code === 'functions/failed-precondition') {
         // === AMÉLIORATION AJOUTÉE === Même comportement que
         // LocalCaseRepository.changeCaseStatus : une transition refusée
         // pour une raison métier (checkTransition) n'est jamais une
