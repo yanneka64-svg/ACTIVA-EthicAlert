@@ -15,6 +15,12 @@ import React from 'react';
  * Le fichier a été remplacé par le nouveau logo fourni (même nom, mêmes
  * proportions ~6,6:1, fond transparent, rogné au contenu). L'ancienne
  * version est conservée dans `activa-whistleblowing-logo-v1.png`.
+ *
+ * === AMÉLIORATION AJOUTÉE : logo « bulle + coche » (image fournie) ===
+ * Nouveau remplacement du fichier (même nom). La version précédente est
+ * conservée dans `activa-whistleblowing-logo-v2.png`. L'icône de l'onglet
+ * (favicon) et l'image d'aperçu de partage (og-image.png) sont générées à
+ * partir de ce même logo.
  */
 interface EthicAlertBrandProps {
   /** Hauteur du logo (classe Tailwind). */
