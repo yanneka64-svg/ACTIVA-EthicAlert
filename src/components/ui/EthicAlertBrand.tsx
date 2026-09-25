@@ -10,6 +10,11 @@ import React from 'react';
  *
  * Fichier : `public/brand/activa-whistleblowing-logo.png` (fond transparent).
  * L'icône seule (onglet du navigateur) est `activa-ethicalert-icon.png`.
+ *
+ * === AMÉLIORATION AJOUTÉE : nouvelle version du logo (image fournie) ===
+ * Le fichier a été remplacé par le nouveau logo fourni (même nom, mêmes
+ * proportions ~6,6:1, fond transparent, rogné au contenu). L'ancienne
+ * version est conservée dans `activa-whistleblowing-logo-v1.png`.
  */
 interface EthicAlertBrandProps {
   /** Hauteur du logo (classe Tailwind). */
