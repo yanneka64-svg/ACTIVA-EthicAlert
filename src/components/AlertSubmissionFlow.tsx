@@ -47,6 +47,8 @@ import {
   computeRiskEvaluation
 } from '../data/activaConfig';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4) ===
+import { mirrorSubmissionToRealBackend } from '../services/casesCloudSync';
 // === AMÉLIORATION AJOUTÉE : hachage salé côté client du mot de passe de suivi (jamais stocké en clair) ===
 // === AMÉLIORATION AJOUTÉE (Phase 26) === generateAccessPassword génère
 // désormais le mot de passe lui-même (voir plus bas) ; hashPassword/generateSalt
@@ -485,6 +487,24 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
     // Save to storage
     storage.saveAlert(newRecord);
+
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4) ===
+    // Écriture miroir best-effort vers le vrai backend (Case/Firestore/
+    // Cloud Functions) — jamais attendue, jamais capable de bloquer ou
+    // d'altérer la suite de la soumission (déjà enregistrée localement
+    // juste au-dessus, seule source de vérité pour cet écran). No-op
+    // silencieux tant que les Cloud Functions ne sont pas déployées — voir
+    // services/casesCloudSync.ts.
+    mirrorSubmissionToRealBackend({
+      category: newRecord.category,
+      subcategory: newRecord.subCategory,
+      country: newRecord.country,
+      entity: newRecord.concernedEntity,
+      description: newRecord.detailedDescription,
+      reportingMode: isAnonymous ? 'anonymous' : 'identified',
+      confidentialityLevel: newRecord.confidentialityLevel,
+    }).catch(() => {});
+
     storage.logAudit(
       'ALERT_SUBMITTED',
       `Nouvelle alerte enregistrée : ${trackingNumber} (${newRecord.category} - ${newRecord.concernedEntity}). Classification : ${liveRisk.nocaThreshold}. Mode : ${isAnonymous ? 'Anonyme' : 'Identifié'}.`,

@@ -48,6 +48,8 @@ import {
   FindingOutcome,
   Interview,
   Person,
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4) ===
+  ReporterCredentials,
   RiskAssessment,
   RoleId,
   Task,
@@ -63,7 +65,12 @@ import { CaseListFilter, filterVisibleCases } from '../../src/domain/caseVisibil
 // what a valid access code hash looks like. Works in this Node 20 runtime
 // because `crypto.subtle`/`crypto.getRandomValues` are Node's built-in
 // global WebCrypto implementation, not a browser-only API.
-import { verifyPassword } from '../../src/services/crypto';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4 :
+// miroir de la soumission publique) === `generateSalt`/`hashPassword`/
+// `generateAccessPassword` réutilisés tels quels (même algorithme que
+// `verifyPassword` déjà importé ci-dessus, et que le client
+// AlertSubmissionFlow.tsx) pour `createCaseAsReporter`, plus bas.
+import { generateAccessPassword, generateSalt, hashPassword, verifyPassword } from '../../src/services/crypto';
 
 initializeApp();
 const db = getFirestore();
@@ -994,6 +1001,85 @@ export const addCommunicationAsReporter = onCall(async (request) => {
   await appendTimeline(caseRef.id, 'MESSAGE_SENT', 'reporter');
 
   return { messageId };
+});
+
+// ---------------------------------------------------------------------------
+// createCaseAsReporter
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4 : miroir de
+// la soumission publique) ===
+// La pièce manquante identifiée en construisant cette phase : `createCase`
+// (plus haut) exige `requireAppUser()` — un vrai jeton Firebase Auth avec
+// la permission `cases.create` (tenue par le personnel, jamais par
+// `reporter`, qui n'a `[]` dans permissions.ts) — donc injoignable par
+// AlertSubmissionFlow.tsx, le formulaire PUBLIC, anonyme, sans session.
+// Ce nouveau callable suit exactement le même principe que
+// `getCaseForReporter`/`addCommunicationAsReporter` juste au-dessus :
+// aucun `requireAppUser()`, l'autorisation vient d'ailleurs — ici, du fait
+// qu'il ne fait QUE créer un nouveau dossier, jamais lire ou modifier un
+// dossier existant. Génère ses propres identifiants de suivi
+// (accessCode/salt/hash, mêmes fonctions que `verifyPassword` ci-dessus)
+// et son propre numéro de dossier (même compteur transactionnel que
+// `createCase`, `counters/cases` — un seul compteur partagé, jamais deux
+// suites de numéros qui pourraient se chevaucher).
+//
+// Volontairement PAS relié à l'écran de confirmation que voit le
+// déclarant : `src/services/casesCloudSync.ts` (client) appelle ce
+// callable en tâche de fond, best-effort, exactement comme
+// `saveAlertToCloud` (services/firebase.ts) le fait déjà pour le modèle
+// legacy — le numéro de suivi et le mot de passe réellement affichés
+// restent ceux du modèle local (`storage.ts`), seule source de vérité
+// tant que les phases 5/6 n'ont pas migré l'UI (voir docs/DATABASE.md).
+// Les identifiants générés ici ne sont donc utilisés par aucun écran
+// aujourd'hui — mais existent pour que ce dossier miroir reste, en
+// principe, consultable par `getCaseForReporter` plus tard, plutôt que
+// d'être un enregistrement orphelin sans aucun identifiant de suivi.
+// ---------------------------------------------------------------------------
+
+export const createCaseAsReporter = onCall(async (request) => {
+  const data = request.data as Pick<Case, 'category' | 'subcategory' | 'country' | 'entity' | 'reportingMode' | 'description' | 'confidentialityLevel'>;
+  if (!data?.category || !data?.country || !data?.entity || !data?.description) {
+    throw new HttpsError('invalid-argument', 'category, country, entity and description are required.');
+  }
+
+  const seq = await nextCaseSequence();
+  const caseId = newId('case');
+  const nowIso = new Date().toISOString();
+  const kase: Case = {
+    caseId,
+    caseNumber: `CASE-${new Date().getFullYear()}-${String(seq).padStart(6, '0')}`,
+    status: 'new',
+    category: data.category,
+    subcategory: data.subcategory ?? '',
+    country: data.country,
+    entity: data.entity,
+    reportingMode: data.reportingMode ?? 'anonymous',
+    priority: 'low',
+    riskScore: 0,
+    confidentialityLevel: data.confidentialityLevel ?? 'confidential',
+    additionalInvestigators: [],
+    slaStatus: 'ok',
+    receivedAt: nowIso,
+    incidentDateUnknown: true,
+    description: data.description,
+    legalHold: false,
+    implicatedUserIds: [],
+    createdAt: nowIso,
+    createdBy: 'reporter',
+    updatedAt: nowIso,
+    updatedBy: 'reporter',
+  };
+  await db.collection('cases').doc(caseId).set(kase);
+
+  const accessCode = generateAccessPassword();
+  const accessCodeSalt = generateSalt();
+  const accessCodeHash = await hashPassword(accessCode, accessCodeSalt);
+  const credentials: ReporterCredentials = { caseId, accessCodeHash, accessCodeSalt };
+  await db.collection('reporter_credentials').doc(caseId).set(credentials);
+
+  await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
+  await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
+
+  return { caseId, caseNumber: kase.caseNumber };
 });
 
 // ---------------------------------------------------------------------------
