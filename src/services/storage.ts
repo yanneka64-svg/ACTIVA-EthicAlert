@@ -756,6 +756,18 @@ class StorageService {
       { id: alert.id, trackingNumber: alert.trackingNumber },
       actor
     );
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 10 : miroir
+    // du changement de statut) === best-effort, jamais attendu, jamais
+    // bloquant — uniquement si ce dossier porte un lien réel actif (Phase
+    // 7). Import dynamique : storage.ts est importé par la quasi-totalité
+    // de l'application, jamais d'import statique d'un module qui touche
+    // firebase/functions ici — voir services/statusMirrorSync.ts.
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./statusMirrorSync')
+        .then(({ mirrorStatusChangeToRealBackend }) => mirrorStatusChangeToRealBackend({ caseId: mirroredCaseId, to: toStatus, reason }))
+        .catch(() => {});
+    }
     return { allowed: true };
   }
 
