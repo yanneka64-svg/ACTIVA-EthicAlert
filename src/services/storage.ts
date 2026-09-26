@@ -967,6 +967,21 @@ class StorageService {
         { id: alert.id, trackingNumber: alert.trackingNumber },
         actor
       );
+      // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 12 :
+      // miroir de l'attribution) === best-effort, jamais bloquant,
+      // uniquement si ce dossier porte un lien réel actif ET qu'une
+      // autorité a réellement été trouvée (voir assignmentMirrorSync.ts —
+      // le cas "aucune autorité disponible" n'a pas d'équivalent honnête
+      // côté serveur, jamais miré). `owner` devient l'assigné principal
+      // réel, le reste de la liste locale (déjà filtrée des comptes
+      // exclus) devient les enquêteurs additionnels.
+      const mirroredCaseId = alert.mirroredCaseId;
+      if (mirroredCaseId) {
+        const additionalInvestigators = alert.assignedInvestigators.filter((id) => id !== owner.id);
+        import('./assignmentMirrorSync')
+          .then(({ mirrorAssignmentToRealBackend }) => mirrorAssignmentToRealBackend({ caseId: mirroredCaseId, assignee: owner.id, additionalInvestigators }))
+          .catch(() => {});
+      }
       return undefined;
     } else {
       alert.independentRoutingUnresolved = true;
