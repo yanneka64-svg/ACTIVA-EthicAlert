@@ -1,18 +1,26 @@
 import React, { useState } from 'react';
-import { 
-  History, 
-  Search, 
-  Filter, 
-  Download, 
-  ShieldCheck, 
-  User, 
-  Calendar, 
+import {
+  History,
+  Search,
+  Filter,
+  Download,
+  ShieldCheck,
+  User,
+  Calendar,
   FileText,
-  Clock
+  Clock,
+  Link2
 } from 'lucide-react';
 import { Language, AuditLogEntry, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 8 : indicateur
+// de synchronisation) === `isPhase4Configured` est une simple lecture de
+// variables d'environnement (aucun SDK Firebase chargé) — voir
+// services/firebaseClient.ts. Import statique sans risque de gonfler ce
+// chunk (déjà chargé à la demande, voir App.tsx `lazy(...)`), vérifié par
+// comparaison de taille de build avant/après.
+import { isPhase4Configured } from '../services/firebaseClient';
 
 interface AuditTrailViewProps {
   lang: Language;
@@ -25,6 +33,18 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
 }) => {
   const t = TRANSLATIONS[lang];
   const logs = storage.getAuditLogs();
+
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 8 :
+  // indicateur de synchronisation) === Lecture seule, purement informative :
+  // combien de dossiers locaux portent un lien réel actif
+  // (AlertRecord.mirroredCaseId, posé par storage.linkMirroredCase — voir
+  // Phase 7). Masqué tant que la Phase 4 (services/casesCloudSync.ts) n'est
+  // pas configurée : afficher "0/N" alors que le miroir n'est même pas actif
+  // donnerait l'impression trompeuse d'un système qui ne fonctionne pas,
+  // plutôt que d'un système pas encore activé — voir docs/DATABASE.md sur ce
+  // principe déjà appliqué ailleurs (ControlPanel.tsx, CaseLookup.tsx…).
+  const alerts = storage.getAlerts();
+  const mirroredCount = alerts.filter((a) => a.mirroredCaseId).length;
 
   const [searchFilter, setSearchFilter] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState('all');
@@ -85,6 +105,17 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
             <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
               {t.audit_sealed}
             </span>
+
+            {/* === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 8) === */}
+            {isPhase4Configured() && (
+              <span
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-semibold border border-blue-200"
+                title={t.audit_backend_sync.replace('{synced}', String(mirroredCount)).replace('{total}', String(alerts.length))}
+              >
+                <Link2 className="w-3.5 h-3.5" />
+                {t.audit_backend_sync.replace('{synced}', String(mirroredCount)).replace('{total}', String(alerts.length))}
+              </span>
+            )}
 
             <button
               onClick={handleExportAuditCSV}
