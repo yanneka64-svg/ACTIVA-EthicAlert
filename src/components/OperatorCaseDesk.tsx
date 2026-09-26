@@ -1068,6 +1068,14 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
             // gardent le clic de ligne → fiche dossier complète, demandé
             // explicitement pour "Dossiers attribués" et vérifié en direct.
             onRowClick={cfg.rowAction === 'assign' ? undefined : (a) => onOpenCase(a.trackingNumber)}
+            // === AMÉLIORATION AJOUTÉE (masquer le chevron redondant —
+            // reassign/followup) === Ces deux modes cumulent déjà une
+            // colonne d'action dédiée ("Réattribuer"/"Relancer") avec le
+            // clic de ligne : le chevron générique juste après donnait
+            // une impression de doublon visuel. Le clic de ligne reste
+            // pleinement fonctionnel (`onRowClick` ci-dessus inchangé) —
+            // seul l'indicateur visuel superflu disparaît.
+            hideRowClickIndicator={cfg.rowAction === 'reassign' || cfg.rowAction === 'followup'}
             emptyTitle={displayEmpty}
           />
         </div>

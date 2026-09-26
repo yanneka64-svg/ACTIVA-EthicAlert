@@ -28,11 +28,23 @@ interface DataTableProps<T> {
   rows: T[];
   getRowKey: (row: T) => string;
   onRowClick?: (row: T) => void;
+  // === AMÉLIORATION AJOUTÉE (masquer le chevron redondant — reassign/
+  // followup) === Certains écrans gardent `onRowClick` actif (ouvrir la
+  // fiche dossier) tout en ayant déjà leur propre colonne d'action dédiée
+  // (ex. "Réattribuer"/"Relancer" dans OperatorCaseDesk) : le chevron
+  // générique, sans en-tête, juste après ce bouton donnait une impression
+  // de doublon visuel même si les deux actions sont réellement distinctes.
+  // `true` masque uniquement ce chevron (desktop) — `onRowClick` continue
+  // de fonctionner normalement (ligne toujours cliquable). Par défaut
+  // `false` : comportement strictement inchangé pour tous les autres
+  // écrans déjà en production.
+  hideRowClickIndicator?: boolean;
   emptyTitle: string;
   emptyDescription?: string;
 }
 
-export function DataTable<T>({ columns, rows, getRowKey, onRowClick, emptyTitle, emptyDescription }: DataTableProps<T>) {
+export function DataTable<T>({ columns, rows, getRowKey, onRowClick, hideRowClickIndicator, emptyTitle, emptyDescription }: DataTableProps<T>) {
+  const showChevron = Boolean(onRowClick) && !hideRowClickIndicator;
   if (rows.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
@@ -58,7 +70,7 @@ export function DataTable<T>({ columns, rows, getRowKey, onRowClick, emptyTitle,
                   {col.header}
                 </th>
               ))}
-              {onRowClick && <th className="px-2 py-2.5" />}
+              {showChevron && <th className="px-2 py-2.5" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
@@ -85,7 +97,7 @@ export function DataTable<T>({ columns, rows, getRowKey, onRowClick, emptyTitle,
                     {col.render(row)}
                   </td>
                 ))}
-                {onRowClick && (
+                {showChevron && (
                   <td className="px-2 py-3 text-slate-300">
                     <ChevronRight className="w-4 h-4" />
                   </td>
