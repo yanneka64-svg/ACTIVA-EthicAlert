@@ -229,6 +229,38 @@ interface InvestigationDeskProps {
   initialCaseTab?: 'overview' | 'messages';
 }
 
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14 : miroir des
+// mutations secondaires) === Petit helper module-level (pas de hook, aucun
+// état de composant) partagé par les deux branches (subject/witness) de
+// handleAddPerson ci-dessous — best-effort, jamais attendu, jamais
+// bloquant, uniquement si ce dossier porte un lien réel actif. Import
+// dynamique : InvestigationDesk.tsx est déjà un gros chunk chargé à la
+// demande — jamais d'import statique d'un module touchant
+// firebase/functions ici.
+function mirrorAddedPerson(
+  alert: AlertRecord,
+  kind: 'subject' | 'witness',
+  name: string,
+  position: string,
+  hierarchyRole: string,
+  linkedUserId: string | undefined
+): void {
+  if (!alert.mirroredCaseId) return;
+  const mirroredCaseId = alert.mirroredCaseId;
+  import('../services/caseMirrorSync')
+    .then(({ mirrorAddPerson, HIERARCHY_ROLE_TO_LEVEL }) =>
+      mirrorAddPerson({
+        caseId: mirroredCaseId,
+        kind,
+        name,
+        position: position || undefined,
+        hierarchyLevel: HIERARCHY_ROLE_TO_LEVEL[hierarchyRole],
+        linkedUserId,
+      })
+    )
+    .catch(() => {});
+}
+
 export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   lang,
   activeUser,
@@ -661,6 +693,33 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       activeUser
     );
 
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
+    // Même correspondance de champs que data-access/migrateLegacy.ts pour
+    // exactement ce même cas (branche `alert.overridePriority`) : les 4
+    // sous-scores et le score total ne sont jamais recalculés par ce
+    // formulaire local (seule la priorité finale est surchargée) — on les
+    // reporte donc tels quels, avec `isOverride: true`.
+    const risk = selectedAlert.riskEvaluation;
+    if (selectedAlert.mirroredCaseId) {
+      const mirroredCaseId = selectedAlert.mirroredCaseId;
+      import('../services/caseMirrorSync')
+        .then(({ mirrorRecordRiskAssessment, LOCAL_PRIORITY_TO_CASE_PRIORITY }) =>
+          mirrorRecordRiskAssessment({
+            caseId: mirroredCaseId,
+            financialImpact: risk.financialImpact,
+            hierarchicalLevel: risk.hierarchyLevel,
+            recurrence: risk.recidivism,
+            reputationRisk: risk.reputationRisk,
+            totalScore: risk.totalScore,
+            priority: LOCAL_PRIORITY_TO_CASE_PRIORITY[newPriority],
+            isOverride: true,
+            originalScore: risk.totalScore,
+            overrideReason: priorityOverrideReason.trim() || undefined,
+          })
+        )
+        .catch(() => {});
+    }
+
     setShowPriorityModal(false);
   };
 
@@ -692,6 +751,16 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       activeUser
     );
 
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14 : miroir
+    // des mutations secondaires) === best-effort, jamais attendu, jamais
+    // bloquant, uniquement si ce dossier porte un lien réel actif.
+    if (selectedAlert.mirroredCaseId) {
+      const mirroredCaseId = selectedAlert.mirroredCaseId;
+      import('../services/caseMirrorSync')
+        .then(({ mirrorAddInvestigationNote }) => mirrorAddInvestigationNote({ caseId: mirroredCaseId, content: newNote.content }))
+        .catch(() => {});
+    }
+
     setInternalNoteText('');
   };
 
@@ -720,6 +789,14 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
       activeUser
     );
+
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
+    if (selectedAlert.mirroredCaseId) {
+      const mirroredCaseId = selectedAlert.mirroredCaseId;
+      import('../services/caseMirrorSync')
+        .then(({ mirrorAddCommunication }) => mirrorAddCommunication({ caseId: mirroredCaseId, content: newMsg.content }))
+        .catch(() => {});
+    }
 
     setInvestigatorMsgText('');
   };
@@ -760,6 +837,27 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
       activeUser
     );
+
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
+    // `addCorrectiveAction` (Cloud Function) exige une priorité, absente du
+    // modèle local `CorrectiveMeasure` — réutilise la priorité du DOSSIER
+    // lui-même, exactement comme data-access/migrateLegacy.ts le fait déjà
+    // pour la même raison (jamais une valeur inventée).
+    if (selectedAlert.mirroredCaseId) {
+      const mirroredCaseId = selectedAlert.mirroredCaseId;
+      const localPriority = selectedAlert.overridePriority ?? selectedAlert.riskEvaluation.priority;
+      import('../services/caseMirrorSync')
+        .then(({ mirrorAddCorrectiveAction, LOCAL_PRIORITY_TO_CASE_PRIORITY }) =>
+          mirrorAddCorrectiveAction({
+            caseId: mirroredCaseId,
+            description: newMeasure.title ? `${newMeasure.title} — ${newMeasure.description}` : newMeasure.description,
+            owner: newMeasure.responsiblePerson,
+            dueDate: newMeasure.dueDate,
+            priority: LOCAL_PRIORITY_TO_CASE_PRIORITY[localPriority],
+          })
+        )
+        .catch(() => {});
+    }
 
     setMeasureTitle('');
     setMeasureDesc('');
@@ -1008,6 +1106,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         linkedUserId: personLinkedUserId || undefined,
       };
       storage.saveAlert({ ...selectedAlert, involvedPersons: [...selectedAlert.involvedPersons, entry], updatedAt: new Date().toISOString() });
+      mirrorAddedPerson(selectedAlert, 'subject', entry.name, entry.position, entry.hierarchyRole, entry.linkedUserId);
     } else {
       const entry: Witness = {
         id: 'wit-' + Date.now(),
@@ -1018,6 +1117,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         linkedUserId: personLinkedUserId || undefined,
       };
       storage.saveAlert({ ...selectedAlert, witnesses: [...selectedAlert.witnesses, entry], updatedAt: new Date().toISOString() });
+      mirrorAddedPerson(selectedAlert, 'witness', entry.name, entry.position, entry.hierarchyRole, entry.linkedUserId);
     }
     // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
     // Un rattachement défini dès la création déclenche immédiatement le

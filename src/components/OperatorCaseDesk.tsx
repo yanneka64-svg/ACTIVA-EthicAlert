@@ -616,6 +616,13 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         { id: alert.id, trackingNumber: alert.trackingNumber },
         activeUser
       );
+      // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
+      if (alert.mirroredCaseId) {
+        const mirroredCaseId = alert.mirroredCaseId;
+        import('../services/caseMirrorSync')
+          .then(({ mirrorAddCommunication }) => mirrorAddCommunication({ caseId: mirroredCaseId, content: msg.content }))
+          .catch(() => {});
+      }
     });
     setFollowupTargetIds(null);
     setFollowupText('');
@@ -640,6 +647,13 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
       { id: panelAlert.id, trackingNumber: panelAlert.trackingNumber },
       activeUser
     );
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
+    if (panelAlert.mirroredCaseId) {
+      const mirroredCaseId = panelAlert.mirroredCaseId;
+      import('../services/caseMirrorSync')
+        .then(({ mirrorAddCommunication }) => mirrorAddCommunication({ caseId: mirroredCaseId, content: msg.content }))
+        .catch(() => {});
+    }
     setReplyText('');
   };
 

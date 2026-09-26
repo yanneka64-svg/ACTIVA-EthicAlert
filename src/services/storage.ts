@@ -659,6 +659,25 @@ class StorageService {
     this.persistAlerts();
     this.notify();
     this.logAudit('CONFIG_UPDATED', `Tâche ajoutée sur ${alert.trackingNumber} : ${task.title}`, { id: alert.id, trackingNumber: alert.trackingNumber }, actor);
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14 : miroir
+    // des mutations secondaires) === best-effort, jamais bloquant,
+    // uniquement si ce dossier porte un lien réel actif. Import dynamique
+    // (storage.ts est importé par la quasi-totalité de l'application).
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./caseMirrorSync')
+        .then(({ mirrorAddTask, TASK_PRIORITY_TO_CASE_PRIORITY }) =>
+          mirrorAddTask({
+            caseId: mirroredCaseId,
+            title: task.title,
+            description: task.description,
+            owner: task.owner,
+            priority: TASK_PRIORITY_TO_CASE_PRIORITY[task.priority],
+            dueDate: task.dueDate,
+          })
+        )
+        .catch(() => {});
+    }
   }
 
   public updateTask(alertId: string, taskId: string, updates: Partial<CaseTask>, actor: UserProfile): void {
@@ -679,6 +698,20 @@ class StorageService {
     this.persistAlerts();
     this.notify();
     this.logAudit('CONFIG_UPDATED', `Entretien planifié/consigné sur ${alert.trackingNumber}.`, { id: alert.id, trackingNumber: alert.trackingNumber }, actor);
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./caseMirrorSync')
+        .then(({ mirrorAddInterview }) =>
+          mirrorAddInterview({
+            caseId: mirroredCaseId,
+            intervieweePersonId: interview.intervieweePersonId,
+            intervieweeLabel: interview.intervieweeName,
+            scheduledAt: interview.scheduledAt,
+          })
+        )
+        .catch(() => {});
+    }
   }
 
   public declareConflict(alertId: string, declaration: ConflictDeclaration, actor: UserProfile): void {
@@ -694,6 +727,15 @@ class StorageService {
       { id: alert.id, trackingNumber: alert.trackingNumber },
       actor
     );
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./caseMirrorSync')
+        .then(({ mirrorDeclareConflict }) =>
+          mirrorDeclareConflict({ caseId: mirroredCaseId, outcome: declaration.outcome, details: declaration.details })
+        )
+        .catch(() => {});
+    }
   }
 
   // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
