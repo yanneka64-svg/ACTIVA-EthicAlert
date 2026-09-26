@@ -842,6 +842,32 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       activeUser
     );
 
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 13 : miroir
+    // de la création de dossier par le personnel) === Écriture miroir
+    // best-effort vers le vrai backend — jamais attendue, jamais capable de
+    // bloquer ou d'altérer la suite (déjà enregistrée localement juste
+    // au-dessus, seule source de vérité pour cet écran). Import dynamique :
+    // InvestigationDesk.tsx est déjà un gros chunk chargé à la demande —
+    // jamais d'import statique d'un module touchant firebase/functions ici.
+    // No-op silencieux tant que la Phase 4 n'est pas configurée — voir
+    // services/caseCreationMirrorSync.ts.
+    import('../services/caseCreationMirrorSync')
+      .then(({ mirrorStaffCaseCreationToRealBackend }) =>
+        mirrorStaffCaseCreationToRealBackend({
+          category: newRecord.category,
+          subcategory: newRecord.subCategory,
+          country: newRecord.country,
+          entity: newRecord.concernedEntity,
+          description: newRecord.detailedDescription,
+          reportingMode: newRecord.whistleblower.isAnonymous ? 'anonymous' : 'identified',
+          confidentialityLevel: newRecord.confidentialityLevel,
+        })
+      )
+      .then((result) => {
+        if (result) storage.linkMirroredCase(newRecord.id, result.caseId, result.caseNumber);
+      })
+      .catch(() => {});
+
     setIsCreatingCase(false);
     setShowCreateCaseModal(false);
     setCreateCaseStep(1);
