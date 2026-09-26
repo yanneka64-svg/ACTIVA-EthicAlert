@@ -864,6 +864,21 @@ class StorageService {
       { id: alert.id, trackingNumber: alert.trackingNumber },
       actor
     );
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 11 : miroir
+    // de l'escalade) === même mécanisme exact que transitionStatus()
+    // (Phase 10, services/statusMirrorSync.ts réutilisé tel quel) — best-
+    // effort, jamais bloquant, uniquement si ce dossier porte un lien réel
+    // actif. `to: 'escalated'` est une transition CaseStatus valide comme
+    // une autre pour changeCaseStatus côté serveur ; seul le côté
+    // "nouveau propriétaire" (assignedInvestigators/escalatedOwnerId,
+    // ci-dessus) reste local pour l'instant — mirer aussi l'attribution
+    // réelle (assignCase) est un chantier séparé, pas mélangé ici.
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./statusMirrorSync')
+        .then(({ mirrorStatusChangeToRealBackend }) => mirrorStatusChangeToRealBackend({ caseId: mirroredCaseId, to: 'escalated', reason }))
+        .catch(() => {});
+    }
     return { allowed: true, recipient };
   }
 
