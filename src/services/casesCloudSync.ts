@@ -20,6 +20,16 @@
  * Toujours un no-op silencieux tant que les Cloud Functions ne sont pas
  * déployées (voir isPhase4Configured — même garde que `isFirebaseConfigured`
  * pour le modèle legacy).
+ *
+ * === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 7 : lien
+ * dossier local ↔ dossier réel) === Renvoie désormais l'identifiant/numéro
+ * du dossier réel créé (au lieu d'un simple booléen) — `null` dans tous les
+ * cas d'échec/non-configuré, comme avant. Seul changement de contrat côté
+ * appelant : lire `caseId`/`caseNumber` sur le résultat au lieu de tester un
+ * booléen ; le comportement best-effort/jamais-bloquant/jamais-rejeté reste
+ * identique. Permet à `AlertSubmissionFlow.tsx` de persister ce lien sur
+ * l'`AlertRecord` local (types.ts `mirroredCaseId`/`mirroredCaseNumber`),
+ * préalable à toute future mise en miroir des mutations ultérieures.
  */
 import { Case } from '../domain/caseTypes';
 import { getPhase4Functions, isPhase4Configured } from './firebaseClient';
@@ -34,16 +44,21 @@ export interface CaseMirrorInput {
   confidentialityLevel: Case['confidentialityLevel'];
 }
 
-/** Toujours résout `true`/`false` (succès best-effort) — ne rejette jamais, ne doit jamais être `await`é de façon bloquante par l'appelant. */
-export async function mirrorSubmissionToRealBackend(input: CaseMirrorInput): Promise<boolean> {
-  if (!isPhase4Configured()) return false;
+export interface CaseMirrorResult {
+  caseId: string;
+  caseNumber: string;
+}
+
+/** Toujours résout (succès best-effort) — ne rejette jamais, ne doit jamais être `await`é de façon bloquante par l'appelant. `null` si non configuré ou en cas d'échec. */
+export async function mirrorSubmissionToRealBackend(input: CaseMirrorInput): Promise<CaseMirrorResult | null> {
+  if (!isPhase4Configured()) return null;
   try {
     const functions = await getPhase4Functions();
     const { httpsCallable } = await import('firebase/functions');
-    const fn = httpsCallable<CaseMirrorInput, { caseId: string; caseNumber: string }>(functions, 'createCaseAsReporter');
-    await fn(input);
-    return true;
+    const fn = httpsCallable<CaseMirrorInput, CaseMirrorResult>(functions, 'createCaseAsReporter');
+    const response = await fn(input);
+    return response.data;
   } catch {
-    return false;
+    return null;
   }
 }

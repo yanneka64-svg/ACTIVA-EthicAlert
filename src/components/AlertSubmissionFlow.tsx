@@ -488,13 +488,16 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     // Save to storage
     storage.saveAlert(newRecord);
 
-    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4) ===
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4, puis
+    // Phase 7 : lien dossier local ↔ dossier réel) ===
     // Écriture miroir best-effort vers le vrai backend (Case/Firestore/
     // Cloud Functions) — jamais attendue, jamais capable de bloquer ou
     // d'altérer la suite de la soumission (déjà enregistrée localement
     // juste au-dessus, seule source de vérité pour cet écran). No-op
     // silencieux tant que les Cloud Functions ne sont pas déployées — voir
-    // services/casesCloudSync.ts.
+    // services/casesCloudSync.ts. En cas de succès, persiste l'identifiant
+    // réel renvoyé sur l'AlertRecord local (storage.linkMirroredCase) —
+    // préalable à toute future mise en miroir des mutations ultérieures.
     mirrorSubmissionToRealBackend({
       category: newRecord.category,
       subcategory: newRecord.subCategory,
@@ -503,6 +506,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
       description: newRecord.detailedDescription,
       reportingMode: isAnonymous ? 'anonymous' : 'identified',
       confidentialityLevel: newRecord.confidentialityLevel,
+    }).then((result) => {
+      if (result) storage.linkMirroredCase(newRecord.id, result.caseId, result.caseNumber);
     }).catch(() => {});
 
     storage.logAudit(

@@ -43,11 +43,11 @@ describe('mirrorSubmissionToRealBackend', () => {
 
     const result = await mirrorSubmissionToRealBackend(input);
 
-    expect(result).toBe(false);
+    expect(result).toBeNull();
     expect(mockGetPhase4Functions).not.toHaveBeenCalled();
   });
 
-  it('appelle createCaseAsReporter et renvoie true en cas de succès', async () => {
+  it('appelle createCaseAsReporter et renvoie caseId/caseNumber en cas de succès', async () => {
     mockIsPhase4Configured.mockReturnValue(true);
     mockGetPhase4Functions.mockResolvedValue({});
     const callableFn = vi.fn().mockResolvedValue({ data: { caseId: 'case-1', caseNumber: 'CASE-2026-000001' } });
@@ -55,17 +55,17 @@ describe('mirrorSubmissionToRealBackend', () => {
 
     const result = await mirrorSubmissionToRealBackend(input);
 
-    expect(result).toBe(true);
+    expect(result).toEqual({ caseId: 'case-1', caseNumber: 'CASE-2026-000001' });
     expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'createCaseAsReporter');
     expect(callableFn).toHaveBeenCalledWith(input);
   });
 
-  it('renvoie false sans jamais rejeter si l\'appel réseau échoue', async () => {
+  it('renvoie null sans jamais rejeter si l\'appel réseau échoue', async () => {
     mockIsPhase4Configured.mockReturnValue(true);
     mockGetPhase4Functions.mockResolvedValue({});
     const callableFn = vi.fn().mockRejectedValue(new Error('network down'));
     mockHttpsCallable.mockReturnValue(callableFn);
 
-    await expect(mirrorSubmissionToRealBackend(input)).resolves.toBe(false);
+    await expect(mirrorSubmissionToRealBackend(input)).resolves.toBeNull();
   });
 });

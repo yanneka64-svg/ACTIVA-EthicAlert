@@ -362,6 +362,20 @@ export interface AlertRecord {
   // restreint jamais silencieusement pour personne — voir
   // src/services/authz.ts `canSeeAlertConfidentiality`.
   confidentialityLevel?: ConfidentialityLevel;
+
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 7 : lien
+  // dossier local ↔ dossier réel) ===
+  // La Phase 4 (services/casesCloudSync.ts) mire déjà la soumission
+  // publique vers le vrai backend (Case/Firestore, via la Cloud Function
+  // `createCaseAsReporter`) mais jetait jusqu'ici l'identifiant réel
+  // renvoyé. Ces deux champs le persistent — préalable nécessaire à toute
+  // future mise en miroir des mutations ultérieures (changement de statut,
+  // escalade…) vers ce même dossier réel. Optionnels et purement
+  // informatifs : absents tant que le miroir Phase 4 échoue ou n'est pas
+  // configuré (l'immense majorité des cas aujourd'hui — voir
+  // casesCloudSync.ts), jamais lus par le moindre écran existant.
+  mirroredCaseId?: string;
+  mirroredCaseNumber?: string;
 }
 
 // === AMÉLIORATION AJOUTÉE (Phase 1 — frontend completion, data model extension) ===

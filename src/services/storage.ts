@@ -616,6 +616,24 @@ class StorageService {
     saveAlertToCloud(alert).catch(() => {});
   }
 
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 7 : lien
+  // dossier local ↔ dossier réel) === Appelée en best-effort par
+  // AlertSubmissionFlow.tsx une fois que le miroir Phase 4
+  // (services/casesCloudSync.ts) a réussi, pour retenir l'identifiant réel
+  // sur l'AlertRecord local. Silencieuse si le dossier n'existe déjà plus
+  // (suppression concurrente, cas limite) : pas de logAudit ici, purement
+  // technique et jamais affiché à l'écran, même principe que le miroir
+  // lui-même ; pas de mise à jour de `updatedAt` non plus, pour ne jamais
+  // faire apparaître ce lien comme une modification métier du dossier.
+  public linkMirroredCase(alertId: string, caseId: string, caseNumber: string): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return;
+    alert.mirroredCaseId = caseId;
+    alert.mirroredCaseNumber = caseNumber;
+    this.persistAlerts();
+    this.notify();
+  }
+
   public deleteAlert(alertId: string): boolean {
     const initialLen = this.alerts.length;
     this.alerts = this.alerts.filter(a => a.id !== alertId);
