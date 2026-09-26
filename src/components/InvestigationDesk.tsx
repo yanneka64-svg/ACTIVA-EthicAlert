@@ -5,11 +5,9 @@ import {
   Filter,
   Building2,
   Clock,
-  MessageSquare, 
-  FileText, 
-  CheckCircle2, 
-  AlertTriangle, 
-  UserPlus, 
+  MessageSquare,
+  CheckCircle2,
+  UserPlus,
   Calendar, 
   FolderArchive,
   RotateCcw,
@@ -35,7 +33,6 @@ import {
   Info,
   Link2,
   ClipboardList,
-  Paperclip,
   // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
   ArrowUpCircle,
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) ===
@@ -45,8 +42,6 @@ import {
   // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
   HelpCircle,
   Eye,
-  // === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation en fichier) ===
-  X,
   // === AMÉLIORATION AJOUTÉE (Onglet Entretiens) ===
   Mic,
   // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors périmètre) ===
@@ -93,6 +88,11 @@ import { DismissModal } from './investigation/DismissModal';
 import { AddMeasureModal } from './investigation/AddMeasureModal';
 import { AssignModal } from './investigation/AssignModal';
 import { AddTaskModal } from './investigation/AddTaskModal';
+import { AddInterviewModal } from './investigation/AddInterviewModal';
+import { CloseModal } from './investigation/CloseModal';
+import { ReportModal } from './investigation/ReportModal';
+import { ConflictModal } from './investigation/ConflictModal';
+import { CreateCaseModal } from './investigation/CreateCaseModal';
 import { getPriorityBadge } from './investigation/getPriorityBadge';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
@@ -488,8 +488,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
   const countries = storage.getCountries();
   const categoriesConfig = storage.getCategories();
-  const newCaseEntityOptions = newCaseCountry ? entities.filter((e) => e.country === newCaseCountry) : entities;
-  const newCaseSubCategoryOptions = categoriesConfig.find((c) => c.name === newCaseCategory)?.subCategories ?? [];
   // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
   // Candidats à l'attribution d'un dossier : tout profil qui fait
   // réellement de l'investigation (permission `cases.edit`) — remplace la
@@ -2919,198 +2917,37 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       {/* === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === MODAL: "+Nouvel
           entretien" — même structure que "+Nouvelle tâche" ci-dessus. */}
       {showAddInterviewModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">{t.btn_add_interview}</h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">{selectedAlert.trackingNumber}</p>
-            </div>
-
-            <form onSubmit={handleAddInterview} className="space-y-3">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">{t.interview_link_person_label}</label>
-                <select
-                  value={interviewLinkedPersonId}
-                  onChange={(e) => { setInterviewLinkedPersonId(e.target.value); if (e.target.value) setInterviewIntervieweeName(''); }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                >
-                  <option value="">—</option>
-                  {[...selectedAlert.involvedPersons, ...selectedAlert.witnesses].map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {!interviewLinkedPersonId && (
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t.interview_interviewee_label} *</label>
-                  <input
-                    type="text"
-                    value={interviewIntervieweeName}
-                    onChange={(e) => setInterviewIntervieweeName(e.target.value)}
-                    placeholder={t.interview_interviewee_placeholder}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                    required
-                  />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t.interview_scheduled_label}</label>
-                  <input
-                    type="date"
-                    value={interviewScheduledAt}
-                    onChange={(e) => setInterviewScheduledAt(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t.interview_status_label}</label>
-                  <div className="flex gap-1.5">
-                    {(['planned', 'completed', 'cancelled'] as const).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setInterviewStatus(s)}
-                        className={`flex-1 px-2 py-2 rounded-lg text-[11px] font-bold border transition ${
-                          interviewStatus === s ? 'bg-[#0B2545] text-white border-[#0B2545]' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                        }`}
-                      >
-                        {s === 'planned' ? t.interview_status_planned : s === 'completed' ? t.interview_status_completed : t.interview_status_cancelled}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">{t.interview_summary_label}</label>
-                <textarea
-                  rows={3}
-                  value={interviewSummary}
-                  onChange={(e) => setInterviewSummary(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button type="button" onClick={() => setShowAddInterviewModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
-                  {t.btn_cancel}
-                </button>
-                <button type="submit" className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">
-                  {t.btn_add_interview}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddInterviewModal
+          t={t}
+          selectedAlert={selectedAlert}
+          interviewLinkedPersonId={interviewLinkedPersonId}
+          setInterviewLinkedPersonId={setInterviewLinkedPersonId}
+          interviewIntervieweeName={interviewIntervieweeName}
+          setInterviewIntervieweeName={setInterviewIntervieweeName}
+          interviewScheduledAt={interviewScheduledAt}
+          setInterviewScheduledAt={setInterviewScheduledAt}
+          interviewStatus={interviewStatus}
+          setInterviewStatus={setInterviewStatus}
+          interviewSummary={interviewSummary}
+          setInterviewSummary={setInterviewSummary}
+          setShowAddInterviewModal={setShowAddInterviewModal}
+          handleAddInterview={handleAddInterview}
+        />
       )}
 
       {/* MODAL: CLOSE CASE */}
       {showCloseModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs max-h-[90vh] overflow-y-auto">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                {t.desk_close_title.replace('{tracking}', selectedAlert.trackingNumber)}
-              </h3>
-            </div>
-
-            {/* === AMÉLIORATION AJOUTÉE (Phase 6 — checklist de clôture, §33) ===
-                A real, computed checklist over the case's own data — not a
-                separate stored list. Only the first item (corrective measure)
-                is a hard gate, exactly as before (handleCloseAlert still
-                enforces it); the rest are visibility-only additions so
-                nothing that could close before still can't. */}
-            {(() => {
-              const hasCorrective = selectedAlert.correctiveMeasures.length > 0;
-              const hasAssigned = selectedAlert.assignedInvestigators.length > 0;
-              const hasNotes = selectedAlert.internalNotes.length > 0;
-              const hasConflictDeclaration = (selectedAlert.conflictDeclarations ?? []).length > 0;
-              const openTasks = (selectedAlert.tasks ?? []).filter((tk) => tk.status !== 'completed');
-              const noOpenTasks = openTasks.length === 0;
-              const ChecklistRow = ({ ok, label, mandatory, onFix }: { ok: boolean; label: string; mandatory?: boolean; onFix?: () => void }) => (
-                <div className="flex items-center justify-between gap-2 py-1">
-                  <span className="flex items-center gap-1.5 text-slate-700">
-                    {ok ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    ) : (
-                      <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${mandatory ? 'text-rose-600' : 'text-amber-500'}`} />
-                    )}
-                    <span className={!ok && mandatory ? 'font-semibold text-rose-800' : ''}>{label}</span>
-                  </span>
-                  {!ok && onFix && (
-                    <button type="button" onClick={onFix} className="text-blue-700 hover:underline font-semibold text-[11px] shrink-0">
-                      {t.closure_check_goto}
-                    </button>
-                  )}
-                </div>
-              );
-              return (
-                <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50">
-                  <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] mb-1.5">
-                    {t.closure_checklist_title}
-                  </div>
-                  <ChecklistRow
-                    ok={hasCorrective}
-                    mandatory
-                    label={t.closure_check_corrective}
-                    onFix={() => { setShowCloseModal(false); setActiveCaseTab('corrective'); }}
-                  />
-                  <ChecklistRow ok={hasAssigned} label={t.closure_check_assigned} />
-                  <ChecklistRow ok={hasNotes} label={t.closure_check_notes} onFix={() => { setShowCloseModal(false); setActiveCaseTab('report'); }} />
-                  <ChecklistRow ok={hasConflictDeclaration} label={t.closure_check_conflict} onFix={() => { setShowCloseModal(false); setActiveCaseTab('report'); }} />
-                  <ChecklistRow ok={noOpenTasks} label={t.closure_check_tasks} onFix={() => { setShowCloseModal(false); setActiveCaseTab('tasks'); }} />
-                </div>
-              );
-            })()}
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                {t.desk_closure_summary_label}
-              </label>
-              <textarea
-                rows={3}
-                value={closureSummary}
-                onChange={(e) => setClosureSummary(e.target.value)}
-                placeholder={t.desk_closure_summary_ph}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                {t.desk_closure_message_label}
-              </label>
-              <textarea
-                rows={3}
-                value={closureMessageToWb}
-                onChange={(e) => setClosureMessageToWb(e.target.value)}
-                placeholder={t.desk_closure_message_ph}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowCloseModal(false)}
-                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                {t.btn_cancel}
-              </button>
-              <button
-                type="button"
-                onClick={handleCloseAlert}
-                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-              >
-                {t.desk_confirm_closure}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CloseModal
+          t={t}
+          selectedAlert={selectedAlert}
+          closureSummary={closureSummary}
+          setClosureSummary={setClosureSummary}
+          closureMessageToWb={closureMessageToWb}
+          setClosureMessageToWb={setClosureMessageToWb}
+          setShowCloseModal={setShowCloseModal}
+          setActiveCaseTab={setActiveCaseTab}
+          handleCloseAlert={handleCloseAlert}
+        />
       )}
 
       {/* MODAL: REOPEN CASE (WITH MANDATORY REASON - CDC 3.1.3)
@@ -3174,144 +3011,33 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           tous deux facultatifs pris isolément, mais au moins l'un des deux
           est requis (voir handleSaveInvestigationReport). */}
       {showReportModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 text-teal-700">
-                <ClipboardList className="w-4 h-4" />
-                {t.report_modal_title} — {selectedAlert.trackingNumber}
-              </h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">{t.report_modal_desc}</p>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">{t.report_modal_label}</label>
-              <textarea
-                rows={6}
-                value={reportDraft}
-                onChange={(e) => setReportDraft(e.target.value)}
-                placeholder={t.report_modal_placeholder}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-              />
-            </div>
-
-            {/* === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation
-                en fichier) === Même mécanisme que "Preuves & pièces
-                jointes" (handleAddEvidenceFile) : lecture locale en
-                dataUrl, jamais d'upload réseau fabriqué. */}
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">{t.report_modal_import_label}</label>
-              {reportFile ? (
-                <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                  <span className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <span className="font-medium text-slate-800 block truncate">{reportFile.name}</span>
-                    <span className="text-[10px] text-slate-400">{Math.round(reportFile.size / 1024)} Ko</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setReportFile(undefined)}
-                    className="text-slate-400 hover:text-rose-600 shrink-0"
-                    title={t.report_modal_remove_file}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => reportFileInputRef.current?.click()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-200 text-teal-700 hover:bg-teal-50 font-semibold"
-                >
-                  <Paperclip className="w-3.5 h-3.5" />
-                  {t.report_modal_import_btn}
-                </button>
-              )}
-              <input id="report-file-input" ref={reportFileInputRef} type="file" className="hidden" onChange={handleImportReportFile} />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowReportModal(false)}
-                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                {t.btn_cancel}
-              </button>
-              <button
-                type="button"
-                id="btn-report-submit"
-                onClick={handleSaveInvestigationReport}
-                disabled={!reportDraft.trim() && !reportFile}
-                className="px-4 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold"
-              >
-                {t.report_modal_submit}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ReportModal
+          t={t}
+          selectedAlert={selectedAlert}
+          reportDraft={reportDraft}
+          setReportDraft={setReportDraft}
+          reportFile={reportFile}
+          setReportFile={setReportFile}
+          reportFileInputRef={reportFileInputRef}
+          setShowReportModal={setShowReportModal}
+          handleImportReportFile={handleImportReportFile}
+          handleSaveInvestigationReport={handleSaveInvestigationReport}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 6) === MODAL: DECLARE CONFLICT OF INTEREST */}
       {showConflictModal && selectedAlert && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">{t.conflict_modal_title}</h3>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                {t.conflict_modal_subtitle} <span className="font-semibold text-slate-700">{activeUser.name}</span> — {selectedAlert.trackingNumber}
-              </p>
-            </div>
-
-            <form onSubmit={handleDeclareConflict} className="space-y-3">
-              <div className="space-y-2">
-                <label className={`flex items-start gap-2 p-3 rounded-xl border cursor-pointer transition ${conflictOutcome === 'no_conflict' ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
-                  <input type="radio" name="conflict-outcome" checked={conflictOutcome === 'no_conflict'} onChange={() => setConflictOutcome('no_conflict')} className="mt-0.5 accent-emerald-600" />
-                  <span>
-                    <span className="font-semibold text-slate-800 block">{t.conflict_outcome_none}</span>
-                    <span className="text-slate-500 text-[11px]">{t.conflict_outcome_none_desc}</span>
-                  </span>
-                </label>
-                <label className={`flex items-start gap-2 p-3 rounded-xl border cursor-pointer transition ${conflictOutcome === 'conflict_identified' ? 'border-rose-400 bg-rose-50' : 'border-slate-200 hover:bg-slate-50'}`}>
-                  <input type="radio" name="conflict-outcome" checked={conflictOutcome === 'conflict_identified'} onChange={() => setConflictOutcome('conflict_identified')} className="mt-0.5 accent-rose-600" />
-                  <span>
-                    <span className="font-semibold text-slate-800 block">{t.conflict_outcome_identified}</span>
-                    <span className="text-slate-500 text-[11px]">{t.conflict_outcome_identified_desc}</span>
-                  </span>
-                </label>
-              </div>
-
-              {conflictOutcome === 'conflict_identified' && (
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t.conflict_details_label} *</label>
-                  <textarea
-                    rows={3}
-                    value={conflictDetails}
-                    onChange={(e) => setConflictDetails(e.target.value)}
-                    /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.conflict_details_placeholder}) */
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
-                    required
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button type="button" onClick={() => setShowConflictModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
-                  {t.btn_cancel}
-                </button>
-                <button
-                  type="submit"
-                  disabled={conflictOutcome === 'conflict_identified' && !conflictDetails.trim()}
-                  className="px-4 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#134074] disabled:opacity-40 text-white font-bold"
-                >
-                  {t.conflict_btn_submit}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ConflictModal
+          t={t}
+          selectedAlert={selectedAlert}
+          activeUser={activeUser}
+          conflictOutcome={conflictOutcome}
+          setConflictOutcome={setConflictOutcome}
+          conflictDetails={conflictDetails}
+          setConflictDetails={setConflictDetails}
+          setShowConflictModal={setShowConflictModal}
+          handleDeclareConflict={handleDeclareConflict}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
@@ -3319,183 +3045,28 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
           Classification/Validation) — visuels validés par l'utilisateur
           avant intégration finale. */}
       {showCreateCaseModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau
-              dossier) === un <div>, pas un <form> : avec 2 boutons qui
-              partagent la même position mais changent de `type`
-              (button → submit) selon l'étape, un <form> déclenchait une
-              soumission native imprévue au moment même où React réécrit
-              l'attribut `type` du bouton en place (juste avant l'action
-              par défaut du clic) — bug confirmé en test Playwright, corrigé
-              en gérant la validation "Suivant"/"Créer" entièrement par
-              handlers, sans jamais dépendre de la sémantique native d'un
-              formulaire. */}
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">{t.create_case_title}</h3>
-              {/* Step indicator */}
-              <div className="flex items-center gap-2 mt-2.5">
-                {([1, 2, 3] as const).map((step) => (
-                  <React.Fragment key={step}>
-                    <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                        step === createCaseStep
-                          ? 'bg-blue-600 text-white'
-                          : step < createCaseStep
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-100 text-slate-400'
-                      }`}
-                    >
-                      {step < createCaseStep ? <Check className="w-3 h-3" /> : step}
-                    </span>
-                    <span className={`text-[10px] font-semibold ${step === createCaseStep ? 'text-slate-800' : 'text-slate-400'}`}>
-                      {step === 1 ? t.create_case_step_info : step === 2 ? t.create_case_step_classification : t.create_case_step_validation}
-                    </span>
-                    {step < 3 && <span className="flex-1 h-px bg-slate-200" />}
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-
-            {createCaseStep === 1 && (
-              <div className="space-y-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t.create_case_objet} *</label>
-                  <textarea
-                    autoFocus
-                    rows={3}
-                    value={newCaseObjet}
-                    onChange={(e) => setNewCaseObjet(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">{t.create_case_country} *</label>
-                    <select
-                      value={newCaseCountry}
-                      onChange={(e) => {
-                        setNewCaseCountry(e.target.value);
-                        setNewCaseEntity('');
-                      }}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                      required
-                    >
-                      <option value="">—</option>
-                      {countries.map((c) => (
-                        <option key={c.code} value={c.name}>{c.flag} {trData(c.name, lang)}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">{t.create_case_entity} *</label>
-                    <select
-                      value={newCaseEntity}
-                      onChange={(e) => setNewCaseEntity(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                      required
-                    >
-                      <option value="">—</option>
-                      {newCaseEntityOptions.map((en) => (
-                        <option key={en.id} value={en.name}>{en.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {createCaseStep === 2 && (
-              <div className="space-y-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t.create_case_category} *</label>
-                  <select
-                    value={newCaseCategory}
-                    onChange={(e) => {
-                      setNewCaseCategory(e.target.value);
-                      setNewCaseSubCategory('');
-                    }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                    required
-                  >
-                    <option value="">—</option>
-                    {categoriesConfig.map((c) => (
-                      <option key={c.name} value={c.name}>{trData(c.name, lang)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t.create_case_subcategory} *</label>
-                  <select
-                    value={newCaseSubCategory}
-                    onChange={(e) => setNewCaseSubCategory(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                    disabled={!newCaseCategory}
-                    required
-                  >
-                    <option value="">—</option>
-                    {newCaseSubCategoryOptions.map((sc) => (
-                      <option key={sc} value={sc}>{sc}</option>
-                    ))}
-                  </select>
-                </div>
-                <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
-                  {t.create_case_default_risk_notice}
-                </p>
-              </div>
-            )}
-
-            {createCaseStep === 3 && (
-              <div className="space-y-2.5">
-                <div className="p-3.5 rounded-xl border border-slate-200 space-y-2">
-                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_objet}</span><span className="font-semibold text-slate-900 text-right max-w-[60%] truncate">{newCaseObjet}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_country}</span><span className="font-semibold text-slate-900">{newCaseCountry}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_entity}</span><span className="font-semibold text-slate-900">{newCaseEntity}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_category}</span><span className="font-semibold text-slate-900">{newCaseCategory}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">{t.create_case_subcategory}</span><span className="font-semibold text-slate-900">{newCaseSubCategory}</span></div>
-                  <div className="flex justify-between pt-2 border-t border-slate-100"><span className="text-slate-500">{t.create_case_default_risk_label}</span><span className="font-bold text-amber-700">NOCA 2</span></div>
-                </div>
-                <p className="text-[11px] text-slate-500">{t.create_case_validation_notice}</p>
-              </div>
-            )}
-
-            <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => {
-                  if (createCaseStep === 1) setShowCreateCaseModal(false);
-                  else setCreateCaseStep((s) => (s - 1) as 1 | 2 | 3);
-                }}
-                className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                {createCaseStep === 1 ? t.btn_cancel : t.create_case_back}
-              </button>
-              {createCaseStep < 3 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (createCaseStep === 1 && (!newCaseObjet.trim() || !newCaseCountry || !newCaseEntity)) return;
-                    setCreateCaseStep((s) => (s + 1) as 1 | 2 | 3);
-                  }}
-                  disabled={createCaseStep === 1 && (!newCaseObjet.trim() || !newCaseCountry || !newCaseEntity)}
-                  className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold"
-                >
-                  {t.create_case_next}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleCreateCase()}
-                  disabled={isCreatingCase || !newCaseCategory || !newCaseSubCategory}
-                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold"
-                >
-                  {isCreatingCase ? t.create_case_creating : t.create_case_confirm}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <CreateCaseModal
+          t={t}
+          lang={lang}
+          entities={entities}
+          countries={countries}
+          categoriesConfig={categoriesConfig}
+          createCaseStep={createCaseStep}
+          setCreateCaseStep={setCreateCaseStep}
+          newCaseObjet={newCaseObjet}
+          setNewCaseObjet={setNewCaseObjet}
+          newCaseCountry={newCaseCountry}
+          setNewCaseCountry={setNewCaseCountry}
+          newCaseEntity={newCaseEntity}
+          setNewCaseEntity={setNewCaseEntity}
+          newCaseCategory={newCaseCategory}
+          setNewCaseCategory={setNewCaseCategory}
+          newCaseSubCategory={newCaseSubCategory}
+          setNewCaseSubCategory={setNewCaseSubCategory}
+          isCreatingCase={isCreatingCase}
+          setShowCreateCaseModal={setShowCreateCaseModal}
+          handleCreateCase={handleCreateCase}
+        />
       )}
     </div>
   );
