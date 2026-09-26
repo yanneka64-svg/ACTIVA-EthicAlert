@@ -3,6 +3,40 @@
 Project: **`activa-ethicalert-47246`** (console: `console.firebase.google.com/project/activa-ethicalert-47246`)
 Firestore database id: **`default`** (a *named* database, not the special `(default)` database — pass `FIRESTORE_DATABASE_ID=default` / `getFirestore(app, 'default')` everywhere, or every Admin SDK call will silently target a database that doesn't exist and fail with a gRPC `NOT_FOUND`).
 
+<!--
+=== AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 9 : checklist
+d'activation) ===
+Le reste de ce document (en anglais) est le compte-rendu d'une session
+antérieure — toujours exact sur l'historique, mais il ne reflète pas les
+Phases 1-8 du fil « Brancher le vrai backend » (celles-ci ont ajouté
+`listCases`/`createCaseAsReporter`, la synchronisation de session staff, le
+lien dossier local ↔ dossier réel, l'indicateur de la Piste d'Audit — voir
+les commits de ce fil pour le détail). Cette checklist, ajoutée en français
+puisque c'est la langue de ce fil et de son destinataire, donne l'ordre
+exact et actuel des actions externes restantes. Aucune d'elles n'est
+automatisable depuis une session Claude Code : facturation, comptes de
+service et décisions humaines (qui sont réellement vos opérateurs
+aujourd'hui) sont hors de portée du code.
+-->
+
+## Checklist d'activation (Phases 1-8 « Brancher le vrai backend »)
+
+1. **Passer le projet en plan Blaze** — `console.firebase.google.com/project/activa-ethicalert-47246/usage/details`. Bloque tout le reste : Cloud Functions et Cloud Storage en dépendent tous les deux (voir plus bas dans ce document, sections "Cloud Functions" et "New, harder wall").
+
+2. **Déployer les Cloud Functions** — `cd functions && npm run build && firebase deploy --only functions --project activa-ethicalert-47246`. Le rôle `serviceusage.serviceUsageAdmin` déjà accordé au compte de service (voir plus bas) reste suffisant, d'après le chemin déjà vérifié en direct lors de la précédente tentative. Déploie notamment `listCases` et `createCaseAsReporter` (Phases 1 et 4 de ce fil), en plus des ~20 autres fonctions déjà écrites et listées plus bas.
+
+3. **Vérifier la configuration client (`.env`)** — `VITE_FIREBASE_*` doit pointer vers ce même projet pour que `isPhase4Configured()` (`src/services/firebaseClient.ts`) passe à `true` côté navigateur. Probablement déjà fait en production (`CaseLookup.tsx` en dépend déjà depuis la Phase 4b ci-dessous) — à **confirmer**, pas à refaire à l'aveugle.
+
+4. **⚠️ Repriorisier la liste des comptes staff réels avant de re-provisionner.** `INITIAL_USERS` (`src/data/activaConfig.ts`) est aujourd'hui **vide** (`[]`), volontairement, depuis une phase antérieure à ce fil — les 5 comptes du tableau ci-dessous sont donc obsolètes. `scripts/setupAuthUsers.ts` boucle sur `INITIAL_USERS` : le relancer tel quel aujourd'hui ne provisionnerait **aucun** compte réel. Avant de le relancer, il faut lui fournir la vraie liste actuelle du personnel (email + rôle) — soit en la renseignant temporairement dans ce fichier, soit en adaptant la source d'entrée du script. C'est une décision humaine (qui sont réellement vos opérateurs/enquêteurs aujourd'hui), pas quelque chose qu'une session Claude Code peut deviner ou inventer à votre place.
+
+5. **Synchroniser les mots de passe.** Même une fois les comptes provisionnés, `syncStaffAuthSession` (Phase 6 de ce fil) échouera tant que le mot de passe local d'un compte ne correspond pas exactement à son mot de passe Firebase Auth réel (généré aléatoirement par le script ci-dessus, jamais stocké). Chaque membre du personnel doit, une fois : (a) utiliser « mot de passe oublié » sur son compte Firebase Auth réel pour en définir un connu (l'envoi d'e-mail est déjà activé, voir plus bas), puis (b) définir ce même mot de passe comme mot de passe local (Administration → régénérer un mot de passe temporaire, puis le changer à la première connexion). Aucune automatisation de cette étape n'existe aujourd'hui, par choix délibéré — la Phase 6 de ce fil a écarté la synchronisation automatique à chaque connexion précisément pour éviter tout risque de blocage (`auth/too-many-requests`) sur `CaseLookup.tsx`.
+
+6. **Vérifier que la boucle se referme.** Une fois 1 à 5 faits, une connexion locale réussie devrait établir une vraie session Firebase Auth (Phase 6) ; le Centre de Pilotage devrait alors commencer à fusionner de vrais dossiers (Phase 5) ; la pastille de la Piste d'Audit (Phase 8) devrait apparaître et refléter un nombre de dossiers liés supérieur à 0 pour les nouveaux signalements soumis après l'activation (Phase 7). C'est le signal observable, en direct, que l'ensemble du fil « Brancher le vrai backend » fonctionne réellement — à ce moment-là, revenez vers cette session pour une vérification en direct plutôt que de continuer à empiler du code inerte.
+
+7. **Stockage des preuves (optionnel, séparé).** Cloud Storage for Firebase n'existe pas encore sur ce projet ; l'étape 1 ci-dessus (Blaze) le débloque aussi, mais `storage.rules` (déjà écrit, voir plus bas) reste non déployé et non testé même après. À traiter séparément, hors périmètre de ce fil.
+
+**Rappels de sécurité déjà signalés plus bas dans ce document, toujours valables** : révoquer la clé de compte de service collée dans une conversation antérieure (section « Required security follow-up »), et faire tourner les mots de passe temporaires des comptes historiques avant que quiconque ne s'y fie.
+
 ## Phase 2b — Firestore data (done)
 
 Verified by writing then independently re-reading the data with a fresh Admin SDK connection:
