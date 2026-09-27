@@ -26,22 +26,11 @@
  * new, additive prop.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Inbox,
-  TrendingUp,
-  Clock3,
-  Search,
-  BarChart3,
-  Activity,
-  LayoutDashboard,
-  AlertOctagon,
-  ShieldAlert,
-  // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
-  CheckCircle2,
-  // === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
-  FileSpreadsheet,
-} from 'lucide-react';
-import { AlertRecord, Language, PriorityLevel, UserProfile } from '../types';
+// === AMÉLIORATION AJOUTÉE (Refactor ControlPanel — extraction par section) ===
+// Les icônes lucide-react et les composants UI (KpiCard, DataTable, graphiques…)
+// ne sont plus utilisés qu'à l'intérieur des sous-composants de ./controlPanel/,
+// qui les importent eux-mêmes.
+import { AlertRecord, Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 5) ===
@@ -57,19 +46,23 @@ import { ACTIVE_STATUSES, computeWorkload, WorkloadRow } from '../domain/workloa
 // === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) === regroupement
 // en 5 paniers de statut, partagé avec l'écran Dossiers (voir le fichier).
 import { AlertStatusBucket, getAlertStatusBucket } from '../domain/alertStatusBuckets';
-import { KpiCard, DataTable, EmptyState, StatusBadge, MiniLineChart, MiniDonutChart, MiniBarChart, MiniHBarList } from './ui';
-import type { DataTableColumn, TrendPoint, DonutSlice, BarDatum, HBarDatum } from './ui';
+import type { DonutSlice, BarDatum, HBarDatum } from './ui';
 // === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre de Pilotage) ===
 import { ControlPanelPrintView } from './ControlPanelPrintView';
 // === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
 import { trData } from '../i18n/dataLabels';
-
-interface CasesFilter {
-  status?: string;
-  unassignedOnly?: boolean;
-  overdueOnly?: boolean;
-  trackingNumber?: string;
-}
+// === AMÉLIORATION AJOUTÉE (Refactor ControlPanel — extraction par section) ===
+// Constantes/fonctions pures et sous-composants de rendu déplacés dans
+// ./controlPanel/ — voir l'en-tête de chaque fichier.
+import { PRIORITY_RANK, CATEGORY_PALETTE, localeOf, getPeriodWindow, inWindow, buildTrend } from './controlPanel/dashboardHelpers';
+import type { CasesFilter, PeriodKey, TrendRange } from './controlPanel/dashboardHelpers';
+import { ControlPanelHeader } from './controlPanel/ControlPanelHeader';
+import { ControlPanelExportModal } from './controlPanel/ControlPanelExportModal';
+import { OverviewKpiGrid } from './controlPanel/OverviewKpiGrid';
+import { OverviewChartsSection } from './controlPanel/OverviewChartsSection';
+import { AdvancedChartsRow } from './controlPanel/AdvancedChartsRow';
+import { OperationalPanels } from './controlPanel/OperationalPanels';
+import { RecentAlertsSection } from './controlPanel/RecentAlertsSection';
 
 interface ControlPanelProps {
   lang: Language;
@@ -82,100 +75,6 @@ interface ControlPanelProps {
   onNavigateToNewCase: () => void;
 }
 
-
-const PRIORITY_RANK: Record<PriorityLevel, number> = { critique: 4, tres_elevee: 3, elevee: 2, faible: 1 };
-const CATEGORY_PALETTE = ['#2563eb', '#6366f1', '#f97316', '#9333ea', '#0891b2', '#f43f5e', '#10b981', '#64748b', '#eab308', '#14b8a6'];
-
-type PeriodKey = 'today' | '7d' | '30d' | 'custom' | 'year' | 'all_time';
-type TrendRange = '7d' | '30d' | '12m';
-
-function localeOf(lang: Language): string {
-  return lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR';
-}
-
-// === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
-// `year` (nouveau) : filtre le Centre de Pilotage (KPIs, graphiques,
-// tableau) sur une année civile complète, en alternative au sélecteur de
-// plage personnalisée — jamais les deux en même temps (voir le handler
-// du <select> Année ci-dessous). `all_time` (nouveau, valeur par défaut) :
-// aucun filtre, tout l'historique — remplace l'ancien défaut '30d' qui ne
-// filtrait en réalité jamais l'affichage (seul le delta d'une carte KPI
-// l'utilisait), d'où le libellé "30 jours" trompeur retiré du bouton.
-function getPeriodWindow(period: PeriodKey, customStart: string, customEnd: string, selectedYear: number | null) {
-  const now = new Date();
-  let start: Date;
-  let end: Date = now;
-  switch (period) {
-    case 'today':
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      break;
-    case '7d':
-      start = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
-      break;
-    case 'custom':
-      start = customStart ? new Date(customStart) : new Date(now.getTime() - 30 * 24 * 3600 * 1000);
-      end = customEnd ? new Date(customEnd) : now;
-      break;
-    case 'year': {
-      const y = selectedYear ?? now.getFullYear();
-      start = new Date(y, 0, 1);
-      end = new Date(y, 11, 31, 23, 59, 59, 999);
-      break;
-    }
-    case '30d':
-      start = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
-      break;
-    case 'all_time':
-    default:
-      // Pas de borne réelle : couvre toute donnée existante sans exclure
-      // les dossiers les plus anciens (voir `isScoped` plus bas, qui
-      // n'applique ce filtre à l'affichage que pour 'custom'/'year').
-      start = new Date(0);
-      break;
-  }
-  const spanMs = Math.max(1, end.getTime() - start.getTime());
-  const prevEnd = new Date(start.getTime());
-  const prevStart = new Date(start.getTime() - spanMs);
-  return { start, end, prevStart, prevEnd };
-}
-
-function inWindow(iso: string, start: Date, end: Date): boolean {
-  const t = new Date(iso).getTime();
-  return t >= start.getTime() && t <= end.getTime();
-}
-
-// Real day/month bucketing of actual `createdAt` timestamps — no synthetic
-// interpolation between buckets that have zero alerts.
-function buildTrend(alerts: AlertRecord[], range: TrendRange, lang: Language): TrendPoint[] {
-  const now = new Date();
-  const locale = localeOf(lang);
-  if (range === '12m') {
-    const points: TrendPoint[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const count = alerts.filter((a) => {
-        const ad = new Date(a.createdAt);
-        return ad.getFullYear() === d.getFullYear() && ad.getMonth() === d.getMonth();
-      }).length;
-      points.push({ label: d.toLocaleDateString(locale, { month: 'short' }), value: count });
-    }
-    return points;
-  }
-  const days = range === '7d' ? 7 : 30;
-  const labelEvery = Math.ceil(days / 6);
-  const points: TrendPoint[] = [];
-  for (let idx = 0; idx < days; idx++) {
-    const i = days - 1 - idx;
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-    const count = alerts.filter((a) => {
-      const ad = new Date(a.createdAt);
-      return ad.getFullYear() === d.getFullYear() && ad.getMonth() === d.getMonth() && ad.getDate() === d.getDate();
-    }).length;
-    const showLabel = idx % labelEvery === 0 || idx === days - 1;
-    points.push({ label: showLabel ? d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }) : '', value: count });
-  }
-  return points;
-}
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, onNavigateToCases, onNavigateToReports, onNavigateToNewCase }) => {
   const t = TRANSLATIONS[lang];
@@ -444,42 +343,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     return h < 1 ? t.cp_received_recently : t.cp_received_hours_ago.replace('{h}', String(h));
   };
 
-  const workloadColumns: DataTableColumn<WorkloadRow>[] = [
-    { key: 'investigator', header: t.cp_workload_investigator, render: (r) => <span className="font-semibold">{r.investigator.name}</span> },
-    { key: 'active', header: t.cp_workload_active, render: (r) => r.active },
-    { key: 'overdue', header: t.cp_workload_overdue, render: (r) => <span className={r.overdue > 0 ? 'text-rose-700 font-bold' : ''}>{r.overdue}</span> },
-    { key: 'critical', header: t.cp_workload_critical, render: (r) => <span className={r.critical > 0 ? 'text-rose-700 font-bold' : ''}>{r.critical}</span>, hideOnMobile: true },
-  ];
-
-  const recentAlertsColumns: DataTableColumn<AlertRecord>[] = [
-    { key: 'id', header: t.cp_col_case_id, render: (r) => <span className="font-bold text-blue-700">{r.trackingNumber}</span> },
-    { key: 'date', header: t.cp_col_date, render: (r) => new Date(r.createdAt).toLocaleDateString(locale), hideOnMobile: true },
-    { key: 'category', header: t.cp_col_category, render: (r) => trData(r.category, lang) },
-    { key: 'country', header: t.cp_col_country, render: (r) => formatCountryLabel(storage.getCountries(), r.country), hideOnMobile: true },
-    { key: 'entity', header: t.cp_col_entity, render: (r) => r.concernedEntity, hideOnMobile: true },
-    {
-      key: 'priority',
-      header: t.cp_col_priority,
-      render: (r) => {
-        const p = r.overridePriority || r.riskEvaluation.priority;
-        const color = p === 'critique' ? '#e11d48' : p === 'tres_elevee' ? '#ea580c' : p === 'elevee' ? '#d97706' : '#64748b';
-        return <span className="text-[11px] font-bold" style={{ color }}>{t[`priority_${p}` as keyof typeof t]}</span>;
-      },
-    },
-    { key: 'risk', header: t.cp_col_risk_score, render: (r) => `${r.riskEvaluation.totalScore}/16`, hideOnMobile: true },
-    { key: 'status', header: t.cp_col_status, render: (r) => <StatusBadge status={r.status === 'corrective_action' ? 'closed' : (r.status as any)} label={t[`status_${r.status}` as keyof typeof t] ?? r.status} size="sm" /> },
-    { key: 'assigned', header: t.cp_col_assigned, render: (r) => r.assignedInvestigatorNames.join(', ') || t.cp_unassigned_tag, hideOnMobile: true },
-    {
-      key: 'sla',
-      header: t.cp_col_sla,
-      render: (r) => {
-        const s = computeSlaStatus(r);
-        const cls = s === 'overdue' ? 'text-rose-700 font-bold' : s === 'at_risk' ? 'text-amber-700 font-semibold' : 'text-slate-500';
-        return <span className={cls}>{r.targetCompletionDate ? new Date(r.targetCompletionDate).toLocaleDateString(locale) : '—'}</span>;
-      },
-    },
-  ];
-
   // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===
   // Années réellement présentes dans les dossiers visibles (jamais une
   // plage fabriquée) — plus l'année civile en cours, toujours proposée
@@ -575,94 +438,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   return (
     <div className="max-w-[1500px] mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-5">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-[#0B2545] text-amber-400 flex items-center justify-center shrink-0 shadow-md ring-2 ring-blue-900/20">
-            <LayoutDashboard className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{t.cp_title}</h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live DARC
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">{t.cp_subtitle}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          {/* === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi
-              annuel) === Sur demande explicite : le bouton "30 jours" (qui
-              ne filtrait en réalité jamais l'affichage — seul le delta
-              d'une carte KPI l'utilisait, voir getPeriodWindow) est
-              retiré, ainsi que le bouton "calendrier" + popover qui l'a
-              remplacé un temps (libellé "Toute la période" retiré à son
-              tour, sur demande explicite) : les deux champs de date Du/Au
-              sont désormais affichés directement, sans étape de clic
-              intermédiaire. Filtrent réellement tout l'écran (KPIs,
-              graphiques, tableau — voir `scopedVisible`), avec un
-              sélecteur d'Année en alternative (jamais les deux en même
-              temps) pour le suivi année par année, et un bouton de
-              téléchargement CSV des dossiers de la période affichée. */}
-          <select
-            value={period === 'year' && selectedYear ? String(selectedYear) : ''}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === '') {
-                setPeriod('all_time');
-                setSelectedYear(null);
-              } else {
-                setSelectedYear(Number(v));
-                setPeriod('year');
-                setCustomStart('');
-                setCustomEnd('');
-              }
-            }}
-            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
-          >
-            <option value="">{t.cp_year_all}</option>
-            {availableYears.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-
-          <div className="flex items-center gap-2 text-[11px]">
-            <input
-              type="date"
-              value={customStart}
-              onChange={(e) => { setCustomStart(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
-              className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-800 shadow-2xs"
-            />
-            <span className="text-slate-400">→</span>
-            <input
-              type="date"
-              value={customEnd}
-              onChange={(e) => { setCustomEnd(e.target.value); setPeriod('custom'); setSelectedYear(null); }}
-              className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-800 shadow-2xs"
-            />
-          </div>
-          {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bouton
-              Exporter, fusion avec `main`) === Remplace l'ancien bouton
-              "Télécharger (CSV)" mono-format par un bouton "Exporter"
-              ouvrant le choix CSV/PDF (modale ci-dessous), sur demande
-              explicite de l'utilisateur. Le bouton "Actualiser"
-              (lastRefreshed/handleRefresh) qui vivait ici a été retiré
-              indépendamment par `main` lors de son propre refactor du
-              filtre de période (remplacé par la mise à jour déjà continue
-              via storage.subscribe) — aligné avec cet état actuel plutôt
-              que réintroduit lors de cette fusion. */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs transition cursor-pointer"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-300" /> {t.cp_btn_export}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ControlPanelHeader
+        t={t}
+        period={period}
+        setPeriod={setPeriod}
+        customStart={customStart}
+        setCustomStart={setCustomStart}
+        customEnd={customEnd}
+        setCustomEnd={setCustomEnd}
+        selectedYear={selectedYear}
+        setSelectedYear={setSelectedYear}
+        availableYears={availableYears}
+        setShowExportModal={setShowExportModal}
+      />
 
       {/* === AMÉLIORATION AJOUTÉE (Correction demandée — bouton Exporter) ===
           Modale de choix de format, même structure/clés i18n que celle de
@@ -671,49 +459,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           visibles sur CET écran plutôt que le registre complet des
           rapports). */}
       {showExportModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <h3 className="text-sm font-bold text-slate-900">{t.export_modal_title}</h3>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_format}</label>
-              <div className="flex gap-1.5">
-                {(['csv', 'pdf'] as const).map((fmt) => (
-                  <button
-                    key={fmt}
-                    type="button"
-                    onClick={() => setExportFormat(fmt)}
-                    className={`flex-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border transition ${
-                      exportFormat === fmt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                    }`}
-                  >
-                    {fmt === 'csv' ? t.export_modal_format_csv : t.export_modal_format_pdf}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button type="button" onClick={() => setShowExportModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
-                {t.btn_cancel}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  // === AMÉLIORATION AJOUTÉE (fusion avec `main`) === Ferme
-                  // cette modale AVANT d'exporter/imprimer (plutôt qu'après),
-                  // même correction que ReportingDashboard.tsx : sinon elle
-                  // restait visible derrière la boîte de dialogue
-                  // d'impression du navigateur.
-                  setShowExportModal(false);
-                  if (exportFormat === 'csv') handleExportCSV();
-                  else handlePrint();
-                }}
-                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
-              >
-                {t.export_modal_export}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ControlPanelExportModal
+          t={t}
+          exportFormat={exportFormat}
+          setExportFormat={setExportFormat}
+          setShowExportModal={setShowExportModal}
+          handleExportCSV={handleExportCSV}
+          handlePrint={handlePrint}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Tableau de bord) ===
@@ -725,99 +478,23 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
           affiché tel quel sous le séparateur "Indicateurs avancés DARC" —
           rien n'est supprimé (choix confirmé par l'utilisateur avant cette
           phase). */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard
-          value={totalCount}
-          label={t.db_kpi_total_label}
-          tone="neutral"
-          icon={<Inbox className="w-3.5 h-3.5" />}
-          onClick={() => onNavigateToCases()}
-          sub={
-            <span className={totalDeltaPct >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
-              {totalDeltaPct >= 0 ? '↑' : '↓'} {Math.abs(totalDeltaPct)}%
-            </span>
-          }
-        />
-        <KpiCard
-          value={bucketCounts.en_cours}
-          label={t.db_bucket_en_cours}
-          tone="blue"
-          icon={<Search className="w-3.5 h-3.5" />}
-          onClick={() => onNavigateToCases({ status: 'investigation' })}
-          sub={
-            <span className={bucketDeltaPct('en_cours') >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
-              {bucketDeltaPct('en_cours') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('en_cours'))}%
-            </span>
-          }
-        />
-        <KpiCard
-          value={bucketCounts.en_attente}
-          label={t.db_bucket_en_attente}
-          tone="amber"
-          icon={<Clock3 className="w-3.5 h-3.5" />}
-          onClick={() => onNavigateToCases({ status: 'corrective_action' })}
-          sub={
-            <span className={bucketDeltaPct('en_attente') >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
-              {bucketDeltaPct('en_attente') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('en_attente'))}%
-            </span>
-          }
-        />
-        <KpiCard
-          value={bucketCounts.clotures}
-          label={t.db_bucket_clotures}
-          tone="emerald"
-          icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-          onClick={() => onNavigateToCases({ status: 'closed' })}
-          sub={
-            <span className={bucketDeltaPct('clotures') >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
-              {bucketDeltaPct('clotures') >= 0 ? '↑' : '↓'} {Math.abs(bucketDeltaPct('clotures'))}%
-            </span>
-          }
-        />
-      </div>
+      <OverviewKpiGrid
+        t={t}
+        onNavigateToCases={onNavigateToCases}
+        totalCount={totalCount}
+        totalDeltaPct={totalDeltaPct}
+        bucketCounts={bucketCounts}
+        bucketDeltaPct={bucketDeltaPct}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-3">
-            <TrendingUp className="w-4 h-4 text-blue-700" />
-            {t.db_section_evolution}
-          </h3>
-          <MiniLineChart data={mockupTrendData} color="#f97316" />
-        </section>
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-3">
-            <Activity className="w-4 h-4 text-blue-700" />
-            {t.db_section_repartition_statut}
-          </h3>
-          {totalCount === 0 ? (
-            <EmptyState title={t.cp_empty_recent_alerts} />
-          ) : (
-            <div className="flex items-center gap-4">
-              <MiniDonutChart data={statusBucketData} centerValue={totalCount} centerLabel={t.db_kpi_total_label} />
-              <ul className="space-y-1.5 min-w-0 flex-1">
-                {statusBucketData.map((d, i) => (
-                  <li key={i} className="flex items-center gap-1.5 text-[11px] text-slate-600 min-w-0">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                    <span className="truncate flex-1">{d.label}</span>
-                    <span className="font-bold text-slate-800 shrink-0">{d.value}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h3 className="text-xs font-bold text-slate-900 mb-3">{t.db_section_top_pays}</h3>
-          {topCountries.length === 0 ? <EmptyState title={t.cp_empty_recent_alerts} /> : <MiniHBarList data={topCountries} />}
-        </section>
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h3 className="text-xs font-bold text-slate-900 mb-3">{t.db_section_top_categories}</h3>
-          {topCategories.length === 0 ? <EmptyState title={t.cp_empty_recent_alerts} /> : <MiniHBarList data={topCategories} />}
-        </section>
-      </div>
+      <OverviewChartsSection
+        t={t}
+        totalCount={totalCount}
+        mockupTrendData={mockupTrendData}
+        statusBucketData={statusBucketData}
+        topCountries={topCountries}
+        topCategories={topCategories}
+      />
 
       <div className="flex items-center gap-2">
         <span className="h-px flex-1 bg-slate-200" />
@@ -830,191 +507,39 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-blue-700" />
-              {t.cp_section_trend}
-            </h3>
-            <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-0.5">
-              {(['7d', '30d', '12m'] as TrendRange[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setTrendRange(r)}
-                  className={`px-2 py-1 rounded-md text-[10px] font-bold transition ${trendRange === r ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500'}`}
-                >
-                  {r === '7d' ? t.cp_trend_7d : r === '30d' ? t.cp_trend_30d : t.cp_trend_12m}
-                </button>
-              ))}
-            </div>
-          </div>
-          <MiniLineChart data={trendData} />
-        </section>
+      <AdvancedChartsRow
+        t={t}
+        totalCount={totalCount}
+        trendRange={trendRange}
+        setTrendRange={setTrendRange}
+        trendData={trendData}
+        categoryData={categoryData}
+        priorityBarData={priorityBarData}
+      />
 
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-3">
-            <Activity className="w-4 h-4 text-blue-700" />
-            {t.cp_section_category}
-          </h3>
-          {categoryData.length === 0 ? (
-            <EmptyState title={t.cp_empty_recent_alerts} />
-          ) : (
-            <div className="flex items-center gap-3">
-              <MiniDonutChart data={categoryData} centerValue={totalCount} centerLabel={t.cp_kpi_total} />
-              <ul className="space-y-1 min-w-0 flex-1">
-                {categoryData.map((d, i) => (
-                  <li key={i} className="flex items-center gap-1.5 text-[10px] text-slate-600 min-w-0">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                    <span className="truncate flex-1">{d.label}</span>
-                    <span className="font-bold text-slate-800 shrink-0">{d.value}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-3">
-            <BarChart3 className="w-4 h-4 text-blue-700" />
-            {t.cp_section_priority}
-          </h3>
-          <MiniBarChart data={priorityBarData} />
-        </section>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Case Status */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-3">
-            <ShieldAlert className="w-4 h-4 text-blue-700" />
-            {t.cp_section_case_status}
-          </h3>
-          <div className="space-y-1">
-            {statusBreakdown.map(({ status, count }) => (
-              <button
-                key={status}
-                onClick={() => onNavigateToCases({ status })}
-                disabled={count === 0}
-                className="w-full flex items-center justify-between gap-2 py-1.5 disabled:cursor-default text-left hover:bg-slate-50 rounded-lg px-2 -mx-2 transition"
-              >
-                <span className="flex items-center gap-2 text-[11px] text-slate-600 truncate">
-                  <StatusBadge status={status === 'corrective_action' ? 'closed' : (status as any)} label={t[`status_${status}` as keyof typeof t] ?? status} size="sm" />
-                </span>
-                <span className="text-xs font-extrabold text-slate-800">{count}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* SLA monitoring + most urgent cases */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-3">
-            <Clock3 className="w-4 h-4 text-blue-700" />
-            {t.cp_section_sla}
-          </h3>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <KpiCard value={slaOnTrack} label={t.cp_sla_on_track} tone="emerald" />
-            <KpiCard value={slaAtRisk} label={t.cp_sla_at_risk} tone="amber" />
-            <KpiCard value={slaOverdue} label={t.cp_sla_overdue} tone="rose" />
-            <KpiCard value={slaEscalated} label={t.cp_sla_escalated} tone="purple" />
-          </div>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">{t.cp_section_urgent}</p>
-          {urgentCases.length === 0 ? (
-            <EmptyState title={t.cp_empty_urgent} />
-          ) : (
-            <ul className="space-y-1.5">
-              {urgentCases.slice(0, 3).map((a) => (
-                <li key={a.id}>
-                  <button
-                    onClick={() => onNavigateToCases({ trackingNumber: a.trackingNumber })}
-                    className="w-full flex items-center justify-between gap-2 text-[11px] hover:bg-slate-50 rounded-lg px-1.5 py-1 -mx-1.5 transition text-left"
-                  >
-                    <span className="font-bold text-blue-700 truncate">{a.trackingNumber}</span>
-                    <span className="text-slate-500 shrink-0">
-                      {a.targetCompletionDate ? new Date(a.targetCompletionDate).toLocaleDateString(locale) : '—'}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* Investigator workload */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-3">
-            <Search className="w-4 h-4 text-blue-700" />
-            {t.cp_section_workload}
-          </h3>
-          <DataTable
-            columns={workloadColumns}
-            rows={workload}
-            getRowKey={(r) => r.investigator.id}
-            onRowClick={() => onNavigateToCases()}
-            emptyTitle={t.cp_empty_workload}
-          />
-        </section>
-
-        {/* Requires immediate attention */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <AlertOctagon className="w-4 h-4 text-rose-600" />
-              {t.cp_section_attention}
-            </h3>
-            <button onClick={() => onNavigateToCases({ overdueOnly: true })} className="text-[10px] font-bold text-blue-700 hover:underline">
-              {t.cp_view_all}
-            </button>
-          </div>
-          {attentionCases.length === 0 ? (
-            <EmptyState title={t.cp_empty_attention} />
-          ) : (
-            <ul className="space-y-2">
-              {attentionCases.map((a) => {
-                const p = a.overridePriority || a.riskEvaluation.priority;
-                return (
-                  <li key={a.id}>
-                    <button
-                      onClick={() => onNavigateToCases({ trackingNumber: a.trackingNumber })}
-                      className="w-full text-left hover:bg-slate-50 rounded-lg px-1.5 py-1 -mx-1.5 transition"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-blue-700 text-[11px]">{a.trackingNumber}</span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: p === 'critique' ? '#e11d48' : '#ea580c', backgroundColor: p === 'critique' ? '#ffe4e6' : '#ffedd5' }}>
-                          {t[`priority_${p}` as keyof typeof t]}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{receivedAgoLabel(a.createdAt)}</p>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-      </div>
+      <OperationalPanels
+        t={t}
+        locale={locale}
+        onNavigateToCases={onNavigateToCases}
+        statusBreakdown={statusBreakdown}
+        slaOnTrack={slaOnTrack}
+        slaAtRisk={slaAtRisk}
+        slaOverdue={slaOverdue}
+        slaEscalated={slaEscalated}
+        urgentCases={urgentCases}
+        workload={workload}
+        attentionCases={attentionCases}
+        receivedAgoLabel={receivedAgoLabel}
+      />
 
       {/* Recent alerts table */}
-      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-            <Inbox className="w-4 h-4 text-blue-700" />
-            {t.cp_section_recent_alerts}
-          </h3>
-          <button onClick={() => onNavigateToCases()} className="text-[11px] font-bold text-blue-700 hover:underline flex items-center gap-1">
-            {t.cp_view_all}
-          </button>
-        </div>
-        <DataTable
-          columns={recentAlertsColumns}
-          rows={recentAlerts}
-          getRowKey={(r) => r.id}
-          onRowClick={(r) => onNavigateToCases({ trackingNumber: r.trackingNumber })}
-          emptyTitle={t.cp_empty_recent_alerts}
-        />
-      </section>
+      <RecentAlertsSection
+        t={t}
+        lang={lang}
+        locale={locale}
+        onNavigateToCases={onNavigateToCases}
+        recentAlerts={recentAlerts}
+      />
 
       {/* === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du
           Centre de Pilotage) === Rendu inconditionnellement caché à
