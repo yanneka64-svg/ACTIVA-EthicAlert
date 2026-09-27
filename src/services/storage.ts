@@ -21,33 +21,11 @@ import { setRolePermissionOverrides } from '../domain/permissionOverrides';
 // jamais réimplémenté séparément.
 import { generateAccessPassword, generateSalt, hashPassword, verifyPassword } from './crypto';
 
-const STORAGE_KEYS = {
-  ALERTS: 'activa_ethicalert_records_v1',
-  AUDIT_LOGS: 'activa_ethicalert_audit_v1',
-  USERS: 'activa_ethicalert_users_v1',
-  ACTIVE_USER: 'activa_ethicalert_active_user_v1',
-  DRAFT: 'activa_ethicalert_draft_v1',
-  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
-  ENTITIES: 'activa_ethicalert_entities_v1',
-  CATEGORIES: 'activa_ethicalert_categories_v1',
-  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
-  COUNTRIES: 'activa_ethicalert_countries_v1',
-  // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
-  SLA_CONFIG: 'activa_ethicalert_sla_config_v1',
-  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
-  HIERARCHY_LEVELS: 'activa_ethicalert_hierarchy_levels_v1',
-  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
-  ROLE_PERMISSIONS: 'activa_ethicalert_role_permissions_v1',
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  WORKFLOW_TRANSITIONS: 'activa_ethicalert_workflow_transitions_v1',
-  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
-  ESCALATION_RECIPIENTS: 'activa_ethicalert_escalation_recipients_v1',
-  // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
-  CASE_NUMBER_COUNTERS: 'activa_ethicalert_case_number_counters_v1',
-};
-
-// Event dispatched when data changes
-const DATA_CHANGE_EVENT = 'activa_storage_updated';
+// === AMÉLIORATION AJOUTÉE (Refactor storage.ts — extraction par section) ===
+// `STORAGE_KEYS` et `DATA_CHANGE_EVENT` déplacés tels quels dans
+// ./storageKeys.ts (mêmes valeurs), désormais exportés.
+import { STORAGE_KEYS, DATA_CHANGE_EVENT } from './storageKeys';
+import * as storageBackfill from './storageBackfill';
 
 class StorageService {
   private alerts: AlertRecord[] = [];
@@ -340,13 +318,10 @@ class StorageService {
 
   // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
   private backfillEntityDefaults(defs: EntityDef[]): EntityDef[] {
-    let changed = false;
-    const next = defs.map((e) => {
-      if (e.code) return e;
-      changed = true;
-      return { ...e, code: e.name.replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase() || 'GRP' };
-    });
-    return changed ? next : defs;
+    // === AMÉLIORATION AJOUTÉE (Refactor storage.ts — extraction par section) ===
+    // Corps déplacé tel quel dans ./storageBackfill.ts (fonction pure, testée
+    // isolément) ; méthode conservée sous le même nom.
+    return storageBackfill.backfillEntityDefaults(defs);
   }
 
   // Numéro de dossier officiel : XX(code entité)-YY(année)-MM(mois)-XXXX
@@ -355,36 +330,18 @@ class StorageService {
   // protège contre toute collision même si le compteur persisté est en
   // retard (dossiers seedés, importés, ou ajoutés hors de generateCaseNumber).
   private seedCaseNumberCountersFromAlerts(counters: Record<string, number>, alerts: AlertRecord[]): Record<string, number> {
-    let changed = false;
-    const next = { ...counters };
-    const pattern = /^([A-Z]+)-(\d{2})-(\d{2})-(\d{4})$/;
-    for (const alert of alerts) {
-      const match = pattern.exec(alert.trackingNumber ?? '');
-      if (!match) continue;
-      const [, entityCode, yy, mm, seqStr] = match;
-      const key = `${entityCode}-${yy}${mm}`;
-      const seq = parseInt(seqStr, 10);
-      if (!next[key] || next[key] < seq) {
-        next[key] = seq;
-        changed = true;
-      }
-    }
-    return changed ? next : counters;
+    // === AMÉLIORATION AJOUTÉE (Refactor storage.ts — extraction par section) ===
+    // Corps déplacé tel quel dans ./storageBackfill.ts (fonction pure, testée
+    // isolément) ; méthode conservée sous le même nom.
+    return storageBackfill.seedCaseNumberCountersFromAlerts(counters, alerts);
   }
 
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
   private backfillCategoryDefaults(cats: CategoryDef[]): CategoryDef[] {
-    let changed = false;
-    const next = cats.map((c, idx) => {
-      if (c.code && c.active !== undefined) return c;
-      changed = true;
-      return {
-        ...c,
-        code: c.code ?? `CAT-${String(idx + 1).padStart(3, '0')}`,
-        active: c.active ?? true,
-      };
-    });
-    return changed ? next : cats;
+    // === AMÉLIORATION AJOUTÉE (Refactor storage.ts — extraction par section) ===
+    // Corps déplacé tel quel dans ./storageBackfill.ts (fonction pure, testée
+    // isolément) ; méthode conservée sous le même nom.
+    return storageBackfill.backfillCategoryDefaults(cats);
   }
 
   private notify() {
