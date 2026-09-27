@@ -70,6 +70,14 @@ export function usePriorityForm(selectedAlert: AlertRecord | null, activeUser: U
     }
 
     setShowPriorityModal(false);
+    // === AMÉLIORATION AJOUTÉE (remise à zéro complète après envoi) === même
+    // demande que pour les mesures correctives : délai SLA et motif
+    // reviennent à leurs valeurs initiales (la priorité elle-même est de
+    // toute façon pré-remplie à l'ouverture depuis le dossier). Le miroir
+    // backend ci-dessus a déjà capturé les valeurs envoyées.
+    setNewPriority('elevee');
+    setNewSlaDays(15);
+    setPriorityOverrideReason('');
   };
 
   return {

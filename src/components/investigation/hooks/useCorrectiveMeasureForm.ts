@@ -84,6 +84,12 @@ export function useCorrectiveMeasureForm(selectedAlert: AlertRecord | null, acti
     setMeasureTitle('');
     setMeasureDesc('');
     setMeasureResp('');
+    // === AMÉLIORATION AJOUTÉE (remise à zéro complète après envoi) === sur
+    // demande de l'utilisateur : l'échéance et le statut restaient
+    // pré-remplis avec les valeurs de la mesure précédente — ils reviennent
+    // désormais à leur valeur initiale, comme les trois champs ci-dessus.
+    setMeasureDueDate('');
+    setMeasureStatus('planned');
     setShowAddMeasureModal(false);
   };
 

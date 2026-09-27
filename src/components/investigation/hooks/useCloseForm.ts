@@ -75,6 +75,14 @@ export function useCloseForm(selectedAlert: AlertRecord | null, activeUser: User
     );
 
     setShowCloseModal(false);
+    // === AMÉLIORATION AJOUTÉE (remise à zéro complète après envoi) === sur
+    // demande de l'utilisateur : la synthèse et le message au lanceur
+    // d'alerte sont vidés une fois la clôture RÉELLEMENT enregistrée. En cas
+    // de refus (aucune mesure corrective, branche plus haut), le texte saisi
+    // est volontairement conservé : ce n'est pas un envoi, et l'utilisateur
+    // revient clôturer juste après avoir documenté la mesure demandée.
+    setClosureSummary('');
+    setClosureMessageToWb('');
   };
 
   return {
