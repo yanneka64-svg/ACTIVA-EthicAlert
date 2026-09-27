@@ -19,9 +19,6 @@ import {
   Language,
   AlertRecord,
   UserProfile,
-  PriorityLevel,
-  InternalNote,
-  CaseMessage,
   AlertStatus,
   CaseTask,
   EvidenceFile,
@@ -59,8 +56,6 @@ import { CloseModal } from './investigation/CloseModal';
 import { ReportModal } from './investigation/ReportModal';
 import { ConflictModal } from './investigation/ConflictModal';
 import { CreateCaseModal } from './investigation/CreateCaseModal';
-// === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
-import { notifyAssignmentToInvestigators, notifyEscalationRecipient } from '../services/emailNotify';
 import { ConfirmDialog } from './ui';
 // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
 import { CaseReportPrintView } from './CaseReportPrintView';
@@ -72,8 +67,6 @@ import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — évolution multi-pays/multi-entité) ===
 import { computeCandidates } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
-// === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-import { evaluateEscalationCriteria } from '../domain/escalationCriteria';
 // === AMÉLIORATION AJOUTÉE (Repère visuel — Liste des dossiers) === même
 // regroupement en 5 paniers que le Tableau de bord (Phase 1), pour que les
 // onglets de filtre affichent exactement les mêmes catégories.
@@ -93,6 +86,21 @@ import { useInterviewForm } from './investigation/hooks/useInterviewForm';
 import { useConflictForm } from './investigation/hooks/useConflictForm';
 import { usePersonForms } from './investigation/hooks/usePersonForms';
 import { useCreateCaseForm } from './investigation/hooks/useCreateCaseForm';
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par section) ===
+// Modales d'action du dossier déplacées dans des hooks dédiés. Les types
+// PriorityLevel/InternalNote/CaseMessage, `notifyAssignmentToInvestigators`/
+// `notifyEscalationRecipient` (notifications e-mail) et
+// `evaluateEscalationCriteria` ne sont plus utilisés que dans ces hooks, qui
+// les importent eux-mêmes.
+import { useAssignForm } from './investigation/hooks/useAssignForm';
+import { usePriorityForm } from './investigation/hooks/usePriorityForm';
+import { useCloseForm } from './investigation/hooks/useCloseForm';
+import { useReopenForm } from './investigation/hooks/useReopenForm';
+import { useRequestInfoForm } from './investigation/hooks/useRequestInfoForm';
+import { useInvestigationReportForm } from './investigation/hooks/useInvestigationReportForm';
+import { useEscalateForm } from './investigation/hooks/useEscalateForm';
+import { useDismissForm } from './investigation/hooks/useDismissForm';
+import { useCaseMessaging } from './investigation/hooks/useCaseMessaging';
 
 // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
 // section) === `AssignCandidateRow` déplacé tel quel dans
@@ -273,63 +281,7 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // is unchanged, only how the buttons are grouped visually.
   const [showActionsMenu, setShowActionsMenu] = useState(false);
 
-  // Interactive modal / action states
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedInvestigatorIds, setSelectedInvestigatorIds] = useState<string[]>([]);
   
-  const [showPriorityModal, setShowPriorityModal] = useState(false);
-  const [newPriority, setNewPriority] = useState<PriorityLevel>('elevee');
-  const [newSlaDays, setNewSlaDays] = useState<number>(15);
-  const [priorityOverrideReason, setPriorityOverrideReason] = useState<string>('');
-
-  const [showCloseModal, setShowCloseModal] = useState(false);
-  const [closureSummary, setClosureSummary] = useState<string>('');
-  const [closureMessageToWb, setClosureMessageToWb] = useState<string>('');
-
-  const [showReopenModal, setShowReopenModal] = useState(false);
-  const [reopenReason, setReopenReason] = useState<string>('');
-
-  // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche —
-  // étapes "En attente d'informations" et "En revue" désormais atteignables)
-  // === `domain/workflow.ts`/`storage.transitionStatus()` existaient déjà,
-  // entièrement testés (storage.transitionStatus.test.ts), mais n'étaient
-  // appelés par aucun écran — ces deux étapes de la timeline "STATUT DU
-  // DOSSIER" restaient donc en permanence grisées ("à venir"), quel que
-  // soit le dossier. Ces 2 nouvelles actions les rendent réellement
-  // franchissables, sans toucher à la logique de clôture existante
-  // (handleCloseAlert), qui continue de fonctionner exactement comme avant.
-  const [showRequestInfoModal, setShowRequestInfoModal] = useState(false);
-  const [requestInfoReason, setRequestInfoReason] = useState<string>('');
-
-  // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-  // l'envoi en revue) === "Envoyer en revue" n'apparaît dans le menu
-  // Actions qu'une fois ce rapport renseigné (texte ET/OU fichier importé —
-  // selectedAlert.investigationReport / investigationReportFile).
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportDraft, setReportDraft] = useState('');
-  const [reportFile, setReportFile] = useState<EvidenceFile | undefined>(undefined);
-  const reportFileInputRef = useRef<HTMLInputElement>(null);
-
-  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-  const [showEscalateModal, setShowEscalateModal] = useState(false);
-  const [escalateReason, setEscalateReason] = useState<string>('');
-  const [escalateOwnerId, setEscalateOwnerId] = useState<string>('');
-
-  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
-  // périmètre) === `CaseStatus` (domain/caseTypes.ts, 14 valeurs) prévoyait
-  // déjà 'duplicate'/'out_of_scope', structurellement atteignables depuis
-  // 'new' (ALLOWED_TRANSITIONS, domain/workflow.ts) — mais aucun écran ne
-  // les proposait, les rendant de fait inaccessibles (constat de l'analyse
-  // critique du frontend). Réutilise storage.transitionStatus(), déjà réel
-  // pour pending_information/conclusion_pending/functional_review, jamais
-  // un nouveau mécanisme parallèle.
-  const [showDismissModal, setShowDismissModal] = useState(false);
-  const [dismissTargetStatus, setDismissTargetStatus] = useState<'duplicate' | 'out_of_scope'>('duplicate');
-  const [dismissReason, setDismissReason] = useState<string>('');
-
-  // Note & Message inputs
-  const [internalNoteText, setInternalNoteText] = useState<string>('');
-  const [investigatorMsgText, setInvestigatorMsgText] = useState<string>('');
 
   // === AMÉLIORATION AJOUTÉE (rapports PDF réels avec en-tête ACTIVA) ===
   // Dès que `showPrintReport` passe à true, CaseReportPrintView.tsx (rendu
@@ -597,175 +549,90 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     isCreatingCase,
     handleCreateCase,
   } = useCreateCaseForm(activeUser, t, setSelectedAlertId, setViewMode);
-
-  // Handlers
-  const handleAssignInvestigators = () => {
-    if (!selectedAlert) return;
-
-    const assignedNames = investigatorUsers
-      .filter(u => selectedInvestigatorIds.includes(u.id))
-      .map(u => u.name);
-
-    const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      assignedInvestigators: selectedInvestigatorIds,
-      assignedInvestigatorNames: assignedNames,
-      status: selectedAlert.status === 'new' ? 'investigation' : selectedAlert.status,
-      updatedAt: new Date().toISOString(),
-    };
-
-    storage.saveAlert(updatedAlert);
-    storage.logAudit(
-      'INVESTIGATOR_ASSIGNED',
-      `Attribution du dossier ${selectedAlert.trackingNumber} à : ${assignedNames.join(', ') || 'Aucun'}.`,
-      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
-      activeUser
-    );
-
-    // === AMÉLIORATION AJOUTÉE (Notifications e-mail) === notifie
-    // uniquement les enquêteurs NOUVELLEMENT attribués (jamais ceux déjà
-    // attribués avant ce changement, pour ne pas les renotifier à chaque
-    // modification mineure de l'attribution).
-    const previouslyAssigned = new Set(selectedAlert.assignedInvestigators);
-    const newlyAssignedUsers = investigatorUsers.filter(
-      (u) => selectedInvestigatorIds.includes(u.id) && !previouslyAssigned.has(u.id)
-    );
-    if (newlyAssignedUsers.length > 0) {
-      notifyAssignmentToInvestigators(newlyAssignedUsers, { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber }, activeUser);
-    }
-
-    setShowAssignModal(false);
-  };
-
-  const handleUpdatePriority = () => {
-    if (!selectedAlert) return;
-
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + newSlaDays);
-
-    const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      overridePriority: newPriority,
-      overrideReason: priorityOverrideReason.trim() || undefined,
-      targetCompletionDate: targetDate.toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    storage.saveAlert(updatedAlert);
-    storage.logAudit(
-      'PRIORITY_MODIFIED',
-      `Priorité du dossier ${selectedAlert.trackingNumber} ajustée à ${newPriority.toUpperCase()} (Délai : ${newSlaDays}j). Motif : ${priorityOverrideReason || 'Ajustement DARC'}`,
-      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
-      activeUser
-    );
-
-    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
-    // Même correspondance de champs que data-access/migrateLegacy.ts pour
-    // exactement ce même cas (branche `alert.overridePriority`) : les 4
-    // sous-scores et le score total ne sont jamais recalculés par ce
-    // formulaire local (seule la priorité finale est surchargée) — on les
-    // reporte donc tels quels, avec `isOverride: true`.
-    const risk = selectedAlert.riskEvaluation;
-    if (selectedAlert.mirroredCaseId) {
-      const mirroredCaseId = selectedAlert.mirroredCaseId;
-      import('../services/caseMirrorSync')
-        .then(({ mirrorRecordRiskAssessment, LOCAL_PRIORITY_TO_CASE_PRIORITY }) =>
-          mirrorRecordRiskAssessment({
-            caseId: mirroredCaseId,
-            financialImpact: risk.financialImpact,
-            hierarchicalLevel: risk.hierarchyLevel,
-            recurrence: risk.recidivism,
-            reputationRisk: risk.reputationRisk,
-            totalScore: risk.totalScore,
-            priority: LOCAL_PRIORITY_TO_CASE_PRIORITY[newPriority],
-            isOverride: true,
-            originalScore: risk.totalScore,
-            overrideReason: priorityOverrideReason.trim() || undefined,
-          })
-        )
-        .catch(() => {});
-    }
-
-    setShowPriorityModal(false);
-  };
-
-  const handleAddInternalNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!internalNoteText.trim() || !selectedAlert) return;
-
-    const newNote: InternalNote = {
-      id: 'not-' + Date.now(),
-      authorId: activeUser.id,
-      authorName: activeUser.name,
-      authorRole: activeUser.roleTitle,
-      content: internalNoteText.trim(),
-      createdAt: new Date().toISOString(),
-      isPrivate: true,
-    };
-
-    const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      internalNotes: [...selectedAlert.internalNotes, newNote],
-      updatedAt: new Date().toISOString(),
-    };
-
-    storage.saveAlert(updatedAlert);
-    storage.logAudit(
-      'INTERNAL_NOTE_ADDED',
-      `Note interne d'investigation ajoutée sur ${selectedAlert.trackingNumber} par ${activeUser.name}.`,
-      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
-      activeUser
-    );
-
-    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14 : miroir
-    // des mutations secondaires) === best-effort, jamais attendu, jamais
-    // bloquant, uniquement si ce dossier porte un lien réel actif.
-    if (selectedAlert.mirroredCaseId) {
-      const mirroredCaseId = selectedAlert.mirroredCaseId;
-      import('../services/caseMirrorSync')
-        .then(({ mirrorAddInvestigationNote }) => mirrorAddInvestigationNote({ caseId: mirroredCaseId, content: newNote.content }))
-        .catch(() => {});
-    }
-
-    setInternalNoteText('');
-  };
-
-  const handleSendInvestigatorMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!investigatorMsgText.trim() || !selectedAlert) return;
-
-    const newMsg: CaseMessage = {
-      id: 'msg-' + Date.now(),
-      sender: 'investigator',
-      senderDisplayName: `DARC (${activeUser.name})`,
-      content: investigatorMsgText.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      messages: [...selectedAlert.messages, newMsg],
-      updatedAt: new Date().toISOString(),
-    };
-
-    storage.saveAlert(updatedAlert);
-    storage.logAudit(
-      'MESSAGE_SENT',
-      `Message sécurisé transmis au lanceur d'alerte pour le dossier ${selectedAlert.trackingNumber}.`,
-      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
-      activeUser
-    );
-
-    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
-    if (selectedAlert.mirroredCaseId) {
-      const mirroredCaseId = selectedAlert.mirroredCaseId;
-      import('../services/caseMirrorSync')
-        .then(({ mirrorAddCommunication }) => mirrorAddCommunication({ caseId: mirroredCaseId, content: newMsg.content }))
-        .catch(() => {});
-    }
-
-    setInvestigatorMsgText('');
-  };
+  // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par section) ===
+  // Modales d'action du dossier (attribution, priorité, clôture, réouverture,
+  // demande d'infos, rapport, escalade, classement) et saisie note/message :
+  // état + gestionnaire déplacés tels quels dans ./investigation/hooks/.
+  // Les actions sans état propre (reprendre, envoyer en revue, archiver…)
+  // restent ci-dessous.
+  const {
+    showAssignModal,
+    setShowAssignModal,
+    selectedInvestigatorIds,
+    setSelectedInvestigatorIds,
+    handleAssignInvestigators,
+  } = useAssignForm(selectedAlert, activeUser, investigatorUsers);
+  const {
+    showPriorityModal,
+    setShowPriorityModal,
+    newPriority,
+    setNewPriority,
+    newSlaDays,
+    setNewSlaDays,
+    priorityOverrideReason,
+    setPriorityOverrideReason,
+    handleUpdatePriority,
+  } = usePriorityForm(selectedAlert, activeUser);
+  const {
+    showCloseModal,
+    setShowCloseModal,
+    closureSummary,
+    setClosureSummary,
+    closureMessageToWb,
+    setClosureMessageToWb,
+    handleCloseAlert,
+  } = useCloseForm(selectedAlert, activeUser, t, setActiveCaseTab);
+  const {
+    showReopenModal,
+    setShowReopenModal,
+    reopenReason,
+    setReopenReason,
+    handleReopenAlert,
+  } = useReopenForm(selectedAlert, activeUser);
+  const {
+    showRequestInfoModal,
+    setShowRequestInfoModal,
+    requestInfoReason,
+    setRequestInfoReason,
+    handleRequestInfo,
+  } = useRequestInfoForm(selectedAlert, activeUser);
+  const {
+    showReportModal,
+    setShowReportModal,
+    reportDraft,
+    setReportDraft,
+    reportFile,
+    setReportFile,
+    reportFileInputRef,
+    handleSaveInvestigationReport,
+    handleImportReportFile,
+  } = useInvestigationReportForm(selectedAlert, activeUser);
+  const {
+    showEscalateModal,
+    setShowEscalateModal,
+    escalateReason,
+    setEscalateReason,
+    escalateOwnerId,
+    setEscalateOwnerId,
+    handleEscalate,
+  } = useEscalateForm(selectedAlert, activeUser);
+  const {
+    showDismissModal,
+    setShowDismissModal,
+    dismissTargetStatus,
+    setDismissTargetStatus,
+    dismissReason,
+    setDismissReason,
+    handleDismissCase,
+  } = useDismissForm(selectedAlert, activeUser);
+  const {
+    internalNoteText,
+    setInternalNoteText,
+    investigatorMsgText,
+    setInvestigatorMsgText,
+    handleAddInternalNote,
+    handleSendInvestigatorMessage,
+  } = useCaseMessaging(selectedAlert, activeUser);
 
   const handleToggleTaskStatus = (task: CaseTask) => {
     if (!selectedAlert) return;
@@ -821,87 +688,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     e.target.value = '';
   };
 
-  // Close Alert (CDC 3.1.3: Vérifier complétude, clôturer, informer le lanceur)
-  const handleCloseAlert = () => {
-    if (!selectedAlert) return;
-
-    if (selectedAlert.correctiveMeasures.length === 0) {
-      alert(t.desk_closure_requires_measure);
-      setActiveCaseTab('corrective');
-      setShowCloseModal(false);
-      return;
-    }
-
-    const updatedAlert: AlertRecord = {
-      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
-      // cause racine) === `applyCaseStatus` remplace la construction
-      // manuelle `status: 'closed', workflowStatus: 'closed'` — mêmes deux
-      // champs, mais désormais écrits ensemble par construction (voir
-      // services/statusMapping.ts) : sans cela, un dossier dont
-      // `workflowStatus` a été renseigné par le moteur riche (ex. passé par
-      // "Envoyer en revue") restait figé sur 'conclusion_pending'/
-      // 'functional_review' après sa clôture legacy — la timeline "STATUT
-      // DU DOSSIER" affichait alors "En revue" comme étape courante en même
-      // temps que "Clôturé" comme faite, une incohérence visuelle réelle
-      // (bug déjà corrigé, ce refactor n'en change pas le comportement).
-      ...applyCaseStatus(selectedAlert, 'closed'),
-      closedAt: new Date().toISOString(),
-      closedBy: activeUser.name,
-      closureSummary: closureSummary.trim() || 'Dossier traité et investigué avec succès conformément aux directives de la DARC Groupe ACTIVA.',
-      closureMessageToWhistleblower: closureMessageToWb.trim() || 'L\'investigation relative à votre signalement est désormais menée à son terme. Toutes les mesures conservatoires et correctives requises ont été engagées. Nous vous remercions pour votre démarche civique garantissant l\'intégrité du Groupe ACTIVA.',
-      messages: [
-        ...selectedAlert.messages,
-        {
-          id: 'msg-close-' + Date.now(),
-          sender: 'admin',
-          senderDisplayName: 'DARC Groupe ACTIVA (Clôture formelle)',
-          content: closureMessageToWb.trim() || 'L\'investigation relative à votre signalement est désormais menée à son terme. Toutes les mesures conservatoires et correctives requises ont été engagées. Votre anonymat demeure garanti.',
-          createdAt: new Date().toISOString(),
-        }
-      ],
-      updatedAt: new Date().toISOString(),
-    };
-
-    storage.saveAlert(updatedAlert);
-    storage.logAudit(
-      'ALERT_CLOSED',
-      `Clôture formelle du dossier ${selectedAlert.trackingNumber} par ${activeUser.name}.`,
-      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
-      activeUser
-    );
-
-    setShowCloseModal(false);
-  };
-
-  // Reopen Alert (CDC 3.1.3: Rouvrir avec motif obligatoire)
-  const handleReopenAlert = () => {
-    if (!selectedAlert || !reopenReason.trim()) return;
-
-    const updatedAlert: AlertRecord = {
-      // === AMÉLIORATION AJOUTÉE (Risque de désynchronisation des statuts —
-      // cause racine) === `applyCaseStatus` remplace la construction
-      // manuelle — même synchronisation que handleCloseAlert : un dossier
-      // rouvert depuis 'conclusion_pending'/'functional_review' ne doit
-      // plus afficher "En revue" comme étape courante.
-      ...applyCaseStatus(selectedAlert, 'reopened'),
-      reopenedAt: new Date().toISOString(),
-      reopenedBy: activeUser.name,
-      reopenReason: reopenReason.trim(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    storage.saveAlert(updatedAlert);
-    storage.logAudit(
-      'ALERT_REOPENED',
-      `Réouverture du dossier ${selectedAlert.trackingNumber} par ${activeUser.name}. Motif obligatoire : "${reopenReason.trim()}".`,
-      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
-      activeUser
-    );
-
-    setShowReopenModal(false);
-    setReopenReason('');
-  };
-
   // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
   // Statut riche courant (14 valeurs) — `workflowStatus` s'il a déjà été
   // renseigné par une de ces actions, sinon dérivé du statut legacy
@@ -910,82 +696,12 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // affiche des actions cohérentes dès le premier clic.
   const currentWorkflowStatus = selectedAlert ? selectedAlert.workflowStatus ?? deriveCaseStatus(selectedAlert) : undefined;
 
-  // "Demander des informations complémentaires" (investigation → pending_information).
-  // Horodate `pendingInfoReachedAt` une seule fois (première visite réelle),
-  // pour que la timeline puisse plus tard cocher cette étape honnêtement.
-  const handleRequestInfo = () => {
-    if (!selectedAlert || !requestInfoReason.trim()) return;
-    const result = storage.transitionStatus(selectedAlert.id, 'pending_information', activeUser, requestInfoReason.trim());
-    if (result.allowed) {
-      const fresh = storage.getAlerts().find((a) => a.id === selectedAlert.id);
-      if (fresh && !fresh.pendingInfoReachedAt) {
-        storage.saveAlert({ ...fresh, pendingInfoReachedAt: new Date().toISOString() });
-      }
-    }
-    setShowRequestInfoModal(false);
-    setRequestInfoReason('');
-  };
-
   // "Reprendre l'investigation" — depuis pending_information, conclusion_pending
   // ou functional_review, toutes structurellement valides vers investigation
   // (domain/workflow.ts, ALLOWED_TRANSITIONS).
   const handleResumeInvestigation = () => {
     if (!selectedAlert) return;
     storage.transitionStatus(selectedAlert.id, 'investigation', activeUser);
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Rapport d'investigation obligatoire avant
-  // l'envoi en revue) === "Rédiger le rapport d'investigation" — texte et/ou
-  // fichier importé (au moins l'un des deux), horodaté/attribué (pas de
-  // statut ni de transition, juste du contenu documentant le dossier),
-  // condition d'apparition de "Envoyer en revue" dans le menu Actions
-  // ci-dessous. Toujours le même libellé "Rédiger", qu'un rapport existe
-  // déjà ou non — rédiger de nouveau REMPLACE le contenu précédent plutôt
-  // que de prétendre à une distinction "création"/"modification" qui
-  // n'apporte rien ici (pas d'historique de versions).
-  const handleSaveInvestigationReport = () => {
-    if (!selectedAlert || (!reportDraft.trim() && !reportFile)) return;
-    storage.saveAlert({
-      ...selectedAlert,
-      investigationReport: reportDraft.trim() || undefined,
-      investigationReportFile: reportFile,
-      investigationReportBy: activeUser.name,
-      investigationReportAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-    storage.logAudit(
-      'INVESTIGATION_REPORT_SAVED',
-      `Rapport d'investigation rédigé pour le dossier ${selectedAlert.trackingNumber} par ${activeUser.name}.`,
-      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
-      activeUser
-    );
-    setShowReportModal(false);
-    setReportDraft('');
-    setReportFile(undefined);
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Import d'un rapport d'investigation en
-  // fichier) === Même mécanique de lecture que handleAddEvidenceFile
-  // ci-dessus (FileReader → dataUrl) mais reste local à la modale
-  // (`reportFile`, pas storage.saveAlert direct) : le fichier n'est
-  // persisté qu'au clic sur "Enregistrer le rapport", comme le texte.
-  const handleImportReportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setReportFile({
-        id: 'ev-report-' + Date.now(),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        uploadedAt: new Date().toISOString(),
-        dataUrl: typeof reader.result === 'string' ? reader.result : undefined,
-        uploadedBy: activeUser.name,
-      });
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
   };
 
   // "Envoyer en revue" — enchaîne investigation → conclusion_pending →
@@ -1003,47 +719,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       if (fresh && !fresh.reviewReachedAt) {
         storage.saveAlert({ ...fresh, reviewReachedAt: new Date().toISOString() });
       }
-    }
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Phase 5 — évolution multi-pays/multi-entité) ===
-  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de
-  // routage) === `escalateOwnerId` référence désormais un
-  // EscalationRecipient.id (registre admin-éditable) — storage.escalateAlert
-  // gère lui-même l'octroi d'accès réel (compte lié) et retourne le
-  // destinataire complet pour la notification e-mail ci-dessous.
-  const handleEscalate = () => {
-    if (!selectedAlert || !escalateReason.trim() || !escalateOwnerId) return;
-    const criteriaMatched = evaluateEscalationCriteria(selectedAlert).map((c) => c.label);
-    const result = storage.escalateAlert(selectedAlert.id, escalateReason.trim(), criteriaMatched, escalateOwnerId, activeUser);
-    if (result.allowed) {
-      if (result.recipient) {
-        notifyEscalationRecipient(result.recipient, selectedAlert, activeUser, 'Dossier escaladé');
-      }
-      setShowEscalateModal(false);
-      setEscalateReason('');
-      setEscalateOwnerId('');
-    }
-    // En cas de refus (transition invalide), la modale reste ouverte —
-    // aucun message d'erreur dédié n'est encore affiché ici, comme pour les
-    // autres actions de ce fichier qui échouent silencieusement plutôt que
-    // de casser l'écran ; `result.reason` est disponible pour un futur
-    // affichage si besoin.
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
-  // périmètre) === Structurellement valide uniquement depuis 'new'
-  // (ALLOWED_TRANSITIONS), donc réservé aux dossiers pas encore attribués —
-  // évite tout chevauchement avec la clôture normale (handleCloseAlert),
-  // qui exige au moins une allégation documentée (§25) : un doublon/hors
-  // périmètre n'a par nature rien à documenter.
-  const handleDismissCase = () => {
-    if (!selectedAlert || !dismissReason.trim()) return;
-    const result = storage.transitionStatus(selectedAlert.id, dismissTargetStatus, activeUser, dismissReason.trim());
-    if (result.allowed) {
-      setShowDismissModal(false);
-      setDismissReason('');
-      setDismissTargetStatus('duplicate');
     }
   };
 
