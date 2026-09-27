@@ -22,15 +22,9 @@ import {
   PriorityLevel,
   InternalNote,
   CaseMessage,
-  CorrectiveMeasure,
   AlertStatus,
   CaseTask,
-  TaskPriority,
-  ConflictDeclaration,
   EvidenceFile,
-  InvolvedPerson,
-  Witness,
-  CaseInterview,
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
@@ -84,14 +78,21 @@ import { evaluateEscalationCriteria } from '../domain/escalationCriteria';
 // regroupement en 5 paniers que le Tableau de bord (Phase 1), pour que les
 // onglets de filtre affichent exactement les mêmes catégories.
 import { AlertStatusBucket, getAlertStatusBucket, isRejectedBucket } from '../domain/alertStatusBuckets';
-// === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
-// Mêmes fonctions réelles que le formulaire public (AlertSubmissionFlow.tsx)
-// pour l'évaluation de risque et la génération du code d'accès sécurisé —
-// jamais réimplémentées à la main pour cette modale.
-import { computeRiskEvaluation } from '../data/activaConfig';
-import { generateSalt, hashPassword, generateAccessPassword } from '../services/crypto';
 // === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
 import { trData } from '../i18n/dataLabels';
+// === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par section) ===
+// Formulaires d'ajout (état + gestionnaire) déplacés dans des hooks dédiés.
+// Les types (CorrectiveMeasure, TaskPriority, ConflictDeclaration,
+// InvolvedPerson, Witness, CaseInterview) et `computeRiskEvaluation`/
+// `generateSalt`/`hashPassword`/`generateAccessPassword` (mêmes fonctions
+// réelles que le formulaire public, jamais réimplémentées) ne sont plus
+// utilisés que dans ces hooks, qui les importent eux-mêmes.
+import { useCorrectiveMeasureForm } from './investigation/hooks/useCorrectiveMeasureForm';
+import { useTaskForm } from './investigation/hooks/useTaskForm';
+import { useInterviewForm } from './investigation/hooks/useInterviewForm';
+import { useConflictForm } from './investigation/hooks/useConflictForm';
+import { usePersonForms } from './investigation/hooks/usePersonForms';
+import { useCreateCaseForm } from './investigation/hooks/useCreateCaseForm';
 
 // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
 // section) === `AssignCandidateRow` déplacé tel quel dans
@@ -197,38 +198,6 @@ interface InvestigationDeskProps {
   // messagerie plutôt qu'à la synthèse — réutilise l'onglet "messages" déjà
   // réel du dossier (même mécanisme que l'onglet Communications interne).
   initialCaseTab?: 'overview' | 'messages';
-}
-
-// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14 : miroir des
-// mutations secondaires) === Petit helper module-level (pas de hook, aucun
-// état de composant) partagé par les deux branches (subject/witness) de
-// handleAddPerson ci-dessous — best-effort, jamais attendu, jamais
-// bloquant, uniquement si ce dossier porte un lien réel actif. Import
-// dynamique : InvestigationDesk.tsx est déjà un gros chunk chargé à la
-// demande — jamais d'import statique d'un module touchant
-// firebase/functions ici.
-function mirrorAddedPerson(
-  alert: AlertRecord,
-  kind: 'subject' | 'witness',
-  name: string,
-  position: string,
-  hierarchyRole: string,
-  linkedUserId: string | undefined
-): void {
-  if (!alert.mirroredCaseId) return;
-  const mirroredCaseId = alert.mirroredCaseId;
-  import('../services/caseMirrorSync')
-    .then(({ mirrorAddPerson, HIERARCHY_ROLE_TO_LEVEL }) =>
-      mirrorAddPerson({
-        caseId: mirroredCaseId,
-        kind,
-        name,
-        position: position || undefined,
-        hierarchyLevel: HIERARCHY_ROLE_TO_LEVEL[hierarchyRole],
-        linkedUserId,
-      })
-    )
-    .catch(() => {});
 }
 
 export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
@@ -371,78 +340,11 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // explicite — plus besoin du menu de choix entre plusieurs modèles.
   const [showPrintReport, setShowPrintReport] = useState(false);
 
-  // Corrective Measure form inputs
-  const [showAddMeasureModal, setShowAddMeasureModal] = useState(false);
-  const [measureTitle, setMeasureTitle] = useState('');
-  const [measureDesc, setMeasureDesc] = useState('');
-  const [measureResp, setMeasureResp] = useState('');
-  const [measureDueDate, setMeasureDueDate] = useState('');
-  const [measureStatus, setMeasureStatus] = useState<CorrectiveMeasure['status']>('planned');
-
-  // === AMÉLIORATION AJOUTÉE (Phase 6) === Task form inputs
-  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskDescription, setTaskDescription] = useState('');
-  const [taskOwnerId, setTaskOwnerId] = useState('');
-  const [taskDueDate, setTaskDueDate] = useState('');
-  const [taskPriority, setTaskPriority] = useState<TaskPriority>('medium');
-
-  // === AMÉLIORATION AJOUTÉE (Onglet Entretiens — branchement de
-  // storage.addInterview(), jusqu'ici écrit et testé mais jamais appelé par
-  // aucun écran) === même gabarit que le formulaire "+Nouvelle tâche"
-  // ci-dessus.
-  const [showAddInterviewModal, setShowAddInterviewModal] = useState(false);
-  const [interviewIntervieweeName, setInterviewIntervieweeName] = useState('');
-  const [interviewLinkedPersonId, setInterviewLinkedPersonId] = useState('');
-  const [interviewScheduledAt, setInterviewScheduledAt] = useState('');
-  const [interviewSummary, setInterviewSummary] = useState('');
-  const [interviewStatus, setInterviewStatus] = useState<CaseInterview['status']>('planned');
-
-  // === AMÉLIORATION AJOUTÉE (Phase 6 — Triage & Conflit d'intérêt) ===
-  const [showConflictModal, setShowConflictModal] = useState(false);
-  const [conflictOutcome, setConflictOutcome] = useState<ConflictDeclaration['outcome']>('no_conflict');
-  const [conflictDetails, setConflictDetails] = useState('');
-
   // === AMÉLIORATION AJOUTÉE (Phase 11 — actions "Modifier"/"+ Ajouter" de
   // l'onglet Vue d'ensemble, telles que montrées dans la maquette) ===
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState('');
-  const [addPersonKind, setAddPersonKind] = useState<'subject' | 'witness' | null>(null);
-  const [personNameInput, setPersonNameInput] = useState('');
-  const [personPositionInput, setPersonPositionInput] = useState('');
-  const [personHierarchyInput, setPersonHierarchyInput] = useState<InvolvedPerson['hierarchyRole']>('Employé');
-  // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
-  // Rattachement (facultatif) de la personne en cours de création à un
-  // compte réel de la plateforme.
-  const [personLinkedUserId, setPersonLinkedUserId] = useState('');
-  // Édition du rattachement d'une personne/témoin déjà enregistré·e — aucun
-  // handleEditPerson générique n'existait avant cette phase (seul
-  // handleAddPerson, pour la création), d'où un état dédié plutôt que de
-  // réutiliser addPersonKind (formulaire de création différent : nom/
-  // fonction/niveau hiérarchique).
-  const [linkingPerson, setLinkingPerson] = useState<{ kind: 'subject' | 'witness'; id: string; currentName: string } | null>(null);
-  const [linkingUserId, setLinkingUserId] = useState('');
   const evidenceFileInputRef = useRef<HTMLInputElement>(null);
-
-  // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
-  // Modale courte à 3 étapes (Informations/Classification/Validation),
-  // réservée aux opérateurs (décision confirmée par l'utilisateur : pas de
-  // questionnaire de risque complet ici — le dossier créé reçoit un niveau
-  // par défaut NOCA 2, ajustable ensuite depuis l'onglet Allégations
-  // existant, exactement comme pour tout autre dossier). Réutilise le
-  // même mécanisme réel que le formulaire public
-  // (AlertSubmissionFlow.tsx) pour tout ce qui doit rester honnête :
-  // numéro de suivi, code d'accès salé/haché, évaluation de risque via la
-  // vraie fonction `computeRiskEvaluation` (jamais un objet RiskEvaluation
-  // inventé à la main), délai cible dérivé de la config SLA réelle.
-  const [showCreateCaseModal, setShowCreateCaseModal] = useState(false);
-  const [createCaseStep, setCreateCaseStep] = useState<1 | 2 | 3>(1);
-  const [newCaseObjet, setNewCaseObjet] = useState('');
-  const [newCaseCountry, setNewCaseCountry] = useState('');
-  const [newCaseEntity, setNewCaseEntity] = useState('');
-  const [newCaseCategory, setNewCaseCategory] = useState('');
-  const [newCaseSubCategory, setNewCaseSubCategory] = useState('');
-  const [isCreatingCase, setIsCreatingCase] = useState(false);
 
   // Subscribe to storage updates
   useEffect(() => {
@@ -599,6 +501,102 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   const assignCandidates = selectedAlert
     ? computeCandidates(selectedAlert, investigatorUsers, computeWorkload(investigatorUsers, alerts))
     : null;
+
+  // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par section) ===
+  // État + gestionnaire de chaque formulaire d'ajout déplacés tels quels dans
+  // ./investigation/hooks/ (voir l'en-tête de chaque fichier) ; mêmes noms
+  // déstructurés ici, donc JSX et props des modales/sections inchangés.
+  // Appelés après `selectedAlert`, dont leurs gestionnaires ont besoin.
+  const {
+    showAddMeasureModal,
+    setShowAddMeasureModal,
+    measureTitle,
+    setMeasureTitle,
+    measureDesc,
+    setMeasureDesc,
+    measureResp,
+    setMeasureResp,
+    measureDueDate,
+    setMeasureDueDate,
+    measureStatus,
+    setMeasureStatus,
+    handleAddCorrectiveMeasure,
+  } = useCorrectiveMeasureForm(selectedAlert, activeUser);
+  const {
+    showAddTaskModal,
+    setShowAddTaskModal,
+    taskTitle,
+    setTaskTitle,
+    taskDescription,
+    setTaskDescription,
+    taskOwnerId,
+    setTaskOwnerId,
+    taskDueDate,
+    setTaskDueDate,
+    taskPriority,
+    setTaskPriority,
+    handleAddTask,
+  } = useTaskForm(selectedAlert, activeUser);
+  const {
+    showAddInterviewModal,
+    setShowAddInterviewModal,
+    interviewIntervieweeName,
+    setInterviewIntervieweeName,
+    interviewLinkedPersonId,
+    setInterviewLinkedPersonId,
+    interviewScheduledAt,
+    setInterviewScheduledAt,
+    interviewSummary,
+    setInterviewSummary,
+    interviewStatus,
+    setInterviewStatus,
+    handleAddInterview,
+  } = useInterviewForm(selectedAlert, activeUser);
+  const {
+    showConflictModal,
+    setShowConflictModal,
+    conflictOutcome,
+    setConflictOutcome,
+    conflictDetails,
+    setConflictDetails,
+    handleDeclareConflict,
+  } = useConflictForm(selectedAlert, activeUser);
+  const {
+    addPersonKind,
+    setAddPersonKind,
+    personNameInput,
+    setPersonNameInput,
+    personPositionInput,
+    setPersonPositionInput,
+    personHierarchyInput,
+    setPersonHierarchyInput,
+    personLinkedUserId,
+    setPersonLinkedUserId,
+    linkingPerson,
+    setLinkingPerson,
+    linkingUserId,
+    setLinkingUserId,
+    handleAddPerson,
+    handleLinkPerson,
+  } = usePersonForms(selectedAlert, activeUser);
+  const {
+    showCreateCaseModal,
+    setShowCreateCaseModal,
+    createCaseStep,
+    setCreateCaseStep,
+    newCaseObjet,
+    setNewCaseObjet,
+    newCaseCountry,
+    setNewCaseCountry,
+    newCaseEntity,
+    setNewCaseEntity,
+    newCaseCategory,
+    setNewCaseCategory,
+    newCaseSubCategory,
+    setNewCaseSubCategory,
+    isCreatingCase,
+    handleCreateCase,
+  } = useCreateCaseForm(activeUser, t, setSelectedAlertId, setViewMode);
 
   // Handlers
   const handleAssignInvestigators = () => {
@@ -769,212 +767,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
     setInvestigatorMsgText('');
   };
 
-  const handleAddCorrectiveMeasure = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!measureTitle.trim() || !selectedAlert) return;
-
-    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des
-    // recommandations) === `closedAt` renseignée uniquement si la mesure
-    // est créée directement au statut "Vérifiée" — aucun autre point du
-    // code ne change le statut d'une mesure existante aujourd'hui, donc
-    // c'est le seul moment où cette transition peut réellement survenir.
-    const now = new Date().toISOString();
-    const newMeasure: CorrectiveMeasure = {
-      id: 'cm-' + Date.now(),
-      title: measureTitle.trim(),
-      description: measureDesc.trim(),
-      responsiblePerson: measureResp.trim() || 'Direction Concernée',
-      dueDate: measureDueDate || now.split('T')[0],
-      status: measureStatus,
-      documentedBy: activeUser.name,
-      documentedAt: now,
-      closedAt: measureStatus === 'verified' ? now : undefined,
-    };
-
-    const updatedAlert: AlertRecord = {
-      ...selectedAlert,
-      correctiveMeasures: [...selectedAlert.correctiveMeasures, newMeasure],
-      status: selectedAlert.status === 'investigation' ? 'corrective_action' : selectedAlert.status,
-      updatedAt: new Date().toISOString(),
-    };
-
-    storage.saveAlert(updatedAlert);
-    storage.logAudit(
-      'CORRECTIVE_MEASURE_ADDED',
-      `Mesure corrective documentée sur ${selectedAlert.trackingNumber} : "${newMeasure.title}".`,
-      { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
-      activeUser
-    );
-
-    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
-    // `addCorrectiveAction` (Cloud Function) exige une priorité, absente du
-    // modèle local `CorrectiveMeasure` — réutilise la priorité du DOSSIER
-    // lui-même, exactement comme data-access/migrateLegacy.ts le fait déjà
-    // pour la même raison (jamais une valeur inventée).
-    if (selectedAlert.mirroredCaseId) {
-      const mirroredCaseId = selectedAlert.mirroredCaseId;
-      const localPriority = selectedAlert.overridePriority ?? selectedAlert.riskEvaluation.priority;
-      import('../services/caseMirrorSync')
-        .then(({ mirrorAddCorrectiveAction, LOCAL_PRIORITY_TO_CASE_PRIORITY }) =>
-          mirrorAddCorrectiveAction({
-            caseId: mirroredCaseId,
-            description: newMeasure.title ? `${newMeasure.title} — ${newMeasure.description}` : newMeasure.description,
-            owner: newMeasure.responsiblePerson,
-            dueDate: newMeasure.dueDate,
-            priority: LOCAL_PRIORITY_TO_CASE_PRIORITY[localPriority],
-          })
-        )
-        .catch(() => {});
-    }
-
-    setMeasureTitle('');
-    setMeasureDesc('');
-    setMeasureResp('');
-    setShowAddMeasureModal(false);
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
-  // Construit un AlertRecord complet et honnête à partir de la saisie
-  // courte de la modale — même mécanique que AlertSubmissionFlow.tsx
-  // (numéro de suivi, code d'accès salé/haché, délai cible dérivé de la
-  // config SLA réelle), avec un niveau de risque par défaut NOCA 2
-  // (impact financier/niveau hiérarchique/récidive/réputation = 2 sur 4
-  // chacun, via la vraie fonction `computeRiskEvaluation` — jamais un
-  // score inventé à la main), à affiner ensuite depuis l'onglet
-  // Allégations comme pour tout autre dossier.
-  const handleCreateCase = async () => {
-    if (!newCaseObjet.trim() || !newCaseCountry || !newCaseEntity || !newCaseCategory || !newCaseSubCategory) return;
-    setIsCreatingCase(true);
-
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const trackingNumber = `ACT-2026-${randomSuffix}`;
-    const generatedPassword = generateAccessPassword();
-    const accessCodeSalt = generateSalt();
-    const accessCodeHash = await hashPassword(generatedPassword, accessCodeSalt);
-
-    const slaConfig = storage.getSlaConfig();
-    const riskEvaluation = computeRiskEvaluation(2, 2, 2, 2, slaConfig);
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + slaConfig.noca2Days);
-
-    const newRecord: AlertRecord = {
-      id: 'alt-' + Date.now(),
-      trackingNumber,
-      accessCodeHash,
-      accessCodeSalt,
-      // === AMÉLIORATION AJOUTÉE (Repère visuel — Créer un nouveau dossier) ===
-      // 'direct' : dossier saisi directement par un opérateur (téléphone,
-      // rencontre en personne...), distinct de 'web' (formulaire public
-      // en ligne) et 'qr_code' — les 3 valeurs réelles du canal existant.
-      channel: 'direct',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      targetCompletionDate: targetDate.toISOString(),
-      confidentialityLevel: 'confidential',
-      whistleblower: { isAnonymous: true, declarantType: 'Employé' },
-      category: newCaseCategory,
-      subCategory: newCaseSubCategory,
-      detailedDescription: newCaseObjet.trim(),
-      incidentDates: t.create_case_dates_unspecified,
-      incidentLocation: newCaseEntity,
-      concernedEntity: newCaseEntity,
-      country: newCaseCountry,
-      riskEvaluation,
-      impactType: newCaseCategory,
-      involvedPersons: [],
-      witnesses: [],
-      evidences: [],
-      status: 'new',
-      assignedInvestigators: [],
-      assignedInvestigatorNames: [],
-      internalNotes: [],
-      messages: [
-        {
-          id: 'msg-init',
-          sender: 'admin',
-          senderDisplayName: `DARC (${activeUser.name})`,
-          content: `Dossier créé par ${activeUser.name} sous la référence ${trackingNumber}. Classification provisoire : ${riskEvaluation.nocaThreshold} (${riskEvaluation.expectedTreatment}).`,
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      correctiveMeasures: [],
-    };
-
-    storage.saveAlert(newRecord);
-    storage.logAudit(
-      'ALERT_SUBMITTED',
-      `Nouveau dossier créé par un opérateur : ${trackingNumber} (${newRecord.category} - ${newRecord.concernedEntity}). Classification provisoire : ${riskEvaluation.nocaThreshold}.`,
-      { id: newRecord.id, trackingNumber: newRecord.trackingNumber },
-      activeUser
-    );
-
-    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 13 : miroir
-    // de la création de dossier par le personnel) === Écriture miroir
-    // best-effort vers le vrai backend — jamais attendue, jamais capable de
-    // bloquer ou d'altérer la suite (déjà enregistrée localement juste
-    // au-dessus, seule source de vérité pour cet écran). Import dynamique :
-    // InvestigationDesk.tsx est déjà un gros chunk chargé à la demande —
-    // jamais d'import statique d'un module touchant firebase/functions ici.
-    // No-op silencieux tant que la Phase 4 n'est pas configurée — voir
-    // services/caseCreationMirrorSync.ts.
-    import('../services/caseCreationMirrorSync')
-      .then(({ mirrorStaffCaseCreationToRealBackend }) =>
-        mirrorStaffCaseCreationToRealBackend({
-          category: newRecord.category,
-          subcategory: newRecord.subCategory,
-          country: newRecord.country,
-          entity: newRecord.concernedEntity,
-          description: newRecord.detailedDescription,
-          reportingMode: newRecord.whistleblower.isAnonymous ? 'anonymous' : 'identified',
-          confidentialityLevel: newRecord.confidentialityLevel,
-        })
-      )
-      .then((result) => {
-        if (result) storage.linkMirroredCase(newRecord.id, result.caseId, result.caseNumber);
-      })
-      .catch(() => {});
-
-    setIsCreatingCase(false);
-    setShowCreateCaseModal(false);
-    setCreateCaseStep(1);
-    setNewCaseObjet('');
-    setNewCaseCountry('');
-    setNewCaseEntity('');
-    setNewCaseCategory('');
-    setNewCaseSubCategory('');
-    setSelectedAlertId(newRecord.id);
-    setViewMode('detail');
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Phase 6) === Task management, via the Phase 1
-  // storage.addTask/updateTask pair — same audit+notify pattern as every
-  // other mutation here.
-  const handleAddTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!taskTitle.trim() || !taskOwnerId || !taskDueDate || !selectedAlert) return;
-
-    const newTask: CaseTask = {
-      id: 'tsk-' + Date.now(),
-      title: taskTitle.trim(),
-      description: taskDescription.trim() || undefined,
-      owner: taskOwnerId,
-      dueDate: taskDueDate,
-      priority: taskPriority,
-      status: 'not_started',
-      createdAt: new Date().toISOString(),
-      createdBy: activeUser.id,
-    };
-
-    storage.addTask(selectedAlert.id, newTask, activeUser);
-
-    setTaskTitle('');
-    setTaskDescription('');
-    setTaskOwnerId('');
-    setTaskDueDate('');
-    setTaskPriority('medium');
-    setShowAddTaskModal(false);
-  };
-
   const handleToggleTaskStatus = (task: CaseTask) => {
     if (!selectedAlert) return;
     const nextStatus: CaseTask['status'] = task.status === 'completed' ? 'not_started' : 'completed';
@@ -982,41 +774,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       status: nextStatus,
       completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined,
     }, activeUser);
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Onglet Entretiens) === storage.addInterview,
-  // même motif audit que handleAddTask ci-dessus. La personne entendue peut
-  // être liée à une entrée réelle de "Personnes impliquées"/"Témoins" (son
-  // nom est alors repris tel quel, jamais dupliqué à la main) ou saisie
-  // librement (entretien avec un tiers externe au dossier).
-  const handleAddInterview = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAlert) return;
-    const linkedPerson = interviewLinkedPersonId
-      ? [...selectedAlert.involvedPersons, ...selectedAlert.witnesses].find((p) => p.id === interviewLinkedPersonId)
-      : undefined;
-    const intervieweeName = linkedPerson?.name ?? interviewIntervieweeName.trim();
-    if (!intervieweeName) return;
-
-    const newInterview: CaseInterview = {
-      id: 'itv-' + Date.now(),
-      intervieweeName,
-      intervieweePersonId: linkedPerson?.id,
-      scheduledAt: interviewScheduledAt || undefined,
-      conductedAt: interviewStatus === 'completed' ? new Date().toISOString() : undefined,
-      conductedBy: activeUser.name,
-      summary: interviewSummary.trim() || undefined,
-      status: interviewStatus,
-    };
-
-    storage.addInterview(selectedAlert.id, newInterview, activeUser);
-
-    setInterviewIntervieweeName('');
-    setInterviewLinkedPersonId('');
-    setInterviewScheduledAt('');
-    setInterviewSummary('');
-    setInterviewStatus('planned');
-    setShowAddInterviewModal(false);
   };
 
   // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par
@@ -1028,27 +785,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
   // section) === `RISK_AXIS_LABELS` déplacée telle quelle dans
   // src/components/investigation/TriageSection.tsx, son seul appelant.
 
-  // === AMÉLIORATION AJOUTÉE (Phase 6 — Conflit d'intérêt) === uses Phase
-  // 1's ConflictDeclaration type + storage.declareConflict (already built,
-  // unused until now) — same mutate + persist + notify + logAudit pattern.
-  const handleDeclareConflict = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAlert) return;
-    if (conflictOutcome === 'conflict_identified' && !conflictDetails.trim()) return;
-    const declaration: ConflictDeclaration = {
-      id: 'cod-' + Date.now(),
-      userId: activeUser.id,
-      userName: activeUser.name,
-      declaredAt: new Date().toISOString(),
-      outcome: conflictOutcome,
-      details: conflictOutcome === 'conflict_identified' ? conflictDetails.trim() : undefined,
-    };
-    storage.declareConflict(selectedAlert.id, declaration, activeUser);
-    setShowConflictModal(false);
-    setConflictOutcome('no_conflict');
-    setConflictDetails('');
-  };
-
   // === AMÉLIORATION AJOUTÉE (Phase 11) === "Modifier" sur la description des faits.
   const handleSaveDescription = () => {
     if (!selectedAlert) return;
@@ -1058,85 +794,6 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
       updatedAt: new Date().toISOString(),
     });
     setEditingDescription(false);
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Phase 11) === "+ Ajouter" sur Personnes impliquées / Témoins.
-  const handleAddPerson = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAlert || !addPersonKind || !personNameInput.trim()) return;
-    if (addPersonKind === 'subject') {
-      const entry: InvolvedPerson = {
-        id: 'per-' + Date.now(),
-        name: personNameInput.trim(),
-        position: personPositionInput.trim(),
-        hierarchyRole: personHierarchyInput,
-        // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
-        linkedUserId: personLinkedUserId || undefined,
-      };
-      storage.saveAlert({ ...selectedAlert, involvedPersons: [...selectedAlert.involvedPersons, entry], updatedAt: new Date().toISOString() });
-      mirrorAddedPerson(selectedAlert, 'subject', entry.name, entry.position, entry.hierarchyRole, entry.linkedUserId);
-    } else {
-      const entry: Witness = {
-        id: 'wit-' + Date.now(),
-        name: personNameInput.trim(),
-        position: personPositionInput.trim(),
-        hierarchyRole: personHierarchyInput,
-        // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
-        linkedUserId: personLinkedUserId || undefined,
-      };
-      storage.saveAlert({ ...selectedAlert, witnesses: [...selectedAlert.witnesses, entry], updatedAt: new Date().toISOString() });
-      mirrorAddedPerson(selectedAlert, 'witness', entry.name, entry.position, entry.hierarchyRole, entry.linkedUserId);
-    }
-    // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
-    // Un rattachement défini dès la création déclenche immédiatement le
-    // routage indépendant (storage.triggerIndependentRouting, Phase 4).
-    if (personLinkedUserId) {
-      const fallbackRecipient = storage.triggerIndependentRouting(selectedAlert.id, activeUser);
-      // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et
-      // de routage) === Aucune autorité interne trouvée → notifie le
-      // destinataire de dernier recours identifié par storage.ts.
-      if (fallbackRecipient) {
-        notifyEscalationRecipient(fallbackRecipient, selectedAlert, activeUser, 'Routage indépendant non résolu — intervention manuelle requise');
-      }
-    }
-    setAddPersonKind(null);
-    setPersonNameInput('');
-    setPersonPositionInput('');
-    setPersonHierarchyInput('Employé');
-    // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
-    setPersonLinkedUserId('');
-  };
-
-  // === AMÉLIORATION AJOUTÉE (Phase 2 — routage indépendant) ===
-  // Rattache (ou modifie le rattachement) d'une personne/témoin déjà
-  // enregistré·e à un compte réel de la plateforme. Dès que le
-  // rattachement résultant est défini (nouveau lien ou changement de
-  // compte lié), déclenche le routage indépendant (Phase 4) — voir
-  // storage.triggerIndependentRouting ci-dessous.
-  const handleLinkPerson = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAlert || !linkingPerson) return;
-    const resolvedUserId = linkingUserId || undefined;
-    if (linkingPerson.kind === 'subject') {
-      const involvedPersons = selectedAlert.involvedPersons.map((p) =>
-        p.id === linkingPerson.id ? { ...p, linkedUserId: resolvedUserId } : p
-      );
-      storage.saveAlert({ ...selectedAlert, involvedPersons, updatedAt: new Date().toISOString() });
-    } else {
-      const witnesses = selectedAlert.witnesses.map((w) =>
-        w.id === linkingPerson.id ? { ...w, linkedUserId: resolvedUserId } : w
-      );
-      storage.saveAlert({ ...selectedAlert, witnesses, updatedAt: new Date().toISOString() });
-    }
-    // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
-    if (resolvedUserId) {
-      const fallbackRecipient = storage.triggerIndependentRouting(selectedAlert.id, activeUser);
-      if (fallbackRecipient) {
-        notifyEscalationRecipient(fallbackRecipient, selectedAlert, activeUser, 'Routage indépendant non résolu — intervention manuelle requise');
-      }
-    }
-    setLinkingPerson(null);
-    setLinkingUserId('');
   };
 
   // === AMÉLIORATION AJOUTÉE (Phase 11) === "+ Ajouter" sur Preuves & pièces jointes.
