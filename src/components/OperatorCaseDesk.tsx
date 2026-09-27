@@ -87,10 +87,10 @@ interface OperatorCaseDeskProps {
 }
 
 const CHANNEL_LABELS: Record<AlertRecord['channel'], string> = { web: 'Web', qr_code: 'QR Code', direct: 'Dépôt direct' };
-const SEVERITY_LABELS: Record<SeverityLevel, string> = { mineure: 'Mineure', moderee: 'Modérée', majeure: 'Majeure', critique: 'Critique' };
-const URGENCY_LABELS: Record<PriorityLevel, string> = { faible: 'Faible', elevee: 'Élevée', tres_elevee: 'Très élevée', critique: 'Critique' };
 // CONFIDENTIALITY_LABELS : déplacé avec ConfidentialityBadge (seul utilisateur).
-const NOCA_OPTIONS: NocaThreshold[] = ['NOCA 1', 'NOCA 2', 'NOCA 3', 'NOCA 4'];
+// === AMÉLIORATION AJOUTÉE (nettoyage du code mort) === SEVERITY_LABELS,
+// URGENCY_LABELS et NOCA_OPTIONS retirés : plus lus nulle part depuis la
+// simplification de la barre de filtres.
 // === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk) === NOCA_TONE déplacé
 // dans src/components/operatorDesk/constants.ts (partagé tableau/panneau).
 const DEFAULT_FOLLOWUP_MESSAGE = "Merci de nous transmettre les informations complémentaires demandées afin que nous puissions poursuivre le traitement de votre signalement.";
@@ -161,7 +161,6 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   const allUsers = storage.getUsers();
   const investigatorUsers = allUsers.filter((u) => userCan(u, 'cases.edit'));
   const entities = storage.getEntities();
-  const categories = storage.getCategories();
 
   const baseVisible = useVisibleAlerts(alerts, activeUser);
   const modeAlerts = baseVisible.filter(cfg.predicate);

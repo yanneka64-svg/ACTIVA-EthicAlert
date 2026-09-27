@@ -37,7 +37,7 @@ import { storage } from '../services/storage';
 import { fetchMirroredCasesForControlPanel } from '../services/controlPanelCloudSync';
 import { computeSlaStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, userCan } from '../services/authz';
+import { userCan } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { formatCountryLabel } from '../data/activaConfig';
@@ -144,10 +144,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // === AMÉLIORATION AJOUTÉE (Phase 2 — évolution multi-pays/multi-entité) ===
   // `visible` vient désormais du hook partagé, qui applique en plus le
   // périmètre pays/entité et la confidentialité — voir
-  // src/hooks/useVisibleAlerts.ts. `isGlobalViewer` reste calculé
-  // séparément : encore utilisé plus bas pour le filtre du fil d'activité
-  // (ligne ~250).
-  const isGlobalViewer = isGlobalCaseViewer(activeUser);
+  // src/hooks/useVisibleAlerts.ts.
+  // === AMÉLIORATION AJOUTÉE (nettoyage du code mort) === `isGlobalViewer`
+  // retiré : il ne servait qu'au fil d'activité, qui n'existe plus sur cet
+  // écran.
   // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 5) === fusion
   // avec les dossiers miroir du vrai backend, jamais un remplacement — voir
   // `mirroredCases` ci-dessus. `useMemo` évite de reconstruire ce tableau
@@ -194,11 +194,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // (Phase 3/5), ce qui n'existait pas avant cette phase.
   const slaEscalated = scopedVisible.filter((a) => a.workflowStatus === 'escalated').length;
 
-  // --- Investigation monitoring ---
-  const activeInvestigations = scopedVisible.filter((a) => a.status === 'investigation').length;
-  const pendingInfo = scopedVisible.filter((a) => a.status === 'under_review').length;
-  const investigationOverdue = scopedVisible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'overdue').length;
-  const investigationApproachingSla = scopedVisible.filter((a) => a.status === 'investigation' && computeSlaStatus(a) === 'at_risk').length;
+  // === AMÉLIORATION AJOUTÉE (nettoyage du code mort) === les 4 compteurs
+  // « Investigation monitoring » (activeInvestigations, pendingInfo,
+  // investigationOverdue, investigationApproachingSla) sont retirés : ils
+  // étaient calculés à chaque rendu mais affichés nulle part depuis la
+  // refonte visuelle du tableau de bord.
 
   // --- Investigator workload ---
   // === AMÉLIORATION AJOUTÉE (Phase 12.3) === permission `cases.edit`
@@ -218,9 +218,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
     .filter((row) => row.active > 0)
     .sort((a, b) => b.active - a.active);
 
-  // --- Corrective actions ---
-  const allMeasures = scopedVisible.flatMap((a) => a.correctiveMeasures);
-  const correctiveCompleted = allMeasures.filter((m) => m.status === 'implemented' || m.status === 'verified').length;
+  // === AMÉLIORATION AJOUTÉE (nettoyage du code mort) === `correctiveCompleted`
+  // (et `allMeasures`, qui ne servait qu'à lui) retirés : jamais affichés.
 
   // === AMÉLIORATION AJOUTÉE (Phase 6) === period-scoped delta for the Total
   // Alerts KPI ("+X% vs previous period") — a real comparison of alerts

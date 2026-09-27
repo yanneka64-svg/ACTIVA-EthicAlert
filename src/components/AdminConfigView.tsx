@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { Language, UserProfile } from '../types';
-import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Refactor AdminConfigView — extraction par
 // onglet) === premier onglet extrait dans son propre composant (voir
@@ -48,7 +47,9 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
   activeUser,
   initialTab,
 }) => {
-  const t = TRANSLATIONS[lang];
+  // === AMÉLIORATION AJOUTÉE (nettoyage du code mort) === `const t =
+  // TRANSLATIONS[lang]` retiré : jamais lu ici, chaque onglet
+  // (./admin/*) calcule ses propres libellés.
 
   // === AMÉLIORATION AJOUTÉE (navigation Admin figée après le premier clic)
   // === BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : "aucune des

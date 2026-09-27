@@ -254,8 +254,10 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     submittedAlert
   ]);
 
-  // Today date limit (no future dates as mandated in CDC 3.1.1)
-  const todayStr = new Date().toISOString().split('T')[0];
+  // === AMÉLIORATION AJOUTÉE (nettoyage du code mort) === `todayStr`
+  // (plafond "pas de date future", CDC 3.1.1) retiré : il n'était plus lu
+  // depuis que la date de l'incident est un champ texte libre ; la règle
+  // reste rappelée à l'utilisateur sous le champ (t.no_future_dates_warning).
 
   // Involved person handlers
   const addInvolvedPerson = () => {
