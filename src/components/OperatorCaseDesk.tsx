@@ -28,77 +28,47 @@
  * titre, le sous-titre et les états vides passent par `TRANSLATIONS`.
  */
 import React, { useState } from 'react';
-import {
-  Inbox,
-  ListChecks,
-  HelpCircle,
-  FolderCheck,
-  FolderOpen,
-  Clock,
-  Search,
-  RotateCcw,
-  UserPlus,
-  UserCog,
-  Send,
-  Building2,
-  Lock,
-  X,
-  ArrowLeft,
-  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
-  Archive,
-  // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
-  // envoyés en revue) ===
-  Eye,
-} from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk — extraction par
+// section) === plus aucune icône n'est rendue directement ici : chaque
+// composant de src/components/operatorDesk/ importe les siennes (y compris
+// celles de MODE_CONFIG, dans modeConfig.ts).
 import { AlertRecord, Language, UserProfile, PriorityLevel, SeverityLevel, NocaThreshold, CaseMessage } from '../types';
 import { ConfidentialityLevel } from '../domain/caseTypes';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { userCan } from '../services/authz';
-import { formatCountryLabel } from '../data/activaConfig';
 // === AMÉLIORATION AJOUTÉE (Notifications e-mail) ===
 import { notifyAssignmentToInvestigators } from '../services/emailNotify';
 import { computeCandidates, AssignmentCandidate } from '../domain/assignmentEngine';
 import { computeWorkload } from '../domain/workloadCalc';
 import { computeSlaStatus } from '../services/statusMapping';
 import { searchAlerts, AdvancedSearchCriteria, effectivePriority } from '../domain/advancedSearch';
-import { Button, KpiCard, PriorityBadge, DataTable, EmptyState } from './ui';
-import type { DataTableColumn, KpiTone } from './ui';
-// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === réutilise exactement
-// le même balisage checkbox + charge de travail que la modale d'attribution
-// d'InvestigationDesk.tsx (composant désormais exporté depuis ce fichier
-// pour cette seule raison, aucun autre changement).
-import { AssignCandidateRow } from './investigation/AssignCandidateRow';
-// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
-import { trData } from '../i18n/dataLabels';
+import { KpiCard } from './ui';
+import type { KpiTone } from './ui';
+// === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk — extraction par
+// section) === AssignCandidateRow (modale d'attribution), trData,
+// formatCountryLabel, Button/DataTable/EmptyState/PriorityBadge sont
+// désormais importés par les composants de src/components/operatorDesk/ qui
+// les utilisent réellement.
+// === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk — extraction par
+// section) === chaque bloc de rendu vit désormais dans son propre composant
+// (src/components/operatorDesk/) ; ce fichier garde l'état, les filtres, les
+// KPI et les handlers d'attribution/relance/réponse.
+import { MODE_CONFIG } from './operatorDesk/modeConfig';
+import type { OperatorDeskMode } from './operatorDesk/modeConfig';
+import { OperatorFilterBar } from './operatorDesk/OperatorFilterBar';
+import { OperatorBulkBar } from './operatorDesk/OperatorBulkBar';
+import { OperatorCaseTable } from './operatorDesk/OperatorCaseTable';
+import { OperatorInboxPanel } from './operatorDesk/OperatorInboxPanel';
+import { OperatorAssignModal } from './operatorDesk/OperatorAssignModal';
+import { OperatorFollowupModal } from './operatorDesk/OperatorFollowupModal';
 
-// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace Enquêteur) ===
-// 3 nouveaux modes purement additifs : `my_cases`/`to_process`/`in_progress`
-// remplacent le rendu InvestigationDesk+initialFilter des écrans Enquêteur
-// `inv_my_cases`/`inv_to_process`/`inv_in_progress` (mêmes règles de
-// périmètre qu'avant — `useVisibleAlerts` limite déjà un enquêteur non
-// global à ses propres dossiers, donc aucune notion d'attribution n'a de
-// sens ici : pas de case à cocher, pas de bouton Attribuer). L'écran
-// Enquêteur "En attente" (`inv_pending`) réutilise directement le mode
-// `pending_info` existant (règle et action "Relancer" identiques), avec ses
-// libellés surchargés via `titleOverride`/`subtitleOverride`/`emptyOverride`
-// ci-dessous plutôt qu'un 5e mode dupliqué.
-// === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === `closed`,
-// juste en dessous de `assigned` ("Dossiers attribués") dans la barre
-// latérale (StaffPortalLayout.tsx) : les dossiers attribués ET clôturés,
-// en lecture seule (`rowAction: 'none'`, comme les 3 écrans Enquêteur
-// "de travail" ci-dessus) — jamais de réattribution sur un dossier déjà
-// clos.
-// === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers envoyés
-// en revue) === `review`, entre `assigned` et `closed` : dossiers dont le
-// rapport d'investigation a été envoyé en revue (workflowStatus
-// conclusion_pending/functional_review, InvestigationDesk.handleSendToReview)
-// — en lecture seule ici aussi (`rowAction: 'none'`), la clôture réelle se
-// fait sur la fiche dossier complète via `onOpenCase`, qui réutilise telle
-// quelle la validation déjà existante (handleCloseAlert — au moins une
-// mesure corrective documentée) plutôt que de la dupliquer.
-export type OperatorDeskMode = 'inbox' | 'to_assign' | 'pending_info' | 'assigned' | 'review' | 'closed' | 'my_cases' | 'to_process' | 'in_progress' | 'inv_inbox';
+// === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk — extraction par
+// section) === le type OperatorDeskMode (et l'historique de ses modes) vit
+// désormais dans src/components/operatorDesk/modeConfig.ts ; réexporté ici
+// pour que tout import existant depuis ce fichier reste valide.
+export type { OperatorDeskMode } from './operatorDesk/modeConfig';
 
 interface OperatorCaseDeskProps {
   lang: Language;
@@ -119,189 +89,18 @@ interface OperatorCaseDeskProps {
 const CHANNEL_LABELS: Record<AlertRecord['channel'], string> = { web: 'Web', qr_code: 'QR Code', direct: 'Dépôt direct' };
 const SEVERITY_LABELS: Record<SeverityLevel, string> = { mineure: 'Mineure', moderee: 'Modérée', majeure: 'Majeure', critique: 'Critique' };
 const URGENCY_LABELS: Record<PriorityLevel, string> = { faible: 'Faible', elevee: 'Élevée', tres_elevee: 'Très élevée', critique: 'Critique' };
-const CONFIDENTIALITY_LABELS: Record<ConfidentialityLevel, string> = { standard: 'Standard', restricted: 'Restreint', confidential: 'Confidentiel', highly_confidential: 'Très confidentiel' };
+// CONFIDENTIALITY_LABELS : déplacé avec ConfidentialityBadge (seul utilisateur).
 const NOCA_OPTIONS: NocaThreshold[] = ['NOCA 1', 'NOCA 2', 'NOCA 3', 'NOCA 4'];
-const NOCA_TONE: Record<NocaThreshold, string> = {
-  'NOCA 1': 'bg-slate-100 text-slate-700 border-slate-200',
-  'NOCA 2': 'bg-amber-100 text-amber-800 border-amber-200',
-  'NOCA 3': 'bg-orange-100 text-orange-800 border-orange-200',
-  'NOCA 4': 'bg-rose-100 text-rose-800 border-rose-200',
-};
+// === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk) === NOCA_TONE déplacé
+// dans src/components/operatorDesk/constants.ts (partagé tableau/panneau).
 const DEFAULT_FOLLOWUP_MESSAGE = "Merci de nous transmettre les informations complémentaires demandées afin que nous puissions poursuivre le traitement de votre signalement.";
 
-// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === même repli que
-// `InvestigationDesk.getConfidentialityBadge` — rien pour standard/restreint
-// (jamais alarmant par défaut), un badge discret sinon.
-// === AMÉLIORATION AJOUTÉE : libellé traduit (lang optionnel, FR par défaut) ===
-function ConfidentialityBadge({ level, lang = 'fr' }: { level?: ConfidentialityLevel; lang?: Language }) {
-  const tr = TRANSLATIONS[lang];
-  const lvl = level ?? 'restricted';
-  if (lvl === 'restricted' || lvl === 'standard') return null;
-  const style = lvl === 'highly_confidential' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-700 border-amber-200';
-  return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border whitespace-nowrap ${style}`} title={tr.desk_confidentiality_level}>
-      <Lock className="w-2.5 h-2.5" />
-      {({ standard: tr.op_conf_standard, restricted: tr.op_conf_restricted, confidential: tr.desk_confidential, highly_confidential: tr.confidentiality_highly_confidential } as Record<ConfidentialityLevel, string>)[lvl] ?? CONFIDENTIALITY_LABELS[lvl]}
-    </span>
-  );
-}
+// === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk) === ConfidentialityBadge
+// déplacé tel quel dans src/components/operatorDesk/ConfidentialityBadge.tsx.
 
-// === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace Enquêteur) ===
-// `rowAction` dit quelle action de ligne/groupée cet écran propose :
-// 'assign'/'reassign' (gardées en plus par `cases.assign`, voir `canAssign`
-// plus bas), 'followup' (relance — aucune permission dédiée, comme la
-// messagerie déjà réelle d'InvestigationDesk), ou 'none' (les 3 écrans
-// Enquêteur "de travail" — aucune notion d'attribution n'a de sens sur son
-// propre périmètre déjà filtré par `useVisibleAlerts`) : ni case à cocher,
-// ni colonne d'action, ni barre d'actions groupées.
-type RowAction = 'assign' | 'reassign' | 'followup' | 'none';
-
-interface ModeConfig {
-  icon: React.ComponentType<{ className?: string }>;
-  titleKey:
-    | 'sidebar_op_inbox' | 'sidebar_op_assign' | 'sidebar_op_pending' | 'sidebar_op_processed' | 'sidebar_op_review' | 'sidebar_op_closed'
-    | 'sidebar_inv_my_cases' | 'sidebar_inv_to_process' | 'sidebar_inv_in_progress' | 'sidebar_inv_inbox';
-  subtitleKey:
-    | 'ocd_inbox_subtitle' | 'ocd_to_assign_subtitle' | 'ocd_pending_info_subtitle' | 'ocd_assigned_subtitle' | 'ocd_review_subtitle' | 'ocd_closed_subtitle'
-    | 'ocd_my_cases_subtitle' | 'ocd_to_process_subtitle' | 'ocd_in_progress_subtitle';
-  emptyKey:
-    | 'ocd_empty_inbox' | 'ocd_empty_to_assign' | 'ocd_empty_pending_info' | 'ocd_empty_assigned' | 'ocd_empty_review' | 'ocd_empty_closed'
-    | 'ocd_empty_my_cases' | 'ocd_empty_to_process' | 'ocd_empty_in_progress';
-  predicate: (a: AlertRecord) => boolean;
-  rowAction: RowAction;
-}
-
-const MODE_CONFIG: Record<OperatorDeskMode, ModeConfig> = {
-  inbox: {
-    icon: Inbox,
-    titleKey: 'sidebar_op_inbox',
-    subtitleKey: 'ocd_inbox_subtitle',
-    emptyKey: 'ocd_empty_inbox',
-    predicate: (a) => a.status === 'new',
-    rowAction: 'assign',
-  },
-  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur) === "toutes les affaires
-  // nouvelles et en cours" — même règle que l'ancien `excludeClosed`.
-  to_assign: {
-    icon: ListChecks,
-    titleKey: 'sidebar_op_assign',
-    subtitleKey: 'ocd_to_assign_subtitle',
-    emptyKey: 'ocd_empty_to_assign',
-    predicate: (a) => a.status !== 'corrective_action' && a.status !== 'closed' && a.status !== 'archived',
-    rowAction: 'assign',
-  },
-  pending_info: {
-    icon: HelpCircle,
-    titleKey: 'sidebar_op_pending',
-    subtitleKey: 'ocd_pending_info_subtitle',
-    emptyKey: 'ocd_empty_pending_info',
-    predicate: (a) => a.status === 'under_review',
-    rowAction: 'followup',
-  },
-  // === AMÉLIORATION AJOUTÉE (Dossiers ouverts, ex-"Dossiers attribués") ===
-  // Renommé sur demande explicite, maintenant que les dossiers clôturés ont
-  // leur propre onglet dédié (`closed`, ci-dessous) : exclut désormais les
-  // dossiers déjà clôturés, pour ne plus faire doublon avec ce nouvel
-  // onglet — inverse exact de "non attribués" restreint aux dossiers
-  // encore ouverts.
-  assigned: {
-    icon: FolderCheck,
-    titleKey: 'sidebar_op_processed',
-    subtitleKey: 'ocd_assigned_subtitle',
-    emptyKey: 'ocd_empty_assigned',
-    predicate: (a) => a.assignedInvestigators.length > 0 && a.status !== 'closed',
-    rowAction: 'reassign',
-  },
-  // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
-  // envoyés en revue) === Se base sur `workflowStatus` (moteur riche,
-  // InvestigationDesk.handleSendToReview) plutôt que sur le statut legacy
-  // `corrective_action` : ce dernier est aussi atteint par l'ancien
-  // mécanisme "Mesure corrective ajoutée", sans rapport avec un envoi en
-  // revue — les deux ne doivent pas être confondus ici. Exclut closed/
-  // archived explicitement : `handleCloseAlert` ne remet pas `workflowStatus`
-  // à jour, donc un dossier clôturé depuis cet état y resterait sinon
-  // indéfiniment visible.
-  review: {
-    icon: Eye,
-    titleKey: 'sidebar_op_review',
-    subtitleKey: 'ocd_review_subtitle',
-    emptyKey: 'ocd_empty_review',
-    predicate: (a) =>
-      (a.workflowStatus === 'conclusion_pending' || a.workflowStatus === 'functional_review') &&
-      a.status !== 'closed' &&
-      a.status !== 'archived',
-    rowAction: 'none',
-  },
-  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === même
-  // périmètre que `assigned` (dossiers réellement attribués), restreint aux
-  // dossiers clôturés — jamais de réattribution possible sur ceux-ci
-  // (`rowAction: 'none'`), colonnes dédiées ci-dessous (Réf./Nature/Pays/
-  // Entité/Reçu le/Clôturé le/Résumé).
-  closed: {
-    icon: Archive,
-    titleKey: 'sidebar_op_closed',
-    subtitleKey: 'ocd_closed_subtitle',
-    emptyKey: 'ocd_empty_closed',
-    // === AMÉLIORATION AJOUTÉE (Classement sans suite — Doublon / Hors
-    // périmètre) === Un dossier classé "Doublon"/"Hors périmètre"
-    // (storage.transitionStatus) n'a par nature jamais d'investigateur
-    // assigné — sans cette clause, il resterait invisible de cet onglet
-    // (et de fait de toute l'interface Opérateur) une fois clôturé.
-    predicate: (a) => a.status === 'closed' && (a.assignedInvestigators.length > 0 || a.workflowStatus === 'duplicate' || a.workflowStatus === 'out_of_scope'),
-    rowAction: 'none',
-  },
-  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2 — miroir Espace
-  // Enquêteur) === 3 modes ci-dessous : mêmes règles exactes que les
-  // anciens `initialFilter` d'App.tsx (`myCasesOnly`/`excludeClosed`/
-  // `status`) — mais `myCasesOnly` lui-même n'a plus besoin d'être recalculé
-  // ici : `useVisibleAlerts` restreint déjà un compte non global-viewer à
-  // ses seuls dossiers assignés, donc le prédicat n'a besoin d'exprimer que
-  // la nuance de statut propre à chaque écran.
-  my_cases: {
-    icon: FolderOpen,
-    titleKey: 'sidebar_inv_my_cases',
-    subtitleKey: 'ocd_my_cases_subtitle',
-    emptyKey: 'ocd_empty_my_cases',
-    predicate: () => true,
-    rowAction: 'none',
-  },
-  // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
-  // Nouvel onglet d'accueil de l'espace Enquêteur (`inv_dashboard`, voir
-  // App.tsx) : même périmètre exact que `my_cases` ci-dessus (tous les
-  // dossiers attribués à l'enquêteur connecté, `useVisibleAlerts` s'en
-  // charge déjà) — seule la présentation change, avec le panneau liste +
-  // détail/réponse côte à côte de la Boîte de réception Opérateur (voir
-  // `mode === 'inbox' || mode === 'inv_inbox'` plus bas), sur demande
-  // explicite de l'utilisateur ("appliquer les éléments de la boite de
-  // réception opérateur excepté la première partie [les cartes KPI]").
-  // Jamais de case à cocher ni de bouton Attribuer (`rowAction: 'none'`,
-  // même raison que `my_cases`/`to_process`/`in_progress` : un enquêteur
-  // n'a pas à s'auto-attribuer ses propres dossiers).
-  inv_inbox: {
-    icon: Inbox,
-    titleKey: 'sidebar_inv_inbox',
-    subtitleKey: 'ocd_my_cases_subtitle',
-    emptyKey: 'ocd_empty_my_cases',
-    predicate: () => true,
-    rowAction: 'none',
-  },
-  to_process: {
-    icon: ListChecks,
-    titleKey: 'sidebar_inv_to_process',
-    subtitleKey: 'ocd_to_process_subtitle',
-    emptyKey: 'ocd_empty_to_process',
-    predicate: (a) => a.status !== 'corrective_action' && a.status !== 'closed' && a.status !== 'archived',
-    rowAction: 'none',
-  },
-  in_progress: {
-    icon: Clock,
-    titleKey: 'sidebar_inv_in_progress',
-    subtitleKey: 'ocd_in_progress_subtitle',
-    emptyKey: 'ocd_empty_in_progress',
-    predicate: (a) => a.status === 'investigation',
-    rowAction: 'none',
-  },
-};
+// === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk — extraction par
+// section) === RowAction/ModeConfig/MODE_CONFIG déplacés tels quels dans
+// src/components/operatorDesk/modeConfig.ts (importés ci-dessus).
 
 export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, activeUser, mode, onOpenCase, titleOverride, subtitleOverride, emptyOverride }) => {
   const t = TRANSLATIONS[lang];
@@ -658,85 +457,37 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   };
 
   const Icon = cfg.icon;
-  const selectClass = 'px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-700 text-xs';
+  // === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk) === `selectClass`
+  // déplacé dans operatorDesk/OperatorFilterBar.tsx (seul utilisateur).
 
   const filterBar = (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-2">
-      <div className="relative flex-1 min-w-[180px]">
-        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t.op_search_ph}
-          className="w-full pl-8 pr-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs"
-        />
-      </div>
-      <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className={selectClass}>
-        <option value="all">{t.op_all_countries}</option>
-        {countries.map((c) => (
-          <option key={c} value={c}>{c}</option>
-        ))}
-      </select>
-      <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className={selectClass}>
-        <option value="all">{t.report_filter_entity_all}</option>
-        {entities.map((e) => (
-          <option key={e.id} value={e.name}>{e.flag} {e.name}</option>
-        ))}
-      </select>
-      {/* === AMÉLIORATION AJOUTÉE (Retours visuels — filtres allégés) ===
-          Nature/Criticité/Sévérité/Urgence/Canal/Sensibilité retirés sur
-          demande explicite de TOUS les écrans, y compris la Boîte de
-          réception (précisé sur retour utilisateur suivant — un premier
-          passage l'en avait exclue) : ne reste que Recherche + Pays +
-          Entité, partout. Ces filtres restent des critères réels
-          (`AdvancedSearchCriteria`, domain/advancedSearch.ts) : rien n'est
-          supprimé côté logique, seuls ces contrôles disparaissent de
-          l'écran. */}
-      {hasActiveFilters && (
-        <button onClick={resetFilters} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs font-semibold">
-          <RotateCcw className="w-3.5 h-3.5" />
-          {t.op_reset}
-        </button>
-      )}
-    </div>
+    <OperatorFilterBar
+      t={t}
+      search={search}
+      setSearch={setSearch}
+      countryFilter={countryFilter}
+      setCountryFilter={setCountryFilter}
+      countries={countries}
+      entityFilter={entityFilter}
+      setEntityFilter={setEntityFilter}
+      entities={entities}
+      hasActiveFilters={hasActiveFilters}
+      resetFilters={resetFilters}
+    />
   );
 
   const bulkBar = cfg.rowAction !== 'none' && selectedIds.size > 0 && (
-    <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-xs">
-      <span className="font-semibold text-blue-900">{t.op_selected_count.replace('{n}', String(selectedIds.size))}</span>
-      <div className="flex items-center gap-2">
-        {cfg.rowAction === 'assign' && canAssign && (
-          <Button
-            size="sm"
-            icon={<UserPlus className="w-3.5 h-3.5" />}
-            onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
-          >
-            {t.op_assign}
-          </Button>
-        )}
-        {cfg.rowAction === 'reassign' && canAssign && (
-          <Button
-            size="sm"
-            icon={<UserCog className="w-3.5 h-3.5" />}
-            onClick={() => { setAssignTargetIds(Array.from(selectedIds)); setAssignSelectedInvestigatorIds([]); }}
-          >
-            {t.op_reassign}
-          </Button>
-        )}
-        {cfg.rowAction === 'followup' && (
-          <Button
-            size="sm"
-            icon={<Send className="w-3.5 h-3.5" />}
-            onClick={() => { setFollowupTargetIds(Array.from(selectedIds)); setFollowupText(''); }}
-          >
-            {t.op_followup}
-          </Button>
-        )}
-        <Button variant="secondary" size="sm" onClick={() => setSelectedIds(new Set())}>
-          {t.op_deselect}
-        </Button>
-      </div>
-    </div>
+    <OperatorBulkBar
+      t={t}
+      cfg={cfg}
+      canAssign={canAssign}
+      selectedIds={selectedIds}
+      setSelectedIds={setSelectedIds}
+      setAssignTargetIds={setAssignTargetIds}
+      setAssignSelectedInvestigatorIds={setAssignSelectedInvestigatorIds}
+      setFollowupTargetIds={setFollowupTargetIds}
+      setFollowupText={setFollowupText}
+    />
   );
 
   // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === une action de ligne
@@ -746,162 +497,9 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
   // avec une sélection sans action possible).
   const canActOnRows = cfg.rowAction === 'followup' || ((cfg.rowAction === 'assign' || cfg.rowAction === 'reassign') && canAssign);
 
-  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === colonnes communes
-  // aux écrans en tableau (À attribuer / En attente d'infos / Dossiers
-  // attribués / Mes dossiers / À traiter / En cours) — la Boîte de
-  // réception a sa propre liste + panneau plus bas. `select`/`action` sont
-  // omises quand l'écran n'a réellement aucune action à proposer
-  // (`canActOnRows`), voir `rowAction` ci-dessus.
-  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === colonnes
-  // dédiées demandées explicitement (Réf./Nature/Pays/Entité/Reçu le/
-  // Clôturé le/Résumé) — écran strictement en lecture (`rowAction: 'none'`),
-  // aucune case à cocher ni colonne d'action, donc `canActOnRows` est
-  // toujours faux ici (voir `cfg.rowAction` ci-dessus).
-  const closedColumns: DataTableColumn<AlertRecord>[] = [
-    {
-      key: 'id',
-      header: t.op_col_ref,
-      render: (a) => (
-        <div className="whitespace-nowrap">
-          <span className="font-mono font-bold text-[#0B2545] block">{a.trackingNumber}</span>
-          <ConfidentialityBadge level={a.confidentialityLevel} lang={lang} />
-        </div>
-      ),
-    },
-    { key: 'nature', header: t.op_col_nature, render: (a) => <span className="truncate max-w-[160px] inline-block">{trData(a.category, lang)}</span>, hideOnMobile: true },
-    { key: 'country', header: t.op_col_country, render: (a) => a.country, hideOnMobile: true },
-    {
-      key: 'entity',
-      header: t.op_col_entity,
-      render: (a) => (
-        <span className="flex items-center gap-1 truncate max-w-[160px] text-slate-800">
-          <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
-          {a.concernedEntity}
-        </span>
-      ),
-      hideOnMobile: true,
-    },
-    {
-      key: 'received',
-      header: t.desk_col_received,
-      render: (a) => new Date(a.createdAt).toLocaleDateString(dateLocale),
-    },
-    {
-      key: 'closed',
-      header: t.op_col_closed,
-      render: (a) => (a.closedAt ? new Date(a.closedAt).toLocaleDateString(dateLocale) : '—'),
-    },
-    {
-      key: 'summary',
-      header: t.op_col_summary,
-      render: (a) => (
-        <span className="block max-w-xs truncate text-slate-600" title={a.closureSummary || a.detailedDescription}>
-          {a.closureSummary || a.detailedDescription}
-        </span>
-      ),
-    },
-  ];
-
-  const columns: DataTableColumn<AlertRecord>[] = mode === 'closed' ? closedColumns : [
-    ...(canActOnRows
-      ? [
-          {
-            key: 'select',
-            header: '',
-            render: (a: AlertRecord) => (
-              <input
-                type="checkbox"
-                checked={selectedIds.has(a.id)}
-                onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                onChange={() => toggleSelect(a.id)}
-                className="rounded text-blue-600 focus:ring-blue-500"
-              />
-            ),
-          },
-        ]
-      : []),
-    {
-      key: 'id',
-      header: t.cp_col_case_id,
-      render: (a) => (
-        <div className="whitespace-nowrap">
-          <span className="font-mono font-bold text-[#0B2545] block">{a.trackingNumber}</span>
-          <ConfidentialityBadge level={a.confidentialityLevel} lang={lang} />
-        </div>
-      ),
-    },
-    {
-      key: 'entity',
-      header: t.desk_col_country_entity,
-      render: (a) => (
-        <div className="max-w-[160px]">
-          <span className="flex items-center gap-1 truncate text-slate-800">
-            <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
-            {a.concernedEntity}
-          </span>
-          <span className="text-[11px] text-slate-500">{formatCountryLabel(storage.getCountries(), a.country)}</span>
-        </div>
-      ),
-      hideOnMobile: true,
-    },
-    { key: 'nature', header: t.op_col_nature, render: (a) => <span className="truncate max-w-[160px] inline-block">{trData(a.category, lang)}</span>, hideOnMobile: true },
-    {
-      key: 'noca',
-      header: t.op_col_criticality,
-      render: (a) => (
-        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${NOCA_TONE[a.riskEvaluation.nocaThreshold]}`}>
-          {a.riskEvaluation.nocaThreshold}
-        </span>
-      ),
-    },
-    {
-      key: 'urgency',
-      header: t.op_col_sev_urg,
-      render: (a) => (
-        <div className="space-y-1 whitespace-nowrap">
-          <PriorityBadge priority={effectivePriority(a)} label={urgencyLabels[effectivePriority(a)]} />
-          {a.severity && <span className="block text-[10px] text-slate-500">{severityLabels[a.severity]}</span>}
-        </div>
-      ),
-    },
-    {
-      key: 'received',
-      header: t.desk_col_received,
-      render: (a) => new Date(a.createdAt).toLocaleDateString(dateLocale),
-      hideOnMobile: true,
-    },
-    ...(canActOnRows
-      ? [
-          {
-            key: 'action',
-            header: '',
-            render: (a: AlertRecord) => (
-              <button
-                onClick={(e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  if (cfg.rowAction === 'followup') {
-                    setFollowupTargetIds([a.id]);
-                    setFollowupText('');
-                  } else {
-                    setAssignTargetIds([a.id]);
-                    setAssignSelectedInvestigatorIds(a.assignedInvestigators);
-                  }
-                }}
-                className="flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 whitespace-nowrap"
-              >
-                {cfg.rowAction === 'followup' ? (
-                  <><Send className="w-3 h-3" /> {t.op_followup}</>
-                ) : cfg.rowAction === 'reassign' ? (
-                  <><UserCog className="w-3 h-3" /> {t.op_reassign}</>
-                ) : (
-                  <><UserPlus className="w-3 h-3" /> {t.op_assign}</>
-                )}
-              </button>
-            ),
-          },
-        ]
-      : []),
-  ];
+  // === AMÉLIORATION AJOUTÉE (Refactor OperatorCaseDesk — extraction par
+  // section) === `closedColumns`/`columns` déplacées telles quelles dans
+  // src/components/operatorDesk/OperatorCaseTable.tsx (seul utilisateur).
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
@@ -935,245 +533,79 @@ export const OperatorCaseDesk: React.FC<OperatorCaseDeskProps> = ({ lang, active
         // à `canActOnRows` (déjà faux ici, `rowAction: 'none'`) — rien de
         // spécifique à ajouter pour ce nouveau mode.
         // fiche dossier entière (mêmes 9 onglets qu'avant, inchangés).
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-              <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
-                {canActOnRows && <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} className="rounded text-blue-600" />}
-                {t.op_reports_count.replace('{n}', String(filteredAlerts.length))}
-              </label>
-            </div>
-            {filteredAlerts.length === 0 ? (
-              <div className="p-4"><EmptyState title={displayEmpty} /></div>
-            ) : (
-              <div className="divide-y divide-slate-100 max-h-[70vh] overflow-y-auto">
-                {filteredAlerts.map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => setPanelAlertId(a.id)}
-                    className={`w-full text-left p-3.5 flex items-start gap-2.5 hover:bg-slate-50 transition ${panelAlertId === a.id ? 'bg-blue-50' : ''}`}
-                  >
-                    {canActOnRows && (
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(a.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={() => toggleSelect(a.id)}
-                        className="mt-1 rounded text-blue-600 shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono font-bold text-[#0B2545] text-xs">{a.trackingNumber}</span>
-                        <PriorityBadge priority={effectivePriority(a)} label={urgencyLabels[effectivePriority(a)]} size="sm" />
-                      </div>
-                      <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{trData(a.category, lang)} — {a.concernedEntity}</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{new Date(a.createdAt).toLocaleDateString(dateLocale)} · {channelLabels[a.channel]}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-            {!panelAlert ? (
-              <EmptyState icon={Inbox} title={t.op_select_prompt} description={t.op_select_prompt_desc} />
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-[#0B2545]">{panelAlert.trackingNumber}</span>
-                      <ConfidentialityBadge level={panelAlert.confidentialityLevel} lang={lang} />
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1">{trData(panelAlert.category, lang)} — {trData(panelAlert.subCategory, lang)}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1"><Building2 className="w-3 h-3" /> {panelAlert.concernedEntity} ({formatCountryLabel(storage.getCountries(), panelAlert.country)})</p>
-                  </div>
-                  <button onClick={() => setPanelAlertId(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 lg:hidden">
-                    <ArrowLeft className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap text-[11px]">
-                  <span className={`px-2 py-0.5 rounded font-bold border ${NOCA_TONE[panelAlert.riskEvaluation.nocaThreshold]}`}>{panelAlert.riskEvaluation.nocaThreshold}</span>
-                  <PriorityBadge priority={effectivePriority(panelAlert)} label={urgencyLabels[effectivePriority(panelAlert)]} />
-                  {panelAlert.severity && <span className="px-2 py-0.5 rounded font-bold border bg-slate-100 text-slate-700 border-slate-200">{severityLabels[panelAlert.severity]}</span>}
-                  <span className="px-2 py-0.5 rounded font-bold border bg-slate-100 text-slate-700 border-slate-200">{channelLabels[panelAlert.channel]}</span>
-                </div>
-
-                <p className="text-xs text-slate-700 bg-slate-50 rounded-xl p-3 border border-slate-100 line-clamp-4">{panelAlert.detailedDescription}</p>
-
-                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                  <span className="text-[11px] text-slate-500">
-                    {panelAlert.assignedInvestigatorNames.length > 0 ? t.op_assigned_to.replace('{names}', panelAlert.assignedInvestigatorNames.join(', ')) : t.op_not_assigned}
-                  </span>
-                  {canAssign && (
-                    <Button
-                      size="sm"
-                      icon={<UserPlus className="w-3.5 h-3.5" />}
-                      onClick={() => { setAssignTargetIds([panelAlert.id]); setAssignSelectedInvestigatorIds(panelAlert.assignedInvestigators); }}
-                    >
-                      {t.op_assign}
-                    </Button>
-                  )}
-                </div>
-
-                <div className="border-t border-slate-100 pt-3">
-                  <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block">{t.op_reply_wb}</label>
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      rows={2}
-                      placeholder={t.op_reply_ph}
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm"
-                    />
-                    <button onClick={handleQuickReply} disabled={!replyText.trim()} className="p-2.5 rounded-xl bg-brand text-white disabled:opacity-40 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 transition">
-                      <Send className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => onOpenCase(panelAlert.trackingNumber)}
-                  className="w-full text-center py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
-                >
-                  {t.op_open_full}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <OperatorInboxPanel
+          t={t}
+          lang={lang}
+          dateLocale={dateLocale}
+          canActOnRows={canActOnRows}
+          canAssign={canAssign}
+          allPageSelected={allPageSelected}
+          toggleSelectAll={toggleSelectAll}
+          selectedIds={selectedIds}
+          toggleSelect={toggleSelect}
+          filteredAlerts={filteredAlerts}
+          displayEmpty={displayEmpty}
+          panelAlertId={panelAlertId}
+          setPanelAlertId={setPanelAlertId}
+          panelAlert={panelAlert}
+          urgencyLabels={urgencyLabels}
+          severityLabels={severityLabels}
+          channelLabels={channelLabels}
+          setAssignTargetIds={setAssignTargetIds}
+          setAssignSelectedInvestigatorIds={setAssignSelectedInvestigatorIds}
+          replyText={replyText}
+          setReplyText={setReplyText}
+          handleQuickReply={handleQuickReply}
+          onOpenCase={onOpenCase}
+        />
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          {canActOnRows && (
-            <div className="flex items-center gap-2 mb-3 text-xs">
-              <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
-                <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} className="rounded text-blue-600" />
-                {t.op_select_all}
-              </label>
-            </div>
-          )}
-          <DataTable
-            columns={columns}
-            rows={filteredAlerts}
-            getRowKey={(a) => a.id}
-            // === AMÉLIORATION AJOUTÉE (Retours visuels — clic de ligne) ===
-            // BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : sur "À
-            // attribuer" (`rowAction === 'assign'`), cliquer une ligne ne
-            // doit RIEN ouvrir — seul le bouton "Attribuer" (colonne
-            // dédiée, déjà réel) doit ouvrir la modale d'attribution.
-            // "Dossiers attribués"/"En attente d'infos" (reassign/followup)
-            // gardent le clic de ligne → fiche dossier complète, demandé
-            // explicitement pour "Dossiers attribués" et vérifié en direct.
-            onRowClick={cfg.rowAction === 'assign' ? undefined : (a) => onOpenCase(a.trackingNumber)}
-            // === AMÉLIORATION AJOUTÉE (masquer le chevron redondant —
-            // reassign/followup) === Ces deux modes cumulent déjà une
-            // colonne d'action dédiée ("Réattribuer"/"Relancer") avec le
-            // clic de ligne : le chevron générique juste après donnait
-            // une impression de doublon visuel. Le clic de ligne reste
-            // pleinement fonctionnel (`onRowClick` ci-dessus inchangé) —
-            // seul l'indicateur visuel superflu disparaît.
-            hideRowClickIndicator={cfg.rowAction === 'reassign' || cfg.rowAction === 'followup'}
-            emptyTitle={displayEmpty}
-          />
-        </div>
+        <OperatorCaseTable
+          t={t}
+          lang={lang}
+          dateLocale={dateLocale}
+          mode={mode}
+          cfg={cfg}
+          canActOnRows={canActOnRows}
+          selectedIds={selectedIds}
+          toggleSelect={toggleSelect}
+          allPageSelected={allPageSelected}
+          toggleSelectAll={toggleSelectAll}
+          setAssignTargetIds={setAssignTargetIds}
+          setAssignSelectedInvestigatorIds={setAssignSelectedInvestigatorIds}
+          setFollowupTargetIds={setFollowupTargetIds}
+          setFollowupText={setFollowupText}
+          urgencyLabels={urgencyLabels}
+          severityLabels={severityLabels}
+          filteredAlerts={filteredAlerts}
+          onOpenCase={onOpenCase}
+          displayEmpty={displayEmpty}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === modale d'attribution partagée (simple ou groupée) */}
       {assignTargetIds && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setAssignTargetIds(null)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900">{t.op_assign_title}</h3>
-              <button onClick={() => setAssignTargetIds(null)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
-            </div>
-            <p className="text-xs text-slate-500">{t.op_selected_count_dot.replace('{n}', String(assignTargetIds.length))}</p>
-
-            {assignCandidates.compatible.length === 0 && assignCandidates.groupAuthorized.length === 0 ? (
-              <EmptyState
-                icon={UserPlus}
-                title={t.op_no_compatible}
-                description={
-                  assignTargetIds.length > 1
-                    ? t.op_no_compatible_multi
-                    : t.op_no_compatible_single
-                }
-              />
-            ) : (
-              <div className="space-y-3">
-                {assignCandidates.compatible.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">{t.op_compatible_same_scope}</p>
-                    <div className="space-y-1.5">
-                      {assignCandidates.compatible.map((c) => (
-                        <AssignCandidateRow
-                          key={c.user.id}
-                          candidate={c}
-                          checked={assignSelectedInvestigatorIds.includes(c.user.id)}
-                          onToggle={(checked) => setAssignSelectedInvestigatorIds((prev) => (checked ? [...prev, c.user.id] : prev.filter((id) => id !== c.user.id)))}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {assignCandidates.groupAuthorized.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1.5">{t.op_group_authorised}</p>
-                    <div className="space-y-1.5">
-                      {assignCandidates.groupAuthorized.map((c) => (
-                        <AssignCandidateRow
-                          key={c.user.id}
-                          candidate={c}
-                          checked={assignSelectedInvestigatorIds.includes(c.user.id)}
-                          onToggle={(checked) => setAssignSelectedInvestigatorIds((prev) => (checked ? [...prev, c.user.id] : prev.filter((id) => id !== c.user.id)))}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <Button variant="secondary" size="sm" onClick={() => setAssignTargetIds(null)}>{t.btn_cancel}</Button>
-              <Button
-                size="sm"
-                disabled={assignSelectedInvestigatorIds.length === 0}
-                onClick={handleConfirmAssign}
-              >
-                {t.op_confirm_assign}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <OperatorAssignModal
+          t={t}
+          assignTargetIds={assignTargetIds}
+          setAssignTargetIds={setAssignTargetIds}
+          assignCandidates={assignCandidates}
+          assignSelectedInvestigatorIds={assignSelectedInvestigatorIds}
+          setAssignSelectedInvestigatorIds={setAssignSelectedInvestigatorIds}
+          handleConfirmAssign={handleConfirmAssign}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (Refonte Opérateur v2) === modale de relance partagée (En attente d'infos) */}
       {followupTargetIds && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setFollowupTargetIds(null)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900">{t.op_followup_title}</h3>
-              <button onClick={() => setFollowupTargetIds(null)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
-            </div>
-            <p className="text-xs text-slate-500">{t.op_followup_count.replace('{n}', String(followupTargetIds.length))}</p>
-            <textarea
-              value={followupText}
-              onChange={(e) => setFollowupText(e.target.value)}
-              placeholder={defaultFollowupMessage}
-              rows={4}
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setFollowupTargetIds(null)}>{t.btn_cancel}</Button>
-              <Button size="sm" icon={<Send className="w-3.5 h-3.5" />} onClick={handleConfirmFollowup}>
-                {t.common_send}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <OperatorFollowupModal
+          t={t}
+          followupTargetIds={followupTargetIds}
+          setFollowupTargetIds={setFollowupTargetIds}
+          followupText={followupText}
+          setFollowupText={setFollowupText}
+          defaultFollowupMessage={defaultFollowupMessage}
+          handleConfirmFollowup={handleConfirmFollowup}
+        />
       )}
     </div>
   );
