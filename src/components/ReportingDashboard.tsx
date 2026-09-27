@@ -1,13 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {
-  BarChart3,
-  ShieldCheck,
-  Building2,
-  CheckCircle2,
-  FileSpreadsheet,
-  Filter,
-  X,
-} from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (Refactor ReportingDashboard — extraction par section) ===
+// Les icônes lucide-react et `trData` ne sont plus utilisés qu'à l'intérieur
+// des sous-composants de ./reporting/, qui les importent eux-mêmes.
 import { Language, AlertRecord, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
@@ -26,67 +20,24 @@ import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import type ExcelJS from 'exceljs';
 // === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de bord Statistiques) ===
 import { ReportingPrintView } from './ReportingPrintView';
-// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
-import { trData } from '../i18n/dataLabels';
+// === AMÉLIORATION AJOUTÉE (Refactor ReportingDashboard — extraction par section) ===
+// Groupes de champs d'export et sous-composants de rendu déplacés dans
+// ./reporting/ — voir l'en-tête de chaque fichier.
+import { EXPORT_FIELD_GROUPS } from './reporting/exportFieldGroups';
+import type { ExportFieldGroupKey } from './reporting/exportFieldGroups';
+import { ReportingHeader } from './reporting/ReportingHeader';
+import { ReportingFilterBar } from './reporting/ReportingFilterBar';
+import { ReportingKpiCards } from './reporting/ReportingKpiCards';
+import { SeverityBreakdownCard } from './reporting/SeverityBreakdownCard';
+import { CategoryBreakdownCard } from './reporting/CategoryBreakdownCard';
+import { GeoBreakdownCard } from './reporting/GeoBreakdownCard';
+import { ChannelsCard } from './reporting/ChannelsCard';
+import { ReportingExportModal } from './reporting/ReportingExportModal';
 
 interface ReportingDashboardProps {
   lang: Language;
   activeUser: UserProfile;
 }
-
-// === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des données) ===
-// "Champs à inclure" façon maquette : chaque groupe correspond à une ou
-// plusieurs colonnes réelles déjà présentes dans l'export CSV existant
-// (jamais une donnée fabriquée) — voir `handleExportCSV`, qui ne construit
-// désormais que les colonnes dont le groupe est coché. L'identité du
-// déclarant reste régie par la case "Générer un rapport 100% anonymisé"
-// déjà existante, séparée de cette liste (elle a déjà son propre
-// contrôle).
-type ExportFieldGroupKey = 'general' | 'status_dates' | 'geo' | 'persons' | 'corrective';
-interface ExportFieldGroup {
-  key: ExportFieldGroupKey;
-  label: string;
-  columns: { header: string; value: (a: AlertRecord) => string | number }[];
-}
-const EXPORT_FIELD_GROUPS: ExportFieldGroup[] = [
-  {
-    key: 'general',
-    label: 'Informations générales',
-    columns: [
-      { header: 'Reference', value: (a) => a.trackingNumber },
-      { header: 'Categorie', value: (a) => `"${a.category}"` },
-      { header: 'Sous_Categorie', value: (a) => `"${a.subCategory}"` },
-    ],
-  },
-  {
-    key: 'status_dates',
-    label: 'Statut et dates',
-    columns: [
-      { header: 'Date_Depot', value: (a) => a.createdAt.split('T')[0] },
-      { header: 'Statut', value: (a) => a.status },
-      { header: 'Criticite_NOCA', value: (a) => a.riskEvaluation.nocaThreshold },
-      { header: 'Priorite', value: (a) => a.riskEvaluation.priority },
-    ],
-  },
-  {
-    key: 'geo',
-    label: 'Pays / Entité',
-    columns: [
-      { header: 'Pays', value: (a) => `"${a.country}"` },
-      { header: 'Entite', value: (a) => `"${a.concernedEntity}"` },
-    ],
-  },
-  {
-    key: 'persons',
-    label: 'Personnes impliquées',
-    columns: [{ header: 'Personnes_Impliquees_Nb', value: (a) => a.involvedPersons.length }],
-  },
-  {
-    key: 'corrective',
-    label: 'Mesures correctives',
-    columns: [{ header: 'Mesures_Correctives_Nb', value: (a) => a.correctiveMeasures.length }],
-  },
-];
 
 export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   lang,
@@ -344,302 +295,81 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
       {/* Top Header */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <BarChart3 className="w-5 h-5 text-blue-700" />
-              <h2 className="text-xl font-bold text-slate-900">
-                {t.reporting_title}
-              </h2>
-            </div>
-            <p className="text-xs text-slate-600">
-              {t.rep_subtitle}
-            </p>
-          </div>
-
-          {/* === AMÉLIORATION AJOUTÉE (Retours visuels — écran Rapports
-              allégé) === bouton unique (PDF + CSV réunis, la case
-              "anonymiser" et le bouton "Imprimer" séparé retirés) — ouvre
-              toujours la même modale déjà réelle, qui propose le choix du
-              format.
-              === AMÉLIORATION AJOUTÉE (Retours visuels — bouton bleu, export
-              Excel réel) === couleur passée en bleu (au lieu du bleu marine
-              #0B2545) sur retour utilisateur explicite. */}
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            <button
-              id="btn-export-report"
-              onClick={() => setShowExportModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-xs transition"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
-              <span>{t.report_btn_export}</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      <ReportingHeader
+        t={t}
+        setShowExportModal={setShowExportModal}
+      />
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — barre de filtres réels) === */}
-      <div id="report-anchor-custom" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center gap-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wide mr-1">
-          <Filter className="w-3.5 h-3.5" /> {t.report_filters_label}
-        </span>
-        <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value as typeof periodFilter)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
-          <option value="all">{t.report_filter_period_all}</option>
-          <option value="30d">{t.report_filter_period_30d}</option>
-          <option value="90d">{t.report_filter_period_90d}</option>
-          <option value="365d">{t.report_filter_period_365d}</option>
-        </select>
-        {/* === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
-            Ne propose que les pays/entités du périmètre de ce compte
-            (visibleCountries/visibleEntities) — un compte à vision Groupe
-            continue de voir la liste complète, inchangée. */}
-        <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
-          <option value="all">{t.report_filter_country_all}</option>
-          {visibleCountries.map((c) => (
-            <option key={c.code} value={c.name}>{c.flag} {trData(c.name, lang)}</option>
-          ))}
-        </select>
-        <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
-          <option value="all">{t.report_filter_entity_all}</option>
-          {visibleEntities.map((e) => (
-            <option key={e.id} value={e.name}>{e.name}</option>
-          ))}
-        </select>
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
-          <option value="all">{t.report_filter_category_all}</option>
-          {categoriesConfig.map((c) => (
-            <option key={c.id} value={c.name}>{trData(c.name, lang)}</option>
-          ))}
-        </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
-          <option value="all">{t.report_filter_status_all}</option>
-          <option value="new">{t.status_new}</option>
-          <option value="under_review">{t.status_under_review}</option>
-          <option value="investigation">{t.status_investigation}</option>
-          <option value="corrective_action">{t.status_corrective_action}</option>
-          <option value="closed">{t.status_closed}</option>
-          <option value="reopened">{t.status_reopened}</option>
-          <option value="archived">{t.status_archived}</option>
-        </select>
-        {filtersActive && (
-          <button onClick={resetFilters} className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:underline ml-1">
-            <X className="w-3 h-3" /> {t.report_filters_reset}
-          </button>
-        )}
-        <span className="ml-auto text-[11px] text-slate-400 font-medium">
-          {alerts.length} / {allAlerts.length} {t.report_filters_results_suffix}
-        </span>
-      </div>
+      <ReportingFilterBar
+        t={t}
+        lang={lang}
+        periodFilter={periodFilter}
+        setPeriodFilter={setPeriodFilter}
+        countryFilter={countryFilter}
+        setCountryFilter={setCountryFilter}
+        entityFilter={entityFilter}
+        setEntityFilter={setEntityFilter}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        visibleCountries={visibleCountries}
+        visibleEntities={visibleEntities}
+        categoriesConfig={categoriesConfig}
+        filtersActive={filtersActive}
+        resetFilters={resetFilters}
+        alerts={alerts}
+        allAlerts={allAlerts}
+      />
 
       {/* KPI Highlight Cards (CDC 3.1.4 Required Metrics) */}
-      <div id="report-anchor-activity" className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
-            {t.rep_total_received}
-          </div>
-          <div className="text-3xl font-extrabold text-[#0B2545] mt-1">{totalAlerts}</div>
-          <div className="text-[11px] text-slate-500 mt-2 flex items-center gap-1">
-            <span className="font-semibold text-blue-700">{t.rep_active_n.replace('{n}', String(activeAlerts))}</span>
-            <span>•</span>
-            <span className="font-semibold text-emerald-700">{t.rep_resolved_n.replace('{n}', String(closedAlerts))}</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
-            {t.rep_resolution_rate}
-          </div>
-          <div className="text-3xl font-extrabold text-emerald-700 mt-1">{resolutionRate}%</div>
-          <div className="w-full bg-slate-100 rounded-full h-1.5 mt-3 overflow-hidden">
-            <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: `${resolutionRate}%` }} />
-          </div>
-        </div>
-
-        <div id="report-anchor-sla" className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
-            {t.rep_avg_processing}
-          </div>
-          <div className="text-3xl font-extrabold text-blue-800 mt-1">{t.rep_avg_days.replace('{n}', String(avgResolutionDays))}</div>
-          <div className="text-[11px] text-slate-500 mt-2">
-            {t.rep_sla_goal}
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="text-slate-500 font-medium text-[11px] uppercase tracking-wider">
-            {t.rep_anonymous}
-          </div>
-          <div className="text-3xl font-extrabold text-amber-700 mt-1">{anonymousPct}%</div>
-          <div className="text-[11px] text-slate-500 mt-2">
-            {t.rep_anon_vs_identified.replace('{a}', String(anonymousCount)).replace('{b}', String(identifiedCount))}
-          </div>
-        </div>
-      </div>
+      <ReportingKpiCards
+        t={t}
+        totalAlerts={totalAlerts}
+        activeAlerts={activeAlerts}
+        closedAlerts={closedAlerts}
+        resolutionRate={resolutionRate}
+        avgResolutionDays={avgResolutionDays}
+        anonymousPct={anonymousPct}
+        anonymousCount={anonymousCount}
+        identifiedCount={identifiedCount}
+      />
 
       {/* Grid: Charts & Distributions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 1. Distribution by Risk Matrix Gravity (NOCA 1 to 4) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              {t.rep_severity_breakdown}
-            </h3>
-            <span className="text-[11px] text-slate-500 font-medium">{t.rep_score_range}</span>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            {/* NOCA 4 */}
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-rose-800">{t.rep_noca4}</span>
-                <span className="text-slate-700">{noca4Count} ({totalAlerts > 0 ? Math.round((noca4Count / totalAlerts) * 100) : 0}%)</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-rose-600 h-2 rounded-full transition-all" 
-                  style={{ width: `${totalAlerts > 0 ? (noca4Count / totalAlerts) * 100 : 0}%` }} 
-                />
-              </div>
-            </div>
-
-            {/* NOCA 3 */}
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-orange-800">{t.rep_noca3}</span>
-                <span className="text-slate-700">{noca3Count} ({totalAlerts > 0 ? Math.round((noca3Count / totalAlerts) * 100) : 0}%)</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-orange-500 h-2 rounded-full transition-all" 
-                  style={{ width: `${totalAlerts > 0 ? (noca3Count / totalAlerts) * 100 : 0}%` }} 
-                />
-              </div>
-            </div>
-
-            {/* NOCA 2 */}
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-amber-800">{t.rep_noca2}</span>
-                <span className="text-slate-700">{noca2Count} ({totalAlerts > 0 ? Math.round((noca2Count / totalAlerts) * 100) : 0}%)</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-amber-500 h-2 rounded-full transition-all" 
-                  style={{ width: `${totalAlerts > 0 ? (noca2Count / totalAlerts) * 100 : 0}%` }} 
-                />
-              </div>
-            </div>
-
-            {/* NOCA 1 */}
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-emerald-800">{t.rep_noca1}</span>
-                <span className="text-slate-700">{noca1Count} ({totalAlerts > 0 ? Math.round((noca1Count / totalAlerts) * 100) : 0}%)</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-emerald-500 h-2 rounded-full transition-all" 
-                  style={{ width: `${totalAlerts > 0 ? (noca1Count / totalAlerts) * 100 : 0}%` }} 
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <SeverityBreakdownCard
+          t={t}
+          totalAlerts={totalAlerts}
+          noca4Count={noca4Count}
+          noca3Count={noca3Count}
+          noca2Count={noca2Count}
+          noca1Count={noca1Count}
+        />
 
         {/* 2. Breakdown by Category (CDC 2.0 Périmètre) */}
-        <div id="report-anchor-category" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              {t.rep_by_category}
-            </h3>
-            <span className="text-[11px] text-slate-500 font-medium">{t.rep_categories_n.replace('{n}', String(Object.keys(categoryCounts).length))}</span>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            {Object.entries(categoryCounts).map(([cat, count]) => {
-              const pct = totalAlerts > 0 ? Math.round((count / totalAlerts) * 100) : 0;
-              return (
-                <div key={cat}>
-                  <div className="flex justify-between font-semibold mb-1">
-                    <span className="text-slate-800 truncate max-w-[280px]">{trData(cat, lang)}</span>
-                    <span className="text-slate-600">{count} ({pct}%)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all" 
-                      style={{ width: `${pct}%` }} 
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <CategoryBreakdownCard
+          t={t}
+          lang={lang}
+          totalAlerts={totalAlerts}
+          categoryCounts={categoryCounts}
+        />
 
         {/* 3. Geographic Breakdown across 10 Countries (CDC 1.0) */}
-        <div id="report-anchor-geo" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 className="w-4 h-4 text-blue-700" />
-              {/* === AMÉLIORATION AJOUTÉE (Phase 10 — évolution multi-pays/multi-entité) ===
-                  Libellés dynamiques (visibleCountries/visibleEntities), plus
-                  de "10 pays"/"16 entités" en dur — s'ajuste au périmètre du
-                  compte ET aux pays/entités réellement configurés (Phase 8). */}
-              {t.rep_geo_title.replace('{n}', String(visibleCountries.length))}
-            </h3>
-            <span className="text-[11px] text-slate-500 font-medium">{t.rep_entities_n.replace('{n}', String(visibleEntities.length))}</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
-            {visibleCountries.map((cty) => {
-              const count = countryCounts[cty.name] || 0;
-              return (
-                <div key={cty.code} className="p-2.5 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span>{cty.flag}</span>
-                    <span className="font-medium text-slate-800 truncate">{cty.name}</span>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                    count > 0 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
-                  }`}>
-                    {count}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <GeoBreakdownCard
+          t={t}
+          visibleCountries={visibleCountries}
+          visibleEntities={visibleEntities}
+          countryCounts={countryCounts}
+        />
 
         {/* 4. Intake Channels & Protection stats */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              {t.rep_channels}
-            </h3>
-            <span className="text-[11px] text-slate-500 font-medium">{t.rep_audited}</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
-              <span className="text-[11px] font-semibold text-slate-500 block mb-1">{t.rep_web_portal}</span>
-              <div className="text-2xl font-extrabold text-[#0B2545]">{webChannelCount}</div>
-              <p className="text-[10px] text-slate-500 mt-1">{t.rep_browser}</p>
-            </div>
-
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
-              <span className="text-[11px] font-semibold text-slate-500 block mb-1">{t.rep_qr_posters}</span>
-              <div className="text-2xl font-extrabold text-amber-700">{qrChannelCount}</div>
-              <p className="text-[10px] text-slate-500 mt-1">{t.rep_direct_mobile}</p>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span>{t.rep_compliance_note}</span>
-          </div>
-        </div>
+        <ChannelsCard
+          t={t}
+          webChannelCount={webChannelCount}
+          qrChannelCount={qrChannelCount}
+        />
       </div>
 
       {/* === AMÉLIORATION AJOUTÉE (Repère visuel — Modale Exporter des
@@ -660,77 +390,16 @@ export const ReportingDashboard: React.FC<ReportingDashboardProps> = ({
           `handleExportCSV` la fois précédente) mais n'est plus le format
           proposé par cette modale. */}
       {showExportModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-xs">
-            <h3 className="text-sm font-bold text-slate-900">{t.export_modal_title}</h3>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_format}</label>
-              <div className="flex gap-1.5">
-                {(['csv', 'pdf'] as const).map((fmt) => (
-                  <button
-                    key={fmt}
-                    type="button"
-                    onClick={() => setExportFormat(fmt)}
-                    className={`flex-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border transition ${
-                      exportFormat === fmt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                    }`}
-                  >
-                    {fmt === 'csv' ? t.export_modal_format_csv : t.export_modal_format_pdf}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {exportFormat === 'csv' && (
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">{t.export_modal_fields}</label>
-                <div className="space-y-1.5">
-                  {EXPORT_FIELD_GROUPS.map((g) => (
-                    <label key={g.key} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={exportFields.has(g.key)}
-                        onChange={(e) => {
-                          const next = new Set(exportFields);
-                          if (e.target.checked) next.add(g.key);
-                          else next.delete(g.key);
-                          setExportFields(next);
-                        }}
-                        className="rounded text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-slate-700">{({ general: t.rep_group_general, status_dates: t.rep_group_status_dates, geo: t.rep_group_country_entity, persons: t.rep_group_persons, corrective: t.rep_group_measures } as Record<string, string>)[g.key] ?? g.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button type="button" onClick={() => setShowExportModal(false)} className="px-3 py-1.5 text-slate-600 rounded-lg hover:bg-slate-100">
-                {t.btn_cancel}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  // === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de
-                  // bord Statistiques) === Ferme cette modale AVANT
-                  // d'imprimer (plutôt qu'après) : sinon elle restait
-                  // visible derrière la boîte de dialogue d'impression du
-                  // navigateur, source de confusion signalée par
-                  // l'utilisateur.
-                  setShowExportModal(false);
-                  if (exportFormat === 'csv') handleExportCSV(exportFields);
-                  else handlePrint();
-                }}
-                disabled={exportFormat === 'csv' && exportFields.size === 0}
-                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold"
-              >
-                {t.export_modal_export}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ReportingExportModal
+          t={t}
+          exportFormat={exportFormat}
+          setExportFormat={setExportFormat}
+          exportFields={exportFields}
+          setExportFields={setExportFields}
+          setShowExportModal={setShowExportModal}
+          handleExportCSV={handleExportCSV}
+          handlePrint={handlePrint}
+        />
       )}
 
       {/* === AMÉLIORATION AJOUTÉE (export PDF réel du tableau de bord
