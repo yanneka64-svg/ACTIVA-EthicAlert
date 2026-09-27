@@ -8,7 +8,6 @@
  * Code strictement déplacé depuis OperatorCaseDesk.tsx, pas réécrit —
  * aucun changement de comportement.
  */
-import React from 'react';
 import { Lock } from 'lucide-react';
 import { Language } from '../../types';
 import { ConfidentialityLevel } from '../../domain/caseTypes';

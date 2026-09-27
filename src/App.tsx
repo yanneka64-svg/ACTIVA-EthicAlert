@@ -35,7 +35,6 @@ import { StaffSpaceHome, CaseLookup, StaffLoginView } from './app/lazyScreens';
 import { StaffLoadingFallback } from './app/StaffLoadingFallback';
 import { renderStaffScreen } from './app/renderStaffScreen';
 import { AppFooter } from './app/AppFooter';
-import { ShieldOff } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE : correction post-fusion ===
 // Ces imports (routage par URL, garde-fous, pont RBAC, écran de connexion
 // interne — Phase 12.2/12.3/12.4) avaient disparu lors de la fusion avec la

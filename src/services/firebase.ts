@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { initializeApp, getApps, FirebaseApp, deleteApp } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { 
   getFirestore, 
   Firestore, 
@@ -7,8 +7,6 @@ import {
   doc, 
   setDoc, 
   getDocs, 
-  getDoc,
-  onSnapshot 
 } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
 import { AlertRecord, AuditLogEntry } from '../types';

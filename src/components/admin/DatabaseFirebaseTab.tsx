@@ -26,7 +26,6 @@ import {
   getActiveFirebaseConfig,
   setCustomFirebaseConfig,
   clearCustomFirebaseConfig,
-  fetchAlertsFromCloud
 } from '../../services/firebase';
 
 interface DatabaseFirebaseTabProps {

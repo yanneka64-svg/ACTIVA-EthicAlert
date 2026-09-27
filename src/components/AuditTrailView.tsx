@@ -2,16 +2,10 @@ import React, { useState } from 'react';
 import {
   History,
   Search,
-  Filter,
   Download,
-  ShieldCheck,
-  User,
-  Calendar,
-  FileText,
-  Clock,
   Link2
 } from 'lucide-react';
-import { Language, AuditLogEntry, UserProfile } from '../types';
+import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 8 : indicateur

@@ -33,7 +33,10 @@ import { AppUser } from '../domain/caseTypes';
 // ci-dessous, jamais statiquement ici — sinon TOUT écran import ant ce
 // module (ControlPanel.tsx) paierait le coût de ce SDK même quand Firebase
 // n'est pas configuré. Même discipline que `services/firebaseClient.ts`.
-import type { FirestoreCaseRepository } from '../data-access/firestoreCaseRepository';
+// === AMÉLIORATION AJOUTÉE (nettoyage des imports morts) === l'`import type`
+// de `FirestoreCaseRepository` qui suivait ce commentaire a été retiré : il
+// n'était plus référencé (le type est obtenu via l'import dynamique de
+// `fetchMirroredCasesForControlPanel`). La règle ci-dessus reste valable.
 import { isPhase4Configured } from './firebaseClient';
 
 // Pas de limite de pagination réelle côté UI ici : le Centre de Pilotage

@@ -8,7 +8,6 @@
  * tête du dossier sélectionné, et le nouvel onglet "Allégations" extrait
  * (voir TriageSection.tsx), sans duplication ni prop-drilling.
  */
-import React from 'react';
 import { AlertRecord } from '../../types';
 import { PriorityBadge } from '../ui';
 import { currentT } from '../../i18n/currentLang';

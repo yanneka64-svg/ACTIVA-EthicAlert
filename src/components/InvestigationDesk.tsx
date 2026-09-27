@@ -1,19 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Search,
-  Filter,
-  MessageSquare,
   RotateCcw,
-  Send,
   Lock,
-  FileCheck2,
-  CheckSquare,
-  Square,
   ArrowLeft,
   // === AMÉLIORATION AJOUTÉE (Branchement du moteur de workflow riche) ===
   HelpCircle,
-  // === AMÉLIORATION AJOUTÉE (Onglet Entretiens) ===
-  Mic,
+  // === AMÉLIORATION AJOUTÉE (nettoyage des imports morts) === `Mic` (onglet
+  // Entretiens), `Search`, `Filter`, `MessageSquare`, `Send`, `FileCheck2`,
+  // `CheckSquare` et `Square` retirés : plus utilisés dans ce fichier depuis
+  // l'extraction de leurs blocs dans ./investigation/.
 } from 'lucide-react';
 import {
   Language,
@@ -29,7 +24,6 @@ import { storage } from '../services/storage';
 // section) === premier contenu d'onglet extrait dans son propre composant,
 // voir src/components/investigation/CaseTimelineSection.tsx.
 import { CaseTimelineSection } from './investigation/CaseTimelineSection';
-import { PersonRow } from './investigation/PersonRow';
 import { PersonsSection } from './investigation/PersonsSection';
 import { EvidenceSection } from './investigation/EvidenceSection';
 import { MessagesSection } from './investigation/MessagesSection';
@@ -71,8 +65,10 @@ import { computeWorkload } from '../domain/workloadCalc';
 // regroupement en 5 paniers que le Tableau de bord (Phase 1), pour que les
 // onglets de filtre affichent exactement les mêmes catégories.
 import { AlertStatusBucket, getAlertStatusBucket, isRejectedBucket } from '../domain/alertStatusBuckets';
-// === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
-import { trData } from '../i18n/dataLabels';
+// === AMÉLIORATION AJOUTÉE (nettoyage des imports morts) === `trData`
+// (traduction des données par défaut à l'affichage) et `PersonRow` ne sont
+// plus importés ici : seuls les sous-composants de ./investigation/ qui les
+// utilisent les importent désormais.
 // === AMÉLIORATION AJOUTÉE (Refactor InvestigationDesk — extraction par section) ===
 // Formulaires d'ajout (état + gestionnaire) déplacés dans des hooks dédiés.
 // Les types (CorrectiveMeasure, TaskPriority, ConflictDeclaration,

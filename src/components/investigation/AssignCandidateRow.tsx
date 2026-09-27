@@ -24,7 +24,6 @@
  * panneau d'attribution, plutôt que de le dupliquer — aucun changement de
  * comportement ici.
  */
-import React from 'react';
 import { AssignmentCandidate } from '../../domain/assignmentEngine';
 import { formatCountryLabel } from '../../data/activaConfig';
 import { storage } from '../../services/storage';
