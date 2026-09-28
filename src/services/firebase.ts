@@ -12,6 +12,8 @@ import {
 } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
 import { AlertRecord, AuditLogEntry } from '../types';
+// === AMÉLIORATION AJOUTÉE (correctif — synchronisation Firestore) === retrait des valeurs `undefined`.
+import { toFirestoreData } from './firestoreSanitize';
 
 const metaEnv = (import.meta as any).env || {};
 
@@ -52,6 +54,31 @@ export const getActiveFirebaseConfig = (): FirebaseConfigOptions => {
   };
 };
 
+// === AMÉLIORATION AJOUTÉE (correctif — synchronisation Firestore) ===
+// La base Firestore du projet est une base NOMMÉE `default`, pas la base
+// spéciale `(default)` (docs/FIREBASE-SETUP.md) : `getFirestore(app)`
+// visait une base inexistante et chaque écriture échouait (NOT_FOUND).
+// Priorité : `databaseId` d'une configuration personnalisée (onglet Base de
+// données) → VITE_FIRESTORE_DATABASE_ID → `default`. Une configuration
+// personnalisée enregistrée AVANT ce correctif (sans `databaseId`) garde
+// l'ancien comportement `(default)`, qui correspond à un autre projet.
+export const getLegacyFirestoreDatabaseId = (): string => {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_FIREBASE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.apiKey && parsed.projectId) {
+          return typeof parsed.databaseId === 'string' && parsed.databaseId ? parsed.databaseId : '(default)';
+        }
+      }
+    } catch {
+      // ignore parsing error — même repli que getActiveFirebaseConfig
+    }
+  }
+  return metaEnv.VITE_FIRESTORE_DATABASE_ID || 'default';
+};
+
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let auth: Auth | null = null;
@@ -76,15 +103,21 @@ export const initFirebase = (forceReinit = false) => {
 
   if (conf.apiKey && conf.projectId) {
     try {
-      if (getApps().length > 0) {
-        app = getApps()[0];
+      // === AMÉLIORATION AJOUTÉE (correctif — synchronisation Firestore) ===
+      // Réutilise l'application Firebase PAR DÉFAUT uniquement : getApps()[0]
+      // pouvait renvoyer l'instance nommée « activa-hotline-phase4 »
+      // (firebaseClient.ts) si elle avait été créée en premier.
+      const existingDefault = getApps().find((a) => a.name === '[DEFAULT]');
+      if (existingDefault) {
+        app = existingDefault;
       } else {
         app = initializeApp(conf);
       }
       // === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === App Check, sans effet
       // tant que VITE_FIREBASE_APPCHECK_SITE_KEY n'est pas défini (appCheck.ts).
       void activateAppCheck(app);
-      db = getFirestore(app);
+      // === AMÉLIORATION AJOUTÉE (correctif — synchronisation Firestore) === base nommée du projet.
+      db = getFirestore(app, getLegacyFirestoreDatabaseId());
       auth = getAuth(app);
       console.log(`ACTIVA EthicAlert: Firebase Firestore initialisé pour le projet [${conf.projectId}].`);
     } catch (err) {
@@ -119,7 +152,8 @@ export const saveAlertToCloud = async (alert: AlertRecord): Promise<boolean> => 
 
   try {
     const alertRef = doc(db, 'alerts', alert.id);
-    await setDoc(alertRef, alert, { merge: true });
+    // === AMÉLIORATION AJOUTÉE (correctif) === sans valeurs `undefined` (refusées par Firestore).
+    await setDoc(alertRef, toFirestoreData(alert), { merge: true });
     return true;
   } catch (err) {
     console.warn('Erreur synchronisation Firestore pour le dossier ' + alert.trackingNumber, err);
@@ -134,7 +168,8 @@ export const saveAuditLogToCloud = async (log: AuditLogEntry): Promise<boolean> 
 
   try {
     const logRef = doc(db, 'audit_logs', log.id);
-    await setDoc(logRef, log);
+    // === AMÉLIORATION AJOUTÉE (correctif) === sans valeurs `undefined` (refusées par Firestore).
+    await setDoc(logRef, toFirestoreData(log));
     return true;
   } catch (err) {
     console.warn('Erreur écriture audit log Firestore', err);
