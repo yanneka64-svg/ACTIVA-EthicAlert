@@ -273,6 +273,26 @@ describe('storage — comptes staff (identifiant + mot de passe)', () => {
       expect(new Date(admin.passwordSetAt as string).getTime()).toBeGreaterThan(Date.now() - 60_000);
     });
 
+    // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2 : rotation du mot de passe de secours) ===
+    it("aligne un compte de secours jamais utilisé portant l'avant-dernière empreinte (SHA-256 itéré) sur la nouvelle empreinte PBKDF2", async () => {
+      const mockLocalStorage = makeLocalStorageMock();
+      mockLocalStorage.setItem(USERS_STORAGE_KEY, JSON.stringify([{
+        id: 'usr-emergency-admin', name: 'MEBADA EKANI Yannick', email: 'by.ekani@group-activa.com', username: 'y.mebadaekani',
+        role: 'system_admin', roleTitle: 'Group Forensic Analyst', entity: 'Toutes entités', country: 'Groupe ACTIVA',
+        countries: [], entities: [], active: true,
+        passwordHash: '667119d165a09b0db2cc89b70c540d87dec4b0ce20ec90a13cf9e27ae105fe9e',
+        passwordSalt: '7d4568809bc28c1cf187701d809b0a44', mustChangePassword: true, passwordSetAt: '2020-01-01T00:00:00.000Z',
+      }]));
+      vi.stubGlobal('localStorage', mockLocalStorage);
+
+      const { storage: freshStorage } = await import('./storage');
+      const [admin] = freshStorage.getUsers();
+      expect(admin.passwordHash).toMatch(/^pbkdf2_sha256\$600000\$[0-9a-f]{64}$/);
+      expect(admin.passwordSalt).not.toBe('7d4568809bc28c1cf187701d809b0a44');
+      expect(admin.mustChangePassword).toBe(true);
+      expect(new Date(admin.passwordSetAt as string).getTime()).toBeGreaterThan(Date.now() - 60_000);
+    });
+
     it("ne touche jamais un compte de secours dont l'administrateur a déjà défini son propre mot de passe", async () => {
       const mockLocalStorage = makeLocalStorageMock();
       const ownPassword = {

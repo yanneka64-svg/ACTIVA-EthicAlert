@@ -169,15 +169,18 @@ définir `NOTIFY_FROM_EMAIL`. Sans cela, l'expéditeur de test
 | **`listCases` : filtres poussés dans Firestore** (égalités seules, sans index composite), lecture des seules personnes `subject`, en parallèle ; pagination validée (limit 1–500). Résultat identique. | `src/domain/caseQuery.ts`, `functions/src/index.ts` | 4 tests + **112 comparaisons ancien/nouveau sur l'émulateur Firestore : 0 différence** |
 | Reliquats AI Studio (`GEMINI_API_KEY`, `APP_URL`) désactivés dans `.env.example` (jamais lus par l'application). | `.env.example` | — |
 
-Limites connues :
-- **Codes d'accès des lanceurs d'alerte déjà émis** : restent au format
-  hérité (vérifiés normalement) ; seuls les nouveaux sont en PBKDF2. Les
-  mettre à niveau exigerait de modifier le dossier à chaque consultation.
-- **Compte de secours** : son empreinte, embarquée dans le code publié,
-  reste au format hérité (le mot de passe temporaire n'est pas connu du
-  dépôt). Recommandé : faire générer un nouveau mot de passe temporaire
-  (empreinte PBKDF2) et le transmettre hors du dépôt — ou, mieux, retirer
-  ce compte dès que l'authentification Firebase du personnel est active.
+Limites connues — **corrigées** (=== AMÉLIORATION AJOUTÉE (Audit DevOps — P2, suite) ===) :
+- **Codes d'accès des lanceurs d'alerte déjà émis** : à la première
+  consultation réussie du dossier, l'empreinte héritée (ou un code de
+  démonstration stocké sans sel) est recalculée en PBKDF2 — sans modifier
+  `updatedAt`, sans audit, sans synchronisation cloud
+  (`storage.upgradeAccessCodeHashIfNeeded`, appelée par AlertTrackingView).
+- **Compte de secours** : nouveau mot de passe temporaire de 16 caractères,
+  empreinte PBKDF2 (plus attaquable par force brute), transmis hors du
+  dépôt à l'administrateur. Un compte de secours jamais utilisé est aligné
+  automatiquement ; changement toujours obligatoire à la première connexion.
+  À terme, retirer ce compte dès que l'authentification Firebase du
+  personnel est active.
 
 ### 4.2 Sauvegardes Firestore (à faire, plan Blaze requis)
 La base du projet est la base **nommée** `default` (voir `firebase.json`).

@@ -153,6 +153,9 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     }
 
     clearAttempts(trimmedNum);
+    // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === code d'accès prouvé :
+    // une empreinte héritée est recalculée en PBKDF2, sans effet visible.
+    void storage.upgradeAccessCodeHashIfNeeded(alert.id, passwordInput);
     setActiveAlert(alert);
     storage.logAudit(
       'ALERT_ACCESSED',

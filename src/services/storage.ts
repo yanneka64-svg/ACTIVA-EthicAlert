@@ -432,10 +432,19 @@ class StorageService {
   // empreintes des anciens mots de passe de secours sont conservées pour que
   // `upgradeEmergencySeed` aligne un compte de secours jamais utilisé (mot
   // de passe perdu ou expiré) sur le mot de passe temporaire actuel.
-  private static readonly EMERGENCY_SEED_HASH = '667119d165a09b0db2cc89b70c540d87dec4b0ce20ec90a13cf9e27ae105fe9e';
-  private static readonly EMERGENCY_SEED_SALT = '7d4568809bc28c1cf187701d809b0a44';
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2 : rotation du mot de passe
+  // de secours) === Nouveau mot de passe temporaire de 16 caractères (CSPRNG,
+  // même alphabet que generateAccessPassword), empreinte PBKDF2-HMAC-SHA256
+  // 600 000 itérations — l'empreinte embarquée dans le code publié n'est plus
+  // attaquable par force brute. Communiqué séparément à l'administrateur,
+  // jamais committé en clair. L'empreinte précédente (SHA-256 itéré) rejoint
+  // la liste ci-dessous : un compte de secours encore jamais utilisé est
+  // aligné sur ce nouveau mot de passe au prochain chargement.
+  private static readonly EMERGENCY_SEED_HASH = 'pbkdf2_sha256$600000$618bd189adae0c986f1783b3c4149d6345597fdb565097b919f77a12e408c988';
+  private static readonly EMERGENCY_SEED_SALT = '162f87b68b97c86c91702e3758fa4e0f';
   private static readonly EMERGENCY_SEED_HASHES = [
     'ebea5dbccaaa1486532559de832900744b5ee8f92634be43a4abddf35fa52b6e',
+    '667119d165a09b0db2cc89b70c540d87dec4b0ce20ec90a13cf9e27ae105fe9e',
     StorageService.EMERGENCY_SEED_HASH,
   ];
 
@@ -617,6 +626,31 @@ class StorageService {
     alert.mirroredCaseNumber = caseNumber;
     this.persistAlerts();
     this.notify();
+  }
+
+  /**
+   * === AMÉLIORATION AJOUTÉE (Audit DevOps — P2 : codes d'accès hérités) ===
+   * Appelée par AlertTrackingView APRÈS une vérification réussie du code
+   * d'accès du lanceur d'alerte : une empreinte encore au format historique
+   * (SHA-256 itéré, ou code de démonstration stocké sans sel) est remplacée
+   * par une empreinte PBKDF2 (nouveau sel). Même code d'accès, rien d'autre
+   * ne change : ni `updatedAt`, ni entrée d'audit, ni synchronisation cloud
+   * (même principe purement technique que `linkMirroredCase`). Un échec
+   * n'affecte jamais l'accès au dossier.
+   */
+  public async upgradeAccessCodeHashIfNeeded(alertId: string, accessCode: string): Promise<void> {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert || !accessCode || !alert.accessCodeHash) return;
+    if (alert.accessCodeSalt && !needsRehash(alert.accessCodeHash)) return;
+    try {
+      const salt = generateSalt();
+      const hash = await hashPassword(accessCode, salt);
+      alert.accessCodeSalt = salt;
+      alert.accessCodeHash = hash;
+      this.persistAlerts();
+    } catch (e) {
+      console.warn('Access code hash upgrade skipped', e);
+    }
   }
 
   public deleteAlert(alertId: string): boolean {
