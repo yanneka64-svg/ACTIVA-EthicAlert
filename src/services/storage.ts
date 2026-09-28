@@ -22,6 +22,8 @@ import { setRolePermissionOverrides } from '../domain/permissionOverrides';
 // d'accès du lanceur d'alerte (AlertSubmissionFlow.tsx/AlertTrackingView.tsx) —
 // jamais réimplémenté séparément.
 import { generateAccessPassword, generateSalt, hashPassword, verifyPassword } from './crypto';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === mise à niveau transparente des empreintes héritées.
+import { needsRehash } from './crypto';
 
 // === AMÉLIORATION AJOUTÉE (Refactor storage.ts — extraction par section) ===
 // `STORAGE_KEYS` et `DATA_CHANGE_EVENT` déplacés tels quels dans
@@ -1165,7 +1167,37 @@ class StorageService {
 
     const passwordOk = await verifyPassword(password, user.passwordSalt, user.passwordHash);
     if (!passwordOk) return { ok: false, reason: 'wrong_password' };
+    // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === le mot de passe vient
+    // d'être prouvé : une empreinte encore au format historique (SHA-256
+    // itéré) est recalculée en PBKDF2, sans aucune action de l'utilisateur.
+    await this.upgradePasswordHashIfNeeded(user, password);
     return { ok: true, user, mustChangePassword: !!user.mustChangePassword };
+  }
+
+  /**
+   * === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) ===
+   * Remplace une empreinte héritée par une empreinte PBKDF2 (nouveau sel)
+   * après une vérification réussie. Mise à niveau purement technique : même
+   * mot de passe, aucune entrée d'audit, `passwordSetAt` inchangé (aucune
+   * incidence sur l'expiration ni sur l'obligation de changement).
+   * Jamais pour un mot de passe TEMPORAIRE (`mustChangePassword`) : il sera
+   * remplacé au premier changement (déjà en PBKDF2), et le compte de
+   * secours doit garder son empreinte reconnaissable par
+   * `upgradeEmergencySeed`. Un échec n'empêche jamais la connexion.
+   */
+  private async upgradePasswordHashIfNeeded(user: UserProfile, password: string): Promise<void> {
+    if (user.mustChangePassword || !needsRehash(user.passwordHash)) return;
+    try {
+      const salt = generateSalt();
+      const hash = await hashPassword(password, salt);
+      // Mise à jour en place : l'objet renvoyé à l'appelant (session active)
+      // porte ainsi la même empreinte que la liste persistée.
+      user.passwordSalt = salt;
+      user.passwordHash = hash;
+      this.persistUsers();
+    } catch (e) {
+      console.warn('Password hash upgrade skipped', e);
+    }
   }
 
   /** Changement de mot de passe par l'utilisateur (première connexion ou volontaire) — lève l'obligation de changement. */

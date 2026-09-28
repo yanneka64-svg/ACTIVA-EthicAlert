@@ -58,6 +58,8 @@ import { can, implicatedUserIdsFromPersons, Permission } from '../../src/domain/
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
 import { CaseListFilter, filterVisibleCases } from '../../src/domain/caseVisibility';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
+import { caseQueryEqualities, normalizePagination } from '../../src/domain/caseQuery';
 // === AMÉLIORATION AJOUTÉE : réutilise le HASH/SALT existant, jamais réimplémenté ===
 // Same salted, iterated-SHA256 verification already used by the legacy
 // client-side AlertTrackingView (src/components/AlertTrackingView.tsx) —
@@ -291,16 +293,32 @@ export const listCases = onCall(async (request) => {
 
   const data = (request.data ?? {}) as { filter?: CaseListFilter; limit?: number; offset?: number };
   const filter = data.filter ?? {};
-  const limit = typeof data.limit === 'number' ? data.limit : 25;
-  const offset = typeof data.offset === 'number' ? data.offset : 0;
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === pagination validée
+  // (mêmes défauts 25/0 ; limit borné à [1, 500], offset ≥ 0).
+  const { limit, offset } = normalizePagination(data.limit, data.offset);
 
-  const snap = await db.collection('cases').get();
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2 : coût et latence) ===
+  // Avant : lecture de TOUTE la collection puis, dossier par dossier et en
+  // série, de TOUTES ses personnes. Désormais :
+  // - les filtres d'égalité du client sont appliqués par Firestore (seuls
+  //   les dossiers candidats sont lus et facturés) ;
+  // - seules les personnes `kind == 'subject'` sont lues (les seules
+  //   utilisées par implicatedUserIdsFromPersons), en parallèle.
+  // filterVisibleCases réapplique ensuite exactement les mêmes filtres et
+  // l'autorisation can() : le résultat renvoyé est inchangé.
+  let query: FirebaseFirestore.Query = db.collection('cases');
+  for (const [field, value] of caseQueryEqualities(filter)) {
+    query = query.where(field, '==', value);
+  }
+  const snap = await query.get();
   const cases = snap.docs.map((doc) => doc.data() as Case);
   const personsByCase = new Map<string, Person[]>();
-  for (const kase of cases) {
-    const personsSnap = await db.collection('cases').doc(kase.caseId).collection('persons').get();
-    personsByCase.set(kase.caseId, personsSnap.docs.map((d) => d.data() as Person));
-  }
+  await Promise.all(
+    cases.map(async (kase) => {
+      const personsSnap = await db.collection('cases').doc(kase.caseId).collection('persons').where('kind', '==', 'subject').get();
+      personsByCase.set(kase.caseId, personsSnap.docs.map((d) => d.data() as Person));
+    })
+  );
 
   return filterVisibleCases(cases, personsByCase, filter, user, limit, offset);
 });

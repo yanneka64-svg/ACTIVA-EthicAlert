@@ -18,6 +18,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { storage } from './storage';
 import { generateAccessPassword, generateSalt, hashPassword } from './crypto';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === empreintes héritées → PBKDF2.
+import { hashPasswordLegacy, needsRehash, verifyPassword } from './crypto';
 
 // === AMÉLIORATION AJOUTÉE (correctif — verrouillage total hors recours) ===
 // Même clé littérale que STORAGE_KEYS.USERS dans storage.ts (non exportée).
@@ -340,5 +342,54 @@ describe('storage — comptes staff (identifiant + mot de passe)', () => {
       const persisted = JSON.parse(mockLocalStorage.getItem(USERS_STORAGE_KEY) || '[]');
       expect(persisted[0].username).toBe('legacy.sans.identifiant');
     });
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P2 : dérivation de clé robuste) ===
+describe('storage — mise à niveau transparente des empreintes de mot de passe', () => {
+  it('recalcule en PBKDF2 une empreinte héritée après une connexion réussie, sans rien changer d’autre', async () => {
+    const actor = storage.getActiveUser();
+    const username = uniqueUsername();
+    const id = 'usr-legacy-hash-' + counter;
+    const salt = generateSalt();
+    const legacyHash = await hashPasswordLegacy('Ancien#Mdp1', salt);
+    const setAt = '2026-01-01T00:00:00.000Z';
+    storage.addUser(
+      { id, name: 'Compte hérité', email: uniqueEmail(), username, role: 'investigator', roleTitle: 'Investigateur', entity: 'Toutes entités', country: 'Groupe ACTIVA', passwordHash: legacyHash, passwordSalt: salt, mustChangePassword: false, passwordSetAt: setAt },
+      actor
+    );
+    const auditBefore = storage.getAuditLogs().length;
+
+    const wrong = await storage.verifyStaffLogin(username, 'mauvais');
+    expect(wrong).toEqual({ ok: false, reason: 'wrong_password' });
+    expect(storage.getUsers().find((u) => u.id === id)!.passwordHash).toBe(legacyHash);
+
+    const ok = await storage.verifyStaffLogin(username, 'Ancien#Mdp1');
+    expect(ok.ok).toBe(true);
+    const upgraded = storage.getUsers().find((u) => u.id === id)!;
+    expect(upgraded.passwordHash).toMatch(/^pbkdf2_sha256\$/);
+    expect(upgraded.passwordSalt).not.toBe(salt);
+    expect(needsRehash(upgraded.passwordHash)).toBe(false);
+    expect(upgraded.passwordSetAt).toBe(setAt);
+    expect(await verifyPassword('Ancien#Mdp1', upgraded.passwordSalt!, upgraded.passwordHash!)).toBe(true);
+    expect(storage.getAuditLogs().length).toBe(auditBefore);
+
+    const again = await storage.verifyStaffLogin(username, 'Ancien#Mdp1');
+    expect(again.ok).toBe(true);
+  });
+
+  it('ne touche jamais à une empreinte de mot de passe temporaire (changement obligatoire en attente)', async () => {
+    const actor = storage.getActiveUser();
+    const username = uniqueUsername();
+    const id = 'usr-legacy-temp-' + counter;
+    const salt = generateSalt();
+    const legacyHash = await hashPasswordLegacy('Temp1234', salt);
+    storage.addUser(
+      { id, name: 'Compte temporaire hérité', email: uniqueEmail(), username, role: 'investigator', roleTitle: 'Investigateur', entity: 'Toutes entités', country: 'Groupe ACTIVA', passwordHash: legacyHash, passwordSalt: salt, mustChangePassword: true, passwordSetAt: new Date().toISOString() },
+      actor
+    );
+    const ok = await storage.verifyStaffLogin(username, 'Temp1234');
+    expect(ok).toMatchObject({ ok: true, mustChangePassword: true });
+    expect(storage.getUsers().find((u) => u.id === id)!.passwordHash).toBe(legacyHash);
   });
 });

@@ -155,3 +155,48 @@ Resend → *Domains* → ajouter `group-activa.com` (ou un sous-domaine
 `notifications.group-activa.com`), publier SPF / DKIM / DMARC, puis
 définir `NOTIFY_FROM_EMAIL`. Sans cela, l'expéditeur de test
 `onboarding@resend.dev` n'envoie qu'à l'adresse du titulaire du compte.
+
+## 4. Correctifs P2
+
+=== AMÉLIORATION AJOUTÉE (Audit DevOps — P2) ===
+
+### 4.1 Déjà en place dans le code
+
+| Correctif | Où | Vérification |
+|---|---|---|
+| **Mots de passe et codes d'accès en PBKDF2-HMAC-SHA256, 600 000 itérations** (format `pbkdf2_sha256$600000$…`). Les empreintes existantes (SHA-256 itéré) restent vérifiables ; comparaison à temps constant. | `src/services/crypto.ts` (utilisé à l'identique par le navigateur et les Cloud Functions) | vecteur de test RFC 7914, compatibilité héritée, 6 tests |
+| **Mise à niveau transparente** : à chaque connexion réussie d'un compte staff dont l'empreinte est héritée, elle est recalculée en PBKDF2 (nouveau sel), sans audit ni changement de date. Jamais pour un mot de passe temporaire (dont le compte de secours). | `storage.ts` → `upgradePasswordHashIfNeeded` | 2 tests d'intégration |
+| **`listCases` : filtres poussés dans Firestore** (égalités seules, sans index composite), lecture des seules personnes `subject`, en parallèle ; pagination validée (limit 1–500). Résultat identique. | `src/domain/caseQuery.ts`, `functions/src/index.ts` | 4 tests + **112 comparaisons ancien/nouveau sur l'émulateur Firestore : 0 différence** |
+| Reliquats AI Studio (`GEMINI_API_KEY`, `APP_URL`) désactivés dans `.env.example` (jamais lus par l'application). | `.env.example` | — |
+
+Limites connues :
+- **Codes d'accès des lanceurs d'alerte déjà émis** : restent au format
+  hérité (vérifiés normalement) ; seuls les nouveaux sont en PBKDF2. Les
+  mettre à niveau exigerait de modifier le dossier à chaque consultation.
+- **Compte de secours** : son empreinte, embarquée dans le code publié,
+  reste au format hérité (le mot de passe temporaire n'est pas connu du
+  dépôt). Recommandé : faire générer un nouveau mot de passe temporaire
+  (empreinte PBKDF2) et le transmettre hors du dépôt — ou, mieux, retirer
+  ce compte dès que l'authentification Firebase du personnel est active.
+
+### 4.2 Sauvegardes Firestore (à faire, plan Blaze requis)
+La base du projet est la base **nommée** `default` (voir `firebase.json`).
+```bash
+# Restauration à la seconde près sur 7 jours
+gcloud firestore databases update --database=default --enable-pitr --project activa-ethicalert-47246
+# Sauvegardes gérées : quotidienne (conservée 14 jours) + hebdomadaire (14 semaines)
+gcloud firestore backups schedules create --database=default --recurrence=daily --retention=14d --project activa-ethicalert-47246
+gcloud firestore backups schedules create --database=default --recurrence=weekly --day-of-week=SUN --retention=14w --project activa-ethicalert-47246
+```
+Tester une restauration une fois par trimestre (`gcloud firestore databases
+restore --source-backup=… --destination-database=restore-test`), puis
+supprimer la base de test.
+
+### 4.3 Bloqué tant que le plan Blaze n'est pas activé
+- Firestore comme source de vérité + authentification Firebase du personnel
+  (phases 2 à 5 du backend) : corrige à la racine le stockage navigateur,
+  l'autorisation côté client et le compte de secours embarqué.
+- Pièces jointes dans Cloud Storage (règles déjà prêtes dans
+  `storage.rules`) au lieu du base64 dans le navigateur (limité à ~5 Mo ;
+  un dépassement est désormais signalé par la bannière P0).
+- Double authentification (MFA) du personnel : nécessite Identity Platform.
