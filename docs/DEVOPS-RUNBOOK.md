@@ -203,3 +203,35 @@ supprimer la base de test.
   `storage.rules`) au lieu du base64 dans le navigateur (limité à ~5 Mo ;
   un dépassement est désormais signalé par la bannière P0).
 - Double authentification (MFA) du personnel : nécessite Identity Platform.
+
+## 5. Exécution des actions console
+
+=== AMÉLIORATION AJOUTÉE (Audit DevOps — exécution) ===
+
+### 5.1 Déjà fait dans le dépôt
+- **CSP complète en mode bloquant** (`firebase.json`, `vercel.json`) après
+  vérification dans un navigateur réel, avec une configuration Firebase
+  active (Firestore et Cloud Functions réellement sollicités) sur 21 écrans
+  publics, portail interne et administration, dont soumission avec pièce
+  jointe, suivi et export : **0 violation**. La vérification a révélé que
+  Firestore charge une image de test réseau
+  (`https://www.google.com/images/cleardot.gif`) : `img-src` l'autorise
+  désormais (elle aurait été bloquée en production).
+- **Vercel désactivé par le code** : `api/notify-email.ts` répond 410 sans
+  rien envoyer, sauf réactivation explicite `NOTIFY_VERCEL_ENABLED=true`.
+
+### 5.2 À lancer (identifiants requis, impossibles depuis la session Claude)
+| Action | Commande | Où |
+|---|---|---|
+| Vérifications `web` + `functions` obligatoires sur `main` | `./scripts/devops/github-protect-main.sh` | poste avec `gh` admin |
+| Fédération d'identité (WIF) | `./scripts/devops/gcp-hardening.sh wif` | Cloud Shell |
+| Révocation de la clé JSON (après un déploiement WIF réussi) | `./scripts/devops/gcp-hardening.sh revoke-json-key` | Cloud Shell |
+| Restriction de la clé API Web | `./scripts/devops/gcp-hardening.sh restrict-api-key` | Cloud Shell |
+| App Check (surveillance, puis strict) | `… app-check` puis, quelques jours après, `… app-check-enforce` | Cloud Shell |
+| Budget (plan Blaze) | `BUDGET_AMOUNT=20EUR … budget` | Cloud Shell |
+| Supervision (disponibilité + erreurs 5xx) | `ALERT_EMAIL=… … monitoring` | Cloud Shell |
+| Vercel | supprimer `RESEND_API_KEY` puis le projet (Settings → General → Delete Project) | vercel.com |
+
+Chaque étape du script demande confirmation et peut être relancée. Ordre
+recommandé : protection de `main` → WIF → déploiement manuel de contrôle →
+révocation de la clé JSON → clé API → App Check → budget → supervision.

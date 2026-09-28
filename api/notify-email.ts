@@ -68,6 +68,19 @@ export default async function handler(req: MinimalRequest, res: MinimalResponse)
     return;
   }
 
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — Vercel n'est plus utilisé) ===
+  // Le projet Vercel n'est plus l'hébergement de l'application (Firebase
+  // Hosting + Cloud Function notifyEmail). Ce point d'envoi est donc
+  // DÉSACTIVÉ par défaut : même si une clé RESEND_API_KEY traîne encore
+  // dans l'environnement Vercel, il n'enverra plus rien dès le prochain
+  // déploiement Vercel. Réactivation explicite uniquement :
+  // NOTIFY_VERCEL_ENABLED=true (+ NOTIFY_ALLOWED_RECIPIENT_DOMAINS). Le
+  // client (emailNotify.ts) journalise ce refus comme un échec réel.
+  if (process.env.NOTIFY_VERCEL_ENABLED !== 'true') {
+    res.status(410).json({ error: 'Email endpoint disabled on Vercel — notifications are sent by the Firebase Cloud Function notifyEmail.' });
+    return;
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     // === AMÉLIORATION AJOUTÉE === jamais un faux succès : l'appelant
