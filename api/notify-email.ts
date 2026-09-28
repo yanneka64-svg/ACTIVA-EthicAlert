@@ -26,9 +26,26 @@
  *   jamais un succès supposé.
  */
 
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P0 : relais e-mail fermé) ===
+// Garde-fou partagé avec la Cloud Function notifyEmail (même module pur,
+// testé par src/domain/notifyEmailGuard.test.ts). Extension `.js` : ce
+// projet est en `"type": "module"`, Node ESM exige l'extension du fichier
+// compilé pour un import relatif.
+import {
+  FixedWindowRateLimiter,
+  NOTIFY_RATE_WINDOW_MS,
+  clientIp,
+  rateLimitFromEnv,
+  validateNotifyEmailRequest,
+  type HeaderBag,
+} from '../src/domain/notifyEmailGuard.js';
+
 interface MinimalRequest {
   method?: string;
   body?: unknown;
+  // === AMÉLIORATION AJOUTÉE === en-têtes/IP lus par le garde-fou (Origin, Host, X-Forwarded-For).
+  headers?: HeaderBag;
+  socket?: { remoteAddress?: string };
 }
 
 interface MinimalResponse {
@@ -41,6 +58,9 @@ interface NotifyEmailPayload {
   subject?: string;
   body?: string;
 }
+
+// === AMÉLIORATION AJOUTÉE === limiteur par IP (best effort, par instance chaude).
+const rateLimiter = new FixedWindowRateLimiter(rateLimitFromEnv(process.env.NOTIFY_RATE_LIMIT), NOTIFY_RATE_WINDOW_MS);
 
 export default async function handler(req: MinimalRequest, res: MinimalResponse): Promise<void> {
   if (req.method !== 'POST') {
@@ -63,6 +83,25 @@ export default async function handler(req: MinimalRequest, res: MinimalResponse)
     return;
   }
 
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === n'accepte plus que ce
+  // que src/services/emailNotify.ts envoie réellement : Origin = l'app,
+  // destinataire unique valide (domaines restreints si
+  // NOTIFY_ALLOWED_RECIPIENT_DOMAINS est défini), sujet préfixé
+  // « [activa-whistleblowing] », liens du corps vers l'app uniquement.
+  const guard = validateNotifyEmailRequest(
+    { to, subject, body, headers: req.headers },
+    { allowedOrigins: process.env.NOTIFY_ALLOWED_ORIGINS, allowedRecipientDomains: process.env.NOTIFY_ALLOWED_RECIPIENT_DOMAINS }
+  );
+  if (!guard.ok) {
+    console.warn(`notify-email refused (${guard.status}): ${guard.error}`);
+    res.status(guard.status).json({ error: guard.error });
+    return;
+  }
+  if (!rateLimiter.hit(clientIp(req.headers, req.socket?.remoteAddress))) {
+    res.status(429).json({ error: 'Too many notification requests — retry later.' });
+    return;
+  }
+
   // === AMÉLIORATION AJOUTÉE === adresse d'envoi configurable
   // (`NOTIFY_FROM_EMAIL`) — un domaine vérifié chez Resend une fois le
   // compte en place (voir docs/EMAIL-NOTIFICATIONS.md) ; repli sur le
@@ -79,9 +118,10 @@ export default async function handler(req: MinimalRequest, res: MinimalResponse)
       },
       body: JSON.stringify({
         from: fromAddress,
-        to: [to],
-        subject,
-        text: body,
+        // === AMÉLIORATION AJOUTÉE === valeurs normalisées par le garde-fou.
+        to: [guard.to],
+        subject: guard.subject,
+        text: guard.body,
       }),
     });
 

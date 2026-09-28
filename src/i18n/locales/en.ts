@@ -1456,4 +1456,9 @@ export const en: Record<string, string> = {
   common_inactive: 'Inactive',
   // === AMÉLIORATION AJOUTÉE : fil d'Ariane de la topbar staff ===
   nav_breadcrumb: 'Breadcrumb',
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === bannière d'échec d'enregistrement (PersistFailureBanner).
+  persist_failure_title: "Saving failed — your latest changes have NOT been saved.",
+  persist_failure_quota: "This browser’s storage is full (attachments too large?). Reduce the size of the attachments and try again; if in doubt, contact the DARC team before closing this page.",
+  persist_failure_generic: "The browser refused to save (private browsing or blocked storage?). Do not close this page and contact the DARC team.",
+  persist_failure_dismiss: "Dismiss",
 };

@@ -5,7 +5,7 @@
   "type": "commonjs",
   "main": "lib/functions/src/index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "build": "tsc",
@@ -17,5 +17,9 @@
   },
   "devDependencies": {
     "typescript": "~5.8.2"
+  },
+  "//overrides": "=== AMÉLIORATION AJOUTÉE (audit DevOps P1) === uuid >= 11.1.1 imposé : corrige GHSA-w5hq-g745-h8pq (uuid 9 tiré par gaxios 6 via @google-cloud/storage), non corrigeable par npm audit fix seul.",
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

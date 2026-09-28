@@ -40,6 +40,8 @@ import { Firestore, getFirestore } from 'firebase/firestore';
 // d'initialiser Cloud Functions ; un import statique aurait fait grossir
 // son chunk (~6 kB gzip) sans aucun bénéfice pour cet écran.
 import type { Functions } from 'firebase/functions';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === App Check (dormant sans clé de site).
+import { activateAppCheck } from './appCheck';
 
 const APP_NAME = 'activa-hotline-phase4';
 
@@ -89,6 +91,9 @@ export function getPhase4Firebase(): { app: FirebaseApp; auth: Auth; db: Firesto
 
   const existing = getApps().find((a) => a.name === APP_NAME);
   app = existing ?? initializeApp(config, APP_NAME);
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === sans effet tant que
+  // VITE_FIREBASE_APPCHECK_SITE_KEY n'est pas défini (voir appCheck.ts).
+  void activateAppCheck(app);
   auth = getAuth(app);
   db = getFirestore(app, config.databaseId);
   return { app, auth, db };
@@ -115,6 +120,10 @@ export async function getPhase4Functions(): Promise<Functions> {
   // Pas de région explicite : les Cloud Functions (functions/src/index.ts)
   // sont déclarées sans `region()`, donc `us-central1` par défaut des deux
   // côtés — jamais besoin de le préciser ici tant que ça reste vrai.
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === la région est
+  // désormais EXPLICITE côté serveur (setGlobalOptions, us-central1) — même
+  // valeur que ce défaut. Si elle change un jour, passer la même région
+  // ici : getFunctions(phase4App, '<région>').
   fns = getFunctions(phase4App);
   return fns;
 }

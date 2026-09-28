@@ -101,3 +101,14 @@ dépôt. Si un fournisseur ou un hébergeur différent est préféré, seul
 change selon le fournisseur) — `src/services/emailNotify.ts` et son
 câblage dans l'application restent inchangés, l'un et l'autre ne
 connaissant jamais Resend directement.
+
+## === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === Garde-fou anti-relais
+
+`api/notify-email.ts` et la Cloud Function `notifyEmail` n'acceptent plus
+que ce que `src/services/emailNotify.ts` envoie réellement (même contrat
+`POST {to, subject, body}`) : en-tête `Origin` égal à l'application, un seul
+destinataire valide, sujet commençant par `[activa-whistleblowing] `, liens
+du corps pointant vers l'application uniquement, débit limité par IP.
+Variables facultatives : `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`,
+`NOTIFY_ALLOWED_ORIGINS`, `NOTIFY_RATE_LIMIT` — voir
+[DEVOPS-RUNBOOK.md](./DEVOPS-RUNBOOK.md) §2.1.

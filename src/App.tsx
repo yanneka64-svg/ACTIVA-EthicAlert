@@ -12,6 +12,8 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-ro
 import { Language, UserProfile } from './types';
 import { storage } from './services/storage';
 import { TRANSLATIONS } from './i18n/translations';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === bannière d'échec d'enregistrement.
+import { PersistFailureBanner } from './app/PersistFailureBanner';
 // === AMÉLIORATION AJOUTÉE : langue courante partagée avec les petits composants ===
 import { setCurrentLang } from './i18n/currentLang';
 import { Navbar } from './components/Navbar';
@@ -519,6 +521,10 @@ function AppShell() {
           épinglé en bas de l'écran, et la barre de défilement ne couvre
           plus que la zone entre l'en-tête et lui. */}
       <AppFooter t={t} goToTab={goToTab} />
+
+      {/* === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === alerte visible si le
+          navigateur refuse un enregistrement (quota plein) — invisible sinon. */}
+      <PersistFailureBanner t={t} />
 
       {/* QR Code Modal */}
       <QrCodeModal

@@ -1643,4 +1643,9 @@ export const fr: Record<string, string> = {
   common_inactive: 'Inactif',
   // === AMÉLIORATION AJOUTÉE : fil d'Ariane de la topbar staff ===
   nav_breadcrumb: 'Fil d’Ariane',
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === bannière d'échec d'enregistrement (PersistFailureBanner).
+  persist_failure_title: "Enregistrement impossible — vos dernières modifications n’ont PAS été sauvegardées.",
+  persist_failure_quota: "L’espace de stockage de ce navigateur est plein (pièces jointes trop volumineuses ?). Réduisez la taille des pièces jointes, puis réessayez ; en cas de doute, contactez l’équipe DARC avant de fermer cette page.",
+  persist_failure_generic: "Le navigateur a refusé l’enregistrement (navigation privée ou stockage bloqué ?). Ne fermez pas cette page et contactez l’équipe DARC.",
+  persist_failure_dismiss: "Fermer",
 };

@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === App Check (dormant sans clé de site).
+import { activateAppCheck } from './appCheck';
 import { 
   getFirestore, 
   Firestore, 
@@ -79,6 +81,9 @@ export const initFirebase = (forceReinit = false) => {
       } else {
         app = initializeApp(conf);
       }
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === App Check, sans effet
+      // tant que VITE_FIREBASE_APPCHECK_SITE_KEY n'est pas défini (appCheck.ts).
+      void activateAppCheck(app);
       db = getFirestore(app);
       auth = getAuth(app);
       console.log(`ACTIVA EthicAlert: Firebase Firestore initialisé pour le projet [${conf.projectId}].`);

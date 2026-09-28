@@ -1456,4 +1456,9 @@ export const pt: Record<string, string> = {
   common_inactive: 'Inativo',
   // === AMÉLIORATION AJOUTÉE : fil d'Ariane de la topbar staff ===
   nav_breadcrumb: 'Trilho de navegação',
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === bannière d'échec d'enregistrement (PersistFailureBanner).
+  persist_failure_title: "Não foi possível guardar — as suas últimas alterações NÃO foram guardadas.",
+  persist_failure_quota: "O armazenamento deste navegador está cheio (anexos demasiado grandes?). Reduza o tamanho dos anexos e tente novamente; em caso de dúvida, contacte a equipa DARC antes de fechar esta página.",
+  persist_failure_generic: "O navegador recusou guardar (navegação privada ou armazenamento bloqueado?). Não feche esta página e contacte a equipa DARC.",
+  persist_failure_dismiss: "Fechar",
 };

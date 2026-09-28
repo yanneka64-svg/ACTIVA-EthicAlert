@@ -65,12 +65,42 @@ import { CaseListFilter, filterVisibleCases } from '../../src/domain/caseVisibil
 // what a valid access code hash looks like. Works in this Node 20 runtime
 // because `crypto.subtle`/`crypto.getRandomValues` are Node's built-in
 // global WebCrypto implementation, not a browser-only API.
+// (=== AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === runtime passé à Node 22,
+// functions/package.json — WebCrypto global identique.)
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4 :
 // miroir de la soumission publique) === `generateSalt`/`hashPassword`/
 // `generateAccessPassword` réutilisés tels quels (même algorithme que
 // `verifyPassword` déjà importé ci-dessus, et que le client
 // AlertSubmissionFlow.tsx) pour `createCaseAsReporter`, plus bas.
 import { generateAccessPassword, generateSalt, hashPassword, verifyPassword } from '../../src/services/crypto';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P0 : relais e-mail fermé) ===
+// Même garde-fou pur que api/notify-email.ts (src/domain/notifyEmailGuard.ts).
+import {
+  FixedWindowRateLimiter,
+  NOTIFY_RATE_WINDOW_MS,
+  clientIp,
+  rateLimitFromEnv,
+  validateNotifyEmailRequest,
+} from '../../src/domain/notifyEmailGuard';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P1 : fiabilité et coût) ===
+import { setGlobalOptions } from 'firebase-functions/v2';
+
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P1 : fiabilité et coût) ===
+// Options communes à TOUTES les fonctions, appliquées avant leur
+// déclaration :
+// - `region` : explicitement celle qui était déjà utilisée implicitement
+//   (us-central1 = défaut de firebase-functions ET de getFunctions() côté
+//   client, src/services/firebaseClient.ts, ET de la réécriture Hosting
+//   documentée dans docs/FIREBASE-HOSTING.md). Aucun changement de
+//   comportement. Pour rapprocher les fonctions de la base Firestore
+//   (latence/RGPD), changer CES TROIS endroits ensemble — voir
+//   docs/DEVOPS-RUNBOOK.md §Région.
+// - `maxInstances` : plafond dur de mise à l'échelle — le seul garde-fou
+//   qui borne réellement la facture sur le plan Blaze (une alerte de
+//   budget n'arrête pas la dépense). Largement au-dessus du besoin réel
+//   (dispositif d'alerte interne, faible volume).
+// - `minInstances: 0` : aucune instance facturée au repos.
+setGlobalOptions({ region: 'us-central1', maxInstances: 10, minInstances: 0 });
 
 initializeApp();
 const db = getFirestore();
@@ -1224,7 +1254,12 @@ export const getEvidenceDownloadUrl = onCall(async (request) => {
 // Resend répercutées, jamais un faux 200.
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 
-export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY] }, async (req, res) => {
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === limiteur par IP (best
+// effort, par instance) ; `maxInstances: 2` borne en plus le débit global
+// d'envoi et la facture de ce point public.
+const notifyRateLimiter = new FixedWindowRateLimiter(rateLimitFromEnv(process.env.NOTIFY_RATE_LIMIT), NOTIFY_RATE_WINDOW_MS);
+
+export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 2 }, async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed — use POST.' });
     return;
@@ -1242,6 +1277,24 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY] }, async (req, 
     return;
   }
 
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === mêmes règles que
+  // api/notify-email.ts : Origin = l'app (X-Forwarded-Host posé par la
+  // réécriture Hosting), destinataire unique valide, sujet préfixé
+  // « [activa-whistleblowing] », liens vers l'app uniquement, débit par IP.
+  const guard = validateNotifyEmailRequest(
+    { to, subject, body, headers: req.headers },
+    { allowedOrigins: process.env.NOTIFY_ALLOWED_ORIGINS, allowedRecipientDomains: process.env.NOTIFY_ALLOWED_RECIPIENT_DOMAINS }
+  );
+  if (!guard.ok) {
+    console.warn(`notifyEmail refused (${guard.status}): ${guard.error}`);
+    res.status(guard.status).json({ error: guard.error });
+    return;
+  }
+  if (!notifyRateLimiter.hit(clientIp(req.headers, req.ip))) {
+    res.status(429).json({ error: 'Too many notification requests — retry later.' });
+    return;
+  }
+
   const fromAddress = process.env.NOTIFY_FROM_EMAIL || 'ACTIVA EthicAlert <onboarding@resend.dev>';
 
   try {
@@ -1251,7 +1304,8 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY] }, async (req, 
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: fromAddress, to: [to], subject, text: body }),
+      // === AMÉLIORATION AJOUTÉE === valeurs normalisées par le garde-fou.
+      body: JSON.stringify({ from: fromAddress, to: [guard.to], subject: guard.subject, text: guard.body }),
     });
 
     if (!resendRes.ok) {

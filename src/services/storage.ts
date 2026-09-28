@@ -1,4 +1,6 @@
 import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile, UserRole, EscalationRecipient } from '../types';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === signalement des échecs d'enregistrement localStorage.
+import { reportPersistFailure } from './persistFailure';
 import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG, HierarchyLevels, DEFAULT_HIERARCHY_LEVELS, INITIAL_ESCALATION_RECIPIENTS } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
@@ -355,6 +357,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.ALERTS, JSON.stringify(this.alerts));
     } catch (e) {
       console.error('Failed to persist alerts', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('alerts', e);
     }
   }
 
@@ -363,6 +367,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(this.auditLogs));
     } catch (e) {
       console.error('Failed to persist audit logs', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('audit logs', e);
     }
   }
 
@@ -371,6 +377,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(this.users));
     } catch (e) {
       console.error('Failed to persist users', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('users', e);
     }
   }
 
@@ -455,6 +463,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.ENTITIES, JSON.stringify(this.entities));
     } catch (e) {
       console.error('Failed to persist entities', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('entities', e);
     }
   }
 
@@ -463,6 +473,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(this.categories));
     } catch (e) {
       console.error('Failed to persist categories', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('categories', e);
     }
   }
 
@@ -472,6 +484,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.ESCALATION_RECIPIENTS, JSON.stringify(this.escalationRecipients));
     } catch (e) {
       console.error('Failed to persist escalation recipients', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('escalation recipients', e);
     }
   }
 
@@ -481,6 +495,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.CASE_NUMBER_COUNTERS, JSON.stringify(this.caseNumberCounters));
     } catch (e) {
       console.error('Failed to persist case number counters', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('case number counters', e);
     }
   }
 
@@ -490,6 +506,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(this.countries));
     } catch (e) {
       console.error('Failed to persist countries', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('countries', e);
     }
   }
 
@@ -499,6 +517,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.SLA_CONFIG, JSON.stringify(this.slaConfig));
     } catch (e) {
       console.error('Failed to persist SLA config', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('SLA config', e);
     }
   }
 
@@ -508,6 +528,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.HIERARCHY_LEVELS, JSON.stringify(this.hierarchyLevels));
     } catch (e) {
       console.error('Failed to persist hierarchy levels', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('hierarchy levels', e);
     }
   }
 
@@ -517,6 +539,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(this.rolePermissions));
     } catch (e) {
       console.error('Failed to persist role permissions', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('role permissions', e);
     }
   }
 
@@ -526,6 +550,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.WORKFLOW_TRANSITIONS, JSON.stringify(this.workflowTransitions));
     } catch (e) {
       console.error('Failed to persist workflow transitions', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('workflow transitions', e);
     }
   }
 
