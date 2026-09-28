@@ -11,5 +11,7 @@
     "moduleResolution": "node"
   },
   "include": ["src/**/*.ts", "../src/domain/**/*.ts", "../src/services/crypto.ts"],
+  "//exclude": "=== AMÉLIORATION AJOUTÉE (Audit DevOps) === les tests Vitest de src/domain ne font pas partie des Cloud Functions : les compiler exigeait vitest, absent d'une installation propre de functions/ (CI, déploiement).",
+  "exclude": ["../src/**/*.test.ts", "node_modules", "lib"],
   "compileOnSave": true
 }
