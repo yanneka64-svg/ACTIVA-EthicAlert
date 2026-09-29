@@ -32,7 +32,9 @@ rejouées dans le garde-fou (acceptées), requêtes forgées (refusées).
   *Settings → Environment Variables* → supprimer `RESEND_API_KEY`
   (le point `/api/notify-email` répondra 503) puis désactiver le projet.
 - **Sinon**, ajouter les variables :
-  - `NOTIFY_ALLOWED_RECIPIENT_DOMAINS` = `group-activa.com` (ajoutez les
+  - `NOTIFY_ALLOWED_RECIPIENT_DOMAINS` = `group-activa.com` —
+    **OBLIGATOIRE** depuis la revue de la PR #139 : sans elle, aucun e-mail
+    ne part (503, journalisé dans l'Audit Trail). Ajoutez les
     autres domaines légitimes des destinataires d'escalade, séparés par des
     virgules — un destinataire hors liste sera refusé et journalisé
     `EMAIL_NOTIFICATION_FAILED` dans l'Audit Trail) ;
@@ -42,16 +44,15 @@ rejouées dans le garde-fou (acceptées), requêtes forgées (refusées).
 - Les mêmes variables s'appliquent à la Cloud Function `notifyEmail` une
   fois déployée (fichier `functions/.env`).
 
-### 2.2 CSP : passer du mode observation au mode bloquant
-1. Après déploiement, ouvrir l'app en production, parcourir les écrans
-   (soumission, suivi, espace staff, exports) avec la console du
-   navigateur ouverte : aucune ligne `[Report Only] Refused to …` ne doit
-   apparaître.
-2. Si c'est le cas, dans `firebase.json` (et `vercel.json`), renommer la clé
-   `Content-Security-Policy-Report-Only` en `Content-Security-Policy`
-   (remplace la CSP minimale) et redéployer.
-3. Si une ligne apparaît, ajouter l'origine légitime concernée à la
-   directive citée avant de basculer.
+### 2.2 CSP en mode bloquant — FAIT dans le dépôt
+=== AMÉLIORATION AJOUTÉE (revue PR #139) === cette étape n'est plus à
+faire : `firebase.json` et `vercel.json` ne portent plus qu'UNE seule en-tête
+`Content-Security-Policy`, la politique complète, appliquée (la CSP minimale
+et la variante `Report-Only` ont été remplacées par elle — voir §5.1).
+Après chaque déploiement, garder la console du navigateur ouverte sur le
+site de production (soumission, suivi, espace staff, exports) : une ligne
+`Refused to …` signale une origine légitime à ajouter à la directive citée,
+dans les DEUX fichiers.
 
 ### 2.3 Rendre la CI obligatoire
 GitHub → *Settings → Branches → Add rule* sur `main` :

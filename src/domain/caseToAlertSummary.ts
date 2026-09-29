@@ -80,6 +80,12 @@ export function caseSummaryId(caseId: string): string {
   return `case-${caseId}`;
 }
 
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === un résumé issu du vrai
+// backend (et non un dossier local) se reconnaît à son préfixe d'id.
+export function isCaseSummary(alert: { id: string }): boolean {
+  return alert.id.startsWith('case-');
+}
+
 export function caseToAlertSummary(kase: Case): AlertRecord {
   const priority = PRIORITY_FROM_CASE[kase.priority];
 
@@ -123,7 +129,9 @@ export function caseToAlertSummary(kase: Case): AlertRecord {
     evidences: [],
     status: STATUS_FROM_CASE[kase.status],
     // === AMÉLIORATION AJOUTÉE : jamais de nom résolu (voir en-tête) ===
-    assignedInvestigators: kase.assignee ? [kase.assignee, ...kase.additionalInvestigators] : [],
+    // === AMÉLIORATION AJOUTÉE (revue PR #139) === les enquêteurs
+    // additionnels sont conservés même sans enquêteur principal.
+    assignedInvestigators: [...(kase.assignee ? [kase.assignee] : []), ...kase.additionalInvestigators],
     assignedInvestigatorNames: [],
     closedAt: kase.closedAt,
     internalNotes: [],

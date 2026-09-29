@@ -109,6 +109,7 @@ que ce que `src/services/emailNotify.ts` envoie réellement (même contrat
 `POST {to, subject, body}`) : en-tête `Origin` égal à l'application, un seul
 destinataire valide, sujet commençant par `[activa-whistleblowing] `, liens
 du corps pointant vers l'application uniquement, débit limité par IP.
-Variables facultatives : `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`,
-`NOTIFY_ALLOWED_ORIGINS`, `NOTIFY_RATE_LIMIT` — voir
+Variable **obligatoire** (=== AMÉLIORATION AJOUTÉE (revue PR #139) === échec
+fermé : sans elle, aucun envoi) : `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`.
+Variables facultatives : `NOTIFY_ALLOWED_ORIGINS`, `NOTIFY_RATE_LIMIT` — voir
 [DEVOPS-RUNBOOK.md](./DEVOPS-RUNBOOK.md) §2.1.

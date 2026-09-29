@@ -66,6 +66,17 @@ describe('syncStaffAuthSession', () => {
     expect(mockSignInStaff).toHaveBeenCalledTimes(1);
   });
 
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) ===
+  it("traite comme le même compte une adresse saisie avec une autre casse ou des espaces", async () => {
+    mockIsStaffAuthConfigured.mockReturnValue(true);
+    mockSignInStaff.mockRejectedValue(new Error('auth/wrong-password'));
+
+    await syncStaffAuthSession('casse@activa.example', 'x1');
+    await syncStaffAuthSession('  CASSE@Activa.Example ', 'x2');
+
+    expect(mockSignInStaff).toHaveBeenCalledTimes(1);
+  });
+
   it('plafonne indépendamment par compte (un autre email peut toujours être tenté)', async () => {
     mockIsStaffAuthConfigured.mockReturnValue(true);
     mockSignInStaff.mockRejectedValue(new Error('auth/wrong-password'));

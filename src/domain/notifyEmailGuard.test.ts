@@ -16,6 +16,7 @@ import {
 
 const APP = 'https://activa-ethicalert-47246.web.app';
 const headers = (extra: Record<string, string> = {}) => ({ host: 'activa-ethicalert-47246.web.app', origin: APP, ...extra });
+const ENV = { allowedRecipientDomains: 'group-activa.com' };
 const valid = {
   to: 'operateur@group-activa.com',
   subject: '[activa-whistleblowing] Dossier attribué — AACMR-26-09-0001',
@@ -24,7 +25,7 @@ const valid = {
 
 describe('validateNotifyEmailRequest', () => {
   it('accepts exactly what emailNotify.ts sends from the app itself', () => {
-    const r = validateNotifyEmailRequest({ ...valid, headers: headers() });
+    const r = validateNotifyEmailRequest({ ...valid, headers: headers() }, ENV);
     expect(r).toEqual({ ok: true, to: valid.to, subject: valid.subject, body: valid.body, origin: APP });
   });
 
@@ -35,24 +36,24 @@ describe('validateNotifyEmailRequest', () => {
   });
 
   it('rejects a missing or foreign Origin', () => {
-    expect(validateNotifyEmailRequest({ ...valid, headers: { host: 'activa-ethicalert-47246.web.app' } })).toMatchObject({ ok: false, status: 403 });
-    expect(validateNotifyEmailRequest({ ...valid, headers: headers({ origin: 'https://evil.example' }) })).toMatchObject({ ok: false, status: 403 });
+    expect(validateNotifyEmailRequest({ ...valid, headers: { host: 'activa-ethicalert-47246.web.app' } }, ENV)).toMatchObject({ ok: false, status: 403 });
+    expect(validateNotifyEmailRequest({ ...valid, headers: headers({ origin: 'https://evil.example' }) }, ENV)).toMatchObject({ ok: false, status: 403 });
   });
 
   it('accepts the forwarded host (Hosting rewrite) and explicitly allowed origins', () => {
     const viaRewrite = { host: 'us-central1-x.cloudfunctions.net', 'x-forwarded-host': 'activa-ethicalert-47246.web.app', origin: APP };
-    expect(validateNotifyEmailRequest({ ...valid, headers: viaRewrite }).ok).toBe(true);
+    expect(validateNotifyEmailRequest({ ...valid, headers: viaRewrite }, ENV).ok).toBe(true);
     const custom = 'https://activa-ethicalert.group-activa.com';
     const r = validateNotifyEmailRequest(
       { ...valid, body: 'Référence : X', headers: { host: 'fn.run.app', origin: custom } },
-      { allowedOrigins: `${custom}/` },
+      { ...ENV, allowedOrigins: `${custom}/` },
     );
     expect(r.ok).toBe(true);
   });
 
   it('rejects header injection, multiple recipients and malformed addresses', () => {
     for (const to of ['a@b.com\r\nBcc: x@y.com', 'a@b.com, c@d.com', 'not-an-email', 'a@localhost']) {
-      expect(validateNotifyEmailRequest({ ...valid, to, headers: headers() })).toMatchObject({ ok: false, status: 400 });
+      expect(validateNotifyEmailRequest({ ...valid, to, headers: headers() }, ENV)).toMatchObject({ ok: false, status: 400 });
     }
   });
 
@@ -61,25 +62,27 @@ describe('validateNotifyEmailRequest', () => {
     expect(validateNotifyEmailRequest({ ...valid, headers: headers() }, env).ok).toBe(true);
     expect(validateNotifyEmailRequest({ ...valid, to: 'x@cm.group-activa.com', headers: headers() }, env).ok).toBe(true);
     expect(validateNotifyEmailRequest({ ...valid, to: 'victim@gmail.com', headers: headers() }, env)).toMatchObject({ ok: false, status: 403 });
-    expect(validateNotifyEmailRequest({ ...valid, to: 'victim@gmail.com', headers: headers() }).ok).toBe(true);
+    // === AMÉLIORATION AJOUTÉE (revue PR #139) === échec fermé sans liste configurée.
+    expect(validateNotifyEmailRequest({ ...valid, to: 'victim@gmail.com', headers: headers() })).toMatchObject({ ok: false, status: 503 });
+    expect(validateNotifyEmailRequest({ ...valid, headers: headers() })).toMatchObject({ ok: false, status: 503 });
   });
 
   it('requires the one-line [activa-whistleblowing] subject', () => {
     for (const subject of ['Votre compte est suspendu', '[activa-whistleblowing] a\nb', `[activa-whistleblowing] ${'x'.repeat(300)}`]) {
-      expect(validateNotifyEmailRequest({ ...valid, subject, headers: headers() })).toMatchObject({ ok: false, status: 400 });
+      expect(validateNotifyEmailRequest({ ...valid, subject, headers: headers() }, ENV)).toMatchObject({ ok: false, status: 400 });
     }
   });
 
   it('rejects any link that does not point to the application, and oversized bodies', () => {
-    expect(validateNotifyEmailRequest({ ...valid, body: 'Cliquez ici : https://phish.example/login', headers: headers() })).toMatchObject({ ok: false, status: 400 });
-    expect(validateNotifyEmailRequest({ ...valid, body: `${APP}.evil.example/x`, headers: headers() })).toMatchObject({ ok: false, status: 400 });
-    expect(validateNotifyEmailRequest({ ...valid, body: 'x'.repeat(5001), headers: headers() })).toMatchObject({ ok: false, status: 400 });
+    expect(validateNotifyEmailRequest({ ...valid, body: 'Cliquez ici : https://phish.example/login', headers: headers() }, ENV)).toMatchObject({ ok: false, status: 400 });
+    expect(validateNotifyEmailRequest({ ...valid, body: `${APP}.evil.example/x`, headers: headers() }, ENV)).toMatchObject({ ok: false, status: 400 });
+    expect(validateNotifyEmailRequest({ ...valid, body: 'x'.repeat(5001), headers: headers() }, ENV)).toMatchObject({ ok: false, status: 400 });
   });
 
   it('allows http origins only for localhost development', () => {
     const local = { host: 'localhost:3000', origin: 'http://localhost:3000' };
-    expect(validateNotifyEmailRequest({ ...valid, body: 'x', headers: local }).ok).toBe(true);
-    expect(validateNotifyEmailRequest({ ...valid, body: 'x', headers: { host: 'app.example', origin: 'http://app.example' } }).ok).toBe(false);
+    expect(validateNotifyEmailRequest({ ...valid, body: 'x', headers: local }, ENV).ok).toBe(true);
+    expect(validateNotifyEmailRequest({ ...valid, body: 'x', headers: { host: 'app.example', origin: 'http://app.example' } }, ENV).ok).toBe(false);
   });
 });
 

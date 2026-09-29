@@ -91,18 +91,36 @@ step_revoke_json_key() {
   fi
   confirm "Le déploiement via WIF a-t-il réussi (étape « Authenticate to Google Cloud » verte) ?" || return 0
 
-  local email key found=0
-  while read -r email; do
+  # === AMÉLIORATION AJOUTÉE (revue PR #139) === périmètre STRICT : seuls les
+  # comptes de service de déploiement GitHub sont examinés — le compte créé
+  # par `firebase init hosting:github` (préfixe github-action-) ou celui
+  # désigné par LEGACY_DEPLOY_SA. Jamais les autres comptes du projet
+  # (intégrations, production), même avec confirmation.
+  local email key found=0 accounts
+  if [[ -n "${LEGACY_DEPLOY_SA:-}" ]]; then
+    accounts="$LEGACY_DEPLOY_SA"
+  else
+    accounts="$(gcloud iam service-accounts list --project "$PROJECT_ID" --format 'value(email)' | grep -E '^github-action-' || true)"
+  fi
+  if [[ -z "$accounts" ]]; then
+    info "Aucun compte de déploiement historique trouvé (préfixe github-action-)."
+    info "Relancer avec LEGACY_DEPLOY_SA=<email du compte> si son nom diffère."
+  fi
+  # Lectures sur des descripteurs dédiés (3, 4) : `confirm` lit le clavier
+  # (entrée standard), jamais la liste des comptes ou des clés.
+  while read -r -u 4 email; do
     [[ -z "$email" ]] && continue
-    while read -r key; do
+    [[ "$email" == "$SA" ]] && continue   # le compte WIF n'a pas de clé et ne doit jamais en avoir
+    info "Compte examiné : $email"
+    while read -r -u 3 key; do
       [[ -z "$key" ]] && continue
       found=1
-      info "Clé utilisateur : $key ($email)"
-      if confirm "Supprimer cette clé ?"; then
+      info "Clé JSON : $key ($email)"
+      if confirm "Supprimer DÉFINITIVEMENT cette clé du compte $email ?"; then
         gcloud iam service-accounts keys delete "$key" --iam-account "$email" --project "$PROJECT_ID" --quiet
       fi
-    done < <(gcloud iam service-accounts keys list --iam-account "$email" --project "$PROJECT_ID" --managed-by user --format 'value(name.basename())')
-  done < <(gcloud iam service-accounts list --project "$PROJECT_ID" --format 'value(email)')
+    done 3< <(gcloud iam service-accounts keys list --iam-account "$email" --project "$PROJECT_ID" --managed-by user --format 'value(name.basename())')
+  done 4<<< "$accounts"
   [[ $found -eq 1 ]] || info "Aucune clé JSON gérée par l'utilisateur : rien à révoquer."
 
   if has_gh && confirm "Supprimer le secret GitHub FIREBASE_SERVICE_ACCOUNT_ACTIVA ?"; then

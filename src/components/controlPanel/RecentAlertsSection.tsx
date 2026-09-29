@@ -21,6 +21,8 @@ import { trData } from '../../i18n/dataLabels';
 import { DataTable, StatusBadge } from '../ui';
 import type { DataTableColumn } from '../ui';
 import type { CasesFilter } from './dashboardHelpers';
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === détection des résumés du vrai backend.
+import { isCaseSummary } from '../../domain/caseToAlertSummary';
 
 interface RecentAlertsSectionProps {
   t: Record<string, string>;
@@ -81,7 +83,9 @@ export const RecentAlertsSection: React.FC<RecentAlertsSectionProps> = ({
         columns={recentAlertsColumns}
         rows={recentAlerts}
         getRowKey={(r) => r.id}
-        onRowClick={(r) => onNavigateToCases({ trackingNumber: r.trackingNumber })}
+        // === AMÉLIORATION AJOUTÉE (revue PR #139) === un résumé du vrai backend
+        // n'a pas encore de fiche locale : pas de navigation vers une fiche vide.
+        onRowClick={(r) => { if (!isCaseSummary(r)) onNavigateToCases({ trackingNumber: r.trackingNumber }); }}
         emptyTitle={t.cp_empty_recent_alerts}
       />
     </section>

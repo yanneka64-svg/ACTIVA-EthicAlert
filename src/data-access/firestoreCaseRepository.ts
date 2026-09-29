@@ -397,8 +397,13 @@ export class FirestoreCaseRepository implements CaseRepository {
     // force toujours `userId` à l'uid du token vérifié — un appelant ne
     // peut jamais déclarer un conflit d'intérêt AU NOM de quelqu'un d'autre.
     try {
-      const fn = await call<{ caseId: string; outcome: ConflictOfInterestDeclaration['outcome']; details?: string }, { ok: true }>('declareConflictOfInterest');
-      await fn({ caseId, outcome, details });
+      const fn = await call<{ caseId: string; outcome: ConflictOfInterestDeclaration['outcome']; details?: string }, { ok: true; declaration?: ConflictOfInterestDeclaration }>('declareConflictOfInterest');
+      const res = await fn({ caseId, outcome, details });
+      // === AMÉLIORATION AJOUTÉE (revue PR #139) === la Cloud Function renvoie
+      // désormais la déclaration réellement persistée (userId issu du jeton
+      // vérifié, jamais le paramètre client) : elle fait foi quand présente.
+      const persisted = (res as { data?: { declaration?: ConflictOfInterestDeclaration } })?.data?.declaration;
+      if (persisted) return persisted;
       // Pas d'id renvoyé par cette Cloud Function (déclaration write-only,
       // jamais relue ensuite par aucun des deux repositories existants non
       // plus) — reconstruit l'objet tel que la fonction serveur vient de

@@ -42,6 +42,12 @@ export interface CaseMirrorInput {
   description: string;
   reportingMode: Case['reportingMode'];
   confidentialityLevel: Case['confidentialityLevel'];
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === identifiants de suivi déjà
+  // remis au lanceur d'alerte : le dossier réel s'ouvre avec eux
+  // (getCaseForReporter). Le code n'est transmis qu'à notre propre backend,
+  // en HTTPS, qui n'en stocke que l'empreinte PBKDF2.
+  accessCode?: string;
+  externalReference?: string;
 }
 
 export interface CaseMirrorResult {

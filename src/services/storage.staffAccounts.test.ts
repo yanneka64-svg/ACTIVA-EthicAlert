@@ -372,7 +372,9 @@ describe('storage — mise à niveau transparente des empreintes de mot de passe
     const username = uniqueUsername();
     const id = 'usr-legacy-hash-' + counter;
     const salt = generateSalt();
-    const legacyHash = await hashPasswordLegacy('Ancien#Mdp1', salt);
+    // === AMÉLIORATION AJOUTÉE === mot de passe généré à l'exécution (aucun identifiant en dur).
+    const legacyPw = generateAccessPassword(12);
+    const legacyHash = await hashPasswordLegacy(legacyPw, salt);
     const setAt = '2026-01-01T00:00:00.000Z';
     storage.addUser(
       { id, name: 'Compte hérité', email: uniqueEmail(), username, role: 'investigator', roleTitle: 'Investigateur', entity: 'Toutes entités', country: 'Groupe ACTIVA', passwordHash: legacyHash, passwordSalt: salt, mustChangePassword: false, passwordSetAt: setAt },
@@ -384,17 +386,17 @@ describe('storage — mise à niveau transparente des empreintes de mot de passe
     expect(wrong).toEqual({ ok: false, reason: 'wrong_password' });
     expect(storage.getUsers().find((u) => u.id === id)!.passwordHash).toBe(legacyHash);
 
-    const ok = await storage.verifyStaffLogin(username, 'Ancien#Mdp1');
+    const ok = await storage.verifyStaffLogin(username, legacyPw);
     expect(ok.ok).toBe(true);
     const upgraded = storage.getUsers().find((u) => u.id === id)!;
     expect(upgraded.passwordHash).toMatch(/^pbkdf2_sha256\$/);
     expect(upgraded.passwordSalt).not.toBe(salt);
     expect(needsRehash(upgraded.passwordHash)).toBe(false);
     expect(upgraded.passwordSetAt).toBe(setAt);
-    expect(await verifyPassword('Ancien#Mdp1', upgraded.passwordSalt!, upgraded.passwordHash!)).toBe(true);
+    expect(await verifyPassword(legacyPw, upgraded.passwordSalt!, upgraded.passwordHash!)).toBe(true);
     expect(storage.getAuditLogs().length).toBe(auditBefore);
 
-    const again = await storage.verifyStaffLogin(username, 'Ancien#Mdp1');
+    const again = await storage.verifyStaffLogin(username, legacyPw);
     expect(again.ok).toBe(true);
   });
 
@@ -403,12 +405,13 @@ describe('storage — mise à niveau transparente des empreintes de mot de passe
     const username = uniqueUsername();
     const id = 'usr-legacy-temp-' + counter;
     const salt = generateSalt();
-    const legacyHash = await hashPasswordLegacy('Temp1234', salt);
+    const tempPw = generateAccessPassword(12);
+    const legacyHash = await hashPasswordLegacy(tempPw, salt);
     storage.addUser(
       { id, name: 'Compte temporaire hérité', email: uniqueEmail(), username, role: 'investigator', roleTitle: 'Investigateur', entity: 'Toutes entités', country: 'Groupe ACTIVA', passwordHash: legacyHash, passwordSalt: salt, mustChangePassword: true, passwordSetAt: new Date().toISOString() },
       actor
     );
-    const ok = await storage.verifyStaffLogin(username, 'Temp1234');
+    const ok = await storage.verifyStaffLogin(username, tempPw);
     expect(ok).toMatchObject({ ok: true, mustChangePassword: true });
     expect(storage.getUsers().find((u) => u.id === id)!.passwordHash).toBe(legacyHash);
   });

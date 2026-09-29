@@ -21,6 +21,13 @@ aujourd'hui) sont hors de portée du code.
 
 ## Checklist d'activation (Phases 1-8 « Brancher le vrai backend »)
 
+> === AMÉLIORATION AJOUTÉE (revue PR #139) === **Checklist conditionnelle.**
+> La décision en vigueur plus bas dans ce document reste de **rester sur le
+> plan Spark** : les étapes 1, 2 et 7 ne s'appliquent que le jour où cette
+> décision est revue et le passage au plan Blaze approuvé. D'ici là, rien
+> n'est à déployer ; l'application continue de fonctionner à l'identique
+> (stockage local), les miroirs vers le vrai backend restant inactifs.
+
 1. **Passer le projet en plan Blaze** — `console.firebase.google.com/project/activa-ethicalert-47246/usage/details`. Bloque tout le reste : Cloud Functions et Cloud Storage en dépendent tous les deux (voir plus bas dans ce document, sections "Cloud Functions" et "New, harder wall").
 
 2. **Déployer les Cloud Functions** — `cd functions && npm run build && firebase deploy --only functions --project activa-ethicalert-47246`. Le rôle `serviceusage.serviceUsageAdmin` déjà accordé au compte de service (voir plus bas) reste suffisant, d'après le chemin déjà vérifié en direct lors de la précédente tentative. Déploie notamment `listCases` et `createCaseAsReporter` (Phases 1 et 4 de ce fil), en plus des ~20 autres fonctions déjà écrites et listées plus bas.

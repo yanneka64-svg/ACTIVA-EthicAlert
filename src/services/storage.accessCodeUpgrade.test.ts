@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { storage } from './storage';
-import { hashPasswordLegacy, needsRehash, verifyPassword } from './crypto';
+import { generateAccessPassword, hashPasswordLegacy, needsRehash, verifyPassword } from './crypto';
 import type { AlertRecord } from '../types';
 
 function cloneFirstAlert(id: string, patch: Partial<AlertRecord>): AlertRecord {
@@ -18,17 +18,19 @@ function cloneFirstAlert(id: string, patch: Partial<AlertRecord>): AlertRecord {
 
 describe('storage.upgradeAccessCodeHashIfNeeded', () => {
   it('replaces a legacy iterated-SHA-256 hash by PBKDF2 without touching updatedAt or the audit trail', async () => {
-    const legacy = await hashPasswordLegacy('Code1234', 'aabbccdd');
+    // === AMÉLIORATION AJOUTÉE === code généré à l'exécution (aucun identifiant en dur).
+    const code = generateAccessPassword(12);
+    const legacy = await hashPasswordLegacy(code, 'aabbccdd');
     const alert = cloneFirstAlert('acc-upg-1', { accessCodeHash: legacy, accessCodeSalt: 'aabbccdd' });
     const updatedAt = alert.updatedAt;
     const audit = storage.getAuditLogs().length;
 
-    await storage.upgradeAccessCodeHashIfNeeded(alert.id, 'Code1234');
+    await storage.upgradeAccessCodeHashIfNeeded(alert.id, code);
 
     const after = storage.getAlerts().find((a) => a.id === alert.id)!;
     expect(needsRehash(after.accessCodeHash)).toBe(false);
     expect(after.accessCodeSalt).not.toBe('aabbccdd');
-    expect(await verifyPassword('Code1234', after.accessCodeSalt, after.accessCodeHash)).toBe(true);
+    expect(await verifyPassword(code, after.accessCodeSalt, after.accessCodeHash)).toBe(true);
     expect(after.updatedAt).toBe(updatedAt);
     expect(storage.getAuditLogs().length).toBe(audit);
   });

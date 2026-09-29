@@ -35,20 +35,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  # === AMÉLIORATION AJOUTÉE (revue PR #139) === séparation des privilèges :
+  # l'installation des dépendances, les tests et le build tournent dans un
+  # job SANS jeton OIDC (id-token) ; seul le job de déploiement, qui
+  # n'exécute aucune dépendance du projet, peut obtenir des identifiants
+  # GCP. Le site construit passe de l'un à l'autre en artefact.
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # === AMÉLIORATION AJOUTÉE === jeton OIDC pour la fédération d'identité (WIF).
-      id-token: write
+    outputs:
+      deploy: ${{ steps.gate.outputs.deploy }}
     env:
-      # === AMÉLIORATION AJOUTÉE === déploiement possible via WIF OU via la clé JSON historique.
-      HAS_WIF: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' }}
+      # Déploiement possible via WIF OU via la clé JSON historique.
       HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ACTIVA != '' || (vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '') }}
     steps:
       - name: Check deployment secret
-        if: env.HAS_SA != 'true'
-        run: echo "::notice::FIREBASE_SERVICE_ACCOUNT_ACTIVA non configuré — déploiement ignoré (voir docs/FIREBASE-HOSTING.md)."
+        id: gate
+        run: |
+          echo "deploy=${HAS_SA}" >> "$GITHUB_OUTPUT"
+          if [ "${HAS_SA}" != "true" ]; then echo "::notice::FIREBASE_SERVICE_ACCOUNT_ACTIVA non configuré — déploiement ignoré (voir docs/FIREBASE-HOSTING.md)."; fi
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
         if: env.HAS_SA == 'true'
@@ -82,9 +88,40 @@ jobs:
           # === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === App Check (facultatif, vide = inactif).
           VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
 
+      - name: Upload built site
+        if: env.HAS_SA == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
+        with:
+          name: hosting-dist
+          path: dist
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # === AMÉLIORATION AJOUTÉE === jeton OIDC pour la fédération d'identité (WIF),
+      # limité à ce job qui n'exécute aucune dépendance du projet.
+      id-token: write
+    env:
+      HAS_WIF: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' }}
+    steps:
+      # Le dépôt n'est récupéré que pour firebase.json (en-têtes, réécritures) ;
+      # aucune installation ni aucun script du projet n'est lancé ici.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+
+      - name: Download built site
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4 (v4.3.0)
+        with:
+          name: hosting-dist
+          path: dist
+
       - name: Deploy to Firebase Hosting (live)
         # === AMÉLIORATION AJOUTÉE === chemin historique (clé JSON), utilisé tant que WIF n'est pas configuré.
-        if: env.HAS_SA == 'true' && env.HAS_WIF != 'true'
+        if: env.HAS_WIF != 'true'
         uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0 (v0.11.0)
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

@@ -479,6 +479,10 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
       description: newRecord.detailedDescription,
       reportingMode: isAnonymous ? 'anonymous' : 'identified',
       confidentialityLevel: newRecord.confidentialityLevel,
+      // === AMÉLIORATION AJOUTÉE (revue PR #139) === mêmes identifiants de
+      // suivi pour le dossier local et le dossier réel.
+      accessCode: generatedPassword,
+      externalReference: trackingNumber,
     }).then((result) => {
       if (result) storage.linkMirroredCase(newRecord.id, result.caseId, result.caseNumber);
     }).catch(() => {});

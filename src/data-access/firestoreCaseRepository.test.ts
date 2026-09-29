@@ -210,6 +210,17 @@ describe('FirestoreCaseRepository — identité jamais acceptée du client', () 
     const callableFn = mockHttpsCallable.mock.results[0].value;
     expect(callableFn).toHaveBeenCalledWith({ caseId: 'case-1', outcome: 'no_conflict', details: undefined });
   });
+
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) ===
+  it("declareConflictOfInterest renvoie la déclaration persistée par le serveur (userId du jeton), jamais le userId fourni", async () => {
+    const persisted = { caseId: 'case-1', userId: 'uid-du-jeton', outcome: 'no_conflict', declaredAt: '2026-09-29T00:00:00.000Z' };
+    mockCallableResolves({ ok: true, declaration: persisted });
+
+    const repo = new FirestoreCaseRepository();
+    const result = await repo.declareConflictOfInterest('case-1', 'quelquun-dautre', 'no_conflict');
+
+    expect(result).toEqual(persisted);
+  });
 });
 
 describe('FirestoreCaseRepository — non disponible depuis le client', () => {

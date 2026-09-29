@@ -72,6 +72,13 @@ export type CasePriority = 'low' | 'high' | 'very_high' | 'critical';
 export interface Case extends Auditable {
   caseId: string; // immutable internal id, never displayed
   caseNumber: string; // e.g. "CASE-2026-000123" — human-facing, sequential, server-generated
+  /**
+   * === AMÉLIORATION AJOUTÉE (revue PR #139) === numéro de suivi local déjà
+   * remis au lanceur d'alerte (ex. AACMR-26-09-0001) quand le dossier a été
+   * créé par le miroir de la soumission publique : `getCaseForReporter`
+   * accepte aussi ce numéro, avec le même code d'accès.
+   */
+  externalReference?: string;
   status: CaseStatus;
 
   category: string;

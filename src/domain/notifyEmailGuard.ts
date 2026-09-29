@@ -15,8 +15,8 @@
  * - `Origin` obligatoire et égal à l'application elle-même (même hôte que
  *   la requête, ou liste explicite `NOTIFY_ALLOWED_ORIGINS`) ;
  * - un destinataire unique, syntaxiquement valide, sans injection
- *   d'en-tête ; domaine restreint si `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`
- *   est défini ;
+ *   d'en-tête ; domaine obligatoirement dans `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`
+ *   (=== AMÉLIORATION AJOUTÉE (revue PR #139) === échec fermé si absent) ;
  * - un sujet d'une ligne commençant par « [activa-whistleblowing] » (tous
  *   les modèles d'emailNotify.ts le font) ;
  * - un corps borné, dont TOUT lien pointe vers l'application elle-même
@@ -64,7 +64,7 @@ export interface NotifyGuardEnv {
 
 export type NotifyGuardResult =
   | { ok: true; to: string; subject: string; body: string; origin: string }
-  | { ok: false; status: 400 | 403; error: string };
+  | { ok: false; status: 400 | 403 | 503; error: string };
 
 /** Découpe une variable d'environnement « a, b ,c » en liste normalisée (minuscules, sans vides). */
 export function parseCsvList(value: string | undefined): string[] {
@@ -137,12 +137,19 @@ export function validateNotifyEmailRequest(input: NotifyGuardInput, env: NotifyG
   if (recipient.length > NOTIFY_MAX_EMAIL_LENGTH || !EMAIL_RE.test(recipient)) {
     return { ok: false, status: 400, error: 'Invalid recipient address.' };
   }
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === liste de domaines
+  // destinataires OBLIGATOIRE (échec fermé) : l'en-tête Origin/Host peut être
+  // forgé par un client hors navigateur, c'est donc cette liste qui empêche
+  // réellement d'utiliser le point d'envoi comme relais vers des adresses
+  // externes. Sans configuration, aucun e-mail ne part (503 explicite,
+  // journalisé EMAIL_NOTIFICATION_FAILED côté client).
   const domains = parseCsvList(env.allowedRecipientDomains);
-  if (domains.length > 0) {
-    const domain = recipient.split('@')[1].toLowerCase();
-    if (!domains.some((d) => domain === d || domain.endsWith(`.${d}`))) {
-      return { ok: false, status: 403, error: 'Recipient domain not allowed.' };
-    }
+  if (domains.length === 0) {
+    return { ok: false, status: 503, error: 'Email service not configured: NOTIFY_ALLOWED_RECIPIENT_DOMAINS is missing.' };
+  }
+  const domain = recipient.split('@')[1].toLowerCase();
+  if (!domains.some((d) => domain === d || domain.endsWith(`.${d}`))) {
+    return { ok: false, status: 403, error: 'Recipient domain not allowed.' };
   }
 
   if (/[\r\n]/.test(subject) || subject.length > NOTIFY_MAX_SUBJECT_LENGTH || !subject.startsWith(NOTIFY_SUBJECT_PREFIX)) {

@@ -118,3 +118,13 @@ describe('caseToAlertSummary — mapping de statut vers un panier KPI sensé (ge
     });
   }
 });
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139) ===
+describe('caseToAlertSummary — enquêteurs attribués', () => {
+  it('conserve les enquêteurs additionnels même sans enquêteur principal', () => {
+    expect(caseToAlertSummary(makeCase({ assignee: undefined, additionalInvestigators: ['u-2', 'u-3'] })).assignedInvestigators).toEqual(['u-2', 'u-3']);
+  });
+  it("place l'enquêteur principal en premier quand il existe", () => {
+    expect(caseToAlertSummary(makeCase({ assignee: 'u-1', additionalInvestigators: ['u-2'] })).assignedInvestigators).toEqual(['u-1', 'u-2']);
+  });
+});

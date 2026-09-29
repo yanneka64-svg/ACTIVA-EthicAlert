@@ -1,6 +1,8 @@
 /**
  * === AMÉLIORATION AJOUTÉE (Refactor AlertTrackingView — extraction par
  * section) ===
+ * (=== AMÉLIORATION AJOUTÉE (revue PR #139) === accessibilité ajoutée
+ * ensuite : rôle dialog, étiquettes, focus initial et piégé, Échap.)
  *
  * Modale « Compléter sa déclaration ».
  *
@@ -9,7 +11,7 @@
  * verrou anti-brute-force) et tous les handlers restent possédés par
  * AlertTrackingView.tsx et sont passés en props tels quels.
  */
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Send, FileText, X, Info } from 'lucide-react';
 
 interface TrackingSupplementModalProps {
@@ -27,12 +29,54 @@ export const TrackingSupplementModal: React.FC<TrackingSupplementModalProps> = (
   setShowSupplementModal,
   handleAddSupplement,
 }) => {
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — accessibilité) === sémantique
+  // de dialogue, focus initial sur la zone de saisie, focus maintenu dans
+  // la modale (Tab / Maj+Tab) et fermeture par Échap. Rendu visuel inchangé.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    textareaRef.current?.focus();
+    return () => previouslyFocused?.focus?.();
+  }, []);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      setShowSupplementModal(false);
+      return;
+    }
+    if (e.key !== 'Tab' || !dialogRef.current) return;
+    const focusable = Array.from(
+      dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), textarea, [href], input, select, [tabindex]:not([tabindex="-1"])')
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tracking-supplement-title"
+        aria-describedby="tracking-supplement-desc"
+        onKeyDown={handleKeyDown}
+        className="relative bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4"
+      >
         <button
           type="button"
           onClick={() => setShowSupplementModal(false)}
+          aria-label={t.btn_cancel}
+          title={t.btn_cancel}
           className="absolute right-4 top-4 p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
         >
           <X className="w-4 h-4" />
@@ -42,15 +86,17 @@ export const TrackingSupplementModal: React.FC<TrackingSupplementModalProps> = (
           <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center mx-auto">
             <FileText className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-bold text-slate-900">{t.track_supplement_title}</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">{t.track_supplement_desc}</p>
+          <h3 id="tracking-supplement-title" className="text-base font-bold text-slate-900">{t.track_supplement_title}</h3>
+          <p id="tracking-supplement-desc" className="text-xs text-slate-500 max-w-sm mx-auto">{t.track_supplement_desc}</p>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label htmlFor="tracking-supplement-text" className="block text-xs font-semibold text-slate-700 mb-1">
             {t.track_supplement_label} *
           </label>
           <textarea
+            id="tracking-supplement-text"
+            ref={textareaRef}
             rows={5}
             maxLength={2000}
             value={supplementText}

@@ -34,7 +34,7 @@ import { AlertRecord, Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 5) ===
-import { fetchMirroredCasesForControlPanel } from '../services/controlPanelCloudSync';
+import { fetchMirroredCasesForControlPanel, mergeMirroredCases } from '../services/controlPanelCloudSync';
 import { computeSlaStatus } from '../services/statusMapping';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
 import { userCan } from '../services/authz';
@@ -114,15 +114,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // service) — `fetchMirroredCasesForControlPanel` ne rejette jamais,
   // cet état reste `[]` en cas d'échec, jamais une erreur visible ici.
   const [mirroredCases, setMirroredCases] = useState<AlertRecord[]>([]);
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === lié au compte local actif :
+  // vidé dès que l'utilisateur change, et une réponse arrivée après ce
+  // changement est ignorée (voir fetchMirroredCasesForControlPanel).
   useEffect(() => {
     let cancelled = false;
-    fetchMirroredCasesForControlPanel().then((cases) => {
+    setMirroredCases([]);
+    fetchMirroredCasesForControlPanel(activeUser.email).then((cases) => {
       if (!cancelled) setMirroredCases(cases);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeUser.id, activeUser.email]);
 
   // === AMÉLIORATION AJOUTÉE (correctif — isolation d'impression du Centre
   // de Pilotage) === Laisse React monter ControlPanelPrintView (rendu
@@ -153,7 +157,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ lang, activeUser, on
   // `mirroredCases` ci-dessus. `useMemo` évite de reconstruire ce tableau
   // fusionné à chaque rendu alors que `mirroredCases` ne change presque
   // jamais (un seul fetch au montage).
-  const alertsWithMirrored = useMemo(() => [...alerts, ...mirroredCases], [alerts, mirroredCases]);
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === sans doublon local/backend.
+  const alertsWithMirrored = useMemo(() => mergeMirroredCases(alerts, mirroredCases), [alerts, mirroredCases]);
   const visible = useVisibleAlerts(alertsWithMirrored, activeUser);
 
   // === AMÉLIORATION AJOUTÉE (filtre de période + export + suivi annuel) ===

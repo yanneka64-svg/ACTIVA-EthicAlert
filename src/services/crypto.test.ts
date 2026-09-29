@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   PBKDF2_ITERATIONS,
+  generateAccessPassword,
   constantTimeEqual,
   hashPassword,
   hashPasswordLegacy,
@@ -24,18 +25,22 @@ describe('PBKDF2 password hashing', () => {
   });
 
   it('hashPassword now produces a self-describing 600k-iteration PBKDF2 hash that verifies', async () => {
-    const h = await hashPassword('Hx4G4TYJ', 'a1b2c3');
+    // === AMÉLIORATION AJOUTÉE === valeur générée à l'exécution : aucun
+    // identifiant (même factice) écrit en dur dans le dépôt (GitGuardian).
+    const pw = generateAccessPassword(12);
+    const h = await hashPassword(pw, 'a1b2c3');
     expect(h).toMatch(new RegExp(`^pbkdf2_sha256\\$${PBKDF2_ITERATIONS}\\$[0-9a-f]{64}$`));
-    expect(await verifyPassword('Hx4G4TYJ', 'a1b2c3', h)).toBe(true);
-    expect(await verifyPassword('hx4g4tyj', 'a1b2c3', h)).toBe(false);
-    expect(await verifyPassword('Hx4G4TYJ', 'other-salt', h)).toBe(false);
+    expect(await verifyPassword(pw, 'a1b2c3', h)).toBe(true);
+    expect(await verifyPassword(pw + 'x', 'a1b2c3', h)).toBe(false);
+    expect(await verifyPassword(pw, 'other-salt', h)).toBe(false);
     expect(needsRehash(h)).toBe(false);
   });
 
   it('still verifies hashes produced by the historical iterated SHA-256 algorithm', async () => {
-    const legacy = await hashPasswordLegacy('demo-pass', 'deadbeef');
+    const pw = generateAccessPassword(12);
+    const legacy = await hashPasswordLegacy(pw, 'deadbeef');
     expect(legacy).toMatch(/^[0-9a-f]{64}$/);
-    expect(await verifyPassword('demo-pass', 'deadbeef', legacy)).toBe(true);
+    expect(await verifyPassword(pw, 'deadbeef', legacy)).toBe(true);
     expect(await verifyPassword('wrong', 'deadbeef', legacy)).toBe(false);
     expect(needsRehash(legacy)).toBe(true);
   });

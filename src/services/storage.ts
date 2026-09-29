@@ -1038,9 +1038,14 @@ class StorageService {
       // exclus) devient les enquêteurs additionnels.
       const mirroredCaseId = alert.mirroredCaseId;
       if (mirroredCaseId) {
-        const additionalInvestigators = alert.assignedInvestigators.filter((id) => id !== owner.id);
+        // === AMÉLIORATION AJOUTÉE (revue PR #139) === le backend identifie le
+        // personnel par son compte Firebase (UID), pas par l'id local : on
+        // transmet l'e-mail, identité commune résolue en UID côté serveur
+        // (resolveStaffUid, functions/src/index.ts).
+        const backendIdentity = (id: string) => this.users.find((u) => u.id === id)?.email || id;
+        const additionalInvestigators = alert.assignedInvestigators.filter((id) => id !== owner.id).map(backendIdentity);
         import('./assignmentMirrorSync')
-          .then(({ mirrorAssignmentToRealBackend }) => mirrorAssignmentToRealBackend({ caseId: mirroredCaseId, assignee: owner.id, additionalInvestigators }))
+          .then(({ mirrorAssignmentToRealBackend }) => mirrorAssignmentToRealBackend({ caseId: mirroredCaseId, assignee: owner.email || owner.id, additionalInvestigators }))
           .catch(() => {});
       }
       return undefined;

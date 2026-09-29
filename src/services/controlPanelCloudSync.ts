@@ -24,7 +24,7 @@
  * différente mais avec le même résultat observable : rien ne change tant
  * que l'activation complète n'a pas eu lieu.
  */
-import { caseToAlertSummary } from '../domain/caseToAlertSummary';
+import { caseSummaryId, caseToAlertSummary } from '../domain/caseToAlertSummary';
 import { AlertRecord } from '../types';
 import { AppUser } from '../domain/caseTypes';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 5) === type-only :
@@ -38,6 +38,8 @@ import { AppUser } from '../domain/caseTypes';
 // n'était plus référencé (le type est obtenu via l'import dynamique de
 // `fetchMirroredCasesForControlPanel`). La règle ci-dessus reste valable.
 import { isPhase4Configured } from './firebaseClient';
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === vérification de l'identité Firebase.
+import { getPhase4Firebase } from './firebaseClient';
 
 // Pas de limite de pagination réelle côté UI ici : le Centre de Pilotage
 // affiche des KPI agrégés sur TOUS les dossiers visibles, jamais une page
@@ -65,15 +67,61 @@ const PLACEHOLDER_USER: AppUser = {
   createdAt: new Date(0).toISOString(),
 };
 
-/** Toujours résout un tableau (vide en cas d'échec) — ne rejette jamais. */
-export async function fetchMirroredCasesForControlPanel(): Promise<AlertRecord[]> {
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === plafond de sécurité du
+// parcours des pages (FETCH_LIMIT × MAX_PAGES dossiers au maximum).
+const MAX_PAGES = 50;
+
+function normalizeEmail(email: string | null | undefined): string {
+  return (email ?? '').trim().toLowerCase();
+}
+
+/**
+ * Toujours résout un tableau (vide en cas d'échec) — ne rejette jamais.
+ *
+ * === AMÉLIORATION AJOUTÉE (revue PR #139) ===
+ * - `expectedEmail` (compte local actif) est OBLIGATOIRE : les dossiers ne
+ *   sont renvoyés que si la session Firebase Auth courante appartient à ce
+ *   même compte. Sinon (session d'un utilisateur précédent restée ouverte,
+ *   connexion Firebase absente ou en cours), rien n'est affiché : jamais
+ *   des dossiers obtenus avec les droits d'un autre compte.
+ * - Toutes les pages sont parcourues (`nextOffset`), plus seulement les
+ *   100 premiers dossiers.
+ */
+export async function fetchMirroredCasesForControlPanel(expectedEmail?: string): Promise<AlertRecord[]> {
   if (!isPhase4Configured()) return [];
+  const expected = normalizeEmail(expectedEmail);
+  if (!expected) return [];
   try {
+    const { auth } = getPhase4Firebase();
+    if (typeof auth.authStateReady === 'function') await auth.authStateReady();
+    if (normalizeEmail(auth.currentUser?.email) !== expected) return [];
+
     const { FirestoreCaseRepository } = await import('../data-access/firestoreCaseRepository');
     const repo = new FirestoreCaseRepository();
-    const page = await repo.listCases({}, PLACEHOLDER_USER, FETCH_LIMIT, 0);
-    return page.items.map(caseToAlertSummary);
+    const items: AlertRecord[] = [];
+    let offset: number | undefined = 0;
+    for (let page = 0; page < MAX_PAGES && offset !== undefined; page++) {
+      const result = await repo.listCases({}, PLACEHOLDER_USER, FETCH_LIMIT, offset);
+      items.push(...result.items.map(caseToAlertSummary));
+      offset = result.nextOffset;
+    }
+    // La session a pu changer pendant les appels : on revérifie avant de rendre.
+    if (normalizeEmail(auth.currentUser?.email) !== expected) return [];
+    return items;
   } catch {
     return [];
   }
+}
+
+/**
+ * === AMÉLIORATION AJOUTÉE (revue PR #139) ===
+ * Fusionne dossiers locaux et résumés du vrai backend sans doublon : un
+ * résumé dont le dossier est déjà présent localement (lien
+ * `mirroredCaseId`, posé après un miroir réussi) est écarté — le dossier
+ * local, plus complet, est conservé.
+ */
+export function mergeMirroredCases(local: AlertRecord[], mirrored: AlertRecord[]): AlertRecord[] {
+  if (mirrored.length === 0) return local;
+  const linked = new Set(local.filter((a) => a.mirroredCaseId).map((a) => caseSummaryId(a.mirroredCaseId as string)));
+  return [...local, ...mirrored.filter((m) => !linked.has(m.id))];
 }

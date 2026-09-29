@@ -59,7 +59,15 @@ function readAttempted(): string[] {
   }
 }
 
-function markAttempted(email: string): void {
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === même compte quelle que soit
+// la casse ou les espaces saisis : le plafond d'une tentative par compte
+// ne peut plus être contourné en variant l'écriture de l'adresse.
+function normalizeAttemptEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function markAttempted(rawEmail: string): void {
+  const email = normalizeAttemptEmail(rawEmail);
   try {
     const attempted = readAttempted();
     if (attempted.includes('*') || attempted.includes(email)) return;
@@ -71,7 +79,8 @@ function markAttempted(email: string): void {
   }
 }
 
-function hasAttempted(email: string): boolean {
+function hasAttempted(rawEmail: string): boolean {
+  const email = normalizeAttemptEmail(rawEmail);
   const attempted = readAttempted();
   return attempted.includes('*') || attempted.includes(email);
 }

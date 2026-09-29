@@ -31,6 +31,8 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === pagination par curseur de listCases.
+import { FieldPath } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { CallableRequest, HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 // === AMÉLIORATION AJOUTÉE : secret Resend pour notifyEmail (Secret Manager, Blaze) ===
@@ -60,6 +62,8 @@ import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow
 import { CaseListFilter, filterVisibleCases } from '../../src/domain/caseVisibility';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
 import { caseQueryEqualities, normalizePagination } from '../../src/domain/caseQuery';
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution de la soumission publique.
+import { parseReporterCaseInput } from '../../src/domain/reporterCaseInput';
 // === AMÉLIORATION AJOUTÉE : réutilise le HASH/SALT existant, jamais réimplémenté ===
 // Same salted, iterated-SHA256 verification already used by the legacy
 // client-side AlertTrackingView (src/components/AlertTrackingView.tsx) —
@@ -197,6 +201,26 @@ async function requireCaseAccess(caseId: string, user: AppUser, permission: Perm
 // even if a rules gap ever reopened, this stops the write at the source.
 const CASE_BEARING_ROLES: RoleId[] = ['investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation'];
 
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === les comptes du personnel ont
+// un identifiant local (localStorage) distinct de leur UID Firebase Auth ;
+// l'e-mail est l'identité commune (scripts/setupAuthUsers.ts crée les
+// comptes par e-mail). Une cible d'attribution peut donc être un UID ou un
+// e-mail : elle est toujours résolue en UID réel avant tout contrôle ou
+// écriture.
+async function resolveStaffUid(idOrEmail: string): Promise<string> {
+  if (typeof idOrEmail !== 'string' || !idOrEmail.trim()) {
+    throw new HttpsError('invalid-argument', 'Invalid assignee.');
+  }
+  const value = idOrEmail.trim();
+  const byUid = await getAuth().getUser(value).catch(() => null);
+  if (byUid) return byUid.uid;
+  if (value.includes('@')) {
+    const byEmail = await getAuth().getUserByEmail(value.toLowerCase()).catch(() => null);
+    if (byEmail) return byEmail.uid;
+  }
+  throw new HttpsError('invalid-argument', `${value} is not a known staff account.`);
+}
+
 async function assertCaseBearingRole(uid: string): Promise<void> {
   const targetUser = await getAuth().getUser(uid).catch(() => null);
   const role = (targetUser?.customClaims as { role?: RoleId } | undefined)?.role;
@@ -310,11 +334,39 @@ export const listCases = onCall(async (request) => {
   for (const [field, value] of caseQueryEqualities(filter)) {
     query = query.where(field, '==', value);
   }
-  const snap = await query.get();
-  const cases = snap.docs.map((doc) => doc.data() as Case);
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) ===
+  // - Lecture par lots bornés (curseur sur l'id de document) : la mémoire et
+  //   chaque requête restent bornées quel que soit le volume.
+  // - Plus de requête `persons` par dossier (N+1) : l'implication est lue
+  //   dans le champ dénormalisé `Case.implicatedUserIds`, tenu à jour par
+  //   addPerson/removePersonLink et déjà utilisé par firestore.rules pour la
+  //   même décision. Repli sur la sous-collection uniquement pour un dossier
+  //   ancien dépourvu de ce champ.
+  // Le contrat `total` (nombre de dossiers VISIBLES) impose toujours
+  // d'évaluer chaque candidat : un total exact sans parcours complet
+  // demanderait un compteur agrégé côté serveur (évolution distincte).
+  const LIST_BATCH_SIZE = 500;
+  const cases: Case[] = [];
+  let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  for (;;) {
+    let batchQuery = query.orderBy(FieldPath.documentId()).limit(LIST_BATCH_SIZE);
+    if (lastDoc) batchQuery = batchQuery.startAfter(lastDoc);
+    const batch = await batchQuery.get();
+    cases.push(...batch.docs.map((doc) => doc.data() as Case));
+    if (batch.size < LIST_BATCH_SIZE) break;
+    lastDoc = batch.docs[batch.docs.length - 1];
+  }
   const personsByCase = new Map<string, Person[]>();
+  const withoutDenormalized: Case[] = [];
+  for (const kase of cases) {
+    if (Array.isArray(kase.implicatedUserIds)) {
+      personsByCase.set(kase.caseId, kase.implicatedUserIds.map((uid) => ({ kind: 'subject', linkedUserId: uid }) as Person));
+    } else {
+      withoutDenormalized.push(kase);
+    }
+  }
   await Promise.all(
-    cases.map(async (kase) => {
+    withoutDenormalized.map(async (kase) => {
       const personsSnap = await db.collection('cases').doc(kase.caseId).collection('persons').where('kind', '==', 'subject').get();
       personsByCase.set(kase.caseId, personsSnap.docs.map((d) => d.data() as Person));
     })
@@ -329,8 +381,14 @@ export const listCases = onCall(async (request) => {
 
 export const assignCase = onCall(async (request) => {
   const user = requireAppUser(request);
-  const { caseId, assignee, additionalInvestigators } = request.data as { caseId: string; assignee: string; additionalInvestigators?: string[] };
-  if (!caseId || !assignee) throw new HttpsError('invalid-argument', 'caseId and assignee are required.');
+  const { caseId, assignee: rawAssignee, additionalInvestigators: rawAdditional } = request.data as { caseId: string; assignee: string; additionalInvestigators?: string[] };
+  if (!caseId || !rawAssignee) throw new HttpsError('invalid-argument', 'caseId and assignee are required.');
+  if (rawAdditional !== undefined && !Array.isArray(rawAdditional)) throw new HttpsError('invalid-argument', 'additionalInvestigators must be an array.');
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === UID ou e-mail → UID réel.
+  const assignee = await resolveStaffUid(rawAssignee);
+  const additionalInvestigators = rawAdditional
+    ? Array.from(new Set(await Promise.all(rawAdditional.map(resolveStaffUid)))).filter((uid) => uid !== assignee)
+    : undefined;
 
   const ref = db.collection('cases').doc(caseId);
   const snap = await ref.get();
@@ -885,7 +943,9 @@ export const declareConflictOfInterest = onCall(async (request) => {
   await appendTimeline(caseId, 'CONFLICT_OF_INTEREST_DECLARED', user.userId, outcome);
   await appendAudit({ actorId: user.userId, action: 'CONFLICT_OF_INTEREST_DECLARED', caseId, newValue: outcome });
 
-  return { ok: true };
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === la déclaration réellement
+  // persistée (userId issu du jeton vérifié) est renvoyée au client.
+  return { ok: true, declaration };
 });
 
 // ---------------------------------------------------------------------------
@@ -958,7 +1018,13 @@ async function verifyReporterAccess(caseNumber: string, accessCode: string): Pro
 
   await assertReporterNotRateLimited(key);
 
-  const querySnap = await db.collection('cases').where('caseNumber', '==', key).limit(1).get();
+  let querySnap = await db.collection('cases').where('caseNumber', '==', key).limit(1).get();
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === un dossier créé par le miroir
+  // de la soumission publique est aussi retrouvé par le numéro de suivi local
+  // déjà remis au lanceur d'alerte (`externalReference`), même code d'accès.
+  if (querySnap.empty) {
+    querySnap = await db.collection('cases').where('externalReference', '==', key).limit(1).get();
+  }
   if (querySnap.empty) {
     await recordReporterAttempt(key, false);
     throw invalid();
@@ -1083,11 +1149,39 @@ export const addCommunicationAsReporter = onCall(async (request) => {
 // d'être un enregistrement orphelin sans aucun identifiant de suivi.
 // ---------------------------------------------------------------------------
 
-export const createCaseAsReporter = onCall(async (request) => {
-  const data = request.data as Pick<Case, 'category' | 'subcategory' | 'country' | 'entity' | 'reportingMode' | 'description' | 'confidentialityLevel'>;
-  if (!data?.category || !data?.country || !data?.entity || !data?.description) {
-    throw new HttpsError('invalid-argument', 'category, country, entity and description are required.');
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === limitation de débit DURABLE
+// des créations publiques, par adresse IP (compteur Firestore dans
+// `rate_limits`, fermé aux clients par firestore.rules) : vérifiée AVANT
+// l'attribution du numéro, la dérivation PBKDF2 et toute écriture.
+const REPORTER_CREATE_MAX_PER_WINDOW = Number(process.env.REPORTER_CREATE_MAX_PER_HOUR) > 0 ? Number(process.env.REPORTER_CREATE_MAX_PER_HOUR) : 10;
+const REPORTER_CREATE_WINDOW_MS = 60 * 60 * 1000;
+
+async function assertCaseCreationAllowed(ip: string): Promise<void> {
+  const ref = db.collection('rate_limits').doc(`create_${ip.replace(/[^A-Za-z0-9:.]/g, '_').slice(0, 100) || 'unknown'}`);
+  const allowed = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    const data = snap.exists ? (snap.data() as { windowStart?: number; count?: number }) : {};
+    const fresh = !data.windowStart || now - data.windowStart >= REPORTER_CREATE_WINDOW_MS;
+    const count = fresh ? 1 : (data.count ?? 0) + 1;
+    tx.set(ref, { windowStart: fresh ? now : data.windowStart, count }, { merge: true });
+    return count <= REPORTER_CREATE_MAX_PER_WINDOW;
+  });
+  if (!allowed) throw new HttpsError('resource-exhausted', 'Too many submissions from this network. Try again later.');
+}
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === App Check appliqué dès que
+// ENFORCE_APP_CHECK=true (functions/.env), une fois App Check configuré côté
+// Web (docs/DEVOPS-RUNBOOK.md) — l'activer avant casserait toute soumission.
+export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORCE_APP_CHECK === 'true' }, async (request) => {
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution
+  // (types, tailles, énumérations) : seules les valeurs validées sont écrites.
+  const parsed = parseReporterCaseInput(request.data);
+  if (!parsed.ok) {
+    throw new HttpsError('invalid-argument', parsed.error);
   }
+  const data = parsed.value;
+  await assertCaseCreationAllowed(request.rawRequest?.ip ?? 'unknown');
 
   const seq = await nextCaseSequence();
   const caseId = newId('case');
@@ -1100,10 +1194,10 @@ export const createCaseAsReporter = onCall(async (request) => {
     subcategory: data.subcategory ?? '',
     country: data.country,
     entity: data.entity,
-    reportingMode: data.reportingMode ?? 'anonymous',
+    reportingMode: data.reportingMode,
     priority: 'low',
     riskScore: 0,
-    confidentialityLevel: data.confidentialityLevel ?? 'confidential',
+    confidentialityLevel: data.confidentialityLevel,
     additionalInvestigators: [],
     slaStatus: 'ok',
     receivedAt: nowIso,
@@ -1111,6 +1205,8 @@ export const createCaseAsReporter = onCall(async (request) => {
     description: data.description,
     legalHold: false,
     implicatedUserIds: [],
+    // === AMÉLIORATION AJOUTÉE (revue PR #139) === voir Case.externalReference.
+    ...(data.externalReference ? { externalReference: data.externalReference } : {}),
     createdAt: nowIso,
     createdBy: 'reporter',
     updatedAt: nowIso,
@@ -1118,7 +1214,11 @@ export const createCaseAsReporter = onCall(async (request) => {
   };
   await db.collection('cases').doc(caseId).set(kase);
 
-  const accessCode = generateAccessPassword();
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === le code d'accès déjà remis au
+  // lanceur d'alerte par le formulaire est réutilisé (seule son empreinte
+  // est stockée) : ses identifiants de suivi ouvrent aussi ce dossier réel.
+  // À défaut, un code est généré comme avant.
+  const accessCode = data.accessCode ?? generateAccessPassword();
   const accessCodeSalt = generateSalt();
   const accessCodeHash = await hashPassword(accessCode, accessCodeSalt);
   const credentials: ReporterCredentials = { caseId, accessCodeHash, accessCodeSalt };
