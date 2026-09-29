@@ -53,18 +53,51 @@ export function filterVisibleCases(
   limit = 25,
   offset = 0
 ): Page<Case> {
-  const all = cases.filter((kase) => {
-    const implicated = implicatedUserIdsFromPersons(personsByCase.get(kase.caseId) ?? []);
-    if (!can(user, 'cases.read', { case: kase, implicatedUserIds: implicated })) return false;
-    if (filter.status && kase.status !== filter.status) return false;
-    if (filter.country && kase.country !== filter.country) return false;
-    if (filter.entity && kase.entity !== filter.entity) return false;
-    if (filter.category && kase.category !== filter.category) return false;
-    if (filter.priority && kase.priority !== filter.priority) return false;
-    if (filter.assignee && kase.assignee !== filter.assignee) return false;
-    return true;
-  });
+  const all = cases.filter((kase) => isCaseListedFor(kase, personsByCase.get(kase.caseId) ?? [], filter, user));
 
   const items = all.slice(offset, offset + limit);
   return { items, total: all.length, nextOffset: offset + limit < all.length ? offset + limit : undefined };
+}
+
+/**
+ * === AMÉLIORATION AJOUTÉE (revue PR #139 — listCases à mémoire bornée) ===
+ * Prédicat unitaire extrait tel quel de `filterVisibleCases` (même ordre de
+ * vérification : `can()` d'abord, puis les 6 filtres optionnels). Permet à
+ * la Cloud Function `listCases` d'évaluer les dossiers lot par lot, sans
+ * garder toute la collection en mémoire.
+ */
+export function isCaseListedFor(kase: Case, persons: Person[], filter: CaseListFilter, user: AppUser): boolean {
+  const implicated = implicatedUserIdsFromPersons(persons);
+  if (!can(user, 'cases.read', { case: kase, implicatedUserIds: implicated })) return false;
+  if (filter.status && kase.status !== filter.status) return false;
+  if (filter.country && kase.country !== filter.country) return false;
+  if (filter.entity && kase.entity !== filter.entity) return false;
+  if (filter.category && kase.category !== filter.category) return false;
+  if (filter.priority && kase.priority !== filter.priority) return false;
+  if (filter.assignee && kase.assignee !== filter.assignee) return false;
+  return true;
+}
+
+/**
+ * === AMÉLIORATION AJOUTÉE (revue PR #139 — listCases à mémoire bornée) ===
+ * Accumulateur de page : reçoit les dossiers visibles dans l'ordre et ne
+ * conserve que ceux de la fenêtre [offset, offset + limit). Produit
+ * exactement le même `Page<Case>` que `filterVisibleCases` sur la liste
+ * complète.
+ */
+export class VisiblePageCollector {
+  private readonly items: Case[] = [];
+  private total = 0;
+
+  constructor(private readonly limit: number, private readonly offset: number) {}
+
+  add(kase: Case): void {
+    if (this.total >= this.offset && this.total < this.offset + this.limit) this.items.push(kase);
+    this.total += 1;
+  }
+
+  page(): Page<Case> {
+    const end = this.offset + this.limit;
+    return { items: this.items, total: this.total, nextOffset: end < this.total ? end : undefined };
+  }
 }

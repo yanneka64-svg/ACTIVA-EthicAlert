@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AppUser, Case, Person } from './caseTypes';
-import { filterVisibleCases } from './caseVisibility';
+import { filterVisibleCases, isCaseListedFor, VisiblePageCollector } from './caseVisibility';
 
 function user(overrides: Partial<AppUser> = {}): AppUser {
   return {
@@ -154,5 +154,27 @@ describe('filterVisibleCases — pagination', () => {
     expect(result.items).toHaveLength(0);
     expect(result.total).toBe(10);
     expect(result.nextOffset).toBeUndefined();
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — listCases à mémoire bornée) ===
+// Le collecteur lot par lot doit produire exactement la même page que
+// filterVisibleCases sur la liste complète, pour toute fenêtre.
+describe('VisiblePageCollector', () => {
+  it('matches filterVisibleCases for every limit/offset window (implicated cases excluded)', () => {
+    const viewer = user();
+    const cases = Array.from({ length: 23 }, (_, i) =>
+      makeCase({ caseId: `c-${String(i).padStart(2, '0')}`, status: i % 3 === 0 ? 'closed' : 'new' })
+    );
+    const persons = new Map<string, Person[]>([[cases[4].caseId, [subjectPerson(cases[4].caseId, viewer.userId)]]]);
+    for (const filter of [{}, { status: 'new' as const }]) {
+      for (const [limit, offset] of [[1, 0], [5, 0], [5, 5], [25, 0], [4, 20], [10, 30]]) {
+        const collector = new VisiblePageCollector(limit, offset);
+        for (const k of cases) if (isCaseListedFor(k, persons.get(k.caseId) ?? [], filter, viewer)) collector.add(k);
+        const expected = filterVisibleCases(cases, persons, filter, viewer, limit, offset);
+        expect(collector.page()).toEqual(expected);
+        expect(expected.total).toBeGreaterThan(0);
+      }
+    }
   });
 });

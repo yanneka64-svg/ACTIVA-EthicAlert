@@ -59,7 +59,7 @@ import {
 import { can, implicatedUserIdsFromPersons, Permission } from '../../src/domain/permissions';
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
-import { CaseListFilter, filterVisibleCases } from '../../src/domain/caseVisibility';
+import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src/domain/caseVisibility';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
 import { caseQueryEqualities, normalizePagination } from '../../src/domain/caseQuery';
 // === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution de la soumission publique.
@@ -328,51 +328,59 @@ export const listCases = onCall(async (request) => {
   //   les dossiers candidats sont lus et facturés) ;
   // - seules les personnes `kind == 'subject'` sont lues (les seules
   //   utilisées par implicatedUserIdsFromPersons), en parallèle.
-  // filterVisibleCases réapplique ensuite exactement les mêmes filtres et
+  // isCaseListedFor (le prédicat de filterVisibleCases) réapplique ensuite exactement les mêmes filtres et
   // l'autorisation can() : le résultat renvoyé est inchangé.
   let query: FirebaseFirestore.Query = db.collection('cases');
   for (const [field, value] of caseQueryEqualities(filter)) {
     query = query.where(field, '==', value);
   }
   // === AMÉLIORATION AJOUTÉE (revue PR #139) ===
-  // - Lecture par lots bornés (curseur sur l'id de document) : la mémoire et
-  //   chaque requête restent bornées quel que soit le volume.
+  // - Lecture par lots bornés (curseur sur l'id de document), chaque lot
+  //   étant ÉVALUÉ puis relâché : seuls le lot courant et les dossiers de
+  //   la page demandée restent en mémoire (VisiblePageCollector), quel que
+  //   soit le volume de la collection.
   // - Plus de requête `persons` par dossier (N+1) : l'implication est lue
   //   dans le champ dénormalisé `Case.implicatedUserIds`, tenu à jour par
   //   addPerson/removePersonLink et déjà utilisé par firestore.rules pour la
   //   même décision. Repli sur la sous-collection uniquement pour un dossier
-  //   ancien dépourvu de ce champ.
+  //   ancien dépourvu de ce champ (au plus LIST_BATCH_SIZE requêtes
+  //   simultanées, jamais toute la collection d'un coup).
   // Le contrat `total` (nombre de dossiers VISIBLES) impose toujours
   // d'évaluer chaque candidat : un total exact sans parcours complet
   // demanderait un compteur agrégé côté serveur (évolution distincte).
+  // Ordre et résultat identiques à filterVisibleCases sur la liste complète
+  // (même prédicat isCaseListedFor, même ordre par id de document).
   const LIST_BATCH_SIZE = 500;
-  const cases: Case[] = [];
+  const collector = new VisiblePageCollector(limit, offset);
   let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
   for (;;) {
     let batchQuery = query.orderBy(FieldPath.documentId()).limit(LIST_BATCH_SIZE);
     if (lastDoc) batchQuery = batchQuery.startAfter(lastDoc);
     const batch = await batchQuery.get();
-    cases.push(...batch.docs.map((doc) => doc.data() as Case));
+    const cases = batch.docs.map((doc) => doc.data() as Case);
+    const personsByCase = new Map<string, Person[]>();
+    const withoutDenormalized: Case[] = [];
+    for (const kase of cases) {
+      if (Array.isArray(kase.implicatedUserIds)) {
+        personsByCase.set(kase.caseId, kase.implicatedUserIds.map((uid) => ({ kind: 'subject', linkedUserId: uid }) as Person));
+      } else {
+        withoutDenormalized.push(kase);
+      }
+    }
+    await Promise.all(
+      withoutDenormalized.map(async (kase) => {
+        const personsSnap = await db.collection('cases').doc(kase.caseId).collection('persons').where('kind', '==', 'subject').get();
+        personsByCase.set(kase.caseId, personsSnap.docs.map((d) => d.data() as Person));
+      })
+    );
+    for (const kase of cases) {
+      if (isCaseListedFor(kase, personsByCase.get(kase.caseId) ?? [], filter, user)) collector.add(kase);
+    }
     if (batch.size < LIST_BATCH_SIZE) break;
     lastDoc = batch.docs[batch.docs.length - 1];
   }
-  const personsByCase = new Map<string, Person[]>();
-  const withoutDenormalized: Case[] = [];
-  for (const kase of cases) {
-    if (Array.isArray(kase.implicatedUserIds)) {
-      personsByCase.set(kase.caseId, kase.implicatedUserIds.map((uid) => ({ kind: 'subject', linkedUserId: uid }) as Person));
-    } else {
-      withoutDenormalized.push(kase);
-    }
-  }
-  await Promise.all(
-    withoutDenormalized.map(async (kase) => {
-      const personsSnap = await db.collection('cases').doc(kase.caseId).collection('persons').where('kind', '==', 'subject').get();
-      personsByCase.set(kase.caseId, personsSnap.docs.map((d) => d.data() as Person));
-    })
-  );
 
-  return filterVisibleCases(cases, personsByCase, filter, user, limit, offset);
+  return collector.page();
 });
 
 // ---------------------------------------------------------------------------
