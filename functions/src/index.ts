@@ -1037,15 +1037,25 @@ async function verifyReporterAccess(caseNumber: string, accessCode: string): Pro
   // de la soumission publique est aussi retrouvé par le numéro de suivi local
   // déjà remis au lanceur d'alerte (`externalReference`), même code d'accès.
   // === AMÉLIORATION AJOUTÉE (revue PR #139 — unicité du numéro de suivi) ===
-  // createCaseAsReporter réserve désormais chaque numéro de suivi ; par
-  // défense en profondeur (dossiers antérieurs à la réservation), chaque
-  // correspondance est essayée (au plus REPORTER_REF_MAX_MATCHES) : un
-  // doublon ne peut plus masquer le dossier du vrai lanceur d'alerte.
-  const REPORTER_REF_MAX_MATCHES = 5;
+  // 1. Index de réservation (external_references/{ref} → caseId), écrit
+  //    atomiquement avec le dossier par createCaseAsReporter : il désigne LE
+  //    dossier de ce numéro de suivi, quels que soient d'éventuels doublons.
+  // 2. Repli : toutes les correspondances restantes sont essayées (aucune
+  //    n'est écartée). Depuis la réservation, aucun doublon ne peut plus
+  //    être créé : ce repli ne couvre que d'éventuels dossiers antérieurs.
+  let candidates: FirebaseFirestore.DocumentSnapshot[] = querySnap.docs;
   if (querySnap.empty) {
-    querySnap = await db.collection('cases').where('externalReference', '==', key).limit(REPORTER_REF_MAX_MATCHES).get();
+    candidates = [];
+    const reservation = await db.collection('external_references').doc(key).get();
+    const reservedCaseId = reservation.exists ? (reservation.data() as { caseId?: string }).caseId : undefined;
+    if (reservedCaseId) {
+      const reservedCase = await db.collection('cases').doc(reservedCaseId).get();
+      if (reservedCase.exists) candidates.push(reservedCase);
+    }
+    const others = await db.collection('cases').where('externalReference', '==', key).get();
+    for (const doc of others.docs) if (doc.id !== reservedCaseId) candidates.push(doc);
   }
-  for (const caseDoc of querySnap.docs) {
+  for (const caseDoc of candidates) {
     const credsSnap = await db.collection('reporter_credentials').doc(caseDoc.id).get();
     if (!credsSnap.exists) continue;
     const creds = credsSnap.data() as { accessCodeHash: string; accessCodeSalt: string };
@@ -1197,21 +1207,6 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   const seq = await nextCaseSequence();
   const caseId = newId('case');
   const nowIso = new Date().toISOString();
-  // === AMÉLIORATION AJOUTÉE (revue PR #139 — unicité du numéro de suivi) ===
-  // Un numéro de suivi local ne peut être rattaché qu'à UN seul dossier :
-  // réservation atomique (create() échoue s'il existe déjà). Déjà pris →
-  // dossier créé sans `externalReference`, jamais rattaché à la place d'un
-  // autre (empêche de bloquer l'accès du vrai lanceur d'alerte).
-  let externalReference = data.externalReference;
-  if (externalReference) {
-    const reserved = await db
-      .collection('external_references')
-      .doc(externalReference)
-      .create({ caseId, createdAt: nowIso })
-      .then(() => true)
-      .catch(() => false);
-    if (!reserved) externalReference = undefined;
-  }
   const kase: Case = {
     caseId,
     caseNumber: `CASE-${new Date().getFullYear()}-${String(seq).padStart(6, '0')}`,
@@ -1231,15 +1226,13 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     description: data.description,
     legalHold: false,
     implicatedUserIds: [],
-    // === AMÉLIORATION AJOUTÉE (revue PR #139) === voir Case.externalReference.
-    ...(externalReference ? { externalReference } : {}),
+    // === AMÉLIORATION AJOUTÉE (revue PR #139) === voir Case.externalReference
+    // (posé dans la transaction ci-dessous, seulement si la réservation réussit).
     createdAt: nowIso,
     createdBy: 'reporter',
     updatedAt: nowIso,
     updatedBy: 'reporter',
   };
-  await db.collection('cases').doc(caseId).set(kase);
-
   // === AMÉLIORATION AJOUTÉE (revue PR #139) === le code d'accès déjà remis au
   // lanceur d'alerte par le formulaire est réutilisé (seule son empreinte
   // est stockée) : ses identifiants de suivi ouvrent aussi ce dossier réel.
@@ -1248,7 +1241,27 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   const accessCodeSalt = generateSalt();
   const accessCodeHash = await hashPassword(accessCode, accessCodeSalt);
   const credentials: ReporterCredentials = { caseId, accessCodeHash, accessCodeSalt };
-  await db.collection('reporter_credentials').doc(caseId).set(credentials);
+
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — unicité du numéro de suivi) ===
+  // Réservation du numéro de suivi local, dossier et identifiants écrits dans
+  // UNE transaction : jamais de réservation orpheline si une écriture échoue.
+  // Seule une réservation existante (lue dans la transaction) fait créer le
+  // dossier sans `externalReference` ; toute autre erreur est propagée.
+  await db.runTransaction(async (tx) => {
+    const caseRef = db.collection('cases').doc(caseId);
+    const credsRef = db.collection('reporter_credentials').doc(caseId);
+    let doc: Case = kase;
+    if (data.externalReference) {
+      const reservationRef = db.collection('external_references').doc(data.externalReference);
+      const reservation = await tx.get(reservationRef);
+      if (!reservation.exists) {
+        tx.create(reservationRef, { caseId, createdAt: nowIso });
+        doc = { ...kase, externalReference: data.externalReference };
+      }
+    }
+    tx.set(caseRef, doc);
+    tx.set(credsRef, credentials);
+  });
 
   await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
   await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
