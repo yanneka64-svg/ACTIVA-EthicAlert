@@ -409,7 +409,14 @@ export class FirestoreCaseRepository implements CaseRepository {
       // plus) — reconstruit l'objet tel que la fonction serveur vient de
       // l'écrire, seule `declaredAt` est une approximation cliente (à la
       // seconde près, sans impact fonctionnel).
-      return { caseId, userId: _userId, outcome, details, declaredAt: new Date().toISOString() };
+      // === AMÉLIORATION AJOUTÉE (revue PR #139) === identité = celle du
+      // jeton que le serveur a vérifié (session Firebase Auth courante),
+      // jamais le paramètre `_userId` fourni par l'appelant.
+      const authUid = getPhase4Firebase().auth.currentUser?.uid;
+      if (!authUid) {
+        throw new Error('declareConflictOfInterest: identité authentifiée introuvable après l\'appel.');
+      }
+      return { caseId, userId: authUid, outcome, details, declaredAt: new Date().toISOString() };
     } catch (err) {
       return translateError(err);
     }

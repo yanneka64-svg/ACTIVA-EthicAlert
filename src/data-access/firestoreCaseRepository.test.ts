@@ -34,7 +34,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('../services/firebaseClient', () => ({
-  getPhase4Firebase: () => ({ app: {}, auth: {}, db: {} }),
+  getPhase4Firebase: () => ({ app: {}, auth: { currentUser: { uid: 'uid-du-jeton' } }, db: {} }),
   getPhase4Functions: () => Promise.resolve({}),
 }));
 
@@ -220,6 +220,16 @@ describe('FirestoreCaseRepository — identité jamais acceptée du client', () 
     const result = await repo.declareConflictOfInterest('case-1', 'quelquun-dautre', 'no_conflict');
 
     expect(result).toEqual(persisted);
+  });
+
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === repli sans déclaration renvoyée.
+  it("declareConflictOfInterest (repli) utilise l'uid de la session authentifiée, jamais le userId fourni", async () => {
+    mockCallableResolves({ ok: true });
+
+    const repo = new FirestoreCaseRepository();
+    const result = await repo.declareConflictOfInterest('case-1', 'quelquun-dautre', 'no_conflict');
+
+    expect(result.userId).toBe('uid-du-jeton');
   });
 });
 

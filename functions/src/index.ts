@@ -30,6 +30,8 @@
 
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === vérification App Check de notifyEmail.
+import { getAppCheck } from 'firebase-admin/app-check';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 // === AMÉLIORATION AJOUTÉE (revue PR #139) === pagination par curseur de listCases.
 import { FieldPath } from 'firebase-admin/firestore';
@@ -83,8 +85,12 @@ import { generateAccessPassword, generateSalt, hashPassword, verifyPassword } fr
 // Même garde-fou pur que api/notify-email.ts (src/domain/notifyEmailGuard.ts).
 import {
   FixedWindowRateLimiter,
+  HeaderBag,
   NOTIFY_RATE_WINDOW_MS,
+  appCheckToken,
+  bearerToken,
   clientIp,
+  isStaffClaims,
   rateLimitFromEnv,
   validateNotifyEmailRequest,
 } from '../../src/domain/notifyEmailGuard';
@@ -1030,30 +1036,27 @@ async function verifyReporterAccess(caseNumber: string, accessCode: string): Pro
   // === AMÉLIORATION AJOUTÉE (revue PR #139) === un dossier créé par le miroir
   // de la soumission publique est aussi retrouvé par le numéro de suivi local
   // déjà remis au lanceur d'alerte (`externalReference`), même code d'accès.
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — unicité du numéro de suivi) ===
+  // createCaseAsReporter réserve désormais chaque numéro de suivi ; par
+  // défense en profondeur (dossiers antérieurs à la réservation), chaque
+  // correspondance est essayée (au plus REPORTER_REF_MAX_MATCHES) : un
+  // doublon ne peut plus masquer le dossier du vrai lanceur d'alerte.
+  const REPORTER_REF_MAX_MATCHES = 5;
   if (querySnap.empty) {
-    querySnap = await db.collection('cases').where('externalReference', '==', key).limit(1).get();
+    querySnap = await db.collection('cases').where('externalReference', '==', key).limit(REPORTER_REF_MAX_MATCHES).get();
   }
-  if (querySnap.empty) {
-    await recordReporterAttempt(key, false);
-    throw invalid();
-  }
-  const caseDoc = querySnap.docs[0];
-  const kase = caseDoc.data() as Case;
-
-  const credsSnap = await db.collection('reporter_credentials').doc(caseDoc.id).get();
-  if (!credsSnap.exists) {
-    await recordReporterAttempt(key, false);
-    throw invalid();
-  }
-  const creds = credsSnap.data() as { accessCodeHash: string; accessCodeSalt: string };
-  const passwordOk = await verifyPassword(accessCode, creds.accessCodeSalt, creds.accessCodeHash);
-  if (!passwordOk) {
-    await recordReporterAttempt(key, false);
-    throw invalid();
+  for (const caseDoc of querySnap.docs) {
+    const credsSnap = await db.collection('reporter_credentials').doc(caseDoc.id).get();
+    if (!credsSnap.exists) continue;
+    const creds = credsSnap.data() as { accessCodeHash: string; accessCodeSalt: string };
+    const passwordOk = await verifyPassword(accessCode, creds.accessCodeSalt, creds.accessCodeHash);
+    if (!passwordOk) continue;
+    await recordReporterAttempt(key, true);
+    return { ref: caseDoc.ref, kase: caseDoc.data() as Case };
   }
 
-  await recordReporterAttempt(key, true);
-  return { ref: caseDoc.ref, kase };
+  await recordReporterAttempt(key, false);
+  throw invalid();
 }
 
 export const getCaseForReporter = onCall(async (request) => {
@@ -1194,6 +1197,21 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   const seq = await nextCaseSequence();
   const caseId = newId('case');
   const nowIso = new Date().toISOString();
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — unicité du numéro de suivi) ===
+  // Un numéro de suivi local ne peut être rattaché qu'à UN seul dossier :
+  // réservation atomique (create() échoue s'il existe déjà). Déjà pris →
+  // dossier créé sans `externalReference`, jamais rattaché à la place d'un
+  // autre (empêche de bloquer l'accès du vrai lanceur d'alerte).
+  let externalReference = data.externalReference;
+  if (externalReference) {
+    const reserved = await db
+      .collection('external_references')
+      .doc(externalReference)
+      .create({ caseId, createdAt: nowIso })
+      .then(() => true)
+      .catch(() => false);
+    if (!reserved) externalReference = undefined;
+  }
   const kase: Case = {
     caseId,
     caseNumber: `CASE-${new Date().getFullYear()}-${String(seq).padStart(6, '0')}`,
@@ -1214,7 +1232,7 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     legalHold: false,
     implicatedUserIds: [],
     // === AMÉLIORATION AJOUTÉE (revue PR #139) === voir Case.externalReference.
-    ...(data.externalReference ? { externalReference: data.externalReference } : {}),
+    ...(externalReference ? { externalReference } : {}),
     createdAt: nowIso,
     createdBy: 'reporter',
     updatedAt: nowIso,
@@ -1385,6 +1403,21 @@ const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 // d'envoi et la facture de ce point public.
 const notifyRateLimiter = new FixedWindowRateLimiter(rateLimitFromEnv(process.env.NOTIFY_RATE_LIMIT), NOTIFY_RATE_WINDOW_MS);
 
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié) ===
+async function isVerifiedNotifyCaller(headers: HeaderBag): Promise<boolean> {
+  const idToken = bearerToken(headers);
+  if (idToken) {
+    const claims = await getAuth().verifyIdToken(idToken).catch(() => null);
+    if (isStaffClaims(claims as Record<string, unknown> | null)) return true;
+  }
+  const attestation = appCheckToken(headers);
+  if (attestation) {
+    const verified = await getAppCheck().verifyToken(attestation).catch(() => null);
+    if (verified) return true;
+  }
+  return false;
+}
+
 export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 2 }, async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed — use POST.' });
@@ -1418,6 +1451,15 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 
   }
   if (!notifyRateLimiter.hit(clientIp(req.headers, req.ip))) {
     res.status(429).json({ error: 'Too many notification requests — retry later.' });
+    return;
+  }
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié) === l'origine
+  // n'authentifie personne : aucun envoi sans jeton d'identité Firebase d'un
+  // compte du personnel (attribution, escalade) ou jeton App Check de
+  // l'application (dépôt public anonyme). Échec fermé.
+  if (!(await isVerifiedNotifyCaller(req.headers))) {
+    console.warn('notifyEmail refused (401): caller not verified');
+    res.status(401).json({ error: 'Caller not verified: staff ID token or App Check token required.' });
     return;
   }
 

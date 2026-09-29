@@ -21,6 +21,8 @@
  */
 import { UserProfile, EscalationRecipient } from '../types';
 import { storage } from './storage';
+import { getPhase4Firebase, isPhase4Configured } from './firebaseClient';
+import { getAppCheckToken } from './appCheck';
 
 const NOTIFY_ENDPOINT = '/api/notify-email';
 
@@ -45,11 +47,32 @@ interface NotifyResult {
   reason?: string;
 }
 
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié pour notifyEmail) ===
+// La Cloud Function `notifyEmail` n'envoie plus rien sans appelant vérifié :
+// jeton d'identité Firebase d'un compte du personnel (attribution,
+// escalade), ou jeton App Check de l'application (dépôt public anonyme).
+// On joint ce qui est disponible ; sans aucun des deux, l'envoi est refusé
+// côté serveur et l'échec est journalisé comme aujourd'hui. Ne lève jamais.
+async function notifyCallerHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  if (!isPhase4Configured()) return headers;
+  try {
+    const { app, auth } = getPhase4Firebase();
+    const user = auth.currentUser;
+    if (user) headers.Authorization = `Bearer ${await user.getIdToken()}`;
+    const appCheckToken = await getAppCheckToken(app);
+    if (appCheckToken) headers['X-Firebase-AppCheck'] = appCheckToken;
+  } catch {
+    // Jetons indisponibles : l'appel part sans, le serveur tranche.
+  }
+  return headers;
+}
+
 async function sendOne(to: string, subject: string, body: string): Promise<NotifyResult> {
   try {
     const res = await fetch(NOTIFY_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await notifyCallerHeaders()) },
       body: JSON.stringify({ to, subject, body }),
     });
     if (!res.ok) {

@@ -11,8 +11,8 @@ faites depuis le dépôt.
 
 | # | Correctif | Où |
 |---|---|---|
-| P0-1 | Relais e-mail fermé : `Origin` = l'app, destinataire unique valide, sujet `[activa-whistleblowing] …`, liens du corps vers l'app uniquement, limite de débit par IP | `src/domain/notifyEmailGuard.ts` (+ tests), `api/notify-email.ts`, `notifyEmail` dans `functions/src/index.ts` |
-| P0-2 | En-têtes de sécurité HTTP (HSTS, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP, CSP minimale appliquée + CSP complète en *Report-Only*) | `firebase.json`, `vercel.json` |
+| P0-1 | Relais e-mail fermé : appelant vérifié pour `notifyEmail` (jeton d'identité d'un compte du personnel ou jeton App Check), `Origin` = l'app, destinataires limités à `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`, destinataire unique valide, sujet `[activa-whistleblowing] …`, liens du corps vers l'app uniquement, limite de débit par IP | `src/domain/notifyEmailGuard.ts` (+ tests), `api/notify-email.ts`, `notifyEmail` dans `functions/src/index.ts` |
+| P0-2 | En-têtes de sécurité HTTP (HSTS, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP, CSP complète appliquée) | `firebase.json`, `vercel.json` |
 | P0-3 | Barrière qualité : typecheck + tests avant tout déploiement ; CI sur chaque push/PR (web + Functions + audit npm) | `.github/workflows/firebase-hosting.yml`, `.github/workflows/ci.yml` |
 | P0-4 | Plus de perte de données silencieuse : bannière visible si le navigateur refuse un enregistrement (quota plein) | `src/services/persistFailure.ts`, `src/app/PersistFailureBanner.tsx`, `storage.ts` |
 | P1-5 | Actions GitHub épinglées par SHA, Dependabot, déploiement sans clé JSON (WIF) prêt à l'emploi | workflows, `.github/dependabot.yml` |

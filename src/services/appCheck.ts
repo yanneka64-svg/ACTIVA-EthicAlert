@@ -17,10 +17,15 @@
  *    PUIS seulement activer l'application stricte (« Enforce ») par service.
  */
 import type { FirebaseApp } from 'firebase/app';
+import type { AppCheck } from 'firebase/app-check';
 
 const metaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env || {};
 
 const activated = new WeakSet<FirebaseApp>();
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié pour notifyEmail) ===
+// Instance App Check par application, pour pouvoir en extraire un jeton
+// (getAppCheckToken) à joindre aux appels HTTP qui ne passent pas par un SDK.
+const instances = new WeakMap<FirebaseApp, AppCheck>();
 
 export function getAppCheckSiteKey(): string {
   return (metaEnv.VITE_FIREBASE_APPCHECK_SITE_KEY || '').trim();
@@ -38,10 +43,27 @@ export async function activateAppCheck(app: FirebaseApp | null | undefined): Pro
   activated.add(app);
   try {
     const { initializeAppCheck, ReCaptchaEnterpriseProvider } = await import('firebase/app-check');
-    initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
+    const instance = initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
+    instances.set(app, instance);
     return true;
   } catch (err) {
     console.warn('ACTIVA EthicAlert: App Check non activé', err);
     return false;
+  }
+}
+
+/**
+ * === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié pour notifyEmail) ===
+ * Jeton App Check courant de `app`, ou `null` si App Check n'est pas actif
+ * (clé absente, activation en cours ou en échec). Ne lève jamais.
+ */
+export async function getAppCheckToken(app: FirebaseApp | null | undefined): Promise<string | null> {
+  const instance = app ? instances.get(app) : undefined;
+  if (!instance) return null;
+  try {
+    const { getToken } = await import('firebase/app-check');
+    return (await getToken(instance, false)).token;
+  } catch {
+    return null;
   }
 }

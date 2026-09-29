@@ -208,5 +208,12 @@ service cloud.firestore {
     match /rate_limits/{key} {
       allow read, write: if false;
     }
+
+    // === AMÉLIORATION AJOUTÉE (revue PR #139) ===
+    // Réservation d'unicité des numéros de suivi locaux (`externalReference`)
+    // par createCaseAsReporter. Cloud Function uniquement, comme ci-dessus.
+    match /external_references/{ref} {
+      allow read, write: if false;
+    }
   }
 }

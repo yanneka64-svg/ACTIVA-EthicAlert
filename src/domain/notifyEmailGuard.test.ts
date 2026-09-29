@@ -9,7 +9,10 @@ import { describe, expect, it } from 'vitest';
 import {
   FixedWindowRateLimiter,
   NOTIFY_DEFAULT_RATE_LIMIT,
+  appCheckToken,
+  bearerToken,
   clientIp,
+  isStaffClaims,
   rateLimitFromEnv,
   validateNotifyEmailRequest,
 } from './notifyEmailGuard';
@@ -104,5 +107,22 @@ describe('helpers', () => {
     expect(rateLimitFromEnv(undefined)).toBe(NOTIFY_DEFAULT_RATE_LIMIT);
     expect(rateLimitFromEnv('abc')).toBe(NOTIFY_DEFAULT_RATE_LIMIT);
     expect(rateLimitFromEnv('5')).toBe(5);
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié pour notifyEmail) ===
+describe('caller token helpers', () => {
+  it('extracts the bearer and App Check tokens', () => {
+    expect(bearerToken({ authorization: 'Bearer abc.def' })).toBe('abc.def');
+    expect(bearerToken({ authorization: 'Basic xyz' })).toBeUndefined();
+    expect(bearerToken({})).toBeUndefined();
+    expect(appCheckToken({ 'x-firebase-appcheck': 'tok' })).toBe('tok');
+    expect(appCheckToken({})).toBeUndefined();
+  });
+  it('treats only claims carrying a role as staff', () => {
+    expect(isStaffClaims({ role: 'investigator' })).toBe(true);
+    expect(isStaffClaims({ role: '' })).toBe(false);
+    expect(isStaffClaims({})).toBe(false);
+    expect(isStaffClaims(null)).toBe(false);
   });
 });

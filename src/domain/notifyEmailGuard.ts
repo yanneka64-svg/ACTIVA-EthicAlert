@@ -203,3 +203,28 @@ export function rateLimitFromEnv(value: string | undefined): number {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 ? n : NOTIFY_DEFAULT_RATE_LIMIT;
 }
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié pour notifyEmail) ===
+// L'origine n'authentifie personne (un client hors navigateur la forge). La
+// Cloud Function exige donc en plus un appelant VÉRIFIÉ : jeton d'identité
+// Firebase d'un compte du personnel (claim `role`), ou jeton App Check de
+// l'application pour le dépôt public anonyme. Ces deux helpers purs
+// extraient les jetons ; leur vérification cryptographique (Admin SDK) reste
+// dans functions/src/index.ts.
+
+/** Jeton `Authorization: Bearer …`, ou `undefined`. */
+export function bearerToken(headers: HeaderBag | undefined): string | undefined {
+  const raw = headerValue(headers, 'authorization');
+  const m = raw ? /^Bearer\s+(\S+)$/i.exec(raw) : null;
+  return m ? m[1] : undefined;
+}
+
+/** Jeton App Check (`X-Firebase-AppCheck`), ou `undefined`. */
+export function appCheckToken(headers: HeaderBag | undefined): string | undefined {
+  return headerValue(headers, 'x-firebase-appcheck');
+}
+
+/** Claims d'un jeton d'identité vérifié : compte du personnel = claim `role` non vide. */
+export function isStaffClaims(claims: Record<string, unknown> | null | undefined): boolean {
+  return typeof claims?.role === 'string' && claims.role.trim().length > 0;
+}

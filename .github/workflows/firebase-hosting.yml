@@ -58,6 +58,10 @@ jobs:
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
         if: env.HAS_SA == 'true'
+        # === AMÉLIORATION AJOUTÉE (revue PR #139) === GITHUB_TOKEN non conservé
+        # dans .git/config : les outils lancés ensuite ne peuvent pas le lire.
+        with:
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2 (v2.2.0)
         if: env.HAS_SA == 'true'
@@ -112,6 +116,9 @@ jobs:
       # Le dépôt n'est récupéré que pour firebase.json (en-têtes, réécritures) ;
       # aucune installation ni aucun script du projet n'est lancé ici.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        # === AMÉLIORATION AJOUTÉE (revue PR #139) === idem : aucun jeton persisté.
+        with:
+          persist-credentials: false
 
       - name: Download built site
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4 (v4.3.0)

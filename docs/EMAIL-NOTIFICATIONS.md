@@ -113,3 +113,21 @@ Variable **obligatoire** (=== AMÉLIORATION AJOUTÉE (revue PR #139) === échec
 fermé : sans elle, aucun envoi) : `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`.
 Variables facultatives : `NOTIFY_ALLOWED_ORIGINS`, `NOTIFY_RATE_LIMIT` — voir
 [DEVOPS-RUNBOOK.md](./DEVOPS-RUNBOOK.md) §2.1.
+
+=== AMÉLIORATION AJOUTÉE (revue PR #139) ===
+
+- **Cloud Function `notifyEmail` : appelant vérifié obligatoire.** L'en-tête
+  `Origin` n'authentifie personne, donc aucun e-mail ne part sans l'un des
+  deux jetons que `src/services/emailNotify.ts` joint automatiquement :
+  - jeton d'identité Firebase d'un compte du personnel (claim `role`), pour
+    l'attribution et l'escalade ;
+  - jeton **App Check** de l'application, pour le dépôt public anonyme
+    (notification des Opérateurs). Ces e-mails ne partent donc qu'une fois
+    App Check configuré (DEVOPS-RUNBOOK.md §3.3). Sans jeton valide, la
+    fonction répond 401 et l'échec est journalisé `EMAIL_NOTIFICATION_FAILED`.
+- **Vercel (`api/notify-email.ts`) : désactivé par défaut** (réponse 410).
+  Vercel n'étant plus utilisé, ces réglages ne concernent que la Cloud
+  Function. Pour le réactiver malgré tout, il faut en plus
+  `NOTIFY_VERCEL_ENABLED=true`, en plus de `NOTIFY_ALLOWED_RECIPIENT_DOMAINS` et
+  `RESEND_API_KEY`. Ce point d'envoi ne vérifie pas l'appelant comme la Cloud
+  Function : ne le réactiver qu'en connaissance de cause.
