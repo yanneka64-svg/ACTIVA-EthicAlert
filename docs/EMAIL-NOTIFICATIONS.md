@@ -57,6 +57,13 @@ jamais un faux succès) — c'est le comportement honnête attendu en local.
 
 ### Étape 2 — Déployer ce dépôt sur Vercel
 
+> === AMÉLIORATION AJOUTÉE (revue PR #139) === **Vercel n'est plus utilisé
+> et `api/notify-email.ts` est désactivé par défaut (réponse 410).** Les
+> étapes ci-dessous ne suffisent à activer l'envoi Vercel qu'avec les deux
+> variables obligatoires ajoutées au point 3 (`NOTIFY_VERCEL_ENABLED=true`
+> et `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`). La voie recommandée est la Cloud
+> Function `notifyEmail` (voir la section « Garde-fou anti-relais » plus bas).
+
 1. Créer un compte sur https://vercel.com (gratuit), connecté à votre
    compte GitHub.
 2. **Add New… → Project** → sélectionner ce dépôt
@@ -68,6 +75,10 @@ jamais un faux succès) — c'est le comportement honnête attendu en local.
 3. Avant le premier déploiement (ou après, dans **Settings → Environment
    Variables**), ajouter :
    - `RESEND_API_KEY` = la clé copiée à l'étape 1.
+   - `NOTIFY_VERCEL_ENABLED` = `true` (=== AMÉLIORATION AJOUTÉE (revue PR
+     #139) === obligatoire : sans elle, le point d'envoi répond 410).
+   - `NOTIFY_ALLOWED_RECIPIENT_DOMAINS` = `group-activa.com` (=== AMÉLIORATION
+     AJOUTÉE (revue PR #139) === obligatoire : sans elle, aucun envoi, 503).
    - `NOTIFY_FROM_EMAIL` (optionnel) = `"ACTIVA EthicAlert <notifications@votre-domaine.com>"`
      si un domaine vérifié a été configuré ; sinon la fonction utilise par
      défaut `onboarding@resend.dev` (fonctionne seulement pour envoyer à
