@@ -228,3 +228,36 @@ export function appCheckToken(headers: HeaderBag | undefined): string | undefine
 export function isStaffClaims(claims: Record<string, unknown> | null | undefined): boolean {
   return typeof claims?.role === 'string' && claims.role.trim().length > 0;
 }
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — voie anonyme à contenu imposé) ===
+// App Check prouve que la requête vient de l'application, pas QUI l'envoie.
+// Pour un appelant anonyme (dépôt public), le serveur n'accepte donc plus de
+// contenu libre : seule la notification « nouveau signalement » est permise,
+// reconstruite côté serveur à partir de ce modèle unique (partagé avec
+// src/services/emailNotify.ts). Seul le numéro de suivi, validé, vient du
+// client ; le destinataire doit en plus être un compte du personnel
+// (vérifié par la Cloud Function).
+
+/** Format d'un numéro de suivi (même règle que reporterCaseInput.ts). */
+export const TRACKING_NUMBER_RE = /^[A-Z0-9][A-Z0-9-]{2,39}$/;
+
+/** Modèle unique de la notification « nouveau signalement » aux Opérateurs. */
+export function newAlertNotification(trackingNumber: string): { subject: string; body: string } {
+  return {
+    subject: `${NOTIFY_SUBJECT_PREFIX}Nouveau signalement — ${trackingNumber}`,
+    body: `Un nouveau signalement vient d'être déposé et attend le tri dans la Boîte de réception.\n\nRéférence : ${trackingNumber}\n\nConnectez-vous à activa-whistleblowing pour le consulter.`,
+  };
+}
+
+/**
+ * Numéro de suivi d'une notification « nouveau signalement » conforme au
+ * modèle (sujet ET corps identiques à `newAlertNotification`), sinon `null`.
+ */
+export function parseNewAlertNotification(subject: string, body: string): string | null {
+  const prefix = `${NOTIFY_SUBJECT_PREFIX}Nouveau signalement — `;
+  if (!subject.startsWith(prefix)) return null;
+  const trackingNumber = subject.slice(prefix.length);
+  if (!TRACKING_NUMBER_RE.test(trackingNumber)) return null;
+  const expected = newAlertNotification(trackingNumber);
+  return expected.subject === subject && expected.body === body ? trackingNumber : null;
+}

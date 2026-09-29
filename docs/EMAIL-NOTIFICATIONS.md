@@ -125,6 +125,13 @@ Variables facultatives : `NOTIFY_ALLOWED_ORIGINS`, `NOTIFY_RATE_LIMIT` — voir
     (notification des Opérateurs). Ces e-mails ne partent donc qu'une fois
     App Check configuré (DEVOPS-RUNBOOK.md §3.3). Sans jeton valide, la
     fonction répond 401 et l'échec est journalisé `EMAIL_NOTIFICATION_FAILED`.
+    App Check prouve l'origine de la requête, pas l'identité de l'appelant :
+    pour cette voie anonyme, seule la notification « nouveau signalement »
+    est acceptée. Le serveur reconstruit lui-même le sujet et le corps à
+    partir du numéro de suivi (modèle unique `newAlertNotification`,
+    `src/domain/notifyEmailGuard.ts`), et le destinataire doit être un compte
+    du personnel existant dans Firebase Auth (claim `role`). Tout autre
+    contenu ou destinataire est refusé (403).
 - **Vercel (`api/notify-email.ts`) : désactivé par défaut** (réponse 410).
   Vercel n'étant plus utilisé, ces réglages ne concernent que la Cloud
   Function. Pour le réactiver malgré tout, il faut en plus

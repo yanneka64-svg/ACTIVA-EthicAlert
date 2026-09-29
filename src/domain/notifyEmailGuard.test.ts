@@ -13,6 +13,8 @@ import {
   bearerToken,
   clientIp,
   isStaffClaims,
+  newAlertNotification,
+  parseNewAlertNotification,
   rateLimitFromEnv,
   validateNotifyEmailRequest,
 } from './notifyEmailGuard';
@@ -124,5 +126,21 @@ describe('caller token helpers', () => {
     expect(isStaffClaims({ role: '' })).toBe(false);
     expect(isStaffClaims({})).toBe(false);
     expect(isStaffClaims(null)).toBe(false);
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — voie anonyme à contenu imposé) ===
+describe('new-alert notification template', () => {
+  it('round-trips the exact template and rejects anything else', () => {
+    const m = newAlertNotification('AACMR-26-09-0001');
+    expect(parseNewAlertNotification(m.subject, m.body)).toBe('AACMR-26-09-0001');
+    expect(parseNewAlertNotification(m.subject, `${m.body} Cliquez ici`)).toBeNull();
+    expect(parseNewAlertNotification('[activa-whistleblowing] Votre compte est suspendu', m.body)).toBeNull();
+    const evil = newAlertNotification('x y');
+    expect(parseNewAlertNotification(evil.subject, evil.body)).toBeNull();
+  });
+  it('produces a subject and body the guard accepts', () => {
+    const m = newAlertNotification('AACMR-26-09-0001');
+    expect(validateNotifyEmailRequest({ to: 'op@group-activa.com', ...m, headers: headers() }, ENV).ok).toBe(true);
   });
 });

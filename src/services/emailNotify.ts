@@ -23,6 +23,7 @@ import { UserProfile, EscalationRecipient } from '../types';
 import { storage } from './storage';
 import { getPhase4Firebase, isPhase4Configured } from './firebaseClient';
 import { getAppCheckToken } from './appCheck';
+import { newAlertNotification } from '../domain/notifyEmailGuard';
 
 const NOTIFY_ENDPOINT = '/api/notify-email';
 
@@ -101,11 +102,11 @@ export function notifyNewAlertToOperators(operators: UserProfile[], alert: CaseR
   operators
     .filter((u) => !!u.email)
     .forEach((u) => {
-      sendOne(
-        u.email,
-        `[activa-whistleblowing] Nouveau signalement — ${alert.trackingNumber}`,
-        `Un nouveau signalement vient d'être déposé et attend le tri dans la Boîte de réception.\n\nRéférence : ${alert.trackingNumber}\n\nConnectez-vous à activa-whistleblowing pour le consulter.`
-      ).then((result) => {
+      // === AMÉLIORATION AJOUTÉE (revue PR #139) === modèle partagé avec la
+      // Cloud Function (texte identique), qui le reconstruit côté serveur
+      // pour un appelant anonyme.
+      const message = newAlertNotification(alert.trackingNumber);
+      sendOne(u.email, message.subject, message.body).then((result) => {
         storage.logAudit(
           result.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',
           result.ok

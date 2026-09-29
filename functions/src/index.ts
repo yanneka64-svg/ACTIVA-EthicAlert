@@ -91,6 +91,8 @@ import {
   bearerToken,
   clientIp,
   isStaffClaims,
+  newAlertNotification,
+  parseNewAlertNotification,
   rateLimitFromEnv,
   validateNotifyEmailRequest,
 } from '../../src/domain/notifyEmailGuard';
@@ -1417,18 +1419,29 @@ const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 const notifyRateLimiter = new FixedWindowRateLimiter(rateLimitFromEnv(process.env.NOTIFY_RATE_LIMIT), NOTIFY_RATE_WINDOW_MS);
 
 // === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié) ===
-async function isVerifiedNotifyCaller(headers: HeaderBag): Promise<boolean> {
+// 'staff' : jeton d'identité vérifié d'un compte du personnel ;
+// 'app'   : seulement un jeton App Check vérifié (dépôt public anonyme) ;
+// null    : aucun appelant vérifié.
+async function verifiedNotifyCaller(headers: HeaderBag): Promise<'staff' | 'app' | null> {
   const idToken = bearerToken(headers);
   if (idToken) {
     const claims = await getAuth().verifyIdToken(idToken).catch(() => null);
-    if (isStaffClaims(claims as Record<string, unknown> | null)) return true;
+    if (isStaffClaims(claims as Record<string, unknown> | null)) return 'staff';
   }
   const attestation = appCheckToken(headers);
   if (attestation) {
     const verified = await getAppCheck().verifyToken(attestation).catch(() => null);
-    if (verified) return true;
+    if (verified) return 'app';
   }
-  return false;
+  return null;
+}
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — voie anonyme à contenu imposé) ===
+// Destinataire d'une notification anonyme : obligatoirement un compte du
+// personnel existant (Firebase Auth, claim `role`).
+async function isStaffRecipient(email: string): Promise<boolean> {
+  const user = await getAuth().getUserByEmail(email).catch(() => null);
+  return isStaffClaims((user?.customClaims ?? null) as Record<string, unknown> | null);
 }
 
 export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 2 }, async (req, res) => {
@@ -1470,10 +1483,29 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 
   // n'authentifie personne : aucun envoi sans jeton d'identité Firebase d'un
   // compte du personnel (attribution, escalade) ou jeton App Check de
   // l'application (dépôt public anonyme). Échec fermé.
-  if (!(await isVerifiedNotifyCaller(req.headers))) {
+  const caller = await verifiedNotifyCaller(req.headers);
+  if (!caller) {
     console.warn('notifyEmail refused (401): caller not verified');
     res.status(401).json({ error: 'Caller not verified: staff ID token or App Check token required.' });
     return;
+  }
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — voie anonyme à contenu imposé) ===
+  // Appelant anonyme : seule la notification « nouveau signalement » passe,
+  // reconstruite ici à partir du numéro de suivi, et seulement vers un
+  // compte du personnel. Aucun sujet ni corps choisi par le client n'est
+  // envoyé.
+  let outgoing = { subject: guard.subject, body: guard.body };
+  if (caller === 'app') {
+    const trackingNumber = parseNewAlertNotification(guard.subject, guard.body);
+    if (!trackingNumber) {
+      res.status(403).json({ error: 'Anonymous callers may only send the new-report notification.' });
+      return;
+    }
+    if (!(await isStaffRecipient(guard.to))) {
+      res.status(403).json({ error: 'Anonymous notifications may only be sent to staff accounts.' });
+      return;
+    }
+    outgoing = newAlertNotification(trackingNumber);
   }
 
   const fromAddress = process.env.NOTIFY_FROM_EMAIL || 'ACTIVA EthicAlert <onboarding@resend.dev>';
@@ -1486,7 +1518,7 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 
         'Content-Type': 'application/json',
       },
       // === AMÉLIORATION AJOUTÉE === valeurs normalisées par le garde-fou.
-      body: JSON.stringify({ from: fromAddress, to: [guard.to], subject: guard.subject, text: guard.body }),
+      body: JSON.stringify({ from: fromAddress, to: [guard.to], subject: outgoing.subject, text: outgoing.body }),
     });
 
     if (!resendRes.ok) {
