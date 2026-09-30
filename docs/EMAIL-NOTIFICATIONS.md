@@ -57,6 +57,13 @@ jamais un faux succès) — c'est le comportement honnête attendu en local.
 
 ### Étape 2 — Déployer ce dépôt sur Vercel
 
+> === AMÉLIORATION AJOUTÉE (revue PR #139) === **Vercel n'est plus utilisé
+> et `api/notify-email.ts` est désactivé par défaut (réponse 410).** Les
+> étapes ci-dessous ne suffisent à activer l'envoi Vercel qu'avec les deux
+> variables obligatoires ajoutées au point 3 (`NOTIFY_VERCEL_ENABLED=true`
+> et `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`). La voie recommandée est la Cloud
+> Function `notifyEmail` (voir la section « Garde-fou anti-relais » plus bas).
+
 1. Créer un compte sur https://vercel.com (gratuit), connecté à votre
    compte GitHub.
 2. **Add New… → Project** → sélectionner ce dépôt
@@ -68,6 +75,10 @@ jamais un faux succès) — c'est le comportement honnête attendu en local.
 3. Avant le premier déploiement (ou après, dans **Settings → Environment
    Variables**), ajouter :
    - `RESEND_API_KEY` = la clé copiée à l'étape 1.
+   - `NOTIFY_VERCEL_ENABLED` = `true` (=== AMÉLIORATION AJOUTÉE (revue PR
+     #139) === obligatoire : sans elle, le point d'envoi répond 410).
+   - `NOTIFY_ALLOWED_RECIPIENT_DOMAINS` = `group-activa.com` (=== AMÉLIORATION
+     AJOUTÉE (revue PR #139) === obligatoire : sans elle, aucun envoi, 503).
    - `NOTIFY_FROM_EMAIL` (optionnel) = `"ACTIVA EthicAlert <notifications@votre-domaine.com>"`
      si un domaine vérifié a été configuré ; sinon la fonction utilise par
      défaut `onboarding@resend.dev` (fonctionne seulement pour envoyer à
@@ -101,3 +112,40 @@ dépôt. Si un fournisseur ou un hébergeur différent est préféré, seul
 change selon le fournisseur) — `src/services/emailNotify.ts` et son
 câblage dans l'application restent inchangés, l'un et l'autre ne
 connaissant jamais Resend directement.
+
+## === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === Garde-fou anti-relais
+
+`api/notify-email.ts` et la Cloud Function `notifyEmail` n'acceptent plus
+que ce que `src/services/emailNotify.ts` envoie réellement (même contrat
+`POST {to, subject, body}`) : en-tête `Origin` égal à l'application, un seul
+destinataire valide, sujet commençant par `[activa-whistleblowing] `, liens
+du corps pointant vers l'application uniquement, débit limité par IP.
+Variable **obligatoire** (=== AMÉLIORATION AJOUTÉE (revue PR #139) === échec
+fermé : sans elle, aucun envoi) : `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`.
+Variables facultatives : `NOTIFY_ALLOWED_ORIGINS`, `NOTIFY_RATE_LIMIT` — voir
+[DEVOPS-RUNBOOK.md](./DEVOPS-RUNBOOK.md) §2.1.
+
+=== AMÉLIORATION AJOUTÉE (revue PR #139) ===
+
+- **Cloud Function `notifyEmail` : appelant vérifié obligatoire.** L'en-tête
+  `Origin` n'authentifie personne, donc aucun e-mail ne part sans l'un des
+  deux jetons que `src/services/emailNotify.ts` joint automatiquement :
+  - jeton d'identité Firebase d'un compte du personnel (claim `role`), pour
+    l'attribution et l'escalade ;
+  - jeton **App Check** de l'application, pour le dépôt public anonyme
+    (notification des Opérateurs). Ces e-mails ne partent donc qu'une fois
+    App Check configuré (DEVOPS-RUNBOOK.md §3.3). Sans jeton valide, la
+    fonction répond 401 et l'échec est journalisé `EMAIL_NOTIFICATION_FAILED`.
+    App Check prouve l'origine de la requête, pas l'identité de l'appelant :
+    pour cette voie anonyme, seule la notification « nouveau signalement »
+    est acceptée. Le serveur reconstruit lui-même le sujet et le corps à
+    partir du numéro de suivi (modèle unique `newAlertNotification`,
+    `src/domain/notifyEmailGuard.ts`), et le destinataire doit être un compte
+    du personnel existant dans Firebase Auth (claim `role`). Tout autre
+    contenu ou destinataire est refusé (403).
+- **Vercel (`api/notify-email.ts`) : désactivé par défaut** (réponse 410).
+  Vercel n'étant plus utilisé, ces réglages ne concernent que la Cloud
+  Function. Pour le réactiver malgré tout, il faut en plus
+  `NOTIFY_VERCEL_ENABLED=true`, en plus de `NOTIFY_ALLOWED_RECIPIENT_DOMAINS` et
+  `RESEND_API_KEY`. Ce point d'envoi ne vérifie pas l'appelant comme la Cloud
+  Function : ne le réactiver qu'en connaissance de cause.

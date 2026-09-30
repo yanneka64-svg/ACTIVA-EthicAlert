@@ -1,4 +1,6 @@
 import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile, UserRole, EscalationRecipient } from '../types';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === signalement des échecs d'enregistrement localStorage.
+import { reportPersistFailure } from './persistFailure';
 import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG, HierarchyLevels, DEFAULT_HIERARCHY_LEVELS, INITIAL_ESCALATION_RECIPIENTS } from '../data/activaConfig';
 import { saveAlertToCloud, saveAuditLogToCloud } from './firebase';
 // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
@@ -20,34 +22,14 @@ import { setRolePermissionOverrides } from '../domain/permissionOverrides';
 // d'accès du lanceur d'alerte (AlertSubmissionFlow.tsx/AlertTrackingView.tsx) —
 // jamais réimplémenté séparément.
 import { generateAccessPassword, generateSalt, hashPassword, verifyPassword } from './crypto';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === mise à niveau transparente des empreintes héritées.
+import { needsRehash } from './crypto';
 
-const STORAGE_KEYS = {
-  ALERTS: 'activa_ethicalert_records_v1',
-  AUDIT_LOGS: 'activa_ethicalert_audit_v1',
-  USERS: 'activa_ethicalert_users_v1',
-  ACTIVE_USER: 'activa_ethicalert_active_user_v1',
-  DRAFT: 'activa_ethicalert_draft_v1',
-  // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
-  ENTITIES: 'activa_ethicalert_entities_v1',
-  CATEGORIES: 'activa_ethicalert_categories_v1',
-  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
-  COUNTRIES: 'activa_ethicalert_countries_v1',
-  // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
-  SLA_CONFIG: 'activa_ethicalert_sla_config_v1',
-  // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
-  HIERARCHY_LEVELS: 'activa_ethicalert_hierarchy_levels_v1',
-  // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
-  ROLE_PERMISSIONS: 'activa_ethicalert_role_permissions_v1',
-  // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
-  WORKFLOW_TRANSITIONS: 'activa_ethicalert_workflow_transitions_v1',
-  // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
-  ESCALATION_RECIPIENTS: 'activa_ethicalert_escalation_recipients_v1',
-  // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
-  CASE_NUMBER_COUNTERS: 'activa_ethicalert_case_number_counters_v1',
-};
-
-// Event dispatched when data changes
-const DATA_CHANGE_EVENT = 'activa_storage_updated';
+// === AMÉLIORATION AJOUTÉE (Refactor storage.ts — extraction par section) ===
+// `STORAGE_KEYS` et `DATA_CHANGE_EVENT` déplacés tels quels dans
+// ./storageKeys.ts (mêmes valeurs), désormais exportés.
+import { STORAGE_KEYS, DATA_CHANGE_EVENT } from './storageKeys';
+import * as storageBackfill from './storageBackfill';
 
 class StorageService {
   private alerts: AlertRecord[] = [];
@@ -340,13 +322,10 @@ class StorageService {
 
   // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
   private backfillEntityDefaults(defs: EntityDef[]): EntityDef[] {
-    let changed = false;
-    const next = defs.map((e) => {
-      if (e.code) return e;
-      changed = true;
-      return { ...e, code: e.name.replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase() || 'GRP' };
-    });
-    return changed ? next : defs;
+    // === AMÉLIORATION AJOUTÉE (Refactor storage.ts — extraction par section) ===
+    // Corps déplacé tel quel dans ./storageBackfill.ts (fonction pure, testée
+    // isolément) ; méthode conservée sous le même nom.
+    return storageBackfill.backfillEntityDefaults(defs);
   }
 
   // Numéro de dossier officiel : XX(code entité)-YY(année)-MM(mois)-XXXX
@@ -355,36 +334,18 @@ class StorageService {
   // protège contre toute collision même si le compteur persisté est en
   // retard (dossiers seedés, importés, ou ajoutés hors de generateCaseNumber).
   private seedCaseNumberCountersFromAlerts(counters: Record<string, number>, alerts: AlertRecord[]): Record<string, number> {
-    let changed = false;
-    const next = { ...counters };
-    const pattern = /^([A-Z]+)-(\d{2})-(\d{2})-(\d{4})$/;
-    for (const alert of alerts) {
-      const match = pattern.exec(alert.trackingNumber ?? '');
-      if (!match) continue;
-      const [, entityCode, yy, mm, seqStr] = match;
-      const key = `${entityCode}-${yy}${mm}`;
-      const seq = parseInt(seqStr, 10);
-      if (!next[key] || next[key] < seq) {
-        next[key] = seq;
-        changed = true;
-      }
-    }
-    return changed ? next : counters;
+    // === AMÉLIORATION AJOUTÉE (Refactor storage.ts — extraction par section) ===
+    // Corps déplacé tel quel dans ./storageBackfill.ts (fonction pure, testée
+    // isolément) ; méthode conservée sous le même nom.
+    return storageBackfill.seedCaseNumberCountersFromAlerts(counters, alerts);
   }
 
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — table Catégories) ===
   private backfillCategoryDefaults(cats: CategoryDef[]): CategoryDef[] {
-    let changed = false;
-    const next = cats.map((c, idx) => {
-      if (c.code && c.active !== undefined) return c;
-      changed = true;
-      return {
-        ...c,
-        code: c.code ?? `CAT-${String(idx + 1).padStart(3, '0')}`,
-        active: c.active ?? true,
-      };
-    });
-    return changed ? next : cats;
+    // === AMÉLIORATION AJOUTÉE (Refactor storage.ts — extraction par section) ===
+    // Corps déplacé tel quel dans ./storageBackfill.ts (fonction pure, testée
+    // isolément) ; méthode conservée sous le même nom.
+    return storageBackfill.backfillCategoryDefaults(cats);
   }
 
   private notify() {
@@ -398,6 +359,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.ALERTS, JSON.stringify(this.alerts));
     } catch (e) {
       console.error('Failed to persist alerts', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('alerts', e);
     }
   }
 
@@ -406,6 +369,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(this.auditLogs));
     } catch (e) {
       console.error('Failed to persist audit logs', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('audit logs', e);
     }
   }
 
@@ -414,6 +379,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(this.users));
     } catch (e) {
       console.error('Failed to persist users', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('users', e);
     }
   }
 
@@ -465,10 +432,19 @@ class StorageService {
   // empreintes des anciens mots de passe de secours sont conservées pour que
   // `upgradeEmergencySeed` aligne un compte de secours jamais utilisé (mot
   // de passe perdu ou expiré) sur le mot de passe temporaire actuel.
-  private static readonly EMERGENCY_SEED_HASH = '667119d165a09b0db2cc89b70c540d87dec4b0ce20ec90a13cf9e27ae105fe9e';
-  private static readonly EMERGENCY_SEED_SALT = '7d4568809bc28c1cf187701d809b0a44';
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2 : rotation du mot de passe
+  // de secours) === Nouveau mot de passe temporaire de 16 caractères (CSPRNG,
+  // même alphabet que generateAccessPassword), empreinte PBKDF2-HMAC-SHA256
+  // 600 000 itérations — l'empreinte embarquée dans le code publié n'est plus
+  // attaquable par force brute. Communiqué séparément à l'administrateur,
+  // jamais committé en clair. L'empreinte précédente (SHA-256 itéré) rejoint
+  // la liste ci-dessous : un compte de secours encore jamais utilisé est
+  // aligné sur ce nouveau mot de passe au prochain chargement.
+  private static readonly EMERGENCY_SEED_HASH = 'pbkdf2_sha256$600000$618bd189adae0c986f1783b3c4149d6345597fdb565097b919f77a12e408c988';
+  private static readonly EMERGENCY_SEED_SALT = '162f87b68b97c86c91702e3758fa4e0f';
   private static readonly EMERGENCY_SEED_HASHES = [
     'ebea5dbccaaa1486532559de832900744b5ee8f92634be43a4abddf35fa52b6e',
+    '667119d165a09b0db2cc89b70c540d87dec4b0ce20ec90a13cf9e27ae105fe9e',
     StorageService.EMERGENCY_SEED_HASH,
   ];
 
@@ -498,6 +474,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.ENTITIES, JSON.stringify(this.entities));
     } catch (e) {
       console.error('Failed to persist entities', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('entities', e);
     }
   }
 
@@ -506,6 +484,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(this.categories));
     } catch (e) {
       console.error('Failed to persist categories', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('categories', e);
     }
   }
 
@@ -515,6 +495,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.ESCALATION_RECIPIENTS, JSON.stringify(this.escalationRecipients));
     } catch (e) {
       console.error('Failed to persist escalation recipients', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('escalation recipients', e);
     }
   }
 
@@ -524,6 +506,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.CASE_NUMBER_COUNTERS, JSON.stringify(this.caseNumberCounters));
     } catch (e) {
       console.error('Failed to persist case number counters', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('case number counters', e);
     }
   }
 
@@ -533,6 +517,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(this.countries));
     } catch (e) {
       console.error('Failed to persist countries', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('countries', e);
     }
   }
 
@@ -542,6 +528,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.SLA_CONFIG, JSON.stringify(this.slaConfig));
     } catch (e) {
       console.error('Failed to persist SLA config', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('SLA config', e);
     }
   }
 
@@ -551,6 +539,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.HIERARCHY_LEVELS, JSON.stringify(this.hierarchyLevels));
     } catch (e) {
       console.error('Failed to persist hierarchy levels', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('hierarchy levels', e);
     }
   }
 
@@ -560,6 +550,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(this.rolePermissions));
     } catch (e) {
       console.error('Failed to persist role permissions', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('role permissions', e);
     }
   }
 
@@ -569,6 +561,8 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.WORKFLOW_TRANSITIONS, JSON.stringify(this.workflowTransitions));
     } catch (e) {
       console.error('Failed to persist workflow transitions', e);
+      // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === échec rendu visible (PersistFailureBanner).
+      reportPersistFailure('workflow transitions', e);
     }
   }
 
@@ -616,6 +610,49 @@ class StorageService {
     saveAlertToCloud(alert).catch(() => {});
   }
 
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 7 : lien
+  // dossier local ↔ dossier réel) === Appelée en best-effort par
+  // AlertSubmissionFlow.tsx une fois que le miroir Phase 4
+  // (services/casesCloudSync.ts) a réussi, pour retenir l'identifiant réel
+  // sur l'AlertRecord local. Silencieuse si le dossier n'existe déjà plus
+  // (suppression concurrente, cas limite) : pas de logAudit ici, purement
+  // technique et jamais affiché à l'écran, même principe que le miroir
+  // lui-même ; pas de mise à jour de `updatedAt` non plus, pour ne jamais
+  // faire apparaître ce lien comme une modification métier du dossier.
+  public linkMirroredCase(alertId: string, caseId: string, caseNumber: string): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return;
+    alert.mirroredCaseId = caseId;
+    alert.mirroredCaseNumber = caseNumber;
+    this.persistAlerts();
+    this.notify();
+  }
+
+  /**
+   * === AMÉLIORATION AJOUTÉE (Audit DevOps — P2 : codes d'accès hérités) ===
+   * Appelée par AlertTrackingView APRÈS une vérification réussie du code
+   * d'accès du lanceur d'alerte : une empreinte encore au format historique
+   * (SHA-256 itéré, ou code de démonstration stocké sans sel) est remplacée
+   * par une empreinte PBKDF2 (nouveau sel). Même code d'accès, rien d'autre
+   * ne change : ni `updatedAt`, ni entrée d'audit, ni synchronisation cloud
+   * (même principe purement technique que `linkMirroredCase`). Un échec
+   * n'affecte jamais l'accès au dossier.
+   */
+  public async upgradeAccessCodeHashIfNeeded(alertId: string, accessCode: string): Promise<void> {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert || !accessCode || !alert.accessCodeHash) return;
+    if (alert.accessCodeSalt && !needsRehash(alert.accessCodeHash)) return;
+    try {
+      const salt = generateSalt();
+      const hash = await hashPassword(accessCode, salt);
+      alert.accessCodeSalt = salt;
+      alert.accessCodeHash = hash;
+      this.persistAlerts();
+    } catch (e) {
+      console.warn('Access code hash upgrade skipped', e);
+    }
+  }
+
   public deleteAlert(alertId: string): boolean {
     const initialLen = this.alerts.length;
     this.alerts = this.alerts.filter(a => a.id !== alertId);
@@ -641,6 +678,25 @@ class StorageService {
     this.persistAlerts();
     this.notify();
     this.logAudit('CONFIG_UPDATED', `Tâche ajoutée sur ${alert.trackingNumber} : ${task.title}`, { id: alert.id, trackingNumber: alert.trackingNumber }, actor);
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14 : miroir
+    // des mutations secondaires) === best-effort, jamais bloquant,
+    // uniquement si ce dossier porte un lien réel actif. Import dynamique
+    // (storage.ts est importé par la quasi-totalité de l'application).
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./caseMirrorSync')
+        .then(({ mirrorAddTask, TASK_PRIORITY_TO_CASE_PRIORITY }) =>
+          mirrorAddTask({
+            caseId: mirroredCaseId,
+            title: task.title,
+            description: task.description,
+            owner: task.owner,
+            priority: TASK_PRIORITY_TO_CASE_PRIORITY[task.priority],
+            dueDate: task.dueDate,
+          })
+        )
+        .catch(() => {});
+    }
   }
 
   public updateTask(alertId: string, taskId: string, updates: Partial<CaseTask>, actor: UserProfile): void {
@@ -661,6 +717,20 @@ class StorageService {
     this.persistAlerts();
     this.notify();
     this.logAudit('CONFIG_UPDATED', `Entretien planifié/consigné sur ${alert.trackingNumber}.`, { id: alert.id, trackingNumber: alert.trackingNumber }, actor);
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./caseMirrorSync')
+        .then(({ mirrorAddInterview }) =>
+          mirrorAddInterview({
+            caseId: mirroredCaseId,
+            intervieweePersonId: interview.intervieweePersonId,
+            intervieweeLabel: interview.intervieweeName,
+            scheduledAt: interview.scheduledAt,
+          })
+        )
+        .catch(() => {});
+    }
   }
 
   public declareConflict(alertId: string, declaration: ConflictDeclaration, actor: UserProfile): void {
@@ -676,6 +746,15 @@ class StorageService {
       { id: alert.id, trackingNumber: alert.trackingNumber },
       actor
     );
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 14) ===
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./caseMirrorSync')
+        .then(({ mirrorDeclareConflict }) =>
+          mirrorDeclareConflict({ caseId: mirroredCaseId, outcome: declaration.outcome, details: declaration.details })
+        )
+        .catch(() => {});
+    }
   }
 
   // === AMÉLIORATION AJOUTÉE (Phase 3 — évolution multi-pays/multi-entité) ===
@@ -738,6 +817,18 @@ class StorageService {
       { id: alert.id, trackingNumber: alert.trackingNumber },
       actor
     );
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 10 : miroir
+    // du changement de statut) === best-effort, jamais attendu, jamais
+    // bloquant — uniquement si ce dossier porte un lien réel actif (Phase
+    // 7). Import dynamique : storage.ts est importé par la quasi-totalité
+    // de l'application, jamais d'import statique d'un module qui touche
+    // firebase/functions ici — voir services/statusMirrorSync.ts.
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./statusMirrorSync')
+        .then(({ mirrorStatusChangeToRealBackend }) => mirrorStatusChangeToRealBackend({ caseId: mirroredCaseId, to: toStatus, reason }))
+        .catch(() => {});
+    }
     return { allowed: true };
   }
 
@@ -834,6 +925,21 @@ class StorageService {
       { id: alert.id, trackingNumber: alert.trackingNumber },
       actor
     );
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 11 : miroir
+    // de l'escalade) === même mécanisme exact que transitionStatus()
+    // (Phase 10, services/statusMirrorSync.ts réutilisé tel quel) — best-
+    // effort, jamais bloquant, uniquement si ce dossier porte un lien réel
+    // actif. `to: 'escalated'` est une transition CaseStatus valide comme
+    // une autre pour changeCaseStatus côté serveur ; seul le côté
+    // "nouveau propriétaire" (assignedInvestigators/escalatedOwnerId,
+    // ci-dessus) reste local pour l'instant — mirer aussi l'attribution
+    // réelle (assignCase) est un chantier séparé, pas mélangé ici.
+    const mirroredCaseId = alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('./statusMirrorSync')
+        .then(({ mirrorStatusChangeToRealBackend }) => mirrorStatusChangeToRealBackend({ caseId: mirroredCaseId, to: 'escalated', reason }))
+        .catch(() => {});
+    }
     return { allowed: true, recipient };
   }
 
@@ -922,6 +1028,26 @@ class StorageService {
         { id: alert.id, trackingNumber: alert.trackingNumber },
         actor
       );
+      // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 12 :
+      // miroir de l'attribution) === best-effort, jamais bloquant,
+      // uniquement si ce dossier porte un lien réel actif ET qu'une
+      // autorité a réellement été trouvée (voir assignmentMirrorSync.ts —
+      // le cas "aucune autorité disponible" n'a pas d'équivalent honnête
+      // côté serveur, jamais miré). `owner` devient l'assigné principal
+      // réel, le reste de la liste locale (déjà filtrée des comptes
+      // exclus) devient les enquêteurs additionnels.
+      const mirroredCaseId = alert.mirroredCaseId;
+      if (mirroredCaseId) {
+        // === AMÉLIORATION AJOUTÉE (revue PR #139) === le backend identifie le
+        // personnel par son compte Firebase (UID), pas par l'id local : on
+        // transmet l'e-mail, identité commune résolue en UID côté serveur
+        // (resolveStaffUid, functions/src/index.ts).
+        const backendIdentity = (id: string) => this.users.find((u) => u.id === id)?.email || id;
+        const additionalInvestigators = alert.assignedInvestigators.filter((id) => id !== owner.id).map(backendIdentity);
+        import('./assignmentMirrorSync')
+          .then(({ mirrorAssignmentToRealBackend }) => mirrorAssignmentToRealBackend({ caseId: mirroredCaseId, assignee: owner.email || owner.id, additionalInvestigators }))
+          .catch(() => {});
+      }
       return undefined;
     } else {
       alert.independentRoutingUnresolved = true;
@@ -1080,7 +1206,37 @@ class StorageService {
 
     const passwordOk = await verifyPassword(password, user.passwordSalt, user.passwordHash);
     if (!passwordOk) return { ok: false, reason: 'wrong_password' };
+    // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === le mot de passe vient
+    // d'être prouvé : une empreinte encore au format historique (SHA-256
+    // itéré) est recalculée en PBKDF2, sans aucune action de l'utilisateur.
+    await this.upgradePasswordHashIfNeeded(user, password);
     return { ok: true, user, mustChangePassword: !!user.mustChangePassword };
+  }
+
+  /**
+   * === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) ===
+   * Remplace une empreinte héritée par une empreinte PBKDF2 (nouveau sel)
+   * après une vérification réussie. Mise à niveau purement technique : même
+   * mot de passe, aucune entrée d'audit, `passwordSetAt` inchangé (aucune
+   * incidence sur l'expiration ni sur l'obligation de changement).
+   * Jamais pour un mot de passe TEMPORAIRE (`mustChangePassword`) : il sera
+   * remplacé au premier changement (déjà en PBKDF2), et le compte de
+   * secours doit garder son empreinte reconnaissable par
+   * `upgradeEmergencySeed`. Un échec n'empêche jamais la connexion.
+   */
+  private async upgradePasswordHashIfNeeded(user: UserProfile, password: string): Promise<void> {
+    if (user.mustChangePassword || !needsRehash(user.passwordHash)) return;
+    try {
+      const salt = generateSalt();
+      const hash = await hashPassword(password, salt);
+      // Mise à jour en place : l'objet renvoyé à l'appelant (session active)
+      // porte ainsi la même empreinte que la liste persistée.
+      user.passwordSalt = salt;
+      user.passwordHash = hash;
+      this.persistUsers();
+    } catch (e) {
+      console.warn('Password hash upgrade skipped', e);
+    }
   }
 
   /** Changement de mot de passe par l'utilisateur (première connexion ou volontaire) — lève l'obligation de changement. */

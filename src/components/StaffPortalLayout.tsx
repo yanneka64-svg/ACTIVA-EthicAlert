@@ -1,55 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import {
-  LayoutDashboard,
-  FolderOpen,
-  Search,
-  Paperclip,
-  MessageSquare,
-  Wrench,
-  LayoutGrid,
-  Users,
-  ShieldCheck,
-  Settings,
-  ChevronRight,
-  HelpCircle,
-  // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
-  Globe2,
-  // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
-  Network,
-  // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
-  SlidersHorizontal,
-  // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
-  Inbox,
-  UserPlus,
-  Clock3,
-  CheckCircle2,
-  ListChecks,
-  // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des investigations) ===
-  BarChart3,
-  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) === icônes pour les
-  // 3 sections jusqu'ici seulement atteignables via la rangée d'onglets
-  // interne d'AdminConfigView (Matrice & SLA réutilise déjà `Settings`,
-  // importé plus haut), désormais aussi présentes en barre latérale.
-  Building2,
-  Tag,
-  // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) ===
-  ClipboardCheck,
-  Eye,
-  // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) ===
-  Archive,
-} from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (Refactor StaffPortalLayout — extraction par section) ===
+// Seul `ChevronRight` (utilisé par `renderNavButton`, resté ici) est encore
+// importé : les autres icônes vivent désormais dans ./staffPortal/navItems.tsx
+// et ./staffPortal/DesktopSidebar.tsx, qui les importent eux-mêmes.
+import { ChevronRight } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
-import { isGlobalCaseViewer, userCan } from '../services/authz';
-// === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) ===
-import { Permission } from '../domain/permissions';
+import { isGlobalCaseViewer } from '../services/authz';
 // === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le sélecteur en
 // barre latérale) === logique de disponibilité des espaces désormais
 // partagée avec StaffSpaceHome.tsx et App.tsx (voir domain/staffSpaces.ts).
 import { SpaceKey, computeAvailableSpaces } from '../domain/staffSpaces';
 // === AMÉLIORATION AJOUTÉE : fil d'Ariane partagé avec la topbar ===
 import { setStaffBreadcrumb } from '../services/staffBreadcrumb';
+// === AMÉLIORATION AJOUTÉE (Refactor StaffPortalLayout — extraction par section) ===
+// `spaceOfTab`, les listes de menu par espace et la barre latérale desktop
+// déplacés dans ./staffPortal/ — voir l'en-tête de chaque fichier.
+import { spaceOfTab } from './staffPortal/spaceOfTab';
+import { buildSpaceNavItems } from './staffPortal/navItems';
+import type { NavItem } from './staffPortal/navItems';
+import { DesktopSidebar } from './staffPortal/DesktopSidebar';
 
 /**
  * === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
@@ -88,27 +59,6 @@ interface StaffPortalLayoutProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
   children: React.ReactNode;
-}
-
-// === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de données"
-// retiré) === 'admin_database' retiré de cette liste, sur demande explicite
-// de l'utilisateur (voir aussi routing/routes.ts et App.tsx). `admin_workflow`
-// retiré ici en fusionnant avec `main`, qui n'a jamais extrait de composant
-// d'onglet Workflow lors de son propre refactor d'AdminConfigView.tsx (voir
-// App.tsx) — le backend (`storage.getWorkflowTransitions`/
-// `updateWorkflowTransitions`) reste intact, seule cette entrée de menu vers
-// un écran qui n'existe plus dans la nouvelle structure disparaît.
-const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_entities', 'admin_categories'];
-
-// Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
-// "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à
-// aucun espace en particulier, pour ne JAMAIS faire changer l'espace
-// visuellement sélectionné quand on clique dessus (voir l'effet plus bas).
-function spaceOfTab(tab: string): SpaceKey | null {
-  if (tab.startsWith('op_')) return 'operator';
-  if (tab.startsWith('inv_')) return 'investigator';
-  if (ADMIN_TABS.includes(tab)) return 'admin';
-  return null;
 }
 
 export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
@@ -153,172 +103,11 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTab]);
 
-  type NavItem = { key: string; label: string; icon: React.ReactNode; group: string };
-
-  // === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
-  // Groupe "Outils" — écrans transverses, communs aux espaces Opérateur,
-  // Enquêteur et au repli général (jamais dans l'espace Administration :
-  // un compte admin-only, ex. system_admin, n'a de toute façon aucun accès
-  // réel aux dossiers — brief section 30 — ces raccourcis y étaient déjà
-  // des impasses avant cette phase, pas une fonctionnalité perdue).
-  //
-  // === AMÉLIORATION AJOUTÉE (Revue navigation — libellés selon le
-  // périmètre réel) === Ces 3 écrans (Tâches/Preuves/Communications) sont
-  // filtrés par `computeVisibleAlerts` (useVisibleAlerts.ts) : un compte
-  // sans vision globale du rôle (`isGlobalCaseViewer` — ex. investigator)
-  // n'y voit JAMAIS "toutes" les données, seulement celles des dossiers qui
-  // lui sont assignés. "Toutes les tâches" serait donc trompeur pour un tel
-  // compte — le libellé bascule sur "Mes tâches"/"Mes preuves"/"Mes
-  // communications" selon le périmètre réel du compte connecté, pas selon
-  // l'espace actuellement sélectionné (un compte à vision globale, ex.
-  // functional_admin, garde "Toutes les X" même depuis l'espace Enquêteur).
-  const toolsItems: Array<Omit<NavItem, 'group'>> = [
-    { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" /> },
-    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des
-    // investigations) === libellé unique (plus de distinction Mes/Toutes
-    // les tâches) : cet écran n'est plus un registre à plat des tâches
-    // mais un tableau de bord de suivi par dossier — le périmètre réel
-    // (tous les dossiers pour un compte à vision globale, seulement les
-    // siens sinon) reste géré par useVisibleAlerts comme partout ailleurs,
-    // sans que le nom de l'écran ait besoin de le préciser.
-    { key: 'tasks', label: t.reg_investigations_title, icon: <BarChart3 className="w-4 h-4" /> },
-    { key: 'evidence', label: canSeeControlPanel ? t.sidebar_evidence_registry : t.sidebar_my_evidence, icon: <Paperclip className="w-4 h-4" /> },
-    { key: 'communications', label: canSeeControlPanel ? t.sidebar_comms_registry : t.sidebar_my_comms, icon: <MessageSquare className="w-4 h-4" /> },
-    // === AMÉLIORATION AJOUTÉE (Refonte Opérateur — Suivi des recommandations) ===
-    { key: 'corrective_actions', label: t.reg_recommendations_title, icon: <Wrench className="w-4 h-4" /> },
-    { key: 'reports', label: t.sidebar_reports_exports, icon: <LayoutGrid className="w-4 h-4" /> },
-  ];
-
-  const operatorItems: NavItem[] = [
-    { key: 'op_dashboard', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' },
-    // === AMÉLIORATION AJOUTÉE (Retours visuels — nettoyage sidebar
-    // Opérateur) === "Tous les dossiers" retiré sur demande explicite : les
-    // 4 écrans ci-dessous (Boîte de réception/À attribuer/En attente
-    // d'infos/Dossiers attribués) couvrent déjà tout le cycle de vie d'un
-    // dossier côté Opérateur — cet onglet générique faisait doublon.
-    // L'écran lui-même (`portal`) n'est pas supprimé : toujours atteignable
-    // par URL (/cases) et utilisé par les liens profonds vers un dossier
-    // précis (`navigateToCases`), inchangé pour l'espace général et pour
-    // toute recherche.
-    { key: 'op_inbox', label: t.sidebar_op_inbox, icon: <Inbox className="w-4 h-4" />, group: '' },
-    { key: 'op_assign', label: t.sidebar_op_assign, icon: <UserPlus className="w-4 h-4" />, group: '' },
-    { key: 'op_pending_info', label: t.sidebar_op_pending, icon: <Clock3 className="w-4 h-4" />, group: '' },
-    { key: 'op_processed', label: t.sidebar_op_processed, icon: <CheckCircle2 className="w-4 h-4" />, group: '' },
-    // === AMÉLIORATION AJOUTÉE (Boîte de réception Opérateur — dossiers
-    // envoyés en revue) === entre "Dossiers ouverts" et "Dossiers
-    // clôturés" — suite logique du cycle de vie du dossier.
-    { key: 'op_review', label: t.sidebar_op_review, icon: <Eye className="w-4 h-4" />, group: '' },
-    // === AMÉLIORATION AJOUTÉE (Opérateur — Dossiers clôturés) === juste en
-    // dessous de "Dossiers attribués", sur demande explicite.
-    { key: 'op_closed', label: t.sidebar_op_closed, icon: <Archive className="w-4 h-4" />, group: '' },
-    ...toolsItems.map((i) => ({ ...i, group: t.sidebar_group_tools })),
-  ];
-
-  const investigatorItems: NavItem[] = [
-    // === AMÉLIORATION AJOUTÉE (Espace Enquêteur — Boîte de réception) ===
-    // "Tableau de bord" remplacé par "Boîte de réception" sur demande
-    // explicite de l'utilisateur : l'écran cible (`inv_dashboard` →
-    // InvestigationDesk, `initialFilter={{ myCasesOnly: true }}`, voir
-    // App.tsx) montre déjà uniquement les dossiers attribués à l'enquêteur
-    // connecté — seuls le libellé et l'icône changent, clé de routage et
-    // écran inchangés (route '/investigator/dashboard' conservée).
-    { key: 'inv_dashboard', label: t.sidebar_inv_inbox, icon: <Inbox className="w-4 h-4" />, group: '' },
-    { key: 'inv_my_cases', label: t.sidebar_inv_my_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' },
-    { key: 'inv_to_process', label: t.sidebar_inv_to_process, icon: <ListChecks className="w-4 h-4" />, group: '' },
-    { key: 'inv_in_progress', label: t.sidebar_inv_in_progress, icon: <Search className="w-4 h-4" />, group: '' },
-    { key: 'inv_pending', label: t.sidebar_inv_pending, icon: <Clock3 className="w-4 h-4" />, group: '' },
-    ...toolsItems.map((i) => ({ ...i, group: t.sidebar_group_tools })),
-  ];
-
-  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===
-  // BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : l'écran
-  // "Configuration Système" (AdminConfigView) se pilotait jusqu'ici par
-  // DEUX navigations en parallèle — cette barre latérale (6 entrées) ET une
-  // rangée de 9 onglets répétée en haut de son propre contenu (désormais
-  // retirée, voir AdminConfigView.tsx), qui était la SEULE à donner accès à
-  // "Matrice & SLA", "Entités", "Catégories" et "Base de données". Ces 4
-  // entrées rejoignent ici les 6 déjà présentes (aucune renommée, aucune
-  // retirée) — les 9 sections réelles sont désormais toutes atteignables
-  // d'un seul endroit, dans l'ordre logique de l'ancienne rangée d'onglets.
-  // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — retours visuels sur
-  // capture de référence) === Ordre et libellés alignés sur la référence
-  // fournie (Organisation, Catégories, Workflow, Utilisateurs, Rôles &
-  // Permissions, Paramètres système) ; "Entités", "Gouvernance" et "Base de
-  // données" (hors de la capture, mais bien réels — RI Phase 1-7 pour la
-  // Gouvernance notamment) restent toutes atteignables, insérées près de la
-  // section à laquelle elles se rattachent le plus. "admin_config" (ancienne
-  // entrée "Matrice des risques & SLA") est retirée d'ici : elle pointait
-  // vers exactement le même écran que "settings" (les deux sans onglet de
-  // départ ⇒ 'matrix' par défaut, voir App.tsx) — garder les deux aurait
-  // recréé le doublon de navigation qu'on vient de corriger. "settings"
-  // (déjà la bonne route) porte donc directement le libellé "Paramètres
-  // système" de la référence.
-  const adminItems: NavItem[] = [
-    { key: 'admin_organization', label: t.side_organisation, icon: <Globe2 className="w-4 h-4" />, group: '' },
-    { key: 'admin_entities', label: t.guard_label_group_entities, icon: <Building2 className="w-4 h-4" />, group: '' },
-    { key: 'admin_categories', label: t.side_categories, icon: <Tag className="w-4 h-4" />, group: '' },
-    { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
-    { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
-    { key: 'admin_governance', label: t.side_governance, icon: <Network className="w-4 h-4" />, group: '' },
-    // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
-    // données" retiré) === Entrée "Base de données" retirée d'ici, sur
-    // demande explicite de l'utilisateur — l'écran (rattachement Firebase)
-    // et sa route restent en place, seul le lien de menu disparaît.
-    // === AMÉLIORATION AJOUTÉE (suppression du lien "Paramètres système") ===
-    // Retiré sur `main`, sur demande explicite de l'utilisateur : ce lien
-    // était redondant avec le titre affiché en tête de la sidebar
-    // ci-dessous. L'écran qu'il ciblait ('settings' → route '/admin',
-    // `configTab` par défaut 'matrix') reste l'écran d'accueil naturel de
-    // l'espace Admin — atteint dès l'entrée dans l'espace, sans avoir
-    // besoin d'un lien de menu dédié.
-  ];
-
-  // === AMÉLIORATION AJOUTÉE (Espace Consultation — Audit interne &
-  // externe) === UN SEUL espace de repli général (comptes sans Opérateur/
-  // Enquêteur/Admin — Consultation, Comité d'Audit, Exécutif, Admin
-  // Sécurité), pas deux — sur retour explicite de l'utilisateur ("Auditeur
-  // externe et interne c'est la même chose, pas besoin de faire deux
-  // interfaces"). Consultation et Comité d'Audit ont désormais exactement
-  // les mêmes permissions (domain/permissions.ts) et voient donc
-  // exactement le même menu ci-dessous, calculé une seule fois à partir de
-  // la permission réelle de chaque entrée — jamais une liste dupliquée par
-  // rôle. Liste à plat (jamais de regroupement "OUTILS" ici, fidèle à la
-  // capture de référence), libellés courts propres à cet espace (jamais un
-  // renommage des clés i18n partagées `sidebar_all_cases`/
-  // `sidebar_evidence_registry`/`sidebar_comms_registry`, toujours
-  // utilisées telles quelles côté Opérateur/Enquêteur — seulement un
-  // intitulé alternatif local à `generalItems`). "Suivi des
-  // investigations"/"Suivi des recommandations" (tableaux de bord orientés
-  // traitement actif d'un dossier) ne figurent volontairement pas dans
-  // cette liste courte : toujours un accès réel à ces 2 écrans par URL
-  // directe (`/investigation`, `/investigation/corrective-actions`), rien
-  // n'est retiré — seule la barre latérale se resserre sur les 6 entrées
-  // de la référence.
-  const GENERAL_TOOLS: Array<{ key: string; label: string; icon: React.ReactNode; permission: Permission }> = [
-    { key: 'advanced_search', label: t.nav_search_advanced, icon: <SlidersHorizontal className="w-4 h-4" />, permission: 'cases.read' },
-    { key: 'evidence', label: t.nav_evidence, icon: <Paperclip className="w-4 h-4" />, permission: 'evidence.read' },
-    { key: 'communications', label: t.nav_communications, icon: <MessageSquare className="w-4 h-4" />, permission: 'communications.read' },
-    { key: 'reports', label: t.sidebar_reports_exports, icon: <LayoutGrid className="w-4 h-4" />, permission: 'reports.read' },
-  ];
-  const generalItems: NavItem[] = [
-    ...(canSeeControlPanel ? [{ key: 'control_panel', label: t.sidebar_dashboard, icon: <LayoutDashboard className="w-4 h-4" />, group: '' }] : []),
-    ...(userCan(activeUser, 'cases.read') ? [{ key: 'portal', label: t.breadcrumb_cases, icon: <FolderOpen className="w-4 h-4" />, group: '' }] : []),
-    ...GENERAL_TOOLS.filter((i) => userCan(activeUser, i.permission)).map(({ permission: _permission, ...i }) => ({ ...i, group: '' })),
-    // === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) === "Piste
-    // d'Audit" (`audit`, déjà un écran réel — AuditTrailView.tsx, gardé par
-    // `canSeeAuditTrail`/`audit.read`, route `/audit-log`) n'apparaissait
-    // jusqu'ici dans AUCUN menu pour un compte en repli général — seuls les
-    // comptes admin y accédaient via "admin_audit". Rejoint cette liste pour
-    // tout compte ayant réellement `audit.read` (ex. Comité d'Audit).
-    ...(userCan(activeUser, 'audit.read') ? [{ key: 'audit', label: t.nav_audit, icon: <ClipboardCheck className="w-4 h-4" />, group: '' }] : []),
-  ];
-
-  const itemsBySpace: Record<SpaceKey, NavItem[]> = {
-    operator: operatorItems,
-    investigator: investigatorItems,
-    admin: adminItems,
-    general: generalItems,
-  };
+  // === AMÉLIORATION AJOUTÉE (Refactor StaffPortalLayout — extraction par section) ===
+  // Listes de menu de chaque espace déplacées telles quelles dans
+  // ./staffPortal/navItems.tsx (`buildSpaceNavItems`), toujours recalculées
+  // à chaque rendu avec le même `t`, le même compte et la même visibilité.
+  const itemsBySpace: Record<SpaceKey, NavItem[]> = buildSpaceNavItems(t, activeUser, canSeeControlPanel);
   const navItems = itemsBySpace[selectedSpace];
 
   // === AMÉLIORATION AJOUTÉE : fil d'Ariane « Espace › Page » dans la topbar ===
@@ -336,8 +125,6 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSpace, activeNavLabel, lang]);
   useEffect(() => () => setStaffBreadcrumb(null), []);
-
-  let lastGroup: string | null = null;
 
   const renderNavButton = (item: NavItem, mobile = false) => {
     const active = currentTab === item.key;
@@ -409,93 +196,12 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
           naturellement la carte "Besoin d'aide ?" tout en bas. Les espaces
           Opérateur/Enquêteur (tableaux de bord bien plus longs que leur
           propre menu) gardent `lg:self-start`. */}
-      <aside className={`hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-0 lg:z-30 ${selectedSpace === 'admin' ? 'lg:self-stretch' : 'lg:self-start'} bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6`}>
-        {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
-            sélecteur en barre latérale) === Le petit bloc "ESPACES" qui
-            vivait ici (2-3 boutons empilés en haut de la sidebar) est
-            retiré, sur demande explicite de l'utilisateur : le choix
-            d'espace se fait désormais une seule fois, sur une vraie page
-            d'accueil dédiée (StaffSpaceHome.tsx) juste après connexion,
-            pas en permanence dans la barre latérale. `selectedSpace`
-            (calculé ci-dessus depuis `currentTab`) continue de déterminer
-            la LISTE de menu affichée ci-dessous — rien ne change côté
-            contenu du menu lui-même, seul ce bloc de sélection disparaît.
-            Pour changer d'espace après coup, voir le lien "Changer
-            d'espace" du menu Profil (Navbar.tsx). */}
-        {/* === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée — retours
-            visuels sur capture de référence) === Bloc titre en tête de la
-            barre latérale, propre à l'espace Admin (fidèle à la référence)
-            — purement visuel, ne change ni `navItems` ni la navigation
-            elle-même.
-            === AMÉLIORATION AJOUTÉE (renommages successifs du titre) ===
-            "Administration" → "Configuration"/"Paramètres Utilisateur et
-            Configuration" → "Panneau de configuration", sur plusieurs
-            demandes explicites successives de l'utilisateur (le lien de
-            menu "Paramètres système" du même nom, devenu redondant, a été
-            retiré juste au-dessus). Le sous-texte ("Paramètres,
-            utilisateurs et configuration") reste retiré. */}
-        {selectedSpace === 'admin' && (
-          <div className="flex items-center gap-2.5 px-3.5 pt-4 pb-1">
-            <span className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 shrink-0">
-              <Settings className="w-4 h-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">{t.space_home_admin_title}</p>
-            </div>
-          </div>
-        )}
-        {/* === AMÉLIORATION AJOUTÉE (Espaces Audit interne/externe) === Même
-            motif que le bloc "Administration" ci-dessus, pour l'espace de
-            repli général (Consultation, Comité d'Audit, Exécutif, Admin
-            Sécurité — aucun n'a de droit d'écriture sur les dossiers) :
-            repère visuel honnête indiquant que cet espace n'affiche que du
-            contenu réellement consultable, sans aucune action d'attribution
-            ou de modification. */}
-        {selectedSpace === 'general' && (
-          <div className="flex items-center gap-2.5 px-3.5 pt-4 pb-1">
-            <span className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 shrink-0">
-              <Eye className="w-4 h-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="font-extrabold text-slate-900 text-sm leading-tight">{t.roles_consultation}</p>
-              <p className="text-[10px] text-slate-500 leading-snug">{t.side_readonly_hint}</p>
-            </div>
-          </div>
-        )}
-        <nav className="flex-1 py-3 px-2.5">
-          {navItems.map((item) => {
-            const showGroupHeader = !!item.group && item.group !== lastGroup;
-            lastGroup = item.group;
-            return (
-              <React.Fragment key={`${item.key}-${item.label}`}>
-                {showGroupHeader && (
-                  // === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
-                  // BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core :
-                  // text-slate-400 à cette taille ne passe pas le seuil WCAG
-                  // AA (2.63:1, minimum 4.5:1) — text-slate-600 y remédie
-                  // (text-slate-500 seul restait tout juste insuffisant,
-                  // 4.46:1, sur le fond légèrement teinté de la sidebar).
-                  <div className="px-3 pt-3.5 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">
-                    {item.group}
-                  </div>
-                )}
-                {renderNavButton(item)}
-              </React.Fragment>
-            );
-          })}
-        </nav>
-
-        {/* "Besoin d'aide ?" — exact match with the reference mockup's sidebar footer */}
-        <div className="m-2.5 p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
-          <span className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
-            <HelpCircle className="w-4 h-4" />
-          </span>
-          <div className="text-[11px] leading-snug">
-            <p className="font-bold text-slate-700">{t.sidebar_help_title}</p>
-            <p className="text-slate-500 mt-0.5">{t.sidebar_help_body}</p>
-          </div>
-        </div>
-      </aside>
+      <DesktopSidebar
+        t={t}
+        selectedSpace={selectedSpace}
+        navItems={navItems}
+        renderNavButton={renderNavButton}
+      />
 
       {/* Mobile horizontal nav */}
       <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto px-4 pt-4 pb-1 -mb-2">

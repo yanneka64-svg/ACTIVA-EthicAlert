@@ -41,6 +41,8 @@ import {
 import { can, implicatedUserIdsFromPersons, Permission } from '../src/domain/permissions';
 import { checkTransition, deriveOverallFinding, TransitionCheckResult } from '../src/domain/workflow';
 import { AuditEventV2, CaseAccessDeniedError, CaseListFilter, CaseRepository, Page } from '../src/data-access/caseRepository';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
+import { filterVisibleCases } from '../src/domain/caseVisibility';
 
 function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -127,28 +129,26 @@ export class FirestoreAdminCaseRepository implements CaseRepository {
     return kase;
   }
 
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
+  // Logique de filtrage déplacée telle quelle dans `filterVisibleCases`
+  // (domain/caseVisibility.ts), désormais partagée avec
+  // `LocalCaseRepository` et la Cloud Function `listCases`
+  // (functions/src/index.ts, qui reprend ce même patron de lecture Admin
+  // SDK) — comportement inchangé, y compris le commentaire ci-dessous sur
+  // le balayage complet.
   async listCases(filter: CaseListFilter, requestingUser: AppUser, limit = 25, offset = 0): Promise<Page<Case>> {
     // A straightforward full-collection scan is acceptable for a seed/verification
     // script against a handful of demo cases; Phase 4's real Control Panel must
     // use indexed, server-side `where`/`orderBy`/`startAfter` queries instead
     // (see docs/ARCHITECTURE.md — "Do not load the entire case database into the client").
     const snap = await this.db.collection('cases').get();
-    const all: Case[] = [];
-    for (const doc of snap.docs) {
-      const kase = doc.data() as Case;
+    const cases: Case[] = snap.docs.map((doc) => doc.data() as Case);
+    const personsByCase = new Map<string, Person[]>();
+    for (const kase of cases) {
       const personsSnap = await this.sub(kase.caseId, 'persons').get();
-      const implicated = implicatedUserIdsFromPersons(personsSnap.docs.map((d) => d.data() as Person));
-      if (!can(requestingUser, 'cases.read', { case: kase, implicatedUserIds: implicated })) continue;
-      if (filter.status && kase.status !== filter.status) continue;
-      if (filter.country && kase.country !== filter.country) continue;
-      if (filter.entity && kase.entity !== filter.entity) continue;
-      if (filter.category && kase.category !== filter.category) continue;
-      if (filter.priority && kase.priority !== filter.priority) continue;
-      if (filter.assignee && kase.assignee !== filter.assignee) continue;
-      all.push(kase);
+      personsByCase.set(kase.caseId, personsSnap.docs.map((d) => d.data() as Person));
     }
-    const items = all.slice(offset, offset + limit);
-    return { items, total: all.length, nextOffset: offset + limit < all.length ? offset + limit : undefined };
+    return filterVisibleCases(cases, personsByCase, filter, requestingUser, limit, offset);
   }
 
   async changeCaseStatus(caseId: string, to: CaseStatus, actor: AppUser, reason?: string): Promise<{ case: Case; result: TransitionCheckResult }> {

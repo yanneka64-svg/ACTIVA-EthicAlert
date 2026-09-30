@@ -300,11 +300,19 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
             </select>
           </div>
 
+          {/* === AMÉLIORATION AJOUTÉE (correctif — colonne fantôme en bout de
+              tableau) === BUG PRÉEXISTANT CORRIGÉ : `onRowClick` faisait
+              ajouter par DataTable (générique) un chevron de fin de ligne en
+              plus de la colonne "Actions" déjà propre à cet écran (dont le
+              bouton "Ouvrir le dossier", ExternalLink, fait exactement la
+              même chose) — un doublon visuel, sans en-tête, qui flottait
+              après la dernière colonne réelle. Aucun autre écran de ce type
+              (Tâches, Mesures correctives) ne cumule les deux ; ici, la
+              colonne Actions suffit déjà à ouvrir le dossier. */}
           <DataTable
             columns={columns}
             rows={pagedRows}
             getRowKey={(r) => r.evidence.id}
-            onRowClick={(r) => onOpenCase(r.alert.trackingNumber)}
             emptyTitle={t.reg_evidence_empty}
           />
 

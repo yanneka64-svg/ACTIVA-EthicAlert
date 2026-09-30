@@ -15,7 +15,6 @@
  * (domain/independentRouting.ts, Phase 3-4) exclura automatiquement ce
  * compte de l'accès au dossier.
  */
-import React from 'react';
 import { UserProfile } from '../../types';
 import { currentT } from '../../i18n/currentLang';
 

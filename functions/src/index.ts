@@ -30,7 +30,11 @@
 
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === vérification App Check de notifyEmail.
+import { getAppCheck } from 'firebase-admin/app-check';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === pagination par curseur de listCases.
+import { FieldPath } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { CallableRequest, HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 // === AMÉLIORATION AJOUTÉE : secret Resend pour notifyEmail (Secret Manager, Blaze) ===
@@ -48,12 +52,20 @@ import {
   FindingOutcome,
   Interview,
   Person,
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4) ===
+  ReporterCredentials,
   RiskAssessment,
   RoleId,
   Task,
 } from '../../src/domain/caseTypes';
 import { can, implicatedUserIdsFromPersons, Permission } from '../../src/domain/permissions';
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
+import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src/domain/caseVisibility';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
+import { caseQueryEqualities, normalizePagination } from '../../src/domain/caseQuery';
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution de la soumission publique.
+import { parseReporterCaseInput } from '../../src/domain/reporterCaseInput';
 // === AMÉLIORATION AJOUTÉE : réutilise le HASH/SALT existant, jamais réimplémenté ===
 // Same salted, iterated-SHA256 verification already used by the legacy
 // client-side AlertTrackingView (src/components/AlertTrackingView.tsx) —
@@ -61,7 +73,48 @@ import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow
 // what a valid access code hash looks like. Works in this Node 20 runtime
 // because `crypto.subtle`/`crypto.getRandomValues` are Node's built-in
 // global WebCrypto implementation, not a browser-only API.
-import { verifyPassword } from '../../src/services/crypto';
+// (=== AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === runtime passé à Node 22,
+// functions/package.json — WebCrypto global identique.)
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4 :
+// miroir de la soumission publique) === `generateSalt`/`hashPassword`/
+// `generateAccessPassword` réutilisés tels quels (même algorithme que
+// `verifyPassword` déjà importé ci-dessus, et que le client
+// AlertSubmissionFlow.tsx) pour `createCaseAsReporter`, plus bas.
+import { generateAccessPassword, generateSalt, hashPassword, verifyPassword } from '../../src/services/crypto';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P0 : relais e-mail fermé) ===
+// Même garde-fou pur que api/notify-email.ts (src/domain/notifyEmailGuard.ts).
+import {
+  FixedWindowRateLimiter,
+  HeaderBag,
+  NOTIFY_RATE_WINDOW_MS,
+  appCheckToken,
+  bearerToken,
+  clientIp,
+  isStaffClaims,
+  newAlertNotification,
+  parseNewAlertNotification,
+  rateLimitFromEnv,
+  validateNotifyEmailRequest,
+} from '../../src/domain/notifyEmailGuard';
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P1 : fiabilité et coût) ===
+import { setGlobalOptions } from 'firebase-functions/v2';
+
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P1 : fiabilité et coût) ===
+// Options communes à TOUTES les fonctions, appliquées avant leur
+// déclaration :
+// - `region` : explicitement celle qui était déjà utilisée implicitement
+//   (us-central1 = défaut de firebase-functions ET de getFunctions() côté
+//   client, src/services/firebaseClient.ts, ET de la réécriture Hosting
+//   documentée dans docs/FIREBASE-HOSTING.md). Aucun changement de
+//   comportement. Pour rapprocher les fonctions de la base Firestore
+//   (latence/RGPD), changer CES TROIS endroits ensemble — voir
+//   docs/DEVOPS-RUNBOOK.md §Région.
+// - `maxInstances` : plafond dur de mise à l'échelle — le seul garde-fou
+//   qui borne réellement la facture sur le plan Blaze (une alerte de
+//   budget n'arrête pas la dépense). Largement au-dessus du besoin réel
+//   (dispositif d'alerte interne, faible volume).
+// - `minInstances: 0` : aucune instance facturée au repos.
+setGlobalOptions({ region: 'us-central1', maxInstances: 10, minInstances: 0 });
 
 initializeApp();
 const db = getFirestore();
@@ -156,6 +209,26 @@ async function requireCaseAccess(caseId: string, user: AppUser, permission: Perm
 // even if a rules gap ever reopened, this stops the write at the source.
 const CASE_BEARING_ROLES: RoleId[] = ['investigator', 'senior_investigator', 'functional_admin', 'darc_compliance', 'consultation'];
 
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === les comptes du personnel ont
+// un identifiant local (localStorage) distinct de leur UID Firebase Auth ;
+// l'e-mail est l'identité commune (scripts/setupAuthUsers.ts crée les
+// comptes par e-mail). Une cible d'attribution peut donc être un UID ou un
+// e-mail : elle est toujours résolue en UID réel avant tout contrôle ou
+// écriture.
+async function resolveStaffUid(idOrEmail: string): Promise<string> {
+  if (typeof idOrEmail !== 'string' || !idOrEmail.trim()) {
+    throw new HttpsError('invalid-argument', 'Invalid assignee.');
+  }
+  const value = idOrEmail.trim();
+  const byUid = await getAuth().getUser(value).catch(() => null);
+  if (byUid) return byUid.uid;
+  if (value.includes('@')) {
+    const byEmail = await getAuth().getUserByEmail(value.toLowerCase()).catch(() => null);
+    if (byEmail) return byEmail.uid;
+  }
+  throw new HttpsError('invalid-argument', `${value} is not a known staff account.`);
+}
+
 async function assertCaseBearingRole(uid: string): Promise<void> {
   const targetUser = await getAuth().getUser(uid).catch(() => null);
   const role = (targetUser?.customClaims as { role?: RoleId } | undefined)?.role;
@@ -227,13 +300,111 @@ export const createCase = onCall(async (request) => {
 });
 
 // ---------------------------------------------------------------------------
+// listCases
+// ---------------------------------------------------------------------------
+
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
+// La pièce manquante identifiée par l'investigation du bug "les alertes
+// externes n'arrivent jamais dans la Boîte de réception de l'opérateur" :
+// aucune fonction ne permettait jusqu'ici de lister plusieurs dossiers à la
+// fois — `firestore.rules` rejette catégoriquement toute requête `list` sur
+// `cases` (la contrainte de provabilité des règles Firestore ne peut pas
+// évaluer `isNotImplicated`/`isInScope` sur un champ non filtrable), et
+// aucune Cloud Function ne couvrait ce cas avant celle-ci. Réutilise
+// `filterVisibleCases` (domain/caseVisibility.ts), la même logique déjà
+// partagée par `LocalCaseRepository.listCases` et
+// `scripts/firestoreAdminRepository.ts`'s `listCases` — dont ce dernier est
+// le patron direct de lecture Admin SDK repris ici (voir son commentaire
+// sur le balayage complet, toujours valable ici pour la même raison :
+// volume de dossiers réel encore faible).
+export const listCases = onCall(async (request) => {
+  const user = requireAppUser(request);
+  if (!can(user, 'cases.read')) {
+    throw new HttpsError('permission-denied', 'This role cannot read cases.');
+  }
+
+  const data = (request.data ?? {}) as { filter?: CaseListFilter; limit?: number; offset?: number };
+  const filter = data.filter ?? {};
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === pagination validée
+  // (mêmes défauts 25/0 ; limit borné à [1, 500], offset ≥ 0).
+  const { limit, offset } = normalizePagination(data.limit, data.offset);
+
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2 : coût et latence) ===
+  // Avant : lecture de TOUTE la collection puis, dossier par dossier et en
+  // série, de TOUTES ses personnes. Désormais :
+  // - les filtres d'égalité du client sont appliqués par Firestore (seuls
+  //   les dossiers candidats sont lus et facturés) ;
+  // - seules les personnes `kind == 'subject'` sont lues (les seules
+  //   utilisées par implicatedUserIdsFromPersons), en parallèle.
+  // isCaseListedFor (le prédicat de filterVisibleCases) réapplique ensuite exactement les mêmes filtres et
+  // l'autorisation can() : le résultat renvoyé est inchangé.
+  let query: FirebaseFirestore.Query = db.collection('cases');
+  for (const [field, value] of caseQueryEqualities(filter)) {
+    query = query.where(field, '==', value);
+  }
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) ===
+  // - Lecture par lots bornés (curseur sur l'id de document), chaque lot
+  //   étant ÉVALUÉ puis relâché : seuls le lot courant et les dossiers de
+  //   la page demandée restent en mémoire (VisiblePageCollector), quel que
+  //   soit le volume de la collection.
+  // - Plus de requête `persons` par dossier (N+1) : l'implication est lue
+  //   dans le champ dénormalisé `Case.implicatedUserIds`, tenu à jour par
+  //   addPerson/removePersonLink et déjà utilisé par firestore.rules pour la
+  //   même décision. Repli sur la sous-collection uniquement pour un dossier
+  //   ancien dépourvu de ce champ (au plus LIST_BATCH_SIZE requêtes
+  //   simultanées, jamais toute la collection d'un coup).
+  // Le contrat `total` (nombre de dossiers VISIBLES) impose toujours
+  // d'évaluer chaque candidat : un total exact sans parcours complet
+  // demanderait un compteur agrégé côté serveur (évolution distincte).
+  // Ordre et résultat identiques à filterVisibleCases sur la liste complète
+  // (même prédicat isCaseListedFor, même ordre par id de document).
+  const LIST_BATCH_SIZE = 500;
+  const collector = new VisiblePageCollector(limit, offset);
+  let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  for (;;) {
+    let batchQuery = query.orderBy(FieldPath.documentId()).limit(LIST_BATCH_SIZE);
+    if (lastDoc) batchQuery = batchQuery.startAfter(lastDoc);
+    const batch = await batchQuery.get();
+    const cases = batch.docs.map((doc) => doc.data() as Case);
+    const personsByCase = new Map<string, Person[]>();
+    const withoutDenormalized: Case[] = [];
+    for (const kase of cases) {
+      if (Array.isArray(kase.implicatedUserIds)) {
+        personsByCase.set(kase.caseId, kase.implicatedUserIds.map((uid) => ({ kind: 'subject', linkedUserId: uid }) as Person));
+      } else {
+        withoutDenormalized.push(kase);
+      }
+    }
+    await Promise.all(
+      withoutDenormalized.map(async (kase) => {
+        const personsSnap = await db.collection('cases').doc(kase.caseId).collection('persons').where('kind', '==', 'subject').get();
+        personsByCase.set(kase.caseId, personsSnap.docs.map((d) => d.data() as Person));
+      })
+    );
+    for (const kase of cases) {
+      if (isCaseListedFor(kase, personsByCase.get(kase.caseId) ?? [], filter, user)) collector.add(kase);
+    }
+    if (batch.size < LIST_BATCH_SIZE) break;
+    lastDoc = batch.docs[batch.docs.length - 1];
+  }
+
+  return collector.page();
+});
+
+// ---------------------------------------------------------------------------
 // assignCase
 // ---------------------------------------------------------------------------
 
 export const assignCase = onCall(async (request) => {
   const user = requireAppUser(request);
-  const { caseId, assignee, additionalInvestigators } = request.data as { caseId: string; assignee: string; additionalInvestigators?: string[] };
-  if (!caseId || !assignee) throw new HttpsError('invalid-argument', 'caseId and assignee are required.');
+  const { caseId, assignee: rawAssignee, additionalInvestigators: rawAdditional } = request.data as { caseId: string; assignee: string; additionalInvestigators?: string[] };
+  if (!caseId || !rawAssignee) throw new HttpsError('invalid-argument', 'caseId and assignee are required.');
+  if (rawAdditional !== undefined && !Array.isArray(rawAdditional)) throw new HttpsError('invalid-argument', 'additionalInvestigators must be an array.');
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === UID ou e-mail → UID réel.
+  const assignee = await resolveStaffUid(rawAssignee);
+  const additionalInvestigators = rawAdditional
+    ? Array.from(new Set(await Promise.all(rawAdditional.map(resolveStaffUid)))).filter((uid) => uid !== assignee)
+    : undefined;
 
   const ref = db.collection('cases').doc(caseId);
   const snap = await ref.get();
@@ -435,7 +606,15 @@ export const setAllegationFinding = onCall(async (request) => {
   await appendTimeline(existing.caseId, 'FINDING_DOCUMENTED', user.userId, finding);
   await appendAudit({ actorId: user.userId, action: 'FINDING_DOCUMENTED', caseId: existing.caseId, objectType: 'allegation', objectId: allegationId, newValue: finding });
 
-  return { ok: true };
+  // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 3 :
+  // FirestoreCaseRepository) === `caseId` ajouté à la réponse : l'appelant
+  // (allegationId seul, sans caseId, par signature de CaseRepository) n'a
+  // sinon aucun moyen de relire le document à jour ensuite (une
+  // collectionGroup query côté client n'est pas autorisée par
+  // firestore.rules — même contrainte de « provabilité » que `listCases`,
+  // voir son commentaire). Ajout pur, aucun changement de comportement pour
+  // le reste de la fonction.
+  return { ok: true, caseId: existing.caseId };
 });
 
 // ---------------------------------------------------------------------------
@@ -780,7 +959,9 @@ export const declareConflictOfInterest = onCall(async (request) => {
   await appendTimeline(caseId, 'CONFLICT_OF_INTEREST_DECLARED', user.userId, outcome);
   await appendAudit({ actorId: user.userId, action: 'CONFLICT_OF_INTEREST_DECLARED', caseId, newValue: outcome });
 
-  return { ok: true };
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === la déclaration réellement
+  // persistée (userId issu du jeton vérifié) est renvoyée au client.
+  return { ok: true, declaration };
 });
 
 // ---------------------------------------------------------------------------
@@ -853,28 +1034,41 @@ async function verifyReporterAccess(caseNumber: string, accessCode: string): Pro
 
   await assertReporterNotRateLimited(key);
 
-  const querySnap = await db.collection('cases').where('caseNumber', '==', key).limit(1).get();
+  let querySnap = await db.collection('cases').where('caseNumber', '==', key).limit(1).get();
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === un dossier créé par le miroir
+  // de la soumission publique est aussi retrouvé par le numéro de suivi local
+  // déjà remis au lanceur d'alerte (`externalReference`), même code d'accès.
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — unicité du numéro de suivi) ===
+  // 1. Index de réservation (external_references/{ref} → caseId), écrit
+  //    atomiquement avec le dossier par createCaseAsReporter : il désigne LE
+  //    dossier de ce numéro de suivi, quels que soient d'éventuels doublons.
+  // 2. Repli : toutes les correspondances restantes sont essayées (aucune
+  //    n'est écartée). Depuis la réservation, aucun doublon ne peut plus
+  //    être créé : ce repli ne couvre que d'éventuels dossiers antérieurs.
+  let candidates: FirebaseFirestore.DocumentSnapshot[] = querySnap.docs;
   if (querySnap.empty) {
-    await recordReporterAttempt(key, false);
-    throw invalid();
+    candidates = [];
+    const reservation = await db.collection('external_references').doc(key).get();
+    const reservedCaseId = reservation.exists ? (reservation.data() as { caseId?: string }).caseId : undefined;
+    if (reservedCaseId) {
+      const reservedCase = await db.collection('cases').doc(reservedCaseId).get();
+      if (reservedCase.exists) candidates.push(reservedCase);
+    }
+    const others = await db.collection('cases').where('externalReference', '==', key).get();
+    for (const doc of others.docs) if (doc.id !== reservedCaseId) candidates.push(doc);
   }
-  const caseDoc = querySnap.docs[0];
-  const kase = caseDoc.data() as Case;
+  for (const caseDoc of candidates) {
+    const credsSnap = await db.collection('reporter_credentials').doc(caseDoc.id).get();
+    if (!credsSnap.exists) continue;
+    const creds = credsSnap.data() as { accessCodeHash: string; accessCodeSalt: string };
+    const passwordOk = await verifyPassword(accessCode, creds.accessCodeSalt, creds.accessCodeHash);
+    if (!passwordOk) continue;
+    await recordReporterAttempt(key, true);
+    return { ref: caseDoc.ref, kase: caseDoc.data() as Case };
+  }
 
-  const credsSnap = await db.collection('reporter_credentials').doc(caseDoc.id).get();
-  if (!credsSnap.exists) {
-    await recordReporterAttempt(key, false);
-    throw invalid();
-  }
-  const creds = credsSnap.data() as { accessCodeHash: string; accessCodeSalt: string };
-  const passwordOk = await verifyPassword(accessCode, creds.accessCodeSalt, creds.accessCodeHash);
-  if (!passwordOk) {
-    await recordReporterAttempt(key, false);
-    throw invalid();
-  }
-
-  await recordReporterAttempt(key, true);
-  return { ref: caseDoc.ref, kase };
+  await recordReporterAttempt(key, false);
+  throw invalid();
 }
 
 export const getCaseForReporter = onCall(async (request) => {
@@ -944,6 +1138,137 @@ export const addCommunicationAsReporter = onCall(async (request) => {
   await appendTimeline(caseRef.id, 'MESSAGE_SENT', 'reporter');
 
   return { messageId };
+});
+
+// ---------------------------------------------------------------------------
+// createCaseAsReporter
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4 : miroir de
+// la soumission publique) ===
+// La pièce manquante identifiée en construisant cette phase : `createCase`
+// (plus haut) exige `requireAppUser()` — un vrai jeton Firebase Auth avec
+// la permission `cases.create` (tenue par le personnel, jamais par
+// `reporter`, qui n'a `[]` dans permissions.ts) — donc injoignable par
+// AlertSubmissionFlow.tsx, le formulaire PUBLIC, anonyme, sans session.
+// Ce nouveau callable suit exactement le même principe que
+// `getCaseForReporter`/`addCommunicationAsReporter` juste au-dessus :
+// aucun `requireAppUser()`, l'autorisation vient d'ailleurs — ici, du fait
+// qu'il ne fait QUE créer un nouveau dossier, jamais lire ou modifier un
+// dossier existant. Génère ses propres identifiants de suivi
+// (accessCode/salt/hash, mêmes fonctions que `verifyPassword` ci-dessus)
+// et son propre numéro de dossier (même compteur transactionnel que
+// `createCase`, `counters/cases` — un seul compteur partagé, jamais deux
+// suites de numéros qui pourraient se chevaucher).
+//
+// Volontairement PAS relié à l'écran de confirmation que voit le
+// déclarant : `src/services/casesCloudSync.ts` (client) appelle ce
+// callable en tâche de fond, best-effort, exactement comme
+// `saveAlertToCloud` (services/firebase.ts) le fait déjà pour le modèle
+// legacy — le numéro de suivi et le mot de passe réellement affichés
+// restent ceux du modèle local (`storage.ts`), seule source de vérité
+// tant que les phases 5/6 n'ont pas migré l'UI (voir docs/DATABASE.md).
+// Les identifiants générés ici ne sont donc utilisés par aucun écran
+// aujourd'hui — mais existent pour que ce dossier miroir reste, en
+// principe, consultable par `getCaseForReporter` plus tard, plutôt que
+// d'être un enregistrement orphelin sans aucun identifiant de suivi.
+// ---------------------------------------------------------------------------
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === limitation de débit DURABLE
+// des créations publiques, par adresse IP (compteur Firestore dans
+// `rate_limits`, fermé aux clients par firestore.rules) : vérifiée AVANT
+// l'attribution du numéro, la dérivation PBKDF2 et toute écriture.
+const REPORTER_CREATE_MAX_PER_WINDOW = Number(process.env.REPORTER_CREATE_MAX_PER_HOUR) > 0 ? Number(process.env.REPORTER_CREATE_MAX_PER_HOUR) : 10;
+const REPORTER_CREATE_WINDOW_MS = 60 * 60 * 1000;
+
+async function assertCaseCreationAllowed(ip: string): Promise<void> {
+  const ref = db.collection('rate_limits').doc(`create_${ip.replace(/[^A-Za-z0-9:.]/g, '_').slice(0, 100) || 'unknown'}`);
+  const allowed = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    const data = snap.exists ? (snap.data() as { windowStart?: number; count?: number }) : {};
+    const fresh = !data.windowStart || now - data.windowStart >= REPORTER_CREATE_WINDOW_MS;
+    const count = fresh ? 1 : (data.count ?? 0) + 1;
+    tx.set(ref, { windowStart: fresh ? now : data.windowStart, count }, { merge: true });
+    return count <= REPORTER_CREATE_MAX_PER_WINDOW;
+  });
+  if (!allowed) throw new HttpsError('resource-exhausted', 'Too many submissions from this network. Try again later.');
+}
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139) === App Check appliqué dès que
+// ENFORCE_APP_CHECK=true (functions/.env), une fois App Check configuré côté
+// Web (docs/DEVOPS-RUNBOOK.md) — l'activer avant casserait toute soumission.
+export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORCE_APP_CHECK === 'true' }, async (request) => {
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution
+  // (types, tailles, énumérations) : seules les valeurs validées sont écrites.
+  const parsed = parseReporterCaseInput(request.data);
+  if (!parsed.ok) {
+    throw new HttpsError('invalid-argument', parsed.error);
+  }
+  const data = parsed.value;
+  await assertCaseCreationAllowed(request.rawRequest?.ip ?? 'unknown');
+
+  const seq = await nextCaseSequence();
+  const caseId = newId('case');
+  const nowIso = new Date().toISOString();
+  const kase: Case = {
+    caseId,
+    caseNumber: `CASE-${new Date().getFullYear()}-${String(seq).padStart(6, '0')}`,
+    status: 'new',
+    category: data.category,
+    subcategory: data.subcategory ?? '',
+    country: data.country,
+    entity: data.entity,
+    reportingMode: data.reportingMode,
+    priority: 'low',
+    riskScore: 0,
+    confidentialityLevel: data.confidentialityLevel,
+    additionalInvestigators: [],
+    slaStatus: 'ok',
+    receivedAt: nowIso,
+    incidentDateUnknown: true,
+    description: data.description,
+    legalHold: false,
+    implicatedUserIds: [],
+    // === AMÉLIORATION AJOUTÉE (revue PR #139) === voir Case.externalReference
+    // (posé dans la transaction ci-dessous, seulement si la réservation réussit).
+    createdAt: nowIso,
+    createdBy: 'reporter',
+    updatedAt: nowIso,
+    updatedBy: 'reporter',
+  };
+  // === AMÉLIORATION AJOUTÉE (revue PR #139) === le code d'accès déjà remis au
+  // lanceur d'alerte par le formulaire est réutilisé (seule son empreinte
+  // est stockée) : ses identifiants de suivi ouvrent aussi ce dossier réel.
+  // À défaut, un code est généré comme avant.
+  const accessCode = data.accessCode ?? generateAccessPassword();
+  const accessCodeSalt = generateSalt();
+  const accessCodeHash = await hashPassword(accessCode, accessCodeSalt);
+  const credentials: ReporterCredentials = { caseId, accessCodeHash, accessCodeSalt };
+
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — unicité du numéro de suivi) ===
+  // Réservation du numéro de suivi local, dossier et identifiants écrits dans
+  // UNE transaction : jamais de réservation orpheline si une écriture échoue.
+  // Seule une réservation existante (lue dans la transaction) fait créer le
+  // dossier sans `externalReference` ; toute autre erreur est propagée.
+  await db.runTransaction(async (tx) => {
+    const caseRef = db.collection('cases').doc(caseId);
+    const credsRef = db.collection('reporter_credentials').doc(caseId);
+    let doc: Case = kase;
+    if (data.externalReference) {
+      const reservationRef = db.collection('external_references').doc(data.externalReference);
+      const reservation = await tx.get(reservationRef);
+      if (!reservation.exists) {
+        tx.create(reservationRef, { caseId, createdAt: nowIso });
+        doc = { ...kase, externalReference: data.externalReference };
+      }
+    }
+    tx.set(caseRef, doc);
+    tx.set(credsRef, credentials);
+  });
+
+  await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
+  await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
+
+  return { caseId, caseNumber: kase.caseNumber };
 });
 
 // ---------------------------------------------------------------------------
@@ -1088,7 +1413,38 @@ export const getEvidenceDownloadUrl = onCall(async (request) => {
 // Resend répercutées, jamais un faux 200.
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 
-export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY] }, async (req, res) => {
+// === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === limiteur par IP (best
+// effort, par instance) ; `maxInstances: 2` borne en plus le débit global
+// d'envoi et la facture de ce point public.
+const notifyRateLimiter = new FixedWindowRateLimiter(rateLimitFromEnv(process.env.NOTIFY_RATE_LIMIT), NOTIFY_RATE_WINDOW_MS);
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié) ===
+// 'staff' : jeton d'identité vérifié d'un compte du personnel ;
+// 'app'   : seulement un jeton App Check vérifié (dépôt public anonyme) ;
+// null    : aucun appelant vérifié.
+async function verifiedNotifyCaller(headers: HeaderBag): Promise<'staff' | 'app' | null> {
+  const idToken = bearerToken(headers);
+  if (idToken) {
+    const claims = await getAuth().verifyIdToken(idToken).catch(() => null);
+    if (isStaffClaims(claims as Record<string, unknown> | null)) return 'staff';
+  }
+  const attestation = appCheckToken(headers);
+  if (attestation) {
+    const verified = await getAppCheck().verifyToken(attestation).catch(() => null);
+    if (verified) return 'app';
+  }
+  return null;
+}
+
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — voie anonyme à contenu imposé) ===
+// Destinataire d'une notification anonyme : obligatoirement un compte du
+// personnel existant (Firebase Auth, claim `role`).
+async function isStaffRecipient(email: string): Promise<boolean> {
+  const user = await getAuth().getUserByEmail(email).catch(() => null);
+  return isStaffClaims((user?.customClaims ?? null) as Record<string, unknown> | null);
+}
+
+export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 2 }, async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed — use POST.' });
     return;
@@ -1106,6 +1462,52 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY] }, async (req, 
     return;
   }
 
+  // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === mêmes règles que
+  // api/notify-email.ts : Origin = l'app (X-Forwarded-Host posé par la
+  // réécriture Hosting), destinataire unique valide, sujet préfixé
+  // « [activa-whistleblowing] », liens vers l'app uniquement, débit par IP.
+  const guard = validateNotifyEmailRequest(
+    { to, subject, body, headers: req.headers },
+    { allowedOrigins: process.env.NOTIFY_ALLOWED_ORIGINS, allowedRecipientDomains: process.env.NOTIFY_ALLOWED_RECIPIENT_DOMAINS }
+  );
+  if (!guard.ok) {
+    console.warn(`notifyEmail refused (${guard.status}): ${guard.error}`);
+    res.status(guard.status).json({ error: guard.error });
+    return;
+  }
+  if (!notifyRateLimiter.hit(clientIp(req.headers, req.ip))) {
+    res.status(429).json({ error: 'Too many notification requests — retry later.' });
+    return;
+  }
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié) === l'origine
+  // n'authentifie personne : aucun envoi sans jeton d'identité Firebase d'un
+  // compte du personnel (attribution, escalade) ou jeton App Check de
+  // l'application (dépôt public anonyme). Échec fermé.
+  const caller = await verifiedNotifyCaller(req.headers);
+  if (!caller) {
+    console.warn('notifyEmail refused (401): caller not verified');
+    res.status(401).json({ error: 'Caller not verified: staff ID token or App Check token required.' });
+    return;
+  }
+  // === AMÉLIORATION AJOUTÉE (revue PR #139 — voie anonyme à contenu imposé) ===
+  // Appelant anonyme : seule la notification « nouveau signalement » passe,
+  // reconstruite ici à partir du numéro de suivi, et seulement vers un
+  // compte du personnel. Aucun sujet ni corps choisi par le client n'est
+  // envoyé.
+  let outgoing = { subject: guard.subject, body: guard.body };
+  if (caller === 'app') {
+    const trackingNumber = parseNewAlertNotification(guard.subject, guard.body);
+    if (!trackingNumber) {
+      res.status(403).json({ error: 'Anonymous callers may only send the new-report notification.' });
+      return;
+    }
+    if (!(await isStaffRecipient(guard.to))) {
+      res.status(403).json({ error: 'Anonymous notifications may only be sent to staff accounts.' });
+      return;
+    }
+    outgoing = newAlertNotification(trackingNumber);
+  }
+
   const fromAddress = process.env.NOTIFY_FROM_EMAIL || 'ACTIVA EthicAlert <onboarding@resend.dev>';
 
   try {
@@ -1115,7 +1517,8 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY] }, async (req, 
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: fromAddress, to: [to], subject, text: body }),
+      // === AMÉLIORATION AJOUTÉE === valeurs normalisées par le garde-fou.
+      body: JSON.stringify({ from: fromAddress, to: [guard.to], subject: outgoing.subject, text: outgoing.body }),
     });
 
     if (!resendRes.ok) {

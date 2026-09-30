@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { AppUser, Case, Person } from './caseTypes';
+import { AppUser, Person } from './caseTypes';
 import { can, CaseAccessContext, implicatedUserIdsFromPersons, roleHasPermission } from './permissions';
 
 function user(overrides: Partial<AppUser> = {}): AppUser {

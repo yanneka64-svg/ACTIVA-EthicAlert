@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { QrCode, Copy, Check, X, Shield, Smartphone, Printer } from 'lucide-react';
+import { QrCode, Copy, Check, X, Smartphone, Printer } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 

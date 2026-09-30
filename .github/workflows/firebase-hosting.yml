@@ -9,6 +9,20 @@
 #   VITE_FIREBASE_*                  config Web Firebase, injectée au build
 # Tant que FIREBASE_SERVICE_ACCOUNT_ACTIVA est absent, le workflow s'arrête
 # proprement (aucun échec rouge) au lieu de casser chaque push.
+#
+# === AMÉLIORATION AJOUTÉE (Audit DevOps — P0/P1) ===
+# - Barrière qualité : compilation TypeScript + tests Vitest AVANT le build ;
+#   un commit qui casse l'un ou l'autre n'est plus jamais mis en production.
+# - Actions épinglées par SHA de commit (le tag entre parenthèses indique la
+#   version) : un tag déplacé ou compromis ne peut plus injecter de code
+#   dans le pipeline qui détient les droits de déploiement. Dependabot
+#   (.github/dependabot.yml) propose les mises à jour.
+# - Fédération d'identité (Workload Identity Federation, sans clé JSON) :
+#   utilisée automatiquement dès que les VARIABLES de dépôt
+#   GCP_WORKLOAD_IDENTITY_PROVIDER et GCP_DEPLOY_SERVICE_ACCOUNT sont
+#   définies (voir docs/DEVOPS-RUNBOOK.md). Sinon, repli sur la clé JSON
+#   FIREBASE_SERVICE_ACCOUNT_ACTIVA, comme avant. Une fois WIF validé,
+#   supprimer le secret JSON et révoquer la clé côté GCP.
 name: Deploy to Firebase Hosting
 
 on:
@@ -21,26 +35,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  # === AMÉLIORATION AJOUTÉE (revue PR #139) === séparation des privilèges :
+  # l'installation des dépendances, les tests et le build tournent dans un
+  # job SANS jeton OIDC (id-token) ; seul le job de déploiement, qui
+  # n'exécute aucune dépendance du projet, peut obtenir des identifiants
+  # GCP. Le site construit passe de l'un à l'autre en artefact.
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      deploy: ${{ steps.gate.outputs.deploy }}
     env:
-      HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ACTIVA != '' }}
+      # Déploiement possible via WIF OU via la clé JSON historique.
+      HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ACTIVA != '' || (vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '') }}
     steps:
       - name: Check deployment secret
-        if: env.HAS_SA != 'true'
-        run: echo "::notice::FIREBASE_SERVICE_ACCOUNT_ACTIVA non configuré — déploiement ignoré (voir docs/FIREBASE-HOSTING.md)."
+        id: gate
+        run: |
+          echo "deploy=${HAS_SA}" >> "$GITHUB_OUTPUT"
+          if [ "${HAS_SA}" != "true" ]; then echo "::notice::FIREBASE_SERVICE_ACCOUNT_ACTIVA non configuré — déploiement ignoré (voir docs/FIREBASE-HOSTING.md)."; fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
         if: env.HAS_SA == 'true'
+        # === AMÉLIORATION AJOUTÉE (revue PR #139) === GITHUB_TOKEN non conservé
+        # dans .git/config : les outils lancés ensuite ne peuvent pas le lire.
+        with:
+          persist-credentials: false
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2 (v2.2.0)
         if: env.HAS_SA == 'true'
 
       - name: Install dependencies
         if: env.HAS_SA == 'true'
         run: bun install --frozen-lockfile
+
+      # === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === barrière qualité avant tout déploiement.
+      - name: Typecheck
+        if: env.HAS_SA == 'true'
+        run: bun run lint
+
+      - name: Unit tests
+        if: env.HAS_SA == 'true'
+        run: bun run test
 
       - name: Build
         if: env.HAS_SA == 'true'
@@ -52,12 +89,64 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          # === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === App Check (facultatif, vide = inactif).
+          VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
+
+      - name: Upload built site
+        if: env.HAS_SA == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
+        with:
+          name: hosting-dist
+          path: dist
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # === AMÉLIORATION AJOUTÉE === jeton OIDC pour la fédération d'identité (WIF),
+      # limité à ce job qui n'exécute aucune dépendance du projet.
+      id-token: write
+    env:
+      HAS_WIF: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' }}
+    steps:
+      # Le dépôt n'est récupéré que pour firebase.json (en-têtes, réécritures) ;
+      # aucune installation ni aucun script du projet n'est lancé ici.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        # === AMÉLIORATION AJOUTÉE (revue PR #139) === idem : aucun jeton persisté.
+        with:
+          persist-credentials: false
+
+      - name: Download built site
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4 (v4.3.0)
+        with:
+          name: hosting-dist
+          path: dist
 
       - name: Deploy to Firebase Hosting (live)
-        if: env.HAS_SA == 'true'
-        uses: FirebaseExtended/action-hosting-deploy@v0
+        # === AMÉLIORATION AJOUTÉE === chemin historique (clé JSON), utilisé tant que WIF n'est pas configuré.
+        if: env.HAS_WIF != 'true'
+        uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0 (v0.11.0)
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ACTIVA }}
           projectId: activa-ethicalert-47246
           channelId: live
+
+      # === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === chemin sans clé longue
+      # durée : jeton OIDC GitHub échangé contre des identifiants GCP de
+      # courte durée (Workload Identity Federation), puis déploiement par la
+      # CLI Firebase (même résultat que l'action ci-dessus : canal live).
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        if: env.HAS_WIF == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3 (v3.0.0)
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Firebase Hosting (live, WIF)
+        if: env.HAS_WIF == 'true'
+        run: npx --yes firebase-tools@15.31.0 deploy --only hosting --project activa-ethicalert-47246 --non-interactive

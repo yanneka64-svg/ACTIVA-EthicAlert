@@ -21,7 +21,6 @@
  * les deux légères différences de taille qui existaient déjà entre les
  * deux contextes (résumé compact vs. onglet dédié).
  */
-import React from 'react';
 import { Link2, ChevronRight } from 'lucide-react';
 import { InvolvedPerson, Witness, UserProfile } from '../../types';
 import { currentT } from '../../i18n/currentLang';

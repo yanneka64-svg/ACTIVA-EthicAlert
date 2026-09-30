@@ -1,35 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import {
-  ShieldCheck,
-  Lock,
-  UserX,
-  UserCheck,
-  AlertTriangle,
-  FileUp,
-  Trash2,
-  Plus,
-  CheckCircle2,
-  Download,
-  Copy,
-  Calendar,
-  Building2,
-  Info,
-  ArrowRight,
-  ArrowLeft,
-  // === AMÉLIORATION AJOUTÉE (Phase 26 — icônes du formulaire en 6 étapes) ===
-  Briefcase,
-  Coins,
-  Users,
-  Leaf,
-  MoreHorizontal,
-  Search,
-  Clock,
-  User,
-  Paperclip,
-  Pencil,
-  // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité) ===
-  X,
-} from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (Refactor AlertSubmissionFlow — extraction par
+// étape) === les icônes de chaque étape sont désormais importées par leur
+// composant respectif (src/components/submission/*). Seule l'icône du
+// bandeau d'erreur, resté ici, est encore utilisée dans ce fichier.
+import { AlertTriangle } from 'lucide-react';
 import {
   Language,
   AlertRecord,
@@ -39,14 +13,13 @@ import {
   WhistleblowerInfo
 } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
-// === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, design system) ===
-import { Button } from './ui';
 import {
   IMPACT_TYPES,
-  ACTIVA_COUNTRIES,
   computeRiskEvaluation
 } from '../data/activaConfig';
 import { storage } from '../services/storage';
+// === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4) ===
+import { mirrorSubmissionToRealBackend } from '../services/casesCloudSync';
 // === AMÉLIORATION AJOUTÉE : hachage salé côté client du mot de passe de suivi (jamais stocké en clair) ===
 // === AMÉLIORATION AJOUTÉE (Phase 26) === generateAccessPassword génère
 // désormais le mot de passe lui-même (voir plus bas) ; hashPassword/generateSalt
@@ -57,6 +30,18 @@ import { isGlobalCaseViewer } from '../services/authz';
 import { notifyNewAlertToOperators } from '../services/emailNotify';
 // === AMÉLIORATION AJOUTÉE : données par défaut (catégories, pays…) traduites à l'affichage ===
 import { trData } from '../i18n/dataLabels';
+// === AMÉLIORATION AJOUTÉE (Refactor AlertSubmissionFlow — extraction par
+// étape) === chaque bloc de rendu de l'assistant vit désormais dans son
+// propre composant ; ce fichier garde tout l'état, le brouillon
+// auto-sauvegardé, les validations et la soumission.
+import { ConfidentialityGate } from './submission/ConfidentialityGate';
+import { WizardSidebar } from './submission/WizardSidebar';
+import { AcknowledgmentStep } from './submission/AcknowledgmentStep';
+import { Step1ReportType } from './submission/Step1ReportType';
+import { Step2Declarant } from './submission/Step2Declarant';
+import { Step3Incident } from './submission/Step3Incident';
+import { Step4Evidence } from './submission/Step4Evidence';
+import { Step5Review } from './submission/Step5Review';
 
 interface AlertSubmissionFlowProps {
   lang: Language;
@@ -64,21 +49,9 @@ interface AlertSubmissionFlowProps {
   onCancel: () => void;
 }
 
-// === AMÉLIORATION AJOUTÉE (Phase 26 — visuel des cartes de catégorie, maquette
-// de référence) === Association icône/couleur par mot-clé plutôt que par index
-// figé, pour rester cohérent même si un administrateur renomme/ajoute une
-// catégorie (Phase 7 — catégories éditables) : une catégorie inconnue retombe
-// simplement sur l'icône/couleur par défaut au lieu de planter.
-const CATEGORY_VISUALS: { match: RegExp; icon: React.ComponentType<{ className?: string }>; bg: string; text: string }[] = [
-  { match: /fraude|corruption/i, icon: Coins, bg: 'bg-rose-50', text: 'text-rose-600' },
-  { match: /ressources humaines|diversit/i, icon: Users, bg: 'bg-emerald-50', text: 'text-emerald-600' },
-  { match: /environnement|sant[ée]|s[ée]curit[ée]/i, icon: Leaf, bg: 'bg-green-50', text: 'text-green-600' },
-  { match: /autres/i, icon: MoreHorizontal, bg: 'bg-slate-100', text: 'text-slate-600' },
-];
-function getCategoryVisual(name: string) {
-  const found = CATEGORY_VISUALS.find((v) => v.match.test(name));
-  return found || { icon: Briefcase, bg: 'bg-blue-50', text: 'text-blue-600' };
-}
+// === AMÉLIORATION AJOUTÉE (Refactor AlertSubmissionFlow — extraction par
+// étape) === `CATEGORY_VISUALS`/`getCategoryVisual` déplacés tels quels dans
+// src/components/submission/Step1ReportType.tsx (seule utilisatrice).
 
 export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   lang,
@@ -281,8 +254,10 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     submittedAlert
   ]);
 
-  // Today date limit (no future dates as mandated in CDC 3.1.1)
-  const todayStr = new Date().toISOString().split('T')[0];
+  // === AMÉLIORATION AJOUTÉE (nettoyage du code mort) === `todayStr`
+  // (plafond "pas de date future", CDC 3.1.1) retiré : il n'était plus lu
+  // depuis que la date de l'incident est un champ texte libre ; la règle
+  // reste rappelée à l'utilisateur sous le champ (t.no_future_dates_warning).
 
   // Involved person handlers
   const addInvolvedPerson = () => {
@@ -485,6 +460,33 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
     // Save to storage
     storage.saveAlert(newRecord);
+
+    // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4, puis
+    // Phase 7 : lien dossier local ↔ dossier réel) ===
+    // Écriture miroir best-effort vers le vrai backend (Case/Firestore/
+    // Cloud Functions) — jamais attendue, jamais capable de bloquer ou
+    // d'altérer la suite de la soumission (déjà enregistrée localement
+    // juste au-dessus, seule source de vérité pour cet écran). No-op
+    // silencieux tant que les Cloud Functions ne sont pas déployées — voir
+    // services/casesCloudSync.ts. En cas de succès, persiste l'identifiant
+    // réel renvoyé sur l'AlertRecord local (storage.linkMirroredCase) —
+    // préalable à toute future mise en miroir des mutations ultérieures.
+    mirrorSubmissionToRealBackend({
+      category: newRecord.category,
+      subcategory: newRecord.subCategory,
+      country: newRecord.country,
+      entity: newRecord.concernedEntity,
+      description: newRecord.detailedDescription,
+      reportingMode: isAnonymous ? 'anonymous' : 'identified',
+      confidentialityLevel: newRecord.confidentialityLevel,
+      // === AMÉLIORATION AJOUTÉE (revue PR #139) === mêmes identifiants de
+      // suivi pour le dossier local et le dossier réel.
+      accessCode: generatedPassword,
+      externalReference: trackingNumber,
+    }).then((result) => {
+      if (result) storage.linkMirroredCase(newRecord.id, result.caseId, result.caseNumber);
+    }).catch(() => {});
+
     storage.logAudit(
       'ALERT_SUBMITTED',
       `Nouvelle alerte enregistrée : ${trackingNumber} (${newRecord.category} - ${newRecord.concernedEntity}). Classification : ${liveRisk.nocaThreshold}. Mode : ${isAnonymous ? 'Anonyme' : 'Identifié'}.`,
@@ -532,158 +534,30 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   // formulaire de signalement, conforme à la maquette fournie) ===
   if (!confidentialityConfirmed) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            aria-label={t.confidentiality_gate_cancel}
-            className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/90 hover:bg-white flex items-center justify-center text-slate-500 shadow-sm"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          {/* === AMÉLIORATION AJOUTÉE (Phase 35 — photo fournie par
-              l'utilisateur, icône bouclier + cadenas déjà intégrée à
-              l'image) === Remplace la photo générique + l'icône dessinée en
-              CSS (Phase 34) par la photo exacte de la maquette (main sur
-              clavier, icône déjà incrustée dans l'image), servie depuis
-              public/brand/confidentiality-gate-bg.jpg. */}
-          {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
-              BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : cette photo
-              était la seule des 4 photos de fond de l'app à n'avoir ni
-              priorité de chargement explicite ni couleur de repli — même
-              correctif que les 3 autres (WhistleblowerHome/AlertTrackingView/
-              StaffSpaceHome), plus le préchargement ajouté dans index.html. */}
-          <div className="relative hidden md:flex items-center justify-center min-h-[460px] overflow-hidden bg-slate-100">
-            {/* === AMÉLIORATION AJOUTÉE (luminosité réduite de la photo) ===
-                sur demande explicite de l'utilisateur : le flou testé
-                précédemment a été retiré (image nette d'origine) au profit
-                d'une simple réduction de luminosité (`brightness-75`). */}
-            <img
-              src="/brand/confidentiality-gate-bg.jpg"
-              alt=""
-              fetchPriority="high"
-              decoding="async"
-              className="absolute inset-0 w-full h-full object-cover object-left brightness-75"
-            />
-          </div>
-
-          <div className="p-8 sm:p-12 flex flex-col justify-center space-y-5">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545] leading-tight">
-              {t.confidentiality_gate_title}
-            </h2>
-            {/* === AMÉLIORATION AJOUTÉE : texte de confidentialité justifié (text-justify) === */}
-            {/* === AMÉLIORATION AJOUTÉE : espaces trop larges entre les mots corrigés ===
-                `hyphens-auto` + `lang` : le navigateur coupe les mots longs en fin de
-                ligne (dictionnaire de la langue affichée), ce qui évite les grands
-                blancs du texte justifié dans cette colonne étroite. Le gras a été
-                retiré (demande explicite) : les <span> restent, sans style. */}
-            <p lang={lang} className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify hyphens-auto">
-              {t.confidentiality_gate_body1_pre}
-              <span>{t.confidentiality_gate_body1_bold}</span>
-              {t.confidentiality_gate_body1_post}
-              {/* === AMÉLIORATION AJOUTÉE : « Vous pouvez choisir de rester
-                  anonyme. » déplacé à la fin du premier paragraphe (mêmes
-                  clés de traduction, simple réorganisation de l'affichage) === */}
-              {' '}
-              {t.confidentiality_gate_body2_pre}
-              <span>{t.confidentiality_gate_body2_bold}</span>
-            </p>
-            <p lang={lang} className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify hyphens-auto">
-              {t.confidentiality_gate_body2_post.trim()}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition"
-              >
-                {t.confidentiality_gate_cancel}
-              </button>
-              <button
-                type="button"
-                id="confidentiality-gate-confirm"
-                onClick={() => setConfidentialityConfirmed(true)}
-                className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition"
-              >
-                {t.confidentiality_gate_confirm}
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ConfidentialityGate
+        t={t}
+        lang={lang}
+        onCancel={onCancel}
+        setConfidentialityConfirmed={setConfidentialityConfirmed}
+      />
     );
   }
 
-  // === AMÉLIORATION AJOUTÉE (Phase 26 — sidebar de navigation en 6 étapes,
-  // fidèle à la maquette de référence) ===
-  const wizardSteps = [
-    { num: 1, title: t.wizard_step1_title, desc: t.wizard_step1_desc },
-    { num: 2, title: t.wizard_step2_title_optional, desc: t.wizard_step2_desc },
-    { num: 3, title: t.wizard_step3_title, desc: t.wizard_step3_desc },
-    { num: 4, title: t.wizard_step4_title_optional, desc: t.wizard_step4_desc },
-    { num: 5, title: t.wizard_step5_title, desc: t.wizard_step5_desc },
-    { num: 6, title: t.wizard_step6_title, desc: t.wizard_step6_desc },
-  ];
-  const displayStep = submittedAlert ? 6 : currentStep;
-  const notProvided = <span className="text-slate-400 italic">{t.review_not_provided}</span>;
+  // === AMÉLIORATION AJOUTÉE (Refactor AlertSubmissionFlow — extraction par
+  // étape) === `wizardSteps`/`displayStep` déplacés dans
+  // src/components/submission/WizardSidebar.tsx, `notProvided` dans
+  // Step5Review.tsx (seuls utilisateurs respectifs).
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
         {/* Sidebar */}
-        <aside className="space-y-4 lg:sticky lg:top-6">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-bold text-slate-900">{t.wizard_sidebar_title}</h2>
-            </div>
-            <ol className="space-y-1">
-              {wizardSteps.map((s) => {
-                const status = displayStep > s.num ? 'done' : displayStep === s.num ? 'active' : 'pending';
-                return (
-                  <li key={s.num}>
-                    <button
-                      type="button"
-                      onClick={() => !submittedAlert && setCurrentStep(s.num)}
-                      disabled={!!submittedAlert}
-                      className={`w-full flex items-start gap-3 p-2.5 rounded-xl text-left transition ${
-                        status === 'active' ? 'bg-blue-50' : submittedAlert ? '' : 'hover:bg-slate-50'
-                      }`}
-                    >
-                      <span
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
-                          status === 'done'
-                            ? 'bg-emerald-500 text-white'
-                            : status === 'active'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {status === 'done' ? <CheckCircle2 className="w-4 h-4" /> : s.num}
-                      </span>
-                      <span>
-                        <span className={`block text-sm font-semibold ${status === 'pending' ? 'text-slate-500' : 'text-slate-900'}`}>
-                          {s.title}
-                        </span>
-                        <span className="block text-[11px] text-slate-500">{s.desc}</span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex gap-3">
-            <ShieldCheck className="w-5 h-5 text-blue-700 shrink-0 mt-0.5" />
-            <div>
-              <div className="font-bold text-sm text-slate-900">{t.sidebar_confidentiality_title}</div>
-              <p className="text-xs text-slate-600 mt-1">{t.sidebar_confidentiality_desc}</p>
-            </div>
-          </div>
-        </aside>
+        <WizardSidebar
+          t={t}
+          currentStep={currentStep}
+          submittedAlert={submittedAlert}
+          setCurrentStep={setCurrentStep}
+        />
 
         {/* Main content */}
         <div>
@@ -697,1025 +571,138 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
             {submittedAlert ? (
               /* STEP 6: ACKNOWLEDGMENT */
-              <div className="space-y-8 text-center animate-fadeIn">
-                <div>
-                  <div className="w-16 h-16 bg-emerald-50 border-2 border-emerald-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="w-9 h-9 text-emerald-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{t.ack_success_title}</h2>
-                  <p className="text-sm text-slate-600 mt-2 max-w-xl mx-auto">{t.ack_success_desc}</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto text-left">
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
-                    <div className="text-[11px] uppercase font-bold text-slate-500 mb-1">{t.ack_tracking_num}</div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-lg font-mono font-extrabold text-[#0B2545] select-all truncate">
-                        {submittedAlert.trackingNumber}
-                      </span>
-                      <button
-                        type="button"
-                        id="btn-copy-tracking"
-                        onClick={() => copyToClipboard(submittedAlert.trackingNumber)}
-                        className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 shrink-0"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
-                    <div className="text-[11px] uppercase font-bold text-slate-500 mb-1">{t.ack_password_label}</div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-lg font-mono font-extrabold text-[#0B2545] select-all truncate">
-                        {password}
-                      </span>
-                      <button
-                        type="button"
-                        id="btn-copy-password"
-                        onClick={() => copyToClipboard(password)}
-                        className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 shrink-0"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {copiedTracking && (
-                  <p className="text-xs text-emerald-600 font-semibold -mt-4">{t.btn_copy_password} ✓</p>
-                )}
-
-                <div className="max-w-xl mx-auto p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-3 text-left">
-                  <Lock className="w-5 h-5 text-blue-700 shrink-0 mt-0.5" />
-                  <p>{t.ack_credentials_note}</p>
-                </div>
-
-                <div className="text-left">
-                  <h3 className="text-sm font-bold text-slate-900 mb-3">{t.ack_next_heading}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="flex items-start gap-3">
-                      <span className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        <Search className="w-4 h-4" />
-                      </span>
-                      <div>
-                        <div className="font-bold text-slate-900 text-sm">{t.ack_next_track_title}</div>
-                        <div className="text-xs text-slate-500">{t.ack_next_track_desc}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        <Lock className="w-4 h-4" />
-                      </span>
-                      <div>
-                        <div className="font-bold text-slate-900 text-sm">{t.ack_next_anon_title}</div>
-                        <div className="text-xs text-slate-500">{t.ack_next_anon_desc}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        <Clock className="w-4 h-4" />
-                      </span>
-                      <div>
-                        <div className="font-bold text-slate-900 text-sm">{t.ack_next_informed_title}</div>
-                        <div className="text-xs text-slate-500">{t.ack_next_informed_desc}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
-                  <button
-                    type="button"
-                    id="btn-print-receipt"
-                    onClick={handlePrintReceipt}
-                    className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
-                  >
-                    <Download className="w-4 h-4" />
-                    {t.btn_download_ack}
-                  </button>
-
-                  <Button
-                    type="button"
-                    id="btn-go-to-tracking"
-                    onClick={() => onSuccessNavigateToTrack(submittedAlert.trackingNumber)}
-                    className="w-full sm:w-auto"
-                  >
-                    <span>{t.btn_go_to_tracking}</span>
-                    <ArrowRight className="w-4 h-4 text-amber-400" />
-                  </Button>
-                </div>
-              </div>
+              <AcknowledgmentStep
+                t={t}
+                submittedAlert={submittedAlert}
+                password={password}
+                copiedTracking={copiedTracking}
+                copyToClipboard={copyToClipboard}
+                handlePrintReceipt={handlePrintReceipt}
+                onSuccessNavigateToTrack={onSuccessNavigateToTrack}
+              />
             ) : (
               <form onSubmit={handleSubmit} className="activa-caret-blink space-y-6">
                 {/* STEP 1: REPORT TYPE */}
                 {currentStep === 1 && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '1')}</span>
-                      <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step1_title}</h2>
-                      <p className="text-sm text-slate-600 mt-1">{t.wizard_step1_hint}</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:[&>label:last-child:nth-child(odd)]:col-span-2">
-                      {categories.map((cat) => {
-                        const visual = getCategoryVisual(cat.name);
-                        const Icon = visual.icon;
-                        const active = selectedCategory === cat.name;
-                        return (
-                          <label
-                            key={cat.id}
-                            className={`p-4 rounded-xl border-2 cursor-pointer transition flex items-start gap-3 ${
-                              active ? 'border-blue-500 bg-blue-50/40 shadow-sm' : 'border-slate-200 hover:border-slate-300'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="alert_category"
-                              className="sr-only"
-                              checked={active}
-                              onChange={() => setSelectedCategory(cat.name)}
-                            />
-                            <span className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${visual.bg} ${visual.text}`}>
-                              <Icon className="w-5 h-5" />
-                            </span>
-                            <span className="flex-1">
-                              <span className="block font-bold text-slate-900 text-sm">{trData(cat.name, lang)}</span>
-                              <span className="block text-xs text-slate-500 mt-1">{cat.subCategories.map((s) => trData(s, lang)).join(', ')}.</span>
-                            </span>
-                            <span
-                              className={`mt-1 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
-                                active ? 'border-blue-600' : 'border-slate-300'
-                              }`}
-                            >
-                              {active && <span className="w-2 h-2 rounded-full bg-blue-600" />}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-3">
-                      <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="font-semibold">{t.choice_anonymous}</strong>
-                        <p className="mt-0.5 text-blue-800">{t.wizard_step2_hint}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between pt-4">
-                      <Button type="button" variant="secondary" onClick={onCancel}>
-                        {t.btn_cancel}
-                      </Button>
-                      <Button type="button" id="btn-step1-next" onClick={() => setCurrentStep(2)}>
-                        <span>{t.common_next}</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  <Step1ReportType
+                    t={t}
+                    lang={lang}
+                    categories={categories}
+                    selectedCategory={selectedCategory}
+                    setSelectedCategory={setSelectedCategory}
+                    onCancel={onCancel}
+                    setCurrentStep={setCurrentStep}
+                  />
                 )}
 
                 {/* STEP 2: WHISTLEBLOWER INFORMATION (OPTIONAL) */}
                 {currentStep === 2 && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '2')}</span>
-                      <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step2_title_optional}</h2>
-                      <p className="text-sm text-slate-600 mt-1">{t.wizard_step2_hint}</p>
-                    </div>
-
-                    {/* === AMÉLIORATION AJOUTÉE (organisation du formulaire —
-                        sections visuelles) === Sur demande explicite : les
-                        champs regroupés en deux sections (Identité /
-                        Coordonnées & contexte) au lieu d'une seule grille
-                        indifférenciée, même convention que l'étape 3
-                        ci-dessous — aucun champ, aucune logique modifié.
-                        Le bandeau "Vous pouvez rester anonyme..." qui
-                        suivait la grille est retiré : il répétait mot pour
-                        mot `wizard_step2_hint` déjà affiché juste sous le
-                        titre de l'étape. */}
-                    <div className="space-y-4">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_identity}</span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="input-declarant-firstname" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_first_name}</label>
-                          <input
-                            id="input-declarant-firstname"
-                            type="text"
-                            value={declarantFirstName}
-                            onChange={(e) => setDeclarantFirstName(e.target.value)}
-                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_first_name}) */
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="input-declarant-lastname" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_last_name}</label>
-                          <input
-                            id="input-declarant-lastname"
-                            type="text"
-                            value={declarantLastName}
-                            onChange={(e) => setDeclarantLastName(e.target.value)}
-                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_last_name}) */
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="input-declarant-job" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_job_title}</label>
-                          <input
-                            id="input-declarant-job"
-                            type="text"
-                            value={declarantJob}
-                            onChange={(e) => setDeclarantJob(e.target.value)}
-                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_job}) */
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="input-declarant-dept" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_department}</label>
-                          <input
-                            id="input-declarant-dept"
-                            type="text"
-                            value={declarantDept}
-                            onChange={(e) => setDeclarantDept(e.target.value)}
-                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_dept}) */
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="input-declarant-type" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_declarant_type}</label>
-                          <select
-                            id="input-declarant-type"
-                            value={declarantType}
-                            onChange={(e: any) => setDeclarantType(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                          >
-                            <option value="Employé">{t.sub_type_employee}</option>
-                            <option value="Consultant">{t.sub_type_consultant}</option>
-                            <option value="Prestataire">{t.sub_type_supplier}</option>
-                            <option value="Client">{t.sub_type_client}</option>
-                            <option value="Autre">{t.sub_type_other}</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 pt-2 border-t border-slate-100">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_contact_context}</span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="input-declarant-entity" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_entity}</label>
-                          <select
-                            id="input-declarant-entity"
-                            value={declarantEntity}
-                            onChange={(e) => setDeclarantEntity(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                          >
-                            {entities.map((ent) => (
-                              <option key={ent.id} value={ent.name}>
-                                {ent.flag} {ent.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label htmlFor="input-declarant-country" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_country}</label>
-                          <select
-                            id="input-declarant-country"
-                            value={declarantCountry}
-                            onChange={(e) => setDeclarantCountry(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                          >
-                            <option value="">—</option>
-                            {ACTIVA_COUNTRIES.map((c) => (
-                              <option key={c.code} value={c.name}>
-                                {c.flag} {trData(c.name, lang)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label htmlFor="input-declarant-email" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_email}</label>
-                          <input
-                            id="input-declarant-email"
-                            type="email"
-                            value={declarantEmail}
-                            onChange={(e) => setDeclarantEmail(e.target.value)}
-                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_email}) */
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="input-declarant-phone" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_phone}</label>
-                          <div className="flex gap-2">
-                            <span className="flex items-center px-3 py-2 text-xs border border-slate-300 rounded-lg bg-slate-50 text-slate-600 shrink-0">
-                              {ACTIVA_COUNTRIES.find((c) => c.name === declarantCountry)?.flag || '🌍'}
-                            </span>
-                            <input
-                              id="input-declarant-phone"
-                              type="tel"
-                              value={declarantPhone}
-                              onChange={(e) => setDeclarantPhone(e.target.value)}
-                              /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_phone}) */
-                              className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap justify-between items-center gap-3 pt-4">
-                      <Button type="button" variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => setCurrentStep(1)}>
-                        <span>{t.common_previous}</span>
-                      </Button>
-                      <div className="flex items-center gap-3">
-                        <Button type="button" variant="secondary" id="btn-save-and-exit" onClick={handleSaveAndExit}>
-                          {t.btn_save_and_exit}
-                        </Button>
-                        <Button type="button" id="btn-step2-next" onClick={() => setCurrentStep(3)}>
-                          <span>{t.common_next}</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                  <Step2Declarant
+                    t={t}
+                    lang={lang}
+                    entities={entities}
+                    declarantFirstName={declarantFirstName}
+                    setDeclarantFirstName={setDeclarantFirstName}
+                    declarantLastName={declarantLastName}
+                    setDeclarantLastName={setDeclarantLastName}
+                    declarantJob={declarantJob}
+                    setDeclarantJob={setDeclarantJob}
+                    declarantDept={declarantDept}
+                    setDeclarantDept={setDeclarantDept}
+                    declarantType={declarantType}
+                    setDeclarantType={setDeclarantType}
+                    declarantEntity={declarantEntity}
+                    setDeclarantEntity={setDeclarantEntity}
+                    declarantCountry={declarantCountry}
+                    setDeclarantCountry={setDeclarantCountry}
+                    declarantEmail={declarantEmail}
+                    setDeclarantEmail={setDeclarantEmail}
+                    declarantPhone={declarantPhone}
+                    setDeclarantPhone={setDeclarantPhone}
+                    setCurrentStep={setCurrentStep}
+                    handleSaveAndExit={handleSaveAndExit}
+                  />
                 )}
 
                 {/* STEP 3: INCIDENT INFORMATION */}
                 {currentStep === 3 && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '3')}</span>
-                      <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step3_title}</h2>
-                      <p className="text-sm text-slate-600 mt-1">{t.wizard_step3_desc}</p>
-                    </div>
-
-                    {/* === AMÉLIORATION AJOUTÉE (organisation du formulaire —
-                        sections visuelles) === Sur demande explicite : les
-                        champs de contexte (date/lieu/entité) sont regroupés
-                        sous un même intitulé, même convention que "Personnes
-                        impliquées"/"Témoins éventuels" plus bas — aucun
-                        champ, aucune logique n'est modifié. */}
-                    <div className="space-y-4">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_incident_context}</span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="input-incident-dates" className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                            {t.label_dates} *
-                          </label>
-                          <input
-                            id="input-incident-dates"
-                            type="text"
-                            value={incidentDates}
-                            onChange={(e) => setIncidentDates(e.target.value)}
-                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_dates}) */
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          />
-                          <p className="text-[10px] text-slate-500 mt-0.5">{t.no_future_dates_warning}</p>
-                        </div>
-                        <div>
-                          <label htmlFor="input-incident-location" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_location} *</label>
-                          <input
-                            id="input-incident-location"
-                            type="text"
-                            value={incidentLocation}
-                            onChange={(e) => setIncidentLocation(e.target.value)}
-                            /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_location}) */
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="input-concerned-entity" className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                            <Building2 className="w-3.5 h-3.5 text-blue-700" />
-                            {t.label_entity} *
-                          </label>
-                          <select
-                            id="input-concerned-entity"
-                            value={concernedEntity}
-                            onChange={(e) => setConcernedEntity(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white font-medium"
-                          >
-                            {entities.map((ent) => (
-                              <option key={ent.id} value={ent.name}>
-                                {ent.flag} {ent.name} ({trData(ent.country, lang)})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label htmlFor="input-custom-entity" className="block text-xs font-semibold text-slate-700 mb-1">{t.sub_other_entity}</label>
-                          <input
-                            id="input-custom-entity"
-                            type="text"
-                            value={customEntityInput}
-                            onChange={(e) => setCustomEntityInput(e.target.value)}
-                            placeholder={t.sub_ph_other_entity}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Personnes impliquées — liste dynamique conservée (Phase 26 : relocalisée ici) */}
-                    <div className="space-y-3 pt-2 border-t border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                          {t.label_involved_persons_optional}
-                        </span>
-                        <button
-                          type="button"
-                          id="btn-add-involved"
-                          onClick={addInvolvedPerson}
-                          className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 transition"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>{t.btn_add_involved}</span>
-                        </button>
-                      </div>
-
-                      {involvedPersons.length === 0 ? (
-                        <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-500">
-                          {t.sub_no_persons}
-                        </div>
-                      ) : (
-                        involvedPersons.map((p, idx) => (
-                          <div key={p.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-700">{t.sub_person_n.replace('{n}', String(idx + 1))}</span>
-                              <button
-                                type="button"
-                                onClick={() => removeInvolvedPerson(p.id)}
-                                className="text-slate-400 hover:text-rose-600 p-1"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <div>
-                                <label htmlFor={`input-person-${p.id}-name`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_full_name}</label>
-                                <input
-                                  id={`input-person-${p.id}-name`}
-                                  type="text"
-                                  value={p.name}
-                                  onChange={(e) => updateInvolvedPerson(p.id, 'name', e.target.value)}
-                                  placeholder={t.sub_ph_person_name}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor={`input-person-${p.id}-position`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_position_function}</label>
-                                <input
-                                  id={`input-person-${p.id}-position`}
-                                  type="text"
-                                  value={p.position}
-                                  onChange={(e) => updateInvolvedPerson(p.id, 'position', e.target.value)}
-                                  placeholder={t.sub_ph_position}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor={`input-person-${p.id}-hierarchy`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_hierarchy}</label>
-                                <select
-                                  id={`input-person-${p.id}-hierarchy`}
-                                  value={p.hierarchyRole}
-                                  onChange={(e: any) => updateInvolvedPerson(p.id, 'hierarchyRole', e.target.value)}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                                >
-                                  <option value="Employé">{t.sub_hier_employee}</option>
-                                  <option value="Cadre">{t.sub_hier_manager}</option>
-                                  <option value="Sous-Directeur">{t.sub_hier_deputy_director}</option>
-                                  <option value="Directeur+">{t.sub_hier_director}</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* Témoins éventuels — liste dynamique conservée */}
-                    <div className="space-y-3 pt-2 border-t border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_witnesses_optional}</span>
-                        <button
-                          type="button"
-                          id="btn-add-witness"
-                          onClick={addWitness}
-                          className="flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 transition"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>{t.btn_add_witness}</span>
-                        </button>
-                      </div>
-
-                      {witnesses.length === 0 ? (
-                        <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-500">
-                          {t.sub_no_witnesses}
-                        </div>
-                      ) : (
-                        witnesses.map((w, idx) => (
-                          <div key={w.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-700">{t.sub_witness_n.replace('{n}', String(idx + 1))}</span>
-                              <button
-                                type="button"
-                                onClick={() => removeWitness(w.id)}
-                                className="text-slate-400 hover:text-rose-600 p-1"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <div>
-                                <label htmlFor={`input-witness-${w.id}-name`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_full_name}</label>
-                                <input
-                                  id={`input-witness-${w.id}-name`}
-                                  type="text"
-                                  value={w.name}
-                                  onChange={(e) => updateWitness(w.id, 'name', e.target.value)}
-                                  placeholder={t.sub_ph_witness_name}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor={`input-witness-${w.id}-position`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_position}</label>
-                                <input
-                                  id={`input-witness-${w.id}-position`}
-                                  type="text"
-                                  value={w.position}
-                                  onChange={(e) => updateWitness(w.id, 'position', e.target.value)}
-                                  placeholder={t.sub_ph_position}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor={`input-witness-${w.id}-hierarchy`} className="block text-[11px] font-medium text-slate-600 mb-1">{t.sub_hierarchy}</label>
-                                <select
-                                  id={`input-witness-${w.id}-hierarchy`}
-                                  value={w.hierarchyRole}
-                                  onChange={(e: any) => updateWitness(w.id, 'hierarchyRole', e.target.value)}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                                >
-                                  <option value="Employé">{t.sub_hier_employee}</option>
-                                  <option value="Cadre">{t.sub_hier_manager}</option>
-                                  <option value="Sous-Directeur">{t.sub_hier_deputy_director}</option>
-                                  <option value="Directeur+">{t.sub_hier_director}</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* === AMÉLIORATION AJOUTÉE (organisation du formulaire —
-                        sections visuelles) === Séparateur avant la
-                        description, cohérent avec les sections ci-dessus/
-                        dessous — le libellé du champ reste suffisamment
-                        explicite pour ne pas dupliquer un intitulé de
-                        section ici. */}
-                    <div className="pt-2 border-t border-slate-100">
-                      <label htmlFor="input-detailed-description" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_description} *</label>
-                      <textarea
-                        id="input-detailed-description"
-                        rows={5}
-                        value={detailedDescription}
-                        onChange={(e) => setDetailedDescription(e.target.value)}
-                        placeholder={t.desc_placeholder}
-                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none leading-relaxed"
-                      />
-                    </div>
-
-                    {/* === AMÉLIORATION AJOUTÉE (organisation du formulaire —
-                        sections visuelles) === Catégorie/Impact/mesure
-                        financière/situation en cours regroupés sous un même
-                        intitulé "Qualification" — même convention que les
-                        sections ci-dessus. */}
-                    <div className="space-y-4 pt-2 border-t border-slate-100">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_incident_qualification}</span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="input-subcategory" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_incident_category} *</label>
-                          <select
-                            id="input-subcategory"
-                            value={selectedSubCategory}
-                            onChange={(e) => setSelectedSubCategory(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                          >
-                            {currentCategoryDef?.subCategories.map((sub, idx) => (
-                              <option key={idx} value={sub}>
-                                {trData(sub, lang)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label htmlFor="input-impact-type" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_impact_potential}</label>
-                          <select
-                            id="input-impact-type"
-                            value={impactType}
-                            onChange={(e) => setImpactType(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white"
-                          >
-                            {IMPACT_TYPES.map((imp, idx) => (
-                              <option key={idx} value={imp}>
-                                {trData(imp, lang)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {selectedCategory.includes('Autres') && (
-                        <div>
-                          <label htmlFor="input-custom-violation" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_custom_violation}</label>
-                          <input
-                            id="input-custom-violation"
-                            type="text"
-                            value={customViolation}
-                            onChange={(e) => setCustomViolation(e.target.value)}
-                            placeholder={t.sub_ph_custom_violation}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          />
-                        </div>
-                      )}
-
-                      <div>
-                        <label htmlFor="input-estimated-impact" className="block text-xs font-semibold text-slate-700 mb-1">
-                          {t.sub_estimated_impact}
-                        </label>
-                        <input
-                          id="input-estimated-impact"
-                          type="text"
-                          value={estimatedImpactValue}
-                          onChange={(e) => setEstimatedImpactValue(e.target.value)}
-                          /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_impact}) */
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
-                        />
-                      </div>
-
-                      {/* Toggle « situation en cours » — nouveau champ additif (Phase 26) */}
-                      <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50">
-                        <div>
-                          <div className="text-xs font-semibold text-slate-800">{t.label_situation_ongoing}</div>
-                          <div className="text-[11px] text-slate-500">{t.label_situation_ongoing_desc}</div>
-                        </div>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={isOngoing}
-                          id="toggle-situation-ongoing"
-                          onClick={() => setIsOngoing(!isOngoing)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition shrink-0 ${
-                            isOngoing ? 'bg-blue-600' : 'bg-slate-300'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                              isOngoing ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* === AMÉLIORATION AJOUTÉE : matrice de risque DARC (Annexe
-                        9) retirée de l'affichage sur demande explicite —
-                        cette classification automatique reste calculée
-                        (`liveRisk`, mêmes facteurs par défaut qu'avant :
-                        finFactor/hierFactor/reputFactor=2, recidFactor=1) et
-                        enregistrée avec le signalement (riskEvaluation),
-                        exactement comme avant ; seule son exposition et son
-                        édition interactive au lanceur d'alerte disparaissent
-                        du formulaire public. La classification reste
-                        ajustable ensuite par le personnel habilité via
-                        "Modifier la priorité / Délais" (InvestigationDesk.tsx). */}
-
-                    <div className="flex justify-between pt-4">
-                      <Button type="button" variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => setCurrentStep(2)}>
-                        <span>{t.common_previous}</span>
-                      </Button>
-
-                      <Button
-                        type="button"
-                        id="btn-step3-next"
-                        onClick={() => {
-                          if (!detailedDescription.trim() || !incidentDates.trim() || !incidentLocation.trim()) {
-                            setErrorMsg(t.err_missing_desc_date_location);
-                            return;
-                          }
-                          setErrorMsg('');
-                          setCurrentStep(4);
-                        }}
-                      >
-                        <span>{t.common_next}</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  <Step3Incident
+                    t={t}
+                    lang={lang}
+                    entities={entities}
+                    incidentDates={incidentDates}
+                    setIncidentDates={setIncidentDates}
+                    incidentLocation={incidentLocation}
+                    setIncidentLocation={setIncidentLocation}
+                    concernedEntity={concernedEntity}
+                    setConcernedEntity={setConcernedEntity}
+                    customEntityInput={customEntityInput}
+                    setCustomEntityInput={setCustomEntityInput}
+                    involvedPersons={involvedPersons}
+                    addInvolvedPerson={addInvolvedPerson}
+                    updateInvolvedPerson={updateInvolvedPerson}
+                    removeInvolvedPerson={removeInvolvedPerson}
+                    witnesses={witnesses}
+                    addWitness={addWitness}
+                    updateWitness={updateWitness}
+                    removeWitness={removeWitness}
+                    detailedDescription={detailedDescription}
+                    setDetailedDescription={setDetailedDescription}
+                    selectedSubCategory={selectedSubCategory}
+                    setSelectedSubCategory={setSelectedSubCategory}
+                    currentCategoryDef={currentCategoryDef}
+                    impactType={impactType}
+                    setImpactType={setImpactType}
+                    selectedCategory={selectedCategory}
+                    customViolation={customViolation}
+                    setCustomViolation={setCustomViolation}
+                    estimatedImpactValue={estimatedImpactValue}
+                    setEstimatedImpactValue={setEstimatedImpactValue}
+                    isOngoing={isOngoing}
+                    setIsOngoing={setIsOngoing}
+                    setErrorMsg={setErrorMsg}
+                    setCurrentStep={setCurrentStep}
+                  />
                 )}
 
                 {/* STEP 4: ATTACHMENTS (OPTIONAL) */}
                 {currentStep === 4 && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '4')}</span>
-                      <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step4_title_optional}</h2>
-                      <p className="text-sm text-slate-600 mt-1">{t.wizard_step4_hint}</p>
-                    </div>
-
-                    <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-8 text-center transition bg-slate-50/50">
-                      <FileUp className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                      <p className="text-xs font-semibold text-slate-700">{t.drag_drop_evidence}</p>
-                      <p className="text-[11px] text-slate-500 mt-1">{t.max_file_note}</p>
-                      <input
-                        type="file"
-                        id="evidence-file-input"
-                        multiple
-                        onChange={handleFileUpload}
-                        className="mt-3 block mx-auto text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800">
-                        {t.evidence_files_added} ({evidences.length})
-                      </span>
-                      {evidences.length === 0 && (
-                        <span className="text-[11px] text-slate-500">{t.evidence_no_files}</span>
-                      )}
-                    </div>
-
-                    {evidences.length > 0 && (
-                      <div className="space-y-2">
-                        {evidences.map((f) => (
-                          <div
-                            key={f.id}
-                            className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
-                          >
-                            <div className="flex items-center gap-2 truncate">
-                              <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-bold uppercase">
-                                {f.type.split('/')[1] || 'Doc'}
-                              </span>
-                              <span className="font-medium text-slate-800 truncate">{f.name}</span>
-                              <span className="text-slate-400 text-[11px]">({Math.round(f.size / 1024)} Ko)</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removeEvidence(f.id)}
-                              className="text-slate-400 hover:text-rose-600 p-1"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-3">
-                      <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                      <span>{t.evidence_tips_optional_note}</span>
-                    </div>
-
-                    <div className="text-xs text-slate-600">
-                      <div className="font-semibold text-slate-800 mb-1">{t.evidence_tips_title}</div>
-                      <ul className="list-disc pl-5 space-y-0.5">
-                        <li>{t.evidence_tip_1}</li>
-                        <li>{t.evidence_tip_2}</li>
-                        <li>{t.evidence_tip_3}</li>
-                      </ul>
-                    </div>
-
-                    <div className="flex justify-between pt-4">
-                      <Button type="button" variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => setCurrentStep(3)}>
-                        <span>{t.common_previous}</span>
-                      </Button>
-
-                      <Button type="button" id="btn-step4-next" onClick={() => setCurrentStep(5)}>
-                        <span>{t.common_next}</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  <Step4Evidence
+                    t={t}
+                    evidences={evidences}
+                    handleFileUpload={handleFileUpload}
+                    removeEvidence={removeEvidence}
+                    setCurrentStep={setCurrentStep}
+                  />
                 )}
 
                 {/* STEP 5: REVIEW & CONFIRMATION */}
                 {currentStep === 5 && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div>
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">{t.wizard_step_of.replace('{n}', '5')}</span>
-                      <h2 className="text-2xl font-bold text-slate-900 mt-1">{t.wizard_step5_title}</h2>
-                      <p className="text-sm text-slate-600 mt-1">{t.wizard_step5_hint}</p>
-                    </div>
-
-                    {/* Type de signalement */}
-                    <div className="rounded-xl border border-slate-200 overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
-                        <span className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                          <Briefcase className="w-4 h-4 text-blue-600" />
-                          {t.wizard_step1_title}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(1)}
-                          className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          {t.btn_modify}
-                        </button>
-                      </div>
-                      <div className="p-4 text-xs">
-                        <span className="text-slate-500">{t.label_category}</span>
-                        <div className="font-medium text-slate-800 mt-0.5">{trData(selectedCategory, lang)}</div>
-                      </div>
-                    </div>
-
-                    {/* Informations sur le lanceur d'alerte */}
-                    <div className="rounded-xl border border-slate-200 overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
-                        <span className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                          <User className="w-4 h-4 text-blue-600" />
-                          {t.wizard_step2_title}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(2)}
-                          className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          {t.btn_modify}
-                        </button>
-                      </div>
-                      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <span className="text-slate-500">{t.label_first_name} / {t.label_last_name}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{declarantName || notProvided}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_job_title}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{declarantJob || notProvided}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_department}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{declarantDept || notProvided}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_country}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{declarantCountry || notProvided}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_entity}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{isAnonymous ? notProvided : declarantEntity}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_email}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{declarantEmail || notProvided}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_phone}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{declarantPhone || notProvided}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.sub_review_mode}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">
-                            {isAnonymous ? t.choice_anonymous : t.choice_identified}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Informations sur l'incident */}
-                    <div className="rounded-xl border border-slate-200 overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
-                        <span className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                          <AlertTriangle className="w-4 h-4 text-blue-600" />
-                          {t.wizard_step3_title}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(3)}
-                          className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          {t.btn_modify}
-                        </button>
-                      </div>
-                      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <span className="text-slate-500">{t.label_dates}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{incidentDates || notProvided}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_location}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{incidentLocation || notProvided}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_involved_persons_optional}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">
-                            {involvedPersons.length > 0 || witnesses.length > 0
-                              ? t.sub_review_persons_count.replace('{n}', String(involvedPersons.length + witnesses.length))
-                              : notProvided}
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_incident_category}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{trData(selectedSubCategory, lang)}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_impact_potential}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{trData(impactType, lang)}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">{t.label_situation_ongoing}</span>
-                          <div className="font-medium text-slate-800 mt-0.5">{isOngoing ? t.common_yes : t.common_no}</div>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <span className="text-slate-500">{t.label_description}</span>
-                          <div className="font-medium text-slate-800 mt-0.5 line-clamp-3">
-                            {detailedDescription || notProvided}
-                          </div>
-                        </div>
-                        <div className="sm:col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
-                          <span className="text-slate-500">{t.sub_auto_classification}</span>
-                          <span
-                            className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${
-                              liveRisk.nocaThreshold === 'NOCA 4'
-                                ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                                : liveRisk.nocaThreshold === 'NOCA 3'
-                                ? 'bg-orange-100 text-orange-800 border border-orange-300'
-                                : liveRisk.nocaThreshold === 'NOCA 2'
-                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                            }`}
-                          >
-                            {liveRisk.nocaThreshold} - {liveRisk.priority.toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Pièces jointes */}
-                    <div className="rounded-xl border border-slate-200 overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
-                        <span className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                          <Paperclip className="w-4 h-4 text-blue-600" />
-                          {t.wizard_step4_title_optional}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(4)}
-                          className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          {t.btn_modify}
-                        </button>
-                      </div>
-                      <div className="p-4 text-xs">
-                        {evidences.length === 0 ? (
-                          <span className="text-slate-400 italic">{t.evidence_no_files}</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
-                            {evidences.map((f) => (
-                              <span key={f.id} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-medium">
-                                {f.name} ({Math.round(f.size / 1024)} Ko)
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-3">
-                      <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                      <span>{t.review_submit_note}</span>
-                    </div>
-
-                    <div className="flex justify-between pt-4">
-                      <Button type="button" variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => setCurrentStep(4)}>
-                        <span>{t.common_previous}</span>
-                      </Button>
-
-                      {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, design
-                          system) === Volontairement laissé hors du composant
-                          <Button> partagé : ce bouton de soumission finale utilise
-                          une couleur émeraude distincte (succès), pas la navy
-                          "primaire" — un choix sémantique différent, pas une
-                          dérive de copier-coller comme les boutons migrés
-                          ci-dessus. */}
-                      <button
-                        type="submit"
-                        id="btn-submit-final"
-                        disabled={isSubmitting}
-                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>{isSubmitting ? t.sub_submitting : t.btn_send_report}</span>
-                      </button>
-                    </div>
-                  </div>
+                  <Step5Review
+                    t={t}
+                    lang={lang}
+                    selectedCategory={selectedCategory}
+                    declarantName={declarantName}
+                    declarantJob={declarantJob}
+                    declarantDept={declarantDept}
+                    declarantCountry={declarantCountry}
+                    isAnonymous={isAnonymous}
+                    declarantEntity={declarantEntity}
+                    declarantEmail={declarantEmail}
+                    declarantPhone={declarantPhone}
+                    incidentDates={incidentDates}
+                    incidentLocation={incidentLocation}
+                    involvedPersons={involvedPersons}
+                    witnesses={witnesses}
+                    selectedSubCategory={selectedSubCategory}
+                    impactType={impactType}
+                    isOngoing={isOngoing}
+                    detailedDescription={detailedDescription}
+                    liveRisk={liveRisk}
+                    evidences={evidences}
+                    isSubmitting={isSubmitting}
+                    setCurrentStep={setCurrentStep}
+                  />
                 )}
               </form>
             )}

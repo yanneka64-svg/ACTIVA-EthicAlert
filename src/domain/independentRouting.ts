@@ -23,7 +23,7 @@
 
 import { AlertRecord, UserProfile, UserRole } from '../types';
 import { HierarchyLevels } from '../data/activaConfig';
-import { userCan, canSeeAlertConfidentiality } from '../services/authz';
+import { canSeeAlertConfidentiality } from '../services/authz';
 import { roleHasPermission } from './permissions';
 import { scopeMatchFor } from './assignmentEngine';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===

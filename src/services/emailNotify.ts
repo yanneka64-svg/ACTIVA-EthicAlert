@@ -21,6 +21,9 @@
  */
 import { UserProfile, EscalationRecipient } from '../types';
 import { storage } from './storage';
+import { getPhase4Firebase, isPhase4Configured } from './firebaseClient';
+import { getAppCheckToken } from './appCheck';
+import { newAlertNotification } from '../domain/notifyEmailGuard';
 
 const NOTIFY_ENDPOINT = '/api/notify-email';
 
@@ -45,11 +48,32 @@ interface NotifyResult {
   reason?: string;
 }
 
+// === AMÉLIORATION AJOUTÉE (revue PR #139 — appelant vérifié pour notifyEmail) ===
+// La Cloud Function `notifyEmail` n'envoie plus rien sans appelant vérifié :
+// jeton d'identité Firebase d'un compte du personnel (attribution,
+// escalade), ou jeton App Check de l'application (dépôt public anonyme).
+// On joint ce qui est disponible ; sans aucun des deux, l'envoi est refusé
+// côté serveur et l'échec est journalisé comme aujourd'hui. Ne lève jamais.
+async function notifyCallerHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  if (!isPhase4Configured()) return headers;
+  try {
+    const { app, auth } = getPhase4Firebase();
+    const user = auth.currentUser;
+    if (user) headers.Authorization = `Bearer ${await user.getIdToken()}`;
+    const appCheckToken = await getAppCheckToken(app);
+    if (appCheckToken) headers['X-Firebase-AppCheck'] = appCheckToken;
+  } catch {
+    // Jetons indisponibles : l'appel part sans, le serveur tranche.
+  }
+  return headers;
+}
+
 async function sendOne(to: string, subject: string, body: string): Promise<NotifyResult> {
   try {
     const res = await fetch(NOTIFY_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await notifyCallerHeaders()) },
       body: JSON.stringify({ to, subject, body }),
     });
     if (!res.ok) {
@@ -78,11 +102,11 @@ export function notifyNewAlertToOperators(operators: UserProfile[], alert: CaseR
   operators
     .filter((u) => !!u.email)
     .forEach((u) => {
-      sendOne(
-        u.email,
-        `[activa-whistleblowing] Nouveau signalement — ${alert.trackingNumber}`,
-        `Un nouveau signalement vient d'être déposé et attend le tri dans la Boîte de réception.\n\nRéférence : ${alert.trackingNumber}\n\nConnectez-vous à activa-whistleblowing pour le consulter.`
-      ).then((result) => {
+      // === AMÉLIORATION AJOUTÉE (revue PR #139) === modèle partagé avec la
+      // Cloud Function (texte identique), qui le reconstruit côté serveur
+      // pour un appelant anonyme.
+      const message = newAlertNotification(alert.trackingNumber);
+      sendOne(u.email, message.subject, message.body).then((result) => {
         storage.logAudit(
           result.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',
           result.ok
