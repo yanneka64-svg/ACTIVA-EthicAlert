@@ -1305,6 +1305,14 @@ export const fr: Record<string, string> = {
   users_done: 'Terminé',
   // === AMÉLIORATION AJOUTÉE : onglet Utilisateurs — dernier admin (FR/EN/PT) ===
   users_last_admin: 'Impossible de supprimer ce compte : il s\'agit du dernier administrateur système actif. Créez ou activez un autre compte "Administrateur système" avant de supprimer celui-ci.',
+  // === AMÉLIORATION AJOUTÉE (comptes du personnel enregistrés dans Firebase) ===
+  users_cloud_enabled: 'Les comptes sont enregistrés dans Firebase : ils se connectent depuis n\'importe quel poste.',
+  users_cloud_local_only: 'Les comptes créés ici ne sont enregistrés que dans ce navigateur. Pour les enregistrer dans Firebase, connectez-vous avec un compte administrateur système créé dans Firebase.',
+  users_cloud_admin_required: 'Ce compte est enregistré dans Firebase : connectez-vous avec un compte administrateur système Firebase pour le modifier.',
+  users_cloud_precondition: 'Action refusée : il doit toujours rester au moins un administrateur système actif, et vous ne pouvez pas supprimer votre propre compte.',
+  users_cloud_error: 'L\'enregistrement dans Firebase a échoué. Vérifiez votre connexion puis réessayez.',
+  users_badge_firebase: 'Firebase',
+  users_badge_local: 'Local',
   // === AMÉLIORATION AJOUTÉE : onglets Rôles & Permissions, destinataires d'escalade (FR/EN/PT) ===
   roles_saved: 'Permissions mises à jour pour {n} rôle(s).',
   roles_no_change: 'Aucune modification à enregistrer.',

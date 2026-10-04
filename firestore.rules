@@ -215,5 +215,17 @@ service cloud.firestore {
     match /external_references/{ref} {
       allow read, write: if false;
     }
+
+    // === AMÉLIORATION AJOUTÉE (comptes du personnel créés depuis le portail) ===
+    // Profils du personnel et réservation d'unicité des identifiants
+    // (functions/src/staffAccounts.ts). Cloud Functions uniquement : le
+    // portail les lit via listStaffDirectory/getMyStaffProfile, jamais en direct.
+    match /staff_users/{uid} {
+      allow read, write: if false;
+    }
+
+    match /staff_usernames/{username} {
+      allow read, write: if false;
+    }
   }
 }

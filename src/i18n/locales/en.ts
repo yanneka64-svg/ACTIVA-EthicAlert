@@ -1119,6 +1119,14 @@ export const en: Record<string, string> = {
   users_done: 'Done',
   // === AMÉLIORATION AJOUTÉE : onglet Utilisateurs — dernier admin (FR/EN/PT) ===
   users_last_admin: 'This account cannot be deleted: it is the last active system administrator. Create or activate another "System administrator" account before deleting this one.',
+  // === AMÉLIORATION AJOUTÉE (comptes du personnel enregistrés dans Firebase) ===
+  users_cloud_enabled: 'Accounts are stored in Firebase: they can sign in from any computer.',
+  users_cloud_local_only: 'Accounts created here are stored in this browser only. To store them in Firebase, sign in with a system administrator account created in Firebase.',
+  users_cloud_admin_required: 'This account is stored in Firebase: sign in with a Firebase system administrator account to change it.',
+  users_cloud_precondition: 'Action refused: at least one active system administrator must remain, and you cannot delete your own account.',
+  users_cloud_error: 'Saving to Firebase failed. Check your connection and try again.',
+  users_badge_firebase: 'Firebase',
+  users_badge_local: 'Local',
   // === AMÉLIORATION AJOUTÉE : onglets Rôles & Permissions, destinataires d'escalade (FR/EN/PT) ===
   roles_saved: 'Permissions updated for {n} role(s).',
   roles_no_change: 'No changes to save.',

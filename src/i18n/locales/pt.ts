@@ -1119,6 +1119,14 @@ export const pt: Record<string, string> = {
   users_done: 'Concluído',
   // === AMÉLIORATION AJOUTÉE : onglet Utilisateurs — dernier admin (FR/EN/PT) ===
   users_last_admin: 'Não é possível eliminar esta conta: é o último administrador de sistema ativo. Crie ou ative outra conta de "Administrador de sistema" antes de eliminar esta.',
+  // === AMÉLIORATION AJOUTÉE (comptes du personnel enregistrés dans Firebase) ===
+  users_cloud_enabled: 'As contas são guardadas no Firebase: podem iniciar sessão a partir de qualquer computador.',
+  users_cloud_local_only: 'As contas criadas aqui ficam guardadas apenas neste navegador. Para as guardar no Firebase, inicie sessão com uma conta de administrador de sistema criada no Firebase.',
+  users_cloud_admin_required: 'Esta conta está guardada no Firebase: inicie sessão com uma conta de administrador de sistema do Firebase para a alterar.',
+  users_cloud_precondition: 'Ação recusada: deve permanecer pelo menos um administrador de sistema ativo, e não pode eliminar a sua própria conta.',
+  users_cloud_error: 'A gravação no Firebase falhou. Verifique a ligação e tente novamente.',
+  users_badge_firebase: 'Firebase',
+  users_badge_local: 'Local',
   // === AMÉLIORATION AJOUTÉE : onglets Rôles & Permissions, destinataires d'escalade (FR/EN/PT) ===
   roles_saved: 'Permissões atualizadas para {n} função(ões).',
   roles_no_change: 'Nenhuma alteração a guardar.',

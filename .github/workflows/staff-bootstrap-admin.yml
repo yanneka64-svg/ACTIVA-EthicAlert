@@ -1,0 +1,90 @@
+# === AMÉLIORATION AJOUTÉE (comptes du personnel créés depuis le portail et
+# enregistrés dans Firebase) ===
+# Crée le PREMIER administrateur système dans Firebase (Auth + profil
+# Firestore). Ensuite, tous les autres comptes se créent depuis le portail :
+# Administration → Utilisateurs. Voir scripts/bootstrapStaffAdmin.ts.
+#
+# Relancé avec l'identifiant d'un administrateur existant : remplace son mot
+# de passe (recours si perdu ou expiré). Refuse dans tous les autres cas où
+# un administrateur système actif existe déjà.
+#
+# Prérequis (docs/DEVOPS-RUNBOOK.md §3.9) :
+#   - fédération d'identité configurée (variables GCP_WORKLOAD_IDENTITY_PROVIDER
+#     et GCP_DEPLOY_SERVICE_ACCOUNT) ;
+#   - rôles Firebase Authentication Admin et Cloud Datastore User sur ce compte ;
+#   - secret GitHub STAFF_BOOTSTRAP_PASSWORD (12 caractères minimum) : mot de
+#     passe initial, jamais affiché, à changer à la première connexion (4 h).
+name: Bootstrap staff admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Nom complet de l'administrateur"
+        type: string
+        required: true
+      email:
+        description: "Adresse e-mail de contact (notifications)"
+        type: string
+        required: true
+      username:
+        description: "Identifiant de connexion (minuscules, chiffres, . _ -)"
+        type: string
+        required: true
+
+concurrency:
+  group: staff-bootstrap-admin
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      HAS_WIF: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' }}
+      HAS_PASSWORD: ${{ secrets.STAFF_BOOTSTRAP_PASSWORD != '' }}
+    steps:
+      - name: Check prerequisites
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::À lancer depuis main uniquement (branche demandée : ${GITHUB_REF})."
+            exit 1
+          fi
+          if [ "$HAS_WIF" != "true" ]; then
+            echo "::error::Fédération d'identité non configurée (variables GCP_WORKLOAD_IDENTITY_PROVIDER / GCP_DEPLOY_SERVICE_ACCOUNT)."
+            exit 1
+          fi
+          if [ "$HAS_PASSWORD" != "true" ]; then
+            echo "::error::Secret STAFF_BOOTSTRAP_PASSWORD absent : l'ajouter dans Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2 (v2.2.0)
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3 (v3.0.0)
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      # Entrées passées par variables d'environnement (jamais interpolées dans
+      # le script) ; validées par scripts/bootstrapStaffAdmin.ts.
+      - name: Create or reset the first system administrator
+        env:
+          GCLOUD_PROJECT: activa-ethicalert-47246
+          FIRESTORE_DATABASE_ID: default
+          STAFF_ADMIN_NAME: ${{ inputs.name }}
+          STAFF_ADMIN_EMAIL: ${{ inputs.email }}
+          STAFF_ADMIN_USERNAME: ${{ inputs.username }}
+          STAFF_BOOTSTRAP_PASSWORD: ${{ secrets.STAFF_BOOTSTRAP_PASSWORD }}
+        run: npx tsx scripts/bootstrapStaffAdmin.ts
