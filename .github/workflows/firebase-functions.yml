@@ -1,0 +1,260 @@
+# === AMÉLIORATION AJOUTÉE : déploiement des Cloud Functions (plan Blaze) ===
+# Déploie functions/ sur le projet activa-ethicalert-47246, région
+# us-central1 (setGlobalOptions dans functions/src/index.ts).
+#
+# Déclenchement MANUEL uniquement (Actions → « Deploy Cloud Functions » →
+# Run workflow), jamais sur push : déployer les fonctions active côté
+# serveur les miroirs de l'application (dossiers réels dans Firestore,
+# e-mails). Chaque mise en ligne est donc une décision explicite.
+#   - mode « dry-run » (par défaut) : compile et valide le déploiement
+#     (droits, API, secrets, paramètres) SANS rien modifier ;
+#   - mode « deploy » : déploie réellement.
+#   - « functions » (facultatif) : liste de fonctions séparées par des
+#     virgules (ex. « listCases,createCase ») ; vide = toutes.
+#
+# Identifiants : mêmes que le déploiement Hosting — fédération d'identité
+# (variables GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_DEPLOY_SERVICE_ACCOUNT)
+# si configurée, sinon la clé JSON FIREBASE_SERVICE_ACCOUNT_ACTIVA. Le
+# compte de service doit avoir les rôles listés dans
+# docs/DEVOPS-RUNBOOK.md §3.8 (Hosting Admin seul ne suffit pas).
+#
+# Paramètres des fonctions (functions/.env, généré ici) : variables de
+# dépôt facultatives, valeurs par défaut sûres :
+#   NOTIFY_ALLOWED_RECIPIENT_DOMAINS  (défaut group-activa.com)
+#   NOTIFY_ALLOWED_ORIGINS, NOTIFY_FROM_EMAIL, NOTIFY_RATE_LIMIT,
+#   REPORTER_CREATE_MAX_PER_HOUR      (défauts du code si absentes)
+#   ENFORCE_APP_CHECK                 (défaut false)
+# Secret RESEND_API_KEY (Secret Manager) : obligatoire pour tout
+# déploiement (la CLI le résout pour toute la base de code). S'il n'existe
+# pas encore, le workflow le crée à partir du secret GitHub RESEND_API_KEY
+# s'il est fourni ; sinon il s'arrête avec la marche à suivre.
+name: Deploy Cloud Functions
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run = valider sans rien modifier ; deploy = déployer réellement"
+        type: choice
+        options: [dry-run, deploy]
+        default: dry-run
+      functions:
+        description: "Fonctions à déployer, séparées par des virgules (vide = toutes)"
+        type: string
+        required: false
+        default: ""
+
+concurrency:
+  group: firebase-functions
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: activa-ethicalert-47246
+  REGION: us-central1
+  FIREBASE_TOOLS: firebase-tools@15.31.0
+
+jobs:
+  # Vérifications sans aucun identifiant GCP (pas de jeton OIDC) :
+  # compilation, audit des dépendances, validation des entrées.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      only: ${{ steps.only.outputs.only }}
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - name: Refuse any branch other than main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Les Cloud Functions ne se déploient que depuis main (branche demandée : ${GITHUB_REF})."
+          exit 1
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (v4.4.0)
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high --omit=dev
+
+      # Entrée utilisateur passée par variable d'environnement (jamais
+      # interpolée dans le script) et validée : noms de fonctions seulement.
+      - name: Validate function list
+        id: only
+        env:
+          FUNCTIONS_INPUT: ${{ inputs.functions }}
+        run: |
+          list="$(printf '%s' "$FUNCTIONS_INPUT" | tr -d '[:space:]')"
+          if [ -z "$list" ]; then
+            echo "only=functions" >> "$GITHUB_OUTPUT"
+            echo "Cible : toutes les fonctions."
+            exit 0
+          fi
+          if ! printf '%s' "$list" | grep -Eq '^[A-Za-z][A-Za-z0-9_]*(,[A-Za-z][A-Za-z0-9_]*)*$'; then
+            echo "::error::Liste de fonctions invalide : « $list » (attendu : nomA,nomB)."
+            exit 1
+          fi
+          for name in $(printf '%s' "$list" | tr ',' ' '); do
+            if ! grep -Eq "^export const ${name} = " src/index.ts; then
+              echo "::error::Fonction inconnue : ${name} (absente de functions/src/index.ts)."
+              exit 1
+            fi
+          done
+          only="$(printf '%s' "$list" | sed -E 's/(^|,)/\1functions:/g')"
+          echo "only=${only}" >> "$GITHUB_OUTPUT"
+          echo "Cible : ${only}"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Jeton OIDC pour la fédération d'identité (WIF), si configurée.
+      id-token: write
+    env:
+      HAS_WIF: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' }}
+      HAS_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ACTIVA != '' }}
+      MODE: ${{ inputs.mode }}
+      ONLY: ${{ needs.build.outputs.only }}
+    steps:
+      - name: Check credentials
+        run: |
+          if [ "$HAS_WIF" != "true" ] && [ "$HAS_KEY" != "true" ]; then
+            echo "::error::Aucun identifiant GCP : définir les variables WIF ou le secret FIREBASE_SERVICE_ACCOUNT_ACTIVA."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (v4.4.0)
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      # La CLI charge le code des fonctions pour découvrir les déclencheurs :
+      # les dépendances de functions/ doivent être installées ici (versions
+      # figées par package-lock.json, auditées dans le job build).
+      - name: Install function dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Write functions/.env
+        env:
+          V_DOMAINS: ${{ vars.NOTIFY_ALLOWED_RECIPIENT_DOMAINS }}
+          V_ORIGINS: ${{ vars.NOTIFY_ALLOWED_ORIGINS }}
+          V_FROM: ${{ vars.NOTIFY_FROM_EMAIL }}
+          V_RATE: ${{ vars.NOTIFY_RATE_LIMIT }}
+          V_REPORTER: ${{ vars.REPORTER_CREATE_MAX_PER_HOUR }}
+          V_APPCHECK: ${{ vars.ENFORCE_APP_CHECK }}
+        run: |
+          {
+            echo "NOTIFY_ALLOWED_RECIPIENT_DOMAINS=${V_DOMAINS:-group-activa.com}"
+            echo "ENFORCE_APP_CHECK=${V_APPCHECK:-false}"
+            [ -n "$V_ORIGINS" ] && echo "NOTIFY_ALLOWED_ORIGINS=${V_ORIGINS}"
+            [ -n "$V_FROM" ] && echo "NOTIFY_FROM_EMAIL=\"${V_FROM}\""
+            [ -n "$V_RATE" ] && echo "NOTIFY_RATE_LIMIT=${V_RATE}"
+            [ -n "$V_REPORTER" ] && echo "REPORTER_CREATE_MAX_PER_HOUR=${V_REPORTER}"
+            true
+          } > functions/.env
+          echo "functions/.env :"; cat functions/.env
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        if: env.HAS_WIF == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3 (v3.0.0)
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Authenticate to Google Cloud (service account key)
+        if: env.HAS_WIF != 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3 (v3.0.0)
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ACTIVA }}
+
+      # La CLI résout RESEND_API_KEY pour toute la base de code, même pour un
+      # déploiement partiel : il doit exister dans Secret Manager.
+      - name: Ensure RESEND_API_KEY exists in Secret Manager
+        id: secret
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          if npx --yes "$FIREBASE_TOOLS" functions:secrets:get RESEND_API_KEY --project "$PROJECT_ID" --non-interactive > /dev/null 2>&1; then
+            echo "RESEND_API_KEY présent dans Secret Manager."
+            exit 0
+          fi
+          if [ -z "$RESEND_API_KEY" ]; then
+            echo "::error::RESEND_API_KEY absent de Secret Manager. Soit l'ajouter comme secret GitHub RESEND_API_KEY (ce workflow le copiera), soit l'enregistrer une fois avec : firebase functions:secrets:set RESEND_API_KEY --project ${PROJECT_ID}. Voir docs/DEVOPS-RUNBOOK.md §3.8."
+            exit 1
+          fi
+          if [ "$MODE" != "deploy" ]; then
+            echo "::notice::Mode dry-run : RESEND_API_KEY sera copié dans Secret Manager lors du déploiement réel."
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s' "$RESEND_API_KEY" | npx --yes "$FIREBASE_TOOLS" functions:secrets:set RESEND_API_KEY \
+            --data-file - --project "$PROJECT_ID" --non-interactive
+          echo "RESEND_API_KEY créé dans Secret Manager."
+
+      # La CLI exige le secret même en simulation : s'il ne sera créé qu'au
+      # déploiement réel, la simulation complète n'est pas possible ici.
+      - name: Validate deployment (dry run)
+        if: env.MODE != 'deploy'
+        env:
+          SECRET_PENDING: ${{ steps.secret.outputs.pending }}
+        run: |
+          if [ "$SECRET_PENDING" = "true" ]; then
+            echo "::warning::Simulation CLI ignorée : RESEND_API_KEY n'est pas encore dans Secret Manager (il sera créé par le mode deploy). Compilation, audit et identifiants ont été vérifiés."
+            exit 0
+          fi
+          npx --yes "$FIREBASE_TOOLS" deploy --only "$ONLY" --project "$PROJECT_ID" --non-interactive --dry-run
+
+      # Sans politique de nettoyage Artifact Registry, la CLI non interactive
+      # échoue APRÈS avoir déployé (images de conteneurs facturées sinon).
+      # Le dépôt n'existe qu'après le premier déploiement : on tente avant
+      # (sans bloquer), puis on corrige après si la CLI le signale.
+      - name: Deploy Cloud Functions
+        if: env.MODE == 'deploy'
+        run: |
+          npx --yes "$FIREBASE_TOOLS" functions:artifacts:setpolicy --location "$REGION" --days 1 --force \
+            --project "$PROJECT_ID" --non-interactive || echo "::notice::Politique de nettoyage non posée avant déploiement (normal au tout premier déploiement)."
+          set +e
+          npx --yes "$FIREBASE_TOOLS" deploy --only "$ONLY" --project "$PROJECT_ID" --non-interactive 2>&1 | tee deploy.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if grep -q "Functions successfully deployed but could not set up cleanup policy" deploy.log; then
+              echo "Fonctions déployées ; pose de la politique de nettoyage."
+              npx --yes "$FIREBASE_TOOLS" functions:artifacts:setpolicy --location "$REGION" --days 1 --force \
+                --project "$PROJECT_ID" --non-interactive
+            else
+              exit "$status"
+            fi
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Cloud Functions — ${MODE}"
+            echo "- Cible : \`${ONLY}\`"
+            echo "- Projet : \`${PROJECT_ID}\` (${REGION})"
+            echo "- Identifiants : $([ "$HAS_WIF" = "true" ] && echo "fédération d'identité (WIF)" || echo "clé JSON")"
+          } >> "$GITHUB_STEP_SUMMARY"
