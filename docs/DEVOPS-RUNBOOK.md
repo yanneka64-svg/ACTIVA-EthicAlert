@@ -95,6 +95,18 @@ Le workflow bascule automatiquement sur WIF. Après un déploiement réussi :
 supprimer le secret `FIREBASE_SERVICE_ACCOUNT_ACTIVA` et **révoquer la clé**
 dans IAM → Comptes de service → Clés.
 
+=== AMÉLIORATION AJOUTÉE (premier déploiement des Cloud Functions) ===
+**Fait le 2026-10-04**, avec le compte existant
+`github-hosting-deploy@activa-ethicalert-47246.iam.gserviceaccount.com`
+(au lieu de `github-deployer` ci-dessus) : pool `github`, fournisseur
+`github-provider`, variables GitHub `GCP_WORKLOAD_IDENTITY_PROVIDER` et
+`GCP_DEPLOY_SERVICE_ACCOUNT` créées. Le secret
+`FIREBASE_SERVICE_ACCOUNT_ACTIVA` contenait en fait une clé du compte
+**Admin SDK** (`firebase-adminsdk-fbsvc@…`), pas celle d'un compte de
+déploiement : la supprimer de GitHub et révoquer cette clé une fois un
+déploiement Hosting réussi via WIF, après avoir vérifié qu'aucune des clés
+de ce compte ne sert ailleurs.
+
 ### 3.2 Restreindre la clé API Web Firebase
 GCP → *APIs & Services → Credentials* → clé « Browser key » :
 - **Restrictions d'application** : sites Web —
@@ -150,6 +162,16 @@ activé et `notifyEmail` déployée (`cd functions && npm run deploy`) :
    Hosting échouerait) ;
 2. vérifier l'envoi d'une notification depuis `web.app` ;
 3. désactiver le projet Vercel.
+
+=== AMÉLIORATION AJOUTÉE (premier déploiement des Cloud Functions) ===
+`notifyEmail` est déployée depuis le 2026-10-04 et l'étape 1 est faite dans
+`firebase.json`. Elle prend effet au prochain déploiement Hosting. Pour
+l'étape 2 : `notifyEmail` reconnaît le site grâce à l'en-tête
+`X-Forwarded-Host` que pose la réécriture Hosting. Si l'envoi échoue avec
+« Origin not allowed » (403) dans l'Audit Trail, définir la variable GitHub
+`NOTIFY_ALLOWED_ORIGINS` =
+`https://activa-ethicalert-47246.web.app,https://activa-ethicalert-47246.firebaseapp.com`
+puis redéployer `notifyEmail` (§3.8, `functions = notifyEmail`).
 
 ### 3.7 Domaine d'envoi Resend
 Resend → *Domains* → ajouter `group-activa.com` (ou un sous-domaine
@@ -209,6 +231,48 @@ Functions »), **manuel uniquement**, depuis `main` : GitHub → *Actions* →
 
 Après le premier déploiement réussi de `notifyEmail` : §3.6 (réécriture
 Hosting `/api/notify-email`).
+
+=== AMÉLIORATION AJOUTÉE (premier déploiement des Cloud Functions) ===
+**Retour d'expérience du premier déploiement (2026-10-04, 23 fonctions).**
+Ce qu'il a fallu en plus des prérequis ci-dessus :
+
+- **Fédération d'identité obligatoire.** La clé JSON
+  `FIREBASE_SERVICE_ACCOUNT_ACTIVA` est celle du compte Admin SDK. Ce compte
+  n'a pas `cloudfunctions.functions.setIamPolicy`, nécessaire pour rendre
+  `notifyEmail` appelable. Le déploiement passe donc par WIF avec
+  `github-hosting-deploy` (§3.1).
+- **Service Account User sur le compte App Engine.** La CLI vérifie
+  toujours ce droit sur `activa-ethicalert-47246@appspot.gserviceaccount.com`,
+  en plus du compte d'exécution `<numéro>-compute@…` :
+  ```bash
+  gcloud iam service-accounts add-iam-policy-binding \
+    activa-ethicalert-47246@appspot.gserviceaccount.com \
+    --member "serviceAccount:github-hosting-deploy@activa-ethicalert-47246.iam.gserviceaccount.com" \
+    --role roles/iam.serviceAccountUser --project activa-ethicalert-47246
+  ```
+- **Droit de build pour le compte d'exécution.** Les projets récents
+  compilent les fonctions avec `<numéro>-compute@…` : lui donner
+  `roles/cloudbuild.builds.builder`.
+- **API à activer par un propriétaire.** `serviceUsageConsumer` ne permet
+  pas d'activer une API. Activer une fois :
+  `cloudfunctions run cloudbuild artifactregistry secretmanager compute
+  cloudbilling eventarc pubsub firebaseextensions iam iamcredentials sts`
+  (`.googleapis.com`).
+- **Clé Resend.** Elle a été enregistrée directement dans Secret Manager.
+  Elle ne passe donc jamais par GitHub :
+  ```bash
+  read -rs -p "Clé Resend : " KEY; echo
+  printf '%s' "$KEY" | gcloud secrets create RESEND_API_KEY \
+    --replication-policy=automatic --labels=firebase-managed=true --data-file=-
+  unset KEY
+  ```
+  Après un changement de clé (`gcloud secrets versions add …`), redéployer
+  `notifyEmail` : une fonction ne lit la nouvelle version qu'à son prochain
+  déploiement.
+- **Politique de nettoyage.** Au tout premier déploiement, le dépôt
+  `gcf-artifacts` n'existe pas encore. La CLI déploie, puis échoue sur la
+  politique. Le workflow la pose aussitôt après : 1 jour, comportement
+  attendu.
 
 ## 4. Correctifs P2
 

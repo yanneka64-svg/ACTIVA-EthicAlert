@@ -15,6 +15,7 @@
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
+      { "source": "/api/notify-email", "function": { "functionId": "notifyEmail", "region": "us-central1" } },
       { "source": "**", "destination": "/index.html" }
     ],
     "headers": [

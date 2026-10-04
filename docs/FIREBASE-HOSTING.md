@@ -81,6 +81,18 @@ La Cloud Function `notifyEmail` est **déjà écrite** dans
 Ne pas faire l'étape 4 avant l'étape 3 : `firebase deploy --only hosting`
 échouerait tant que la fonction n'existe pas.
 
+=== AMÉLIORATION AJOUTÉE (premier déploiement des Cloud Functions) ===
+**État au 2026-10-04 :**
+- les étapes 1 à 4 sont faites : plan Blaze, `RESEND_API_KEY` dans Secret
+  Manager, `notifyEmail` déployée par le workflow *Deploy Cloud Functions*
+  (DEVOPS-RUNBOOK.md §3.8), réécriture ajoutée à `firebase.json` ;
+- l'étape 5 se fait par le workflow *Deploy to Firebase Hosting*, après
+  fusion dans `main`.
+
+`POST /api/notify-email` sur `web.app` atteint alors la Cloud Function. Les
+e-mails ne partent que pour un appelant vérifié : jeton d'un compte du
+personnel, ou jeton App Check (voir EMAIL-NOTIFICATIONS.md).
+
 ## 5. Firebase Auth
 
 Les domaines `*.web.app` / `*.firebaseapp.com` du projet sont autorisés
