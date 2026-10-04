@@ -157,6 +157,59 @@ Resend → *Domains* → ajouter `group-activa.com` (ou un sous-domaine
 définir `NOTIFY_FROM_EMAIL`. Sans cela, l'expéditeur de test
 `onboarding@resend.dev` n'envoie qu'à l'adresse du titulaire du compte.
 
+### 3.8 Déployer les Cloud Functions depuis GitHub
+=== AMÉLIORATION AJOUTÉE (déploiement Cloud Functions) ===
+
+Workflow `.github/workflows/firebase-functions.yml` (« Deploy Cloud
+Functions »), **manuel uniquement**, depuis `main` : GitHub → *Actions* →
+*Deploy Cloud Functions* → *Run workflow*.
+
+- `mode = dry-run` (par défaut) : compile, audite et fait valider le
+  déploiement par la CLI Firebase (droits, API, paramètres) sans rien
+  modifier. Toujours commencer par là.
+- `mode = deploy` : déploie réellement. Le déploiement n'utilise jamais
+  `--force` : une fonction absente du code n'est jamais supprimée sans
+  confirmation.
+- `functions` (facultatif) : `listCases,createCase`… ; vide = toutes.
+
+**Prérequis, à faire une fois :**
+
+1. **Rôles du compte de service de déploiement** (celui de la clé
+   `FIREBASE_SERVICE_ACCOUNT_ACTIVA`, ou `GCP_DEPLOY_SERVICE_ACCOUNT` avec
+   WIF). Google Cloud → *IAM* → modifier le compte → ajouter :
+   - Cloud Functions Admin (`roles/cloudfunctions.admin`) ;
+   - Cloud Run Admin (`roles/run.admin`) : les fonctions v2 tournent sur
+     Cloud Run ;
+   - Service Account User (`roles/iam.serviceAccountUser`), sur le compte
+     d'exécution des fonctions (par défaut
+     `<numéro>-compute@developer.gserviceaccount.com`) ;
+   - Cloud Build Editor (`roles/cloudbuild.builds.editor`) ;
+   - Artifact Registry Administrator (`roles/artifactregistry.admin`) :
+     dépôt d'images et politique de nettoyage ;
+   - Secret Manager Admin (`roles/secretmanager.admin`) : lire et créer
+     `RESEND_API_KEY`, et l'attacher à `notifyEmail` ;
+   - Service Usage Consumer (`roles/serviceusage.serviceUsageConsumer`) ;
+   - Firebase Viewer (`roles/firebase.viewer`).
+   Le rôle *Firebase Hosting Admin* déjà présent reste nécessaire au site.
+2. **Clé Resend** : soit secret GitHub `RESEND_API_KEY` (le workflow le
+   copie dans Secret Manager au premier déploiement, sans jamais
+   l'afficher), soit une fois en local :
+   `firebase functions:secrets:set RESEND_API_KEY --project activa-ethicalert-47246`.
+   La CLI exige ce secret pour **tout** déploiement des fonctions, même
+   partiel.
+3. **Variables de dépôt facultatives** (GitHub → *Settings* → *Secrets and
+   variables* → *Actions* → *Variables*) : `NOTIFY_ALLOWED_RECIPIENT_DOMAINS`
+   (défaut `group-activa.com`), `NOTIFY_ALLOWED_ORIGINS`,
+   `NOTIFY_FROM_EMAIL`, `NOTIFY_RATE_LIMIT`, `REPORTER_CREATE_MAX_PER_HOUR`,
+   `ENFORCE_APP_CHECK` (défaut `false` ; passer à `true` après l'activation
+   d'App Check, §3.3).
+4. **Comptes du personnel** : les fonctions refusent tout compte sans claim
+   `role`. Créer les comptes dans Firebase Auth avec leur rôle avant
+   d'ouvrir l'usage réel.
+
+Après le premier déploiement réussi de `notifyEmail` : §3.6 (réécriture
+Hosting `/api/notify-email`).
+
 ## 4. Correctifs P2
 
 === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) ===
