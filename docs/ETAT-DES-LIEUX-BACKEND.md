@@ -65,3 +65,19 @@ envoyée au serveur.
   d'enquête ajoutés par le personnel sont enregistrés sur le serveur
   (`addEvidenceAsStaff`) et téléchargeables depuis tout poste. Vérifié sur
   émulateurs : `scripts/e2eDocuments.emulator.mts`.
+- **Phase 3 — livrée** : configuration partagée (`getPortalConfig` /
+  `savePortalConfig`, permission `configuration.manage`). Chargée à la connexion
+  puis toutes les 5 min ; toute modification en administration est partagée ;
+  le premier administrateur connecté partage sa configuration actuelle.
+- **Phase 4 — livrée** : piste d'audit commune (`recordPortalAudit` /
+  `listAuditLogs`, permission `audit.read`). Chaque événement du portail est
+  copié sur le serveur (auteur, rôle et adresse IP fixés par le serveur) ;
+  l'écran « Piste d'audit » affiche le journal de tous les postes.
+  Vérifié sur émulateurs : `scripts/e2eConfigAudit.emulator.mts`.
+
+## 5. Ce qui reste volontairement dans le navigateur
+
+- Brouillon du formulaire public (confidentialité du déclarant).
+- Préférences d'affichage et état « lu / non lu » des messages (propres à chaque poste).
+- Copie locale des dossiers (cache pour l'affichage rapide et le travail hors ligne,
+  resynchronisée avec le serveur toutes les 20 s).

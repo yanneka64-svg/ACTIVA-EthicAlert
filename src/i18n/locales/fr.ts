@@ -1504,6 +1504,10 @@ export const fr: Record<string, string> = {
   audit_title: 'Piste d’Audit Immuable & Traçabilité',
   audit_subtitle: 'Historisation intégrale des accès, modifications, consultations et décisions. Durée de conservation : 10 ans.',
   audit_sealed: 'Registre d\'audit intègre & scellé',
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — piste d'audit commune) ===
+  audit_source_server: 'Journal commun (serveur)',
+  audit_source_loading: 'Chargement du journal commun…',
+  audit_source_local: 'Journal de ce poste uniquement',
   // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 8 : indicateur de synchronisation) ===
   audit_backend_sync: '{synced}/{total} dossiers liés au vrai backend',
   audit_export: 'Export Audit Ad-Hoc',
