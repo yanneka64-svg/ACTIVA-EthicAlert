@@ -887,6 +887,9 @@ export const pt: Record<string, string> = {
   track_no_evidence: 'Nenhum ficheiro submetido',
   // === AMÉLIORATION AJOUTÉE : formulaire de signalement (FR/EN/PT) ===
   wizard_step_of: 'Passo {n} de 6',
+  // === AMÉLIORATION AJOUTÉE (formulaire sur portable — barre d'avancement) ===
+  wizard_mobile_next: 'A seguir',
+  wizard_mobile_secure: 'Confidencial',
   common_previous: 'Anterior',
   common_next: 'Seguinte',
   sub_identity: 'Identidade',

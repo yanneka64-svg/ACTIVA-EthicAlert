@@ -123,6 +123,10 @@ const CLOUD_FIELDS: (keyof AlertRecord)[] = [
   'subCategory',
   'detailedDescription',
   'incidentDates',
+  // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
+  'incidentLocation',
+  'isOngoing',
+  'customViolationType',
   'concernedEntity',
   'country',
   'impactType',

@@ -117,6 +117,11 @@ export interface Case extends Auditable {
   description: string;
   impactType?: string;
   estimatedImpactValue?: string;
+  // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === champs
+  // du formulaire public jusqu'ici conservés seulement sur l'appareil.
+  incidentLocation?: string;
+  isOngoing?: boolean;
+  customViolationType?: string;
 
   closedAt?: ISODateString;
   closedBy?: string;
@@ -160,6 +165,10 @@ export interface ReporterIdentity {
   reporterType?: 'employee' | 'consultant' | 'supplier' | 'customer' | 'business_partner' | 'other';
   email?: string;
   phone?: string;
+  // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === reçus du formulaire public.
+  declarantType?: string;
+  entity?: string;
+  country?: string;
   // Every read of this document by a staff user MUST be written to audit_logs
   // with actionType = 'REPORTER_IDENTITY_ACCESSED' (see caseRepository.ts).
 }

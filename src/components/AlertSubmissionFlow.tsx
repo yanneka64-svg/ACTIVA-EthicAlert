@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 // === AMÉLIORATION AJOUTÉE (Refactor AlertSubmissionFlow — extraction par
 // étape) === les icônes de chaque étape sont désormais importées par leur
 // composant respectif (src/components/submission/*). Seule l'icône du
@@ -25,6 +25,10 @@ import { submitReportToBackend } from '../services/casesCloudSync';
 import type { CaseMirrorInput, CaseMirrorResult } from '../services/casesCloudSync';
 import { isPhase4Configured } from '../services/firebaseClient';
 import { enqueueSubmission, flushSubmissionOutbox } from '../services/submissionOutbox';
+// === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
+import { buildReporterCaseDetails } from '../domain/alertToReporterSubmission';
+// === AMÉLIORATION AJOUTÉE (formulaire sur portable — évolution du remplissage) ===
+import { WizardMobileProgress } from './submission/WizardMobileProgress';
 
 /** Identifiant unique d'un dépôt (rend les nouveaux essais d'envoi sans doublon). */
 function newSubmissionId(): string {
@@ -90,6 +94,24 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
   // Step control (1 to 5 = form, 6 = acknowledgment)
   const [currentStep, setCurrentStep] = useState<number>(1);
+  // === AMÉLIORATION AJOUTÉE (formulaire sur portable — évolution du
+  // remplissage) === à chaque changement d'étape (bouton « Suivant » en bas
+  // d'un long formulaire, ou segment touché), le haut de la nouvelle étape
+  // revient à l'écran au lieu de laisser l'utilisateur au milieu de la page.
+  const formTopRef = useRef<HTMLDivElement>(null);
+  const isFirstStepRender = useRef(true);
+  useEffect(() => {
+    if (isFirstStepRender.current) {
+      isFirstStepRender.current = false;
+      return;
+    }
+    const el = formTopRef.current;
+    if (!el || typeof el.getBoundingClientRect !== 'function') return;
+    if (el.getBoundingClientRect().top < 0) {
+      const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }
+  }, [currentStep]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 33 — modale de confidentialité avant le
   // formulaire) === Affichée systématiquement à l'ouverture du formulaire de
@@ -202,6 +224,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
   // Submission result
   const [submittedAlert, setSubmittedAlert] = useState<AlertRecord | null>(null);
+  // === AMÉLIORATION AJOUTÉE (formulaire sur portable) === l'accusé de
+  // réception s'affiche depuis le haut (numéro de suivi et code visibles).
+  useEffect(() => {
+    if (!submittedAlert) return;
+    const el = formTopRef.current;
+    if (el && typeof el.getBoundingClientRect === 'function' && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start' });
+  }, [submittedAlert]);
   const [copiedTracking, setCopiedTracking] = useState(false);
 
   // Update subcategories when category changes
@@ -434,6 +463,19 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     // file d'attente : il sera renvoyé automatiquement (submissionOutbox.ts),
     // sans doublon grâce à `submissionId`.
     const submissionId = newSubmissionId();
+    // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === même
+    // objet que celui enregistré sur l'appareil (newRecord ci-dessous).
+    const whistleblowerInfo: AlertRecord['whistleblower'] = {
+      isAnonymous,
+      fullName: isAnonymous ? undefined : declarantName,
+      jobTitle: isAnonymous ? undefined : declarantJob,
+      department: isAnonymous ? undefined : declarantDept,
+      declarantType,
+      entity: isAnonymous ? undefined : declarantEntity,
+      email: isAnonymous ? undefined : declarantEmail,
+      phone: isAnonymous ? undefined : declarantPhone,
+      declarantCountry: isAnonymous ? undefined : declarantCountry,
+    };
     const mirrorInput: CaseMirrorInput = {
       category: selectedCategory,
       subcategory: selectedSubCategory,
@@ -444,6 +486,23 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
       confidentialityLevel,
       accessCode: generatedPassword,
       submissionId,
+      // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === tout
+      // le reste du formulaire (dates, lieu, personnes, témoins, impact,
+      // risque, identité en mode identifié, liste des pièces jointes).
+      details: buildReporterCaseDetails({
+        whistleblower: whistleblowerInfo,
+        incidentDates,
+        incidentLocation,
+        isOngoing,
+        impactType: customImpact.trim() || impactType,
+        estimatedImpactValue: estimatedImpactValue || undefined,
+        customViolationType: customViolation || undefined,
+        riskEvaluation: liveRisk,
+        involvedPersons,
+        witnesses,
+        evidences,
+        targetCompletionDate: targetDate.toISOString(),
+      }),
     };
     let serverResult: CaseMirrorResult | null = null;
     let queueForRetry = false;
@@ -453,6 +512,11 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
         serverResult = res.result;
         if (res.result.trackingNumber) trackingNumber = res.result.trackingNumber;
       } else if (res.retryable) {
+        queueForRetry = true;
+      } else {
+        // === AMÉLIORATION AJOUTÉE (aucun signalement perdu) === même refusé,
+        // le signalement est mis en file : la file le renvoie sans ses détails,
+        // puis le conserve et le renvoie chaque jour (submissionOutbox.ts).
         queueForRetry = true;
       }
     }
@@ -467,17 +531,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
       updatedAt: new Date().toISOString(),
       targetCompletionDate: targetDate.toISOString(),
       confidentialityLevel,
-      whistleblower: {
-        isAnonymous,
-        fullName: isAnonymous ? undefined : declarantName,
-        jobTitle: isAnonymous ? undefined : declarantJob,
-        department: isAnonymous ? undefined : declarantDept,
-        declarantType,
-        entity: isAnonymous ? undefined : declarantEntity,
-        email: isAnonymous ? undefined : declarantEmail,
-        phone: isAnonymous ? undefined : declarantPhone,
-        declarantCountry: isAnonymous ? undefined : declarantCountry,
-      },
+      // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === mêmes valeurs, définies plus haut.
+      whistleblower: whistleblowerInfo,
       category: selectedCategory,
       subCategory: selectedSubCategory,
       customViolationType: customViolation || undefined,
@@ -598,10 +653,17 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   return (
     // === AMÉLIORATION AJOUTÉE (formulaire — design modernisé) === classe
     // `activa-form` : styles et animations propres au formulaire (index.css).
-    <div className="activa-form max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    // === AMÉLIORATION AJOUTÉE (formulaire sur portable) === `formTopRef` :
+    // ramène le haut du formulaire à l'écran à chaque changement d'étape ;
+    // marge haute réduite sur mobile (la barre d'avancement prend le relais).
+    <div ref={formTopRef} className="activa-form max-w-6xl mx-auto pt-0 pb-8 lg:py-8 px-4 sm:px-6 lg:px-8 scroll-mt-2">
+      {/* === AMÉLIORATION AJOUTÉE (formulaire sur portable — évolution du
+          remplissage) === barre d'avancement compacte et collante, à la
+          place de la liste des étapes sous `lg`. */}
+      <WizardMobileProgress t={t} currentStep={currentStep} submittedAlert={submittedAlert} setCurrentStep={setCurrentStep} />
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
-        {/* Sidebar */}
-        <div className="activa-enter lg:sticky lg:top-6" style={{ '--d': '0ms' } as React.CSSProperties}>
+        {/* Sidebar — === AMÉLIORATION AJOUTÉE === masquée sur mobile (remplacée par WizardMobileProgress) */}
+        <div className="hidden lg:block activa-enter lg:sticky lg:top-6" style={{ '--d': '0ms' } as React.CSSProperties}>
         <WizardSidebar
           t={t}
           currentStep={currentStep}

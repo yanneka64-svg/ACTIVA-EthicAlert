@@ -12,6 +12,8 @@
  * Pur (aucune dépendance Firebase) : partagé par le serveur et les tests.
  */
 import type { Case, ConfidentialityLevel, ReportingMode } from './caseTypes';
+// === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
+import { parseHashedAccessCode, ReporterCaseDetails, sanitizeReporterCaseDetails } from './reporterCaseDetails';
 
 export const REPORTER_INPUT_LIMITS = {
   category: 150,
@@ -50,6 +52,12 @@ export interface ReporterCaseInput {
   entityCode?: string;
   /** Identifiant du dépôt : un nouvel essai avec le même identifiant renvoie le dossier déjà créé. */
   submissionId?: string;
+  // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
+  /** Reste du formulaire (dates, lieu, personnes, risque, identité, pièces), nettoyé sans jamais bloquer. */
+  details?: ReporterCaseDetails;
+  /** Signalement ancien sans code en clair : empreinte + sel déjà calculés sur l'appareil. */
+  accessCodeHash?: string;
+  accessCodeSalt?: string;
 }
 
 export type ReporterCaseInputResult = { ok: true; value: ReporterCaseInput } | { ok: false; error: string };
@@ -107,6 +115,16 @@ export function parseReporterCaseInput(input: unknown): ReporterCaseInputResult 
   if (raw.submissionId !== undefined) {
     if (typeof raw.submissionId !== 'string' || !SUBMISSION_ID_RE.test(raw.submissionId)) return { ok: false, error: 'Invalid submissionId.' };
     value.submissionId = raw.submissionId;
+  }
+  // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === détails
+  // nettoyés de façon tolérante : jamais un motif de refus du signalement.
+  if (raw.details !== undefined && raw.details !== null) {
+    const details = sanitizeReporterCaseDetails(raw.details, value.reportingMode);
+    if (Object.keys(details).length) value.details = details;
+  }
+  if (!value.accessCode && (raw.accessCodeHash !== undefined || raw.accessCodeSalt !== undefined)) {
+    const hashed = parseHashedAccessCode(raw.accessCodeHash, raw.accessCodeSalt);
+    if (hashed) Object.assign(value, hashed);
   }
   return { ok: true, value };
 }
