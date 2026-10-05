@@ -996,10 +996,12 @@ export const fr: Record<string, string> = {
   login_change_title: 'Changez votre mot de passe',
   login_change_intro: 'Première connexion de {name} : un nouveau mot de passe est requis avant d\'accéder à votre espace.',
   login_new_password: 'Nouveau mot de passe',
-  login_new_password_hint: '8 caractères minimum',
+  login_new_password_hint: '8 caractères minimum, avec majuscule, minuscule, chiffre et caractère spécial',
   login_confirm_password: 'Confirmer le nouveau mot de passe',
   login_error_too_short: 'Le mot de passe doit contenir au moins 8 caractères.',
   login_error_mismatch: 'Les deux mots de passe ne correspondent pas.',
+  // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) ===
+  login_error_policy: 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial (ex. ! @ # % & * ?).',
   login_change_submit: 'Définir ce mot de passe',
   login_change_pending: 'Mise à jour…',
   // === AMÉLIORATION AJOUTÉE : rôles, navigation, accueil, QR code (FR/EN/PT) ===

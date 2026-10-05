@@ -223,6 +223,26 @@ export function suggestStaffUsername(fullName: string, taken: string[] = []): st
   return '';
 }
 
+// === AMÉLIORATION AJOUTÉE (alignement sur la politique de mots de passe
+// Firebase Auth du projet) === même règle que la console Firebase
+// (Authentication → Règles relatives aux mots de passe) : 8 caractères
+// minimum, au moins une majuscule, une minuscule, un chiffre et un
+// caractère spécial. Caractères spéciaux : la liste reconnue par Firebase.
+export type StaffPasswordIssue = 'length' | 'uppercase' | 'lowercase' | 'digit' | 'special';
+
+export const STAFF_PASSWORD_SPECIAL_RE = /[\^$*.[\]{}()?"!@#%&/\\,><':;|_~`=+\-]/;
+
+/** Règles de la politique non respectées par `value` (liste vide = conforme). */
+export function staffPasswordPolicyIssues(value: string): StaffPasswordIssue[] {
+  const issues: StaffPasswordIssue[] = [];
+  if (value.length < STAFF_PASSWORD_MIN_LENGTH || value.length > STAFF_PASSWORD_MAX_LENGTH) issues.push('length');
+  if (!/[A-Z]/.test(value)) issues.push('uppercase');
+  if (!/[a-z]/.test(value)) issues.push('lowercase');
+  if (!/[0-9]/.test(value)) issues.push('digit');
+  if (!STAFF_PASSWORD_SPECIAL_RE.test(value)) issues.push('special');
+  return issues;
+}
+
 /** Nouveau mot de passe choisi par l'utilisateur. */
 export function validateStaffNewPassword(value: unknown): StaffParseResult<string> {
   if (typeof value !== 'string' || value.length < STAFF_PASSWORD_MIN_LENGTH) {
@@ -230,6 +250,11 @@ export function validateStaffNewPassword(value: unknown): StaffParseResult<strin
   }
   if (value.length > STAFF_PASSWORD_MAX_LENGTH) {
     return { ok: false, error: `Password must be at most ${STAFF_PASSWORD_MAX_LENGTH} characters.` };
+  }
+  // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) ===
+  const issues = staffPasswordPolicyIssues(value);
+  if (issues.length > 0) {
+    return { ok: false, error: `Password must contain an uppercase letter, a lowercase letter, a digit and a special character (missing: ${issues.join(', ')}).` };
   }
   return { ok: true, value };
 }

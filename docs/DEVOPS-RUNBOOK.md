@@ -339,6 +339,16 @@ Limite connue : l'outil interne *Suivre un dossier* (`CaseLookup.tsx`) se
 connecte par adresse Auth. Pour un compte créé depuis le portail, c'est
 l'adresse technique ci-dessus.
 
+**Politique de mots de passe** (alignée sur Firebase Authentication →
+Paramètres → Règles relatives aux mots de passe) : 8 caractères minimum, avec
+au moins une majuscule, une minuscule, un chiffre et un caractère spécial.
+Elle est appliquée par le portail (écran de changement de mot de passe), par
+la fonction `changeMyStaffPassword` et par *Bootstrap staff admin*
+(`STAFF_BOOTSTRAP_PASSWORD` doit la respecter). Les mots de passe temporaires
+générés à la création ou à la réinitialisation la respectent toujours. Les
+mots de passe déjà en place ne sont pas touchés. Une fois ce code déployé, le
+mode « Exiger » peut être activé dans la console sans bloquer personne.
+
 ### 3.10 Dossiers Firebase dans tous les écrans du portail
 === AMÉLIORATION AJOUTÉE (lecture des dossiers Firebase par le portail) ===
 

@@ -33,6 +33,7 @@ import {
   staffClaimsFor,
   staffScopeFor,
   STAFF_PASSWORD_MIN_LENGTH,
+  staffPasswordPolicyIssues,
 } from '../src/domain/staffAccounts';
 
 // === AMÉLIORATION AJOUTÉE (demande explicite) === même minimum que tout
@@ -50,6 +51,10 @@ async function main() {
   const password = process.env.STAFF_BOOTSTRAP_PASSWORD || '';
   if (password.length < BOOTSTRAP_PASSWORD_MIN_LENGTH || password.length > 128) {
     fail(`Le secret STAFF_BOOTSTRAP_PASSWORD doit contenir entre ${BOOTSTRAP_PASSWORD_MIN_LENGTH} et 128 caractères.`);
+  }
+  // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) ===
+  if (staffPasswordPolicyIssues(password).length > 0) {
+    fail('Le secret STAFF_BOOTSTRAP_PASSWORD doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial (politique Firebase du projet).');
   }
   const parsed = parseStaffAccountInput({
     name: process.env.STAFF_ADMIN_NAME,

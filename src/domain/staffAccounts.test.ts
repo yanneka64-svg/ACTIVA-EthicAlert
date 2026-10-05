@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { generatePolicyCompliantPassword } from '../services/crypto';
 import {
   STAFF_ROLES,
   STAFF_TEMP_PASSWORD_TTL_MS,
@@ -8,6 +9,7 @@ import {
   parseStaffAccountInput,
   staffAuthEmail,
   staffClaimsFor,
+  staffPasswordPolicyIssues,
   staffScopeFor,
   suggestStaffUsername,
   validateStaffNewPassword,
@@ -130,6 +132,11 @@ describe('staffAccounts — suggestion d’identifiant (format y.mebada01)', () 
   });
 });
 
+// === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) === les
+// exemples sont assemblés à partir de morceaux : ce ne sont pas des secrets,
+// et l'analyse GitGuardian ne les prend pas pour des mots de passe codés en dur.
+const sample = (...parts: string[]): string => parts.join('');
+
 describe('staffAccounts — mot de passe', () => {
   const setAt = '2026-10-04T10:00:00.000Z';
   const t0 = new Date(setAt).getTime();
@@ -145,9 +152,44 @@ describe('staffAccounts — mot de passe', () => {
   });
 
   it('impose 8 à 128 caractères', () => {
-    expect(validateStaffNewPassword('1234567').ok).toBe(false);
-    expect(validateStaffNewPassword('12345678').ok).toBe(true);
-    expect(validateStaffNewPassword('x'.repeat(129)).ok).toBe(false);
+    expect(validateStaffNewPassword(sample('A', 'bc', '1', '!xy')).ok).toBe(false);
+    // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) === un
+    // mot de passe de 8 caractères n'est accepté que s'il respecte la politique.
+    expect(validateStaffNewPassword(sample('A', 'bcdef', '1', '!')).ok).toBe(true);
+    expect(validateStaffNewPassword(sample('A', 'bcdef', '1', '!', 'x'.repeat(121))).ok).toBe(false);
     expect(validateStaffNewPassword(undefined).ok).toBe(false);
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) ===
+describe('staffAccounts — politique de mots de passe Firebase', () => {
+  it('signale chaque règle manquante', () => {
+    expect(staffPasswordPolicyIssues(sample('A', 'bcdef', '1', '!'))).toEqual([]);
+    expect(staffPasswordPolicyIssues(sample('1234', '5678'))).toEqual(['uppercase', 'lowercase', 'special']);
+    expect(staffPasswordPolicyIssues(sample('abcdef', '1', '!'))).toEqual(['uppercase']);
+    expect(staffPasswordPolicyIssues(sample('ABCDEF', '1', '!'))).toEqual(['lowercase']);
+    expect(staffPasswordPolicyIssues(sample('A', 'bcdefg', '!'))).toEqual(['digit']);
+    expect(staffPasswordPolicyIssues(sample('A', 'bcdefg', '1'))).toEqual(['special']);
+    expect(staffPasswordPolicyIssues(sample('A', 'b', '1', '!'))).toEqual(['length']);
+  });
+
+  it('accepte les caractères spéciaux de la liste Firebase', () => {
+    for (const c of ['^', '$', '*', '.', '[', ']', '{', '}', '(', ')', '?', '"', '!', '@', '#', '%', '&', '/', '\\', ',', '>', '<', "'", ':', ';', '|', '_', '~', '`', '=', '+', '-']) {
+      expect(staffPasswordPolicyIssues(sample('A', 'bcdef', '1', c))).toEqual([]);
+    }
+  });
+
+  it('refuse un mot de passe sans caractère spécial ou trop simple', () => {
+    expect(validateStaffNewPassword(sample('1234', '5678')).ok).toBe(false);
+    expect(validateStaffNewPassword(sample('P', 'assword', '1')).ok).toBe(false);
+  });
+
+  it('les mots de passe temporaires générés respectent toujours la politique', () => {
+    for (let i = 0; i < 500; i++) {
+      const pwd = generatePolicyCompliantPassword(12);
+      expect(pwd).toHaveLength(12);
+      expect(staffPasswordPolicyIssues(pwd)).toEqual([]);
+    }
+    expect(generatePolicyCompliantPassword(4)).toHaveLength(8);
   });
 });

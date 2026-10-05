@@ -45,6 +45,7 @@ import { syncStaffAuthSession } from '../services/staffAuthSync';
 // enregistrés dans Firebase) === connexion par identifiant contre Firebase
 // Auth en premier, vérification locale en repli (comptes locaux, compte de
 // secours) — voir services/staffAccountsClient.ts.
+import { staffPasswordPolicyIssues } from '../domain/staffAccounts';
 import {
   changeOwnStaffPassword,
   isStaffAuthConfigured,
@@ -201,6 +202,13 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
     if (!pendingUser) return;
     if (newPassword.length < 8) {
       setChangeError(t.login_error_too_short);
+      return;
+    }
+    // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) === même
+    // règle que Firebase Auth : majuscule, minuscule, chiffre et caractère
+    // spécial (src/domain/staffAccounts.ts), pour tous les comptes.
+    if (staffPasswordPolicyIssues(newPassword).length > 0) {
+      setChangeError(t.login_error_policy);
       return;
     }
     if (newPassword !== confirmPassword) {
