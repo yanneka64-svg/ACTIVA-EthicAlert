@@ -89,6 +89,8 @@ export interface TaskMirrorInput {
   owner: string;
   priority: CasePriority;
   dueDate: string;
+  /** === AMÉLIORATION AJOUTÉE === identifiant de la tâche dans le portail (repris par le serveur). */
+  clientId?: string;
 }
 export async function mirrorAddTask(input: TaskMirrorInput): Promise<boolean> {
   return (await call('addTask', input)) !== null;
@@ -164,6 +166,8 @@ export interface PersonMirrorInput {
   position?: string;
   hierarchyLevel?: HierarchyLevel;
   linkedUserId?: string;
+  /** === AMÉLIORATION AJOUTÉE === identifiant de la personne dans le portail (repris par le serveur). */
+  clientId?: string;
 }
 export async function mirrorAddPerson(input: PersonMirrorInput): Promise<boolean> {
   return (await call('addPerson', input)) !== null;

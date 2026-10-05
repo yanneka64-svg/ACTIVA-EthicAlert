@@ -40,6 +40,7 @@
  */
 import { AlertRecord, AlertStatus, NocaThreshold, PriorityLevel } from '../types';
 import { Case, CasePriority, CaseStatus } from './caseTypes';
+import { applyPortalState } from './portalUpdate';
 
 const STATUS_FROM_CASE: Record<CaseStatus, AlertStatus> = {
   new: 'new',
@@ -95,7 +96,10 @@ export function isCaseSummary(alert: { id: string }): boolean {
 export function caseToAlertSummary(kase: Case): AlertRecord {
   const priority = PRIORITY_FROM_CASE[kase.priority];
 
-  return {
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+  // travail du personnel enregistré sur le serveur (Case.portal) appliqué
+  // par-dessus la représentation déduite du dossier.
+  return applyPortalState<AlertRecord>({
     id: caseSummaryId(kase.caseId),
     trackingNumber: kase.caseNumber,
     accessCode: '',
@@ -149,5 +153,6 @@ export function caseToAlertSummary(kase: Case): AlertRecord {
     tasks: [],
     interviews: [],
     conflictDeclarations: [],
-  };
+    serverPortal: { ...(kase.portal ?? {}) },
+  }, kase.portal);
 }

@@ -62,6 +62,8 @@ import {
 } from '../../src/domain/caseTypes';
 import { can, implicatedUserIdsFromPersons, Permission } from '../../src/domain/permissions';
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
+// === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+import { PortalPatchError, PORTAL_KEYS, portalVisibleCaseStatus, sanitizePortalPatch, type PortalPatch } from '../../src/domain/portalUpdate';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
 import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src/domain/caseVisibility';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
@@ -187,6 +189,9 @@ function requireAppUser(request: CallableRequest): AppUser {
     createdAt: new Date(0).toISOString(),
   };
 }
+
+// === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur) === identifiant proposé par le portail.
+const CLIENT_ID_RE = /^[A-Za-z0-9_-]{3,80}$/;
 
 function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -709,7 +714,14 @@ export const addPerson = onCall(async (request) => {
     await requireCaseAccess(caseId, user, 'cases.assign');
   }
 
-  const personId = newId('per');
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur) === même
+  // identifiant que la copie du portail (rattachement ultérieur à un compte).
+  const clientPersonId = (input as { clientId?: unknown }).clientId;
+  delete (input as { clientId?: unknown }).clientId;
+  const personId =
+    typeof clientPersonId === 'string' && CLIENT_ID_RE.test(clientPersonId) && !(await db.collection('cases').doc(caseId).collection('persons').doc(clientPersonId).get()).exists
+      ? clientPersonId
+      : newId('per');
   const nowIso = new Date().toISOString();
   const person: Person = { ...input, personId, caseId, createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId };
   await db.collection('cases').doc(caseId).collection('persons').doc(personId).set(person);
@@ -803,7 +815,14 @@ export const addTask = onCall(async (request) => {
   }
   await requireCaseAccess(caseId, user, 'cases.edit');
 
-  const taskId = newId('tsk');
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur) === même
+  // identifiant que la copie du portail, pour que ses mises à jour suivantes
+  // (avancement de la tâche) désignent la bonne tâche.
+  const clientTaskId = (request.data as { clientId?: unknown }).clientId;
+  const taskId =
+    typeof clientTaskId === 'string' && CLIENT_ID_RE.test(clientTaskId) && !(await db.collection('cases').doc(caseId).collection('tasks').doc(clientTaskId).get()).exists
+      ? clientTaskId
+      : newId('tsk');
   const nowIso = new Date().toISOString();
   const task: Task = { taskId, caseId, title, description, owner, priority, dueDate, status: 'not_started', createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId };
   await db.collection('cases').doc(caseId).collection('tasks').doc(taskId).set(task);
@@ -1163,7 +1182,7 @@ export const getCaseForReporter = onCall(async (request) => {
   // meant to see (see docs/DATABASE.md).
   return {
     caseNumber: kase.caseNumber,
-    status: kase.status,
+    status: portalVisibleCaseStatus(kase.status, kase.portal), // === AMÉLIORATION AJOUTÉE (statut affiché par le portail) ===
     receivedAt: kase.receivedAt,
     description: kase.description,
     communications,
@@ -1308,7 +1327,7 @@ export const reporterConversation = onCall(async (request) => {
   }
   const [commsSnap, presence] = await Promise.all([ref.collection('communications').orderBy('createdAt', 'asc').get(), presenceRef.get()]);
   return {
-    status: kase.status,
+    status: portalVisibleCaseStatus(kase.status, kase.portal), // === AMÉLIORATION AJOUTÉE (statut affiché par le portail) ===
     communications: sanitizeCommunicationsForReporter(commsSnap.docs.map((d) => d.data() as Communication)),
     teamTypingAt: (presence.data()?.teamTypingAt as string | undefined) ?? null,
     ...(expiresAt - Date.now() < 30 * 60 * 1000 ? { sessionToken: await issueReporterSession(ref.id) } : {}),
@@ -2053,4 +2072,194 @@ export const getCaseDetails = onCall(async (request) => {
     for (const d of group) if (d) details.push(d);
   }
   return { details };
+});
+
+// ---------------------------------------------------------------------------
+// applyPortalUpdate
+// === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+// Enregistre le travail du personnel jusqu'ici conservé dans le seul
+// navigateur : attribution, statut affiché, clôture, réouverture, escalade,
+// routage indépendant, rapport d'enquête, avancement des tâches, rattachement
+// d'une personne à un compte. Chaque partie est contrôlée avec la permission
+// qui lui correspond ; une partie refusée n'empêche pas les autres et est
+// signalée dans la réponse. Toute modification est inscrite dans la piste
+// d'audit et l'historique du dossier.
+// ---------------------------------------------------------------------------
+
+export const applyPortalUpdate = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId, patch: rawPatch } = (request.data ?? {}) as { caseId?: string; patch?: unknown };
+  if (typeof caseId !== 'string' || !caseId || caseId.length > 128) throw new HttpsError('invalid-argument', 'caseId is required.');
+  let patch: PortalPatch;
+  try {
+    patch = sanitizePortalPatch(rawPatch);
+  } catch (e) {
+    throw new HttpsError('invalid-argument', e instanceof PortalPatchError ? e.message : 'Invalid patch.');
+  }
+
+  const ref = db.collection('cases').doc(caseId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError('not-found', `Case ${caseId} not found.`);
+  const kase = snap.data() as Case;
+  const personsSnap = await ref.collection('persons').get();
+  const persons = personsSnap.docs.map((d) => d.data() as Person);
+  const context = { case: kase, implicatedUserIds: implicatedUserIdsFromPersons(persons) };
+  if (!can(user, 'cases.read', context)) throw new HttpsError('permission-denied', 'Not authorized on this case.');
+
+  const applied: string[] = [];
+  const rejected: { part: string; reason: string }[] = [];
+  const nowIso = new Date().toISOString();
+  const update: Record<string, unknown> = {};
+
+  // 1. Statut affiché, clôture, réouverture, escalade, routage, rapport.
+  if (patch.portal) {
+    const target = patch.portal.workflowStatus ?? null;
+    const legacy = patch.portal.status ?? null;
+    const needed: Permission =
+      target === 'archived' || legacy === 'archived'
+        ? 'cases.archive'
+        : target === 'reopened' || legacy === 'reopened'
+          ? 'cases.reopen'
+          : target === 'closed' || legacy === 'closed'
+            ? 'cases.close'
+            : 'cases.edit';
+    if (can(user, needed, context)) {
+      for (const key of PORTAL_KEYS) {
+        if (!(key in patch.portal)) continue;
+        const value = (patch.portal as Record<string, unknown>)[key];
+        update[`portal.${key}`] = value === null ? FieldValue.delete() : value;
+      }
+      applied.push('portal');
+    } else {
+      rejected.push({ part: 'portal', reason: `Permission ${needed} required.` });
+    }
+  }
+
+  // 2. Attribution (liste vide = désattribution).
+  let assignment: { assignee: string | null; additionalInvestigators: string[] } | null = null;
+  if (patch.assignedInvestigators) {
+    if (!can(user, 'cases.assign', context)) {
+      rejected.push({ part: 'assignment', reason: 'Permission cases.assign required.' });
+    } else {
+      try {
+        const uids = Array.from(new Set(await Promise.all(patch.assignedInvestigators.map(resolveStaffUid))));
+        await Promise.all(uids.map(assertCaseBearingRole));
+        if (uids.some((uid) => context.implicatedUserIds.includes(uid))) {
+          throw new HttpsError('failed-precondition', 'A person implicated in this case cannot be assigned to it.');
+        }
+        assignment = { assignee: uids[0] ?? null, additionalInvestigators: uids.slice(1) };
+        update.assignee = assignment.assignee ?? FieldValue.delete();
+        update.additionalInvestigators = assignment.additionalInvestigators;
+        applied.push('assignment');
+      } catch (e) {
+        rejected.push({ part: 'assignment', reason: e instanceof Error ? e.message : 'Invalid assignment.' });
+      }
+    }
+  }
+
+  // 3. Rattachement d'une personne à un compte (même privilège que addPerson).
+  const linkChanges: { personId: string; previous: string | null; next: string | null }[] = [];
+  if (patch.personLinks?.length) {
+    if (!can(user, 'cases.assign', context)) {
+      rejected.push({ part: 'personLinks', reason: 'Permission cases.assign required.' });
+    } else {
+      const byId = new Map(persons.map((p) => [p.personId, p]));
+      for (const link of patch.personLinks) {
+        const person = byId.get(link.personId);
+        if (!person) continue;
+        let next: string | null = null;
+        if (link.linkedUserId) {
+          try {
+            next = await resolveStaffUid(link.linkedUserId);
+          } catch {
+            rejected.push({ part: `personLinks:${link.personId}`, reason: 'Unknown staff account.' });
+            continue;
+          }
+        }
+        if ((person.linkedUserId ?? null) === next) continue;
+        linkChanges.push({ personId: person.personId, previous: person.linkedUserId ?? null, next });
+        person.linkedUserId = next ?? undefined;
+      }
+      if (linkChanges.length) {
+        update.implicatedUserIds = implicatedUserIdsFromPersons(persons);
+        applied.push('personLinks');
+      }
+    }
+  }
+
+  // 4. Avancement des tâches.
+  const taskWrites: { taskId: string; data: Record<string, unknown> }[] = [];
+  if (patch.taskUpdates?.length) {
+    if (!can(user, 'cases.edit', context)) {
+      rejected.push({ part: 'taskUpdates', reason: 'Permission cases.edit required.' });
+    } else {
+      for (const u of patch.taskUpdates) {
+        const data: Record<string, unknown> = { updatedAt: nowIso, updatedBy: user.userId };
+        if (u.status) data.status = u.status;
+        if (u.completedAt !== undefined) data.completedAt = u.completedAt === null ? FieldValue.delete() : u.completedAt;
+        if (u.dueDate) data.dueDate = u.dueDate;
+        if (u.owner) data.owner = u.owner;
+        if (u.title) data.title = u.title;
+        taskWrites.push({ taskId: u.taskId, data });
+      }
+      applied.push('taskUpdates');
+    }
+  }
+
+  if (!applied.length) {
+    throw new HttpsError('permission-denied', rejected.map((r) => r.reason).join(' ') || 'Nothing to update.');
+  }
+
+  const batch = db.batch();
+  batch.update(ref, { ...update, updatedAt: nowIso, updatedBy: user.userId, lastActivityAt: nowIso });
+  for (const c of linkChanges) {
+    batch.update(ref.collection('persons').doc(c.personId), {
+      linkedUserId: c.next ?? FieldValue.delete(),
+      updatedAt: nowIso,
+      updatedBy: user.userId,
+    });
+  }
+  for (const w of taskWrites) {
+    const taskRef = ref.collection('tasks').doc(w.taskId);
+    if ((await taskRef.get()).exists) batch.update(taskRef, w.data as FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData>);
+  }
+  await batch.commit();
+
+  if (patch.portal && applied.includes('portal')) {
+    const p = patch.portal;
+    await appendAudit({
+      actorId: user.userId,
+      action: 'PORTAL_CASE_UPDATED',
+      caseId,
+      previousValue: { status: kase.portal?.status ?? null, workflowStatus: kase.portal?.workflowStatus ?? kase.status },
+      newValue: { fields: Object.keys(p), status: p.status ?? null, workflowStatus: p.workflowStatus ?? null },
+    });
+    await appendTimeline(caseId, 'PORTAL_UPDATED', user.userId, Object.keys(p).join(', '));
+  }
+  if (assignment) {
+    await appendAudit({
+      actorId: user.userId,
+      action: 'CASE_ASSIGNED',
+      caseId,
+      previousValue: { assignee: kase.assignee ?? null, additionalInvestigators: kase.additionalInvestigators ?? [] },
+      newValue: assignment,
+    });
+    await appendTimeline(caseId, 'ASSIGNED', user.userId, `Assignee: ${assignment.assignee ?? '-'}`);
+  }
+  for (const c of linkChanges) {
+    await appendAudit({
+      actorId: user.userId,
+      action: c.next ? 'PERSON_LINKED_TO_USER' : 'PERSON_LINK_REMOVED',
+      caseId,
+      objectType: 'person',
+      objectId: c.personId,
+      previousValue: c.previous,
+      newValue: c.next,
+    });
+  }
+  if (taskWrites.length) {
+    await appendAudit({ actorId: user.userId, action: 'TASKS_UPDATED', caseId, newValue: taskWrites.map((w) => w.taskId) });
+  }
+
+  return { ok: true, applied, rejected };
 });

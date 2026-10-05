@@ -56,6 +56,7 @@ import {
   Task,
 } from './caseTypes';
 import { caseSummaryId, caseToAlertSummary } from './caseToAlertSummary';
+import { PORTAL_LOCAL_ONLY_KEYS } from './portalUpdate';
 
 /** Réponse de la Cloud Function `getCaseDetails` pour un dossier. */
 export interface CaseDetail {
@@ -149,6 +150,8 @@ const CLOUD_FIELDS: (keyof AlertRecord)[] = [
   'mirroredCaseId',
   'mirroredCaseNumber',
   'cloudImported',
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+  'serverPortal',
 ];
 
 function personToLocal(p: Person): InvolvedPerson {
@@ -306,12 +309,22 @@ export function caseDetailToAlertRecord(
     mirroredCaseNumber: kase.caseNumber,
     cloudImported: true,
   };
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+  // le statut affiché enregistré par le portail l'emporte sur le statut déduit.
+  if (kase.portal?.workflowStatus) fresh.workflowStatus = kase.portal.workflowStatus;
 
   if (!existing) return fresh;
 
   const merged: AlertRecord = { ...existing };
   for (const key of CLOUD_FIELDS) {
     (merged as unknown as Record<string, unknown>)[key] = (fresh as unknown as Record<string, unknown>)[key];
+  }
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+  // travail du personnel : la valeur du serveur quand il en a une, sinon
+  // celle déjà saisie dans ce navigateur (envoyée ensuite au serveur).
+  for (const key of PORTAL_LOCAL_ONLY_KEYS) {
+    const serverValue = (fresh as unknown as Record<string, unknown>)[key];
+    if (serverValue !== undefined && serverValue !== null) (merged as unknown as Record<string, unknown>)[key] = serverValue;
   }
   // Pièces : celles connues de Firebase, plus celles ajoutées dans ce
   // navigateur (avec leur contenu) que Firebase ne connaît pas encore.
