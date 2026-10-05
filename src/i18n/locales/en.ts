@@ -257,6 +257,18 @@ export const en: Record<string, string> = {
   space_home_admin_desc: 'Configuration, user management and platform oversight.',
   space_home_general_title: 'Consultant Space',
   space_home_general_desc: 'Access to shared cases and technical support.',
+  // === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
+  adm_filter_all: 'All',
+  adm_no_result: 'No result for this search.',
+  users_subtitle: '{n} account(s) · roles, scope and platform access',
+  users_search_ph: 'Search a name, username, email…',
+  users_scope_all: 'All entities',
+  ent_subtitle: '{n} entity(ies) in {c} countries · the code prefixes case numbers',
+  ent_search_ph: 'Search an entity, a country, a code…',
+  ent_case_code: 'Case code',
+  risk_matrix_subtitle: 'Official report scoring scale (read only)',
+  risk_sla_subtitle: 'Target handling time, in days, by case priority',
+  risk_level: 'Level',
   // === AMÉLIORATION AJOUTÉE (accueil des espaces — tableau de bord) ===
   space_home_greeting: 'Hello, {name}',
   space_home_choose: 'Choose the workspace you want to work in.',

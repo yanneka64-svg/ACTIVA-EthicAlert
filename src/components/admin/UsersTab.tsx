@@ -19,7 +19,9 @@
  * que dupliqué.
  */
 import React, { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, KeyRound, Copy, CheckCircle2, Cloud, HardDrive } from 'lucide-react';
+import { Plus, Pencil, Trash2, KeyRound, Copy, CheckCircle2, Cloud, HardDrive, Users as UsersIcon, Mail, Building2 } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
+import { AdminPageHeader, SearchField } from '../ui/AdminControls';
 import { Language, UserProfile, UserRole } from '../../types';
 // === AMÉLIORATION AJOUTÉE : onglet traduit (FR/EN/PT) ===
 import { TRANSLATIONS } from '../../i18n/translations';
@@ -123,6 +125,45 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
   const [directoryTick, setDirectoryTick] = useState(0);
   useEffect(() => storage.subscribe(() => setDirectoryTick((n) => n + 1)), []);
   const listedUsers = directoryTick === 0 ? users : storage.getUsers();
+  // === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
+  // Recherche et filtre par rôle (affichage seulement).
+  const [userQuery, setUserQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const ROLE_NAME: Record<string, string> = {
+    reporter: t.role_badge_reporter,
+    investigator: t.users_role_investigator,
+    senior_investigator: t.users_role_senior_investigator,
+    functional_admin: t.users_role_functional_admin,
+    darc_compliance: t.role_badge_darc_compliance,
+    consultation: t.roles_consultation,
+    system_admin: t.users_role_system_admin,
+    security_admin: t.users_role_security_admin,
+    audit_committee: t.roles_audit_committee,
+    executive: t.role_badge_executive,
+  };
+  const ROLE_TONE: Record<string, { avatar: string; badge: string }> = {
+    system_admin: { avatar: 'from-slate-600 to-slate-800', badge: 'bg-slate-100 text-slate-700 ring-slate-200' },
+    security_admin: { avatar: 'from-slate-600 to-slate-800', badge: 'bg-slate-100 text-slate-700 ring-slate-200' },
+    functional_admin: { avatar: 'from-emerald-500 to-emerald-700', badge: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+    darc_compliance: { avatar: 'from-violet-500 to-violet-700', badge: 'bg-violet-50 text-violet-700 ring-violet-200' },
+    senior_investigator: { avatar: 'from-indigo-500 to-indigo-700', badge: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
+    investigator: { avatar: 'from-blue-500 to-blue-700', badge: 'bg-blue-50 text-blue-700 ring-blue-200' },
+  };
+  const toneFor = (role: string) => ROLE_TONE[role] ?? { avatar: 'from-amber-400 to-amber-600', badge: 'bg-amber-50 text-amber-700 ring-amber-200' };
+  const initialsOf = (name: string) =>
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() ?? '')
+      .join('');
+  const rolesPresent = Array.from(new Set(listedUsers.map((u) => u.role)));
+  const q = userQuery.trim().toLowerCase();
+  const shownUsers = listedUsers.filter(
+    (u) =>
+      (roleFilter === 'all' || u.role === roleFilter) &&
+      (!q || [u.name, u.username, u.email, u.roleTitle, u.entity].some((v) => (v ?? '').toLowerCase().includes(q)))
+  );
 
   // Message d'erreur lisible pour une Cloud Function de gestion des comptes.
   const cloudErrorMessage = (e: unknown, username: string): string => {
@@ -336,20 +377,23 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
 
   return (
     <>
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
-        <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">
-              {t.users_title}
-            </h3>
-          </div>
-          <button
-            onClick={openAddUser}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" /> {t.users_add_account}
-          </button>
-        </div>
+      {/* === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
+          en-tête avec icône, recherche, filtre par rôle, cartes de compte
+          avec initiales et rôle lisible. Mêmes actions qu'avant. */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5 text-xs">
+        <AdminPageHeader
+          icon={<UsersIcon />}
+          title={t.users_title}
+          subtitle={(t.users_subtitle || '{n}').replace('{n}', String(listedUsers.length))}
+          actions={
+            <button
+              onClick={openAddUser}
+              className="activa-shine inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold shadow-md shadow-blue-600/25 transition"
+            >
+              <Plus className="w-4 h-4" /> {t.users_add_account}
+            </button>
+          }
+        />
 
         {/* === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
             Indique où les comptes créés ici sont enregistrés. */}
@@ -365,16 +409,50 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
           </p>
         )}
 
-        <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
-          {listedUsers.map((u) => (
-            <div key={u.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50">
-              <div className="min-w-0">
-                <div className="font-bold text-slate-900 truncate">
-                  {u.name}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            {['all', ...rolesPresent].map((r) => {
+              const active = roleFilter === r;
+              const n = r === 'all' ? listedUsers.length : listedUsers.filter((u) => u.role === r).length;
+              return (
+                <button
+                  key={r}
+                  id={`users-filter-${r}`}
+                  type="button"
+                  onClick={() => setRoleFilter(r)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all duration-300 ${
+                    active ? 'bg-[#0B2545] border-[#0B2545] text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {r === 'all' ? t.adm_filter_all : ROLE_NAME[r] ?? r}
+                  <span className={`px-1.5 rounded-full text-[10px] ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>{n}</span>
+                </button>
+              );
+            })}
+          </div>
+          <SearchField id="users-search" value={userQuery} onChange={setUserQuery} placeholder={t.users_search_ph} />
+        </div>
+
+        {shownUsers.length === 0 ? (
+          <p className="py-10 text-center text-slate-400">{t.adm_no_result}</p>
+        ) : (
+        <div className="grid grid-cols-1 gap-2.5">
+          {shownUsers.map((u) => {
+            const tone = toneFor(u.role);
+            const scoped = (u.entities?.length ? u.entities : u.countries?.length ? u.countries : null)?.join(', ');
+            return (
+            <div key={u.id} className="group flex flex-col md:flex-row md:items-center gap-3 p-4 rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:border-slate-300 hover:shadow-[0_14px_30px_-20px_rgb(15_23_42/0.35)]">
+              <span className={`w-11 h-11 rounded-full bg-gradient-to-br ${tone.avatar} text-white text-sm font-extrabold flex items-center justify-center shrink-0 shadow-sm`}>
+                {initialsOf(u.name)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-[13px] text-[#0B2545] truncate">{u.name}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ring-1 ring-inset ${tone.badge}`}>{ROLE_NAME[u.role] ?? u.role}</span>
                   {/* === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) === */}
                   {SHOW_ACCOUNT_STORAGE_INDICATORS && firebaseConfigured && (
                     <span
-                      className={`ml-2 align-middle px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
                         u.authSource === 'firebase' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
                       }`}
                     >
@@ -382,19 +460,16 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                     </span>
                   )}
                 </div>
-                <div className="text-[11px] text-slate-500 truncate">
-                  <span className="font-mono">{u.username}</span> • {u.email} • {u.entity} ({formatCountryLabel(countries, u.country)})
+                {u.roleTitle && u.roleTitle !== ROLE_NAME[u.role] && <div className="text-[11.5px] text-slate-500 mt-0.5">{u.roleTitle}</div>}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-[11px] text-slate-500">
+                  <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono">{u.username}</span>
+                  <span className="inline-flex items-center gap-1 min-w-0"><Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" /><span className="truncate">{u.email}</span></span>
+                  <span className="inline-flex items-center gap-1 min-w-0"><Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" /><span className="truncate">{scoped ?? `${u.entity} (${formatCountryLabel(countries, u.country)})`}</span></span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="text-right">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-900">
-                    {u.role.toUpperCase()}
-                  </span>
-                  <div className="text-[10px] text-slate-400 mt-0.5">{u.roleTitle}</div>
-                </div>
-                <button onClick={() => openEditUser(u)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title={t.btn_modify}>
-                  <Pencil className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1 shrink-0 md:opacity-70 md:group-hover:opacity-100 transition-opacity">
+                <button onClick={() => openEditUser(u)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-600" title={t.btn_modify}>
+                  <Pencil className="w-4 h-4" />
                 </button>
                 {/* === AMÉLIORATION AJOUTÉE (régénération du mot de passe
                     temporaire) === recours si le mot de passe temporaire
@@ -402,28 +477,30 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                     transmission a échoué. */}
                 {resetPasswordConfirmId === u.id ? (
                   <div className="flex items-center gap-1">
-                    <button onClick={() => handleResetPassword(u)} className="px-1.5 py-1 rounded bg-amber-600 text-white font-bold text-[10px]">{t.common_confirm}</button>
-                    <button onClick={() => setResetPasswordConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">{t.btn_cancel}</button>
+                    <button onClick={() => handleResetPassword(u)} className="px-2 py-1 rounded-lg bg-amber-600 text-white font-bold text-[10px]">{t.common_confirm}</button>
+                    <button onClick={() => setResetPasswordConfirmId(null)} className="px-2 py-1 rounded-lg bg-slate-200 text-slate-700 text-[10px]">{t.btn_cancel}</button>
                   </div>
                 ) : (
-                  <button onClick={() => setResetPasswordConfirmId(u.id)} className="p-1.5 rounded-lg hover:bg-amber-100 text-amber-700" title={t.users_regen_password}>
-                    <KeyRound className="w-3.5 h-3.5" />
+                  <button onClick={() => setResetPasswordConfirmId(u.id)} className="p-2 rounded-xl hover:bg-amber-50 text-amber-600" title={t.users_regen_password}>
+                    <KeyRound className="w-4 h-4" />
                   </button>
                 )}
                 {deleteUserConfirmId === u.id ? (
                   <div className="flex items-center gap-1">
-                    <button onClick={() => handleDeleteUser(u)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">{t.common_confirm}</button>
-                    <button onClick={() => setDeleteUserConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">{t.btn_cancel}</button>
+                    <button onClick={() => handleDeleteUser(u)} className="px-2 py-1 rounded-lg bg-rose-600 text-white font-bold text-[10px]">{t.common_confirm}</button>
+                    <button onClick={() => setDeleteUserConfirmId(null)} className="px-2 py-1 rounded-lg bg-slate-200 text-slate-700 text-[10px]">{t.btn_cancel}</button>
                   </div>
                 ) : (
-                  <button onClick={() => setDeleteUserConfirmId(u.id)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title={t.common_delete}>
-                    <Trash2 className="w-3.5 h-3.5" />
+                  <button onClick={() => setDeleteUserConfirmId(u.id)} className="p-2 rounded-xl hover:bg-rose-50 text-rose-600" title={t.common_delete}>
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
+        )}
       </div>
 
       {/* MODAL: ADD/EDIT USER */}

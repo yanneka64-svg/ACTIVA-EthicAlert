@@ -19,7 +19,9 @@
  * et est passé en prop plutôt que dupliqué.
  */
 import React, { useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2 } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
+import { AdminPageHeader, SearchField } from '../ui/AdminControls';
 import { Language, UserProfile } from '../../types';
 // === AMÉLIORATION AJOUTÉE : onglet traduit (FR/EN/PT) ===
 import { TRANSLATIONS } from '../../i18n/translations';
@@ -91,52 +93,70 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ entities, countries, a
     onSaved(t.ent_deleted.replace('{name}', ent.name));
   };
 
+  // === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
+  // Recherche (affichage seulement).
+  const [entQuery, setEntQuery] = useState('');
+  const eq = entQuery.trim().toLowerCase();
+  const shownEntities = entities.filter((e) => !eq || [e.name, e.country, e.code].some((v) => (v ?? '').toLowerCase().includes(eq)));
+  const countryCount = new Set(entities.map((e) => e.country)).size;
+
   return (
     <>
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 text-xs">
-        <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">
-              {t.ent_title.replace('{n}', String(entities.length))}
-            </h3>
-          </div>
-          <button
-            onClick={openAddEntity}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" /> {t.ent_add}
-          </button>
-        </div>
-
+      {/* === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
+          en-tête avec icône, recherche, pays et code dossier
+          mis en avant sur chaque carte. Mêmes actions (modifier, supprimer). */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5 text-xs">
+        <AdminPageHeader
+          icon={<Building2 />}
+          tone="violet"
+          title={t.ent_title.replace('{n}', String(entities.length))}
+          subtitle={(t.ent_subtitle || '').replace('{n}', String(entities.length)).replace('{c}', String(countryCount))}
+          actions={
+            <>
+              <SearchField id="entities-search" value={entQuery} onChange={setEntQuery} placeholder={t.ent_search_ph} />
+              <button
+                onClick={openAddEntity}
+                className="activa-shine inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold shadow-md shadow-blue-600/25 transition whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" /> {t.ent_add}
+              </button>
+            </>
+          }
+        />
         {entities.length === 0 ? (
           <p className="text-slate-400 text-center py-8">{t.ent_none}</p>
+        ) : shownEntities.length === 0 ? (
+          <p className="text-slate-400 text-center py-8">{t.adm_no_result}</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {entities.map((ent) => (
-              <div key={ent.id} className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5 truncate">
-                    <span>{ent.flag}</span>
-                    <span className="truncate">{ent.name}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
-                    <span>{ent.country}</span>
-                    {/* === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) === */}
-                    <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono font-bold text-[10px]">{ent.code}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {shownEntities.map((ent) => (
+              <div
+                key={ent.id}
+                className="group flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-[0_14px_30px_-20px_rgb(76_29_149/0.45)]"
+              >
+                <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-50 to-violet-100 text-violet-700 ring-1 ring-inset ring-violet-200/70 flex items-center justify-center shrink-0 font-mono font-bold text-[11px]">
+                  {ent.flag}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-[13px] text-[#0B2545] truncate">{ent.name}</div>
+                  <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 min-w-0">
+                    <span className="truncate">{ent.country}</span>
+                    <span className="text-slate-300">·</span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-[#0B2545] text-white font-mono font-bold text-[10px] tracking-wide" title={t.ent_case_code}>{ent.code}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => openEditEntity(ent)} className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title={t.btn_modify}>
-                    <Pencil className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-0.5 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => openEditEntity(ent)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-600" title={t.btn_modify}>
+                    <Pencil className="w-4 h-4" />
                   </button>
                   {deleteEntityConfirmId === ent.id ? (
                     <div className="flex items-center gap-1">
-                      <button onClick={() => handleDeleteEntity(ent)} className="px-1.5 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">{t.common_confirm}</button>
-                      <button onClick={() => setDeleteEntityConfirmId(null)} className="px-1.5 py-1 rounded bg-slate-200 text-slate-700 text-[10px]">{t.btn_cancel}</button>
+                      <button onClick={() => handleDeleteEntity(ent)} className="px-2 py-1 rounded-lg bg-rose-600 text-white font-bold text-[10px]">{t.common_confirm}</button>
+                      <button onClick={() => setDeleteEntityConfirmId(null)} className="px-2 py-1 rounded-lg bg-slate-200 text-slate-700 text-[10px]">{t.btn_cancel}</button>
                     </div>
                   ) : (
-                    <button onClick={() => setDeleteEntityConfirmId(ent.id)} className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title={t.common_delete}>
-                      <Trash2 className="w-3.5 h-3.5" />
+                    <button onClick={() => setDeleteEntityConfirmId(ent.id)} className="p-2 rounded-xl hover:bg-rose-50 text-rose-600" title={t.common_delete}>
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
