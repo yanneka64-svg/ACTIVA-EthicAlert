@@ -349,6 +349,18 @@ générés à la création ou à la réinitialisation la respectent toujours. Le
 mots de passe déjà en place ne sont pas touchés. Une fois ce code déployé, le
 mode « Exiger » peut être activé dans la console sans bloquer personne.
 
+**Mot de passe oublié ou refusé.** Ne pas utiliser « Réinitialiser le mot de
+passe » de la console Firebase : l'e-mail part vers l'adresse technique du
+compte, qui ne reçoit rien. À la place :
+- un administrateur réinitialise le compte depuis Administration →
+  Utilisateurs (mot de passe temporaire, à changer à la connexion) ;
+- pour un administrateur bloqué, relancer *Bootstrap staff admin* avec le
+  même identifiant (voir plus haut).
+
+Le portail distingue désormais un mot de passe incorrect, un mot de passe qui
+ne respecte plus la politique (mode « Exiger ») et un blocage temporaire de
+Firebase après trop de tentatives.
+
 ### 3.10 Dossiers Firebase dans tous les écrans du portail
 === AMÉLIORATION AJOUTÉE (lecture des dossiers Firebase par le portail) ===
 

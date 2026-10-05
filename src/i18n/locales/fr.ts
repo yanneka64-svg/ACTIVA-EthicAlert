@@ -1002,6 +1002,9 @@ export const fr: Record<string, string> = {
   login_error_mismatch: 'Les deux mots de passe ne correspondent pas.',
   // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) ===
   login_error_policy: 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial (ex. ! @ # % & * ?).',
+  // === AMÉLIORATION AJOUTÉE (messages de connexion précis) ===
+  login_error_policy_signin: 'Votre mot de passe ne respecte plus la politique de sécurité. Demandez à un administrateur de le réinitialiser depuis Administration → Utilisateurs.',
+  login_error_too_many_firebase: 'Trop de tentatives de connexion. Patientez quelques minutes avant de réessayer, ou demandez à un administrateur de réinitialiser votre mot de passe.',
   login_change_submit: 'Définir ce mot de passe',
   login_change_pending: 'Mise à jour…',
   // === AMÉLIORATION AJOUTÉE : rôles, navigation, accueil, QR code (FR/EN/PT) ===

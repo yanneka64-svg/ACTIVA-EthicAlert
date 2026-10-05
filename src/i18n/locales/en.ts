@@ -816,6 +816,9 @@ export const en: Record<string, string> = {
   login_error_mismatch: 'The two passwords do not match.',
   // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) ===
   login_error_policy: 'The password must contain at least one uppercase letter, one lowercase letter, one digit and one special character (e.g. ! @ # % & * ?).',
+  // === AMÉLIORATION AJOUTÉE (messages de connexion précis) ===
+  login_error_policy_signin: 'Your password no longer meets the security policy. Ask an administrator to reset it from Administration → Users.',
+  login_error_too_many_firebase: 'Too many sign-in attempts. Wait a few minutes before trying again, or ask an administrator to reset your password.',
   login_change_submit: 'Set this password',
   login_change_pending: 'Updating…',
   // === AMÉLIORATION AJOUTÉE : rôles, navigation, accueil, QR code (FR/EN/PT) ===
