@@ -111,10 +111,13 @@ export function caseToAlertSummary(kase: Case): AlertRecord {
     subCategory: kase.subcategory,
     detailedDescription: kase.description,
     incidentDates: kase.incidentDate ?? '',
-    incidentLocation: '',
+    // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === champs
+    // désormais transmis par le formulaire public (vides pour un ancien dossier).
+    incidentLocation: kase.incidentLocation ?? '',
+    ...(kase.customViolationType ? { customViolationType: kase.customViolationType } : {}),
     concernedEntity: kase.entity,
     country: kase.country,
-    isOngoing: false,
+    isOngoing: kase.isOngoing ?? false,
     impactType: kase.impactType ?? '',
     estimatedImpactValue: kase.estimatedImpactValue,
     riskEvaluation: {

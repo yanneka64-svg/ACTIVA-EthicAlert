@@ -32,6 +32,9 @@
  * préalable à toute future mise en miroir des mutations ultérieures.
  */
 import { Case } from '../domain/caseTypes';
+// === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
+import type { ReporterCaseDetails } from '../domain/reporterCaseDetails';
+import { clampReporterCore } from '../domain/alertToReporterSubmission';
 import { getPhase4Functions, isPhase4Configured } from './firebaseClient';
 
 export interface CaseMirrorInput {
@@ -53,6 +56,12 @@ export interface CaseMirrorInput {
   entityCode?: string;
   /** Identifiant du dépôt : un nouvel essai renvoie le dossier déjà créé (jamais de doublon). */
   submissionId?: string;
+  // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
+  /** Reste du formulaire : dates, lieu, personnes, témoins, impact, risque, identité, pièces. */
+  details?: ReporterCaseDetails;
+  /** Signalement ancien (code en clair inconnu) : empreinte + sel du code d'accès. */
+  accessCodeHash?: string;
+  accessCodeSalt?: string;
 }
 
 export interface CaseMirrorResult {
@@ -95,7 +104,10 @@ export async function submitReportToBackend(input: CaseMirrorInput, timeoutMs = 
     const functions = await getPhase4Functions();
     const { httpsCallable } = await import('firebase/functions');
     const fn = httpsCallable<CaseMirrorInput, CaseMirrorResult>(functions, 'createCaseAsReporter', { timeout: timeoutMs });
-    const response = await fn(input);
+    // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === cœur
+    // ramené aux tailles acceptées par le serveur : un texte très long ne
+    // fait jamais refuser l'enregistrement.
+    const response = await fn(clampReporterCore(input));
     return { ok: true, result: response.data };
   } catch (e) {
     const code = typeof e === 'object' && e && 'code' in e ? String((e as { code: unknown }).code) : '';

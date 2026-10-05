@@ -54,6 +54,8 @@ import {
   Person,
   // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4) ===
   ReporterCredentials,
+  // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
+  ReporterIdentity,
   RiskAssessment,
   RoleId,
   Task,
@@ -66,6 +68,8 @@ import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src
 import { caseQueryEqualities, normalizePagination } from '../../src/domain/caseQuery';
 // === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution de la soumission publique.
 import { formatTrackingNumber, parseReporterCaseInput } from '../../src/domain/reporterCaseInput';
+// === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
+import type { ReporterCaseDetails } from '../../src/domain/reporterCaseDetails';
 // === AMÉLIORATION AJOUTÉE : réutilise le HASH/SALT existant, jamais réimplémenté ===
 // Same salted, iterated-SHA256 verification already used by the legacy
 // client-side AlertTrackingView (src/components/AlertTrackingView.tsx) —
@@ -1216,6 +1220,96 @@ export const addCommunicationAsReporter = onCall(async (request) => {
 // d'être un enregistrement orphelin sans aucun identifiant de suivi.
 // ---------------------------------------------------------------------------
 
+// === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
+/** Champs du dossier issus des détails du formulaire public. */
+function reporterDetailsCaseFields(details: ReporterCaseDetails | undefined): Partial<Case> {
+  if (!details) return {};
+  const out: Partial<Case> = {};
+  if (details.incidentDates) {
+    out.incidentDate = details.incidentDates;
+    out.incidentDateUnknown = false;
+  }
+  if (details.incidentLocation) out.incidentLocation = details.incidentLocation;
+  if (details.isOngoing !== undefined) out.isOngoing = details.isOngoing;
+  if (details.impactType) out.impactType = details.impactType;
+  if (details.estimatedImpactValue) out.estimatedImpactValue = details.estimatedImpactValue;
+  if (details.customViolationType) out.customViolationType = details.customViolationType;
+  if (details.slaDueAt) {
+    out.slaStartAt = new Date().toISOString();
+    out.slaDueAt = details.slaDueAt;
+  }
+  if (details.risk) {
+    out.riskScore = details.risk.totalScore;
+    out.priority = details.risk.priority;
+  }
+  return out;
+}
+
+/** Documents à écrire avec le dossier : personnes, évaluation du risque, pièces, identité (mode identifié). */
+function reporterDetailsWrites(
+  caseRef: FirebaseFirestore.DocumentReference,
+  caseId: string,
+  details: ReporterCaseDetails | undefined,
+  reportingMode: Case['reportingMode'],
+  nowIso: string
+): { ref: FirebaseFirestore.DocumentReference; data: object }[] {
+  if (!details) return [];
+  const audit = { createdAt: nowIso, createdBy: 'reporter', updatedAt: nowIso, updatedBy: 'reporter' };
+  const writes: { ref: FirebaseFirestore.DocumentReference; data: object }[] = [];
+  (details.persons ?? []).forEach((p, i) => {
+    const personId = `person-${caseId}-${i + 1}`;
+    const person: Person = {
+      personId, caseId, kind: p.kind, name: p.name,
+      ...(p.position ? { position: p.position } : {}),
+      ...(p.hierarchyLevel ? { hierarchyLevel: p.hierarchyLevel } : {}),
+      ...audit,
+    };
+    writes.push({ ref: caseRef.collection('persons').doc(personId), data: person });
+  });
+  if (details.risk) {
+    const assessmentId = `risk-${caseId}-reporter`;
+    const assessment: RiskAssessment = {
+      assessmentId, caseId,
+      financialImpact: details.risk.financialImpact,
+      hierarchicalLevel: details.risk.hierarchicalLevel,
+      recurrence: details.risk.recurrence,
+      reputationRisk: details.risk.reputationRisk,
+      totalScore: details.risk.totalScore,
+      priority: details.risk.priority,
+      isOverride: false,
+      active: true,
+      ...audit,
+    };
+    writes.push({ ref: caseRef.collection('risk_assessments').doc(assessmentId), data: assessment });
+  }
+  (details.evidence ?? []).forEach((e, i) => {
+    const evidenceId = `evidence-${caseId}-${i + 1}`;
+    const evidence: Evidence = {
+      evidenceId, caseId, fileName: e.name, fileType: e.type, fileSize: e.size,
+      description: 'Pièce déposée par le déclarant avec son signalement (fichier conservé sur son appareil, non transmis).',
+      version: 1, confidentiality: 'restricted', status: 'active',
+      ...audit,
+    };
+    writes.push({ ref: caseRef.collection('evidence').doc(evidenceId), data: evidence });
+  });
+  if (reportingMode === 'identified' && details.identity) {
+    const id = details.identity;
+    const identity: ReporterIdentity = {
+      caseId, isAnonymous: false,
+      ...(id.fullName ? { fullName: id.fullName } : {}),
+      ...(id.jobTitle ? { jobTitle: id.jobTitle } : {}),
+      ...(id.department ? { department: id.department } : {}),
+      ...(id.declarantType ? { declarantType: id.declarantType } : {}),
+      ...(id.email ? { email: id.email } : {}),
+      ...(id.phone ? { phone: id.phone } : {}),
+      ...(id.entity ? { entity: id.entity } : {}),
+      ...(id.country ? { country: id.country } : {}),
+    };
+    writes.push({ ref: db.collection('reporter_identities').doc(caseId), data: identity });
+  }
+  return writes;
+}
+
 // === AMÉLIORATION AJOUTÉE (revue PR #139) === limitation de débit DURABLE
 // des créations publiques, par adresse IP (compteur Firestore dans
 // `rate_limits`, fermé aux clients par firestore.rules) : vérifiée AVANT
@@ -1272,6 +1366,9 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     description: data.description,
     legalHold: false,
     implicatedUserIds: [],
+    // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === reste
+    // du formulaire public (nettoyé par sanitizeReporterCaseDetails).
+    ...reporterDetailsCaseFields(data.details),
     // === AMÉLIORATION AJOUTÉE (revue PR #139) === voir Case.externalReference
     // (posé dans la transaction ci-dessous, seulement si la réservation réussit).
     createdAt: nowIso,
@@ -1283,10 +1380,19 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   // lanceur d'alerte par le formulaire est réutilisé (seule son empreinte
   // est stockée) : ses identifiants de suivi ouvrent aussi ce dossier réel.
   // À défaut, un code est généré comme avant.
-  const accessCode = data.accessCode ?? generateAccessPassword();
-  const accessCodeSalt = generateSalt();
-  const accessCodeHash = await hashPassword(accessCode, accessCodeSalt);
-  const credentials: ReporterCredentials = { caseId, accessCodeHash, accessCodeSalt };
+  // === AMÉLIORATION AJOUTÉE (rattrapage des signalements anciens) === un
+  // signalement déposé avant l'envoi au serveur n'a plus son code en clair :
+  // l'empreinte déjà calculée sur l'appareil est reprise telle quelle
+  // (formats stricts, voir parseHashedAccessCode).
+  let credentials: ReporterCredentials;
+  if (!data.accessCode && data.accessCodeHash && data.accessCodeSalt) {
+    credentials = { caseId, accessCodeHash: data.accessCodeHash, accessCodeSalt: data.accessCodeSalt };
+  } else {
+    const accessCode = data.accessCode ?? generateAccessPassword();
+    const accessCodeSalt = generateSalt();
+    const accessCodeHash = await hashPassword(accessCode, accessCodeSalt);
+    credentials = { caseId, accessCodeHash, accessCodeSalt };
+  }
 
   // === AMÉLIORATION AJOUTÉE (revue PR #139 — unicité du numéro de suivi) ===
   // Réservation du numéro de suivi local, dossier et identifiants écrits dans
@@ -1352,6 +1458,12 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     }
     tx.set(caseRef, doc);
     tx.set(credsRef, credentials);
+    // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === mêmes
+    // collections que celles lues par getCaseDetails (personnes, risque,
+    // pièces) et getReporterIdentity (identité, accès audité).
+    for (const w of reporterDetailsWrites(caseRef, caseId, data.details, data.reportingMode, nowIso)) {
+      tx.set(w.ref, w.data);
+    }
     if (submissionRef) {
       tx.create(submissionRef, { caseId, caseNumber: kase.caseNumber, trackingNumber, createdAt: nowIso });
     }

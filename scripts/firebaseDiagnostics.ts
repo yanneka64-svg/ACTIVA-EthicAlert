@@ -39,6 +39,17 @@ async function main() {
         `attribué=${c.assignee ? 'oui' : 'non'}`,
       ].join(' | ')
     );
+    // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === contenu
+    // détaillé réellement stocké (comptes uniquement, aucune donnée personnelle).
+    const [persons, evidence, risks, identity] = await Promise.all([
+      d.ref.collection('persons').count().get(),
+      d.ref.collection('evidence').count().get(),
+      d.ref.collection('risk_assessments').count().get(),
+      db.collection('reporter_identities').doc(d.id).get(),
+    ]);
+    console.log(
+      `    ↳ dates=${c.incidentDate ? 'oui' : 'non'} | lieu=${c.incidentLocation ? 'oui' : 'non'} | impact=${c.impactType ? 'oui' : 'non'} | priorité=${c.priority} | score=${c.riskScore} | personnes=${persons.data().count} | pièces=${evidence.data().count} | évaluations=${risks.data().count} | identité=${identity.exists ? 'oui' : 'non'} | échéance=${c.slaDueAt ? 'oui' : 'non'}`
+    );
   }
 
   const refs = await db.collection('external_references').orderBy('createdAt', 'desc').limit(10).get();

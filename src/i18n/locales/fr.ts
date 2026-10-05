@@ -1073,6 +1073,9 @@ export const fr: Record<string, string> = {
   track_no_evidence: 'Aucune pièce déposée',
   // === AMÉLIORATION AJOUTÉE : formulaire de signalement (FR/EN/PT) ===
   wizard_step_of: 'Étape {n} sur 6',
+  // === AMÉLIORATION AJOUTÉE (formulaire sur portable — barre d'avancement) ===
+  wizard_mobile_next: 'Ensuite',
+  wizard_mobile_secure: 'Confidentiel',
   common_previous: 'Précédent',
   common_next: 'Suivant',
   sub_identity: 'Identité',
