@@ -12,7 +12,7 @@
 #   - fédération d'identité configurée (variables GCP_WORKLOAD_IDENTITY_PROVIDER
 #     et GCP_DEPLOY_SERVICE_ACCOUNT) ;
 #   - rôles Firebase Authentication Admin et Cloud Datastore User sur ce compte ;
-#   - secret GitHub STAFF_BOOTSTRAP_PASSWORD (12 caractères minimum) : mot de
+#   - secret GitHub STAFF_BOOTSTRAP_PASSWORD (8 caractères minimum) : mot de
 #     passe initial, jamais affiché, à changer à la première connexion (4 h).
 name: Bootstrap staff admin
 
