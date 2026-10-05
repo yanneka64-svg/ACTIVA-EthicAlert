@@ -6,6 +6,11 @@ name: E2E public submission (diagnostic)
 
 on:
   workflow_dispatch:
+    inputs:
+      real:
+        description: "Envoyer vraiment le dépôt (crée un dossier de test à classer sans suite)"
+        type: boolean
+        default: false
 
 jobs:
   e2e:
@@ -21,5 +26,7 @@ jobs:
         run: |
           python3 -m pip install --quiet playwright==1.55.0
           python3 -m playwright install --with-deps chromium
-      - name: Replay a public submission (intercepted)
+      - name: Replay a public submission
+        env:
+          REAL: ${{ inputs.real && '1' || '0' }}
         run: python3 scripts/e2e_public_submission.py
