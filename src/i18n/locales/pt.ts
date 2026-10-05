@@ -871,6 +871,15 @@ export const pt: Record<string, string> = {
   track_delete_confirm: 'Confirmar a eliminação irreversível?',
   track_delete_yes: 'Sim, eliminar',
   track_download_receipt: 'Descarregar o comprovativo',
+  // === AMÉLIORATION AJOUTÉE (accusé de réception imprimable) ===
+  receipt_print_title: 'Aviso de receção',
+  receipt_print_intro: 'A sua denúncia foi registada na plataforma activa-whistleblowing do Grupo ACTIVA. Será tratada de forma confidencial, apenas pelas pessoas autorizadas.',
+  receipt_print_submitted: 'Data de submissão',
+  receipt_print_status: 'Estado',
+  receipt_print_identity: 'Modo de denúncia',
+  receipt_print_keep_title: 'Guarde este documento em local seguro',
+  receipt_print_track_hint: 'Para acompanhar o seu processo e comunicar com a equipa de investigação: secção «Acompanhar a minha denúncia» da plataforma, com o número do processo e a palavra-passe.',
+  receipt_print_footer: 'Documento confidencial — Grupo ACTIVA — activa-whistleblowing',
   track_no_messages: 'Ainda não há mensagens. Pode colocar uma questão ou enviar elementos adicionais aos investigadores.',
   track_no_evidence: 'Nenhum ficheiro submetido',
   // === AMÉLIORATION AJOUTÉE : formulaire de signalement (FR/EN/PT) ===

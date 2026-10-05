@@ -871,6 +871,15 @@ export const en: Record<string, string> = {
   track_delete_confirm: 'Confirm permanent deletion?',
   track_delete_yes: 'Yes, delete',
   track_download_receipt: 'Download the receipt',
+  // === AMÉLIORATION AJOUTÉE (accusé de réception imprimable) ===
+  receipt_print_title: 'Acknowledgment of receipt',
+  receipt_print_intro: 'Your report has been recorded on the ACTIVA Group activa-whistleblowing platform. It will be handled confidentially, only by authorised persons.',
+  receipt_print_submitted: 'Submission date',
+  receipt_print_status: 'Status',
+  receipt_print_identity: 'Reporting mode',
+  receipt_print_keep_title: 'Keep this document in a safe place',
+  receipt_print_track_hint: 'To follow your case and communicate with the investigation team: use “Track my report” on the platform, with your case number and password.',
+  receipt_print_footer: 'Confidential document — ACTIVA Group — activa-whistleblowing',
   track_no_messages: 'No messages yet. You can ask a question or send additional details to the investigators.',
   track_no_evidence: 'No files submitted',
   // === AMÉLIORATION AJOUTÉE : formulaire de signalement (FR/EN/PT) ===
