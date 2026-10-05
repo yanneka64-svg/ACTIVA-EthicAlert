@@ -17,6 +17,8 @@ import { Language, AlertRecord } from '../../types';
 import { storage } from '../../services/storage';
 import { formatCountryLabel } from '../../data/activaConfig';
 import { trData } from '../../i18n/dataLabels';
+// === AMÉLIORATION AJOUTÉE (accusé de réception imprimable) ===
+import { ReceiptPrintView } from '../ReceiptPrintView';
 
 interface TrackingOverviewTabProps {
   t: Record<string, string>;
@@ -298,6 +300,8 @@ export const TrackingOverviewTab: React.FC<TrackingOverviewTabProps> = ({
           </button>
         </div>
       </div>
+      {/* === AMÉLIORATION AJOUTÉE (accusé de réception imprimable) === seul contenu imprimé par « Télécharger le récépissé » (sans mot de passe, inconnu ici). */}
+      <ReceiptPrintView t={t} alert={activeAlert} />
     </>
   );
 };

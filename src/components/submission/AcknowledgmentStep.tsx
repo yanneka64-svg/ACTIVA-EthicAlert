@@ -13,6 +13,8 @@ import React from 'react';
 import { CheckCircle2, Copy, Lock, Search, Clock, Download, ArrowRight } from 'lucide-react';
 import { AlertRecord } from '../../types';
 import { Button } from '../ui';
+// === AMÉLIORATION AJOUTÉE (accusé de réception imprimable) ===
+import { ReceiptPrintView } from '../ReceiptPrintView';
 
 interface AcknowledgmentStepProps {
   t: Record<string, string>;
@@ -140,6 +142,8 @@ export const AcknowledgmentStep: React.FC<AcknowledgmentStepProps> = ({
           <ArrowRight className="w-4 h-4 text-amber-400" />
         </Button>
       </div>
+      {/* === AMÉLIORATION AJOUTÉE (accusé de réception imprimable) === seul contenu imprimé par « Télécharger l'Accusé de Réception ». */}
+      <ReceiptPrintView t={t} alert={submittedAlert} password={password} />
     </div>
   );
 };
