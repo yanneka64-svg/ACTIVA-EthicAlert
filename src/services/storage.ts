@@ -1,4 +1,4 @@
-import { AlertRecord, AuditLogEntry, CaseInterview, CaseTask, ConflictDeclaration, UserProfile, UserRole, EscalationRecipient } from '../types';
+import { AlertRecord, AuditLogEntry, CaseMessage, CaseInterview, CaseTask, ConflictDeclaration, UserProfile, UserRole, EscalationRecipient } from '../types';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === signalement des échecs d'enregistrement localStorage.
 import { reportPersistFailure } from './persistFailure';
 import { INITIAL_ALERTS, INITIAL_AUDIT_LOGS, INITIAL_USERS, ACTIVA_ENTITIES, ALERT_CATEGORIES, ACTIVA_COUNTRIES, EntityDef, CategoryDef, CountryDef, SlaConfig, DEFAULT_SLA_CONFIG, HierarchyLevels, DEFAULT_HIERARCHY_LEVELS, INITIAL_ESCALATION_RECIPIENTS } from '../data/activaConfig';
@@ -639,6 +639,24 @@ class StorageService {
   // technique et jamais affiché à l'écran, même principe que le miroir
   // lui-même ; pas de mise à jour de `updatedAt` non plus, pour ne jamais
   // faire apparaître ce lien comme une modification métier du dossier.
+  /**
+   * === AMÉLIORATION AJOUTÉE (messagerie déclarant → équipe) ===
+   * Ajoute à un dossier créé dans ce navigateur les messages du déclarant
+   * enregistrés sur le serveur (réponses envoyées depuis son téléphone).
+   * Seuls les messages absents (même identifiant) sont ajoutés, triés par
+   * date ; ni audit ni renvoi vers le serveur (ils en viennent).
+   */
+  public mergeReporterMessagesFromCloud(alertId: string, messages: CaseMessage[]): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert || messages.length === 0) return;
+    const known = new Set(alert.messages.map((m) => m.id));
+    const added = messages.filter((m) => !known.has(m.id));
+    if (added.length === 0) return;
+    alert.messages = [...alert.messages, ...added].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+    this.persistAlerts();
+    this.notify();
+  }
+
   public linkMirroredCase(alertId: string, caseId: string, caseNumber: string): void {
     const alert = this.alerts.find((a) => a.id === alertId);
     if (!alert) return;
