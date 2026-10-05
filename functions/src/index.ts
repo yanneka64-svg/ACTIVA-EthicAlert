@@ -269,7 +269,21 @@ async function assertCaseBearingRole(uid: string): Promise<void> {
   }
 }
 
+// === AMÉLIORATION AJOUTÉE (chargement rapide du portail) ===
+/**
+ * Date de dernière activité du dossier (toute action : statut, message,
+ * tâche, note…). Le portail ne recharge le détail d'un dossier que si cette
+ * date ou `updatedAt` a changé depuis son dernier chargement. `update()`
+ * (jamais `set`) : ne crée jamais de document ; un échec n'empêche jamais
+ * l'action elle-même.
+ */
+async function touchCaseActivity(caseId: string): Promise<void> {
+  await db.collection('cases').doc(caseId).update({ lastActivityAt: new Date().toISOString() }).catch(() => {});
+}
+
 async function appendTimeline(caseId: string, label: string, actor: string, details?: string) {
+  // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) ===
+  await touchCaseActivity(caseId);
   const eventId = newId('tl');
   await db.collection('cases').doc(caseId).collection('timeline').doc(eventId).set({
     eventId,
@@ -783,6 +797,8 @@ export const addTask = onCall(async (request) => {
   const nowIso = new Date().toISOString();
   const task: Task = { taskId, caseId, title, description, owner, priority, dueDate, status: 'not_started', createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId };
   await db.collection('cases').doc(caseId).collection('tasks').doc(taskId).set(task);
+  // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) ===
+  await touchCaseActivity(caseId);
 
   return { taskId };
 });
@@ -820,6 +836,8 @@ export const addInterview = onCall(async (request) => {
     updatedBy: user.userId,
   };
   await db.collection('cases').doc(caseId).collection('interviews').doc(interviewId).set(interview);
+  // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) ===
+  await touchCaseActivity(caseId);
 
   return { interviewId };
 });
@@ -844,6 +862,8 @@ export const addInvestigationNote = onCall(async (request) => {
     noteId, caseId, authorId: user.userId, content, createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId,
   });
   await appendAudit({ actorId: user.userId, action: 'INVESTIGATION_NOTE_ADDED', caseId });
+  // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) ===
+  await touchCaseActivity(caseId);
 
   return { noteId };
 });
@@ -1775,13 +1795,15 @@ export const getCaseDetails = onCall(async (request) => {
   const byCreatedAt = <T extends { createdAt?: string }>(items: T[]) =>
     items.sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')));
 
-  const details = [];
-  for (const caseId of caseIds) {
+  // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) === dossiers
+  // lus EN PARALLÈLE (par groupes de 10) au lieu d'un par un : même
+  // contrôle d'accès et même contenu, ordre des résultats conservé.
+  const loadOne = async (caseId: string) => {
     let access: { ref: FirebaseFirestore.DocumentReference; kase: Case };
     try {
       access = await requireCaseAccess(caseId, user, 'cases.read');
     } catch {
-      continue;
+      return null;
     }
     const { ref, kase } = access;
     const [persons, tasks, interviews, notes, actions, risks, cois] = await Promise.all([
@@ -1804,7 +1826,7 @@ export const getCaseDetails = onCall(async (request) => {
           .filter((e) => e.status !== 'deleted')
       : [];
 
-    details.push({
+    return {
       case: kase,
       persons: byCreatedAt(personList),
       tasks: byCreatedAt(tasks.docs.map((d) => d.data() as Task)),
@@ -1815,7 +1837,13 @@ export const getCaseDetails = onCall(async (request) => {
       riskAssessment: risks.empty ? null : (risks.docs[0].data() as RiskAssessment),
       coiDeclarations: cois.docs.map((d) => d.data() as ConflictOfInterestDeclaration),
       evidence: byCreatedAt(evidence),
-    });
+    };
+  };
+  const details = [];
+  const CONCURRENCY = 10;
+  for (let i = 0; i < caseIds.length; i += CONCURRENCY) {
+    const group = await Promise.all(caseIds.slice(i, i + CONCURRENCY).map(loadOne));
+    for (const d of group) if (d) details.push(d);
   }
   return { details };
 });

@@ -27,7 +27,7 @@
  * (la copie locale est alors laissée telle quelle).
  */
 import { AlertRecord, UserProfile } from '../types';
-import { AppUser } from '../domain/caseTypes';
+import { AppUser, Case } from '../domain/caseTypes';
 import { CaseDetail, caseDetailToAlertRecord } from '../domain/caseDetailToAlert';
 import { caseSummaryId } from '../domain/caseToAlertSummary';
 import { getPhase4Firebase, getPhase4Functions, isPhase4Configured } from './firebaseClient';
@@ -74,6 +74,56 @@ export function isFreshLocalEdit(localUpdatedAt: string | undefined, cloudUpdate
   return now - local < LOCAL_EDIT_GRACE_MS && (Number.isNaN(cloud) || local > cloud);
 }
 
+// === AMÉLIORATION AJOUTÉE (chargement rapide du portail) ===
+// Empreinte (`updatedAt` + `lastActivityAt`) de chaque dossier au moment de
+// son dernier chargement complet : un dossier inchangé n'est plus rechargé
+// (getCaseDetails) à chaque synchronisation. Rechargement complet de
+// sécurité toutes les 10 minutes.
+const FINGERPRINTS_KEY = 'activa_cloud_case_fingerprints_v1';
+const FULL_REFRESH_MS = 10 * 60 * 1000;
+// Démarre « à jour » : à la connexion, une copie locale déjà présente
+// (empreintes enregistrées) évite de tout recharger ; le rechargement
+// complet de sécurité a lieu 10 minutes plus tard.
+let lastFullRefresh = Date.now();
+
+/** Empreinte de version d'un dossier Firebase (change à chaque action sur le dossier). */
+export function caseFingerprint(kase: { updatedAt?: string; lastActivityAt?: string }): string {
+  return `${kase.updatedAt ?? ''}|${kase.lastActivityAt ?? ''}`;
+}
+
+/**
+ * Dossiers dont le détail doit être (re)chargé : nouveaux, modifiés depuis
+ * le dernier chargement, ou absents de la copie locale. Pur et testable.
+ */
+export function casesNeedingDetails(
+  listed: { caseId: string; updatedAt?: string; lastActivityAt?: string }[],
+  fingerprints: Record<string, string>,
+  hasLocalCopy: (caseId: string) => boolean,
+  forceAll: boolean
+): string[] {
+  return listed
+    .filter((c) => forceAll || !hasLocalCopy(c.caseId) || fingerprints[c.caseId] !== caseFingerprint(c))
+    .map((c) => c.caseId);
+}
+
+function readFingerprints(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(FINGERPRINTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFingerprints(map: Record<string, string>): void {
+  try {
+    localStorage.setItem(FINGERPRINTS_KEY, JSON.stringify(map));
+  } catch {
+    /* stockage indisponible : simple perte d'optimisation */
+  }
+}
+
 let inFlight: Promise<number | null> | null = null;
 
 /** Synchronise les dossiers Firebase visibles par `activeUser`. Renvoie le nombre de dossiers chargés, ou `null`. */
@@ -93,10 +143,13 @@ async function run(activeUser: UserProfile): Promise<number | null> {
     const { FirestoreCaseRepository } = await import('../data-access/firestoreCaseRepository');
     const repo = new FirestoreCaseRepository();
     const caseIds: string[] = [];
+    // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) === dossiers listés (avec leur version).
+    const listed: Case[] = [];
     let offset: number | undefined = 0;
     for (let page = 0; page < MAX_PAGES && offset !== undefined; page++) {
       const result = await repo.listCases({}, PLACEHOLDER_USER, PAGE_SIZE, offset);
       caseIds.push(...result.items.map((c) => c.caseId));
+      listed.push(...result.items);
       offset = result.nextOffset;
     }
 
@@ -105,12 +158,26 @@ async function run(activeUser: UserProfile): Promise<number | null> {
     const ownedLocally = new Set(localAlerts.filter((a) => !a.cloudImported && a.mirroredCaseId).map((a) => a.mirroredCaseId as string));
     // === AMÉLIORATION AJOUTÉE (correctif — pagination sans fin) === sans doublon.
     const toLoad = Array.from(new Set(caseIds)).filter((id) => !ownedLocally.has(id));
+    // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) === seuls les
+    // dossiers nouveaux ou modifiés sont rechargés ; les autres reprennent
+    // leur copie locale déjà à jour.
+    const now0 = Date.now();
+    const forceAll = now0 - lastFullRefresh > FULL_REFRESH_MS;
+    const fingerprints = readFingerprints();
+    const localById = new Map<string, AlertRecord>(localAlerts.map((a) => [a.id, a]));
+    const toLoadSet = new Set(toLoad);
+    const listedToLoad = listed.filter((c) => toLoadSet.has(c.caseId));
+    const stale = new Set(
+      casesNeedingDetails(listedToLoad, fingerprints, (id) => localById.get(caseSummaryId(id))?.cloudImported === true, forceAll)
+    );
+    const unchanged = toLoad.filter((id) => !stale.has(id));
 
     const { httpsCallable } = await import('firebase/functions');
     const getCaseDetails = httpsCallable<{ caseIds: string[] }, { details: CaseDetail[] }>(await getPhase4Functions(), 'getCaseDetails');
     const details: CaseDetail[] = [];
-    for (let i = 0; i < toLoad.length; i += DETAILS_BATCH) {
-      const res = await getCaseDetails({ caseIds: toLoad.slice(i, i + DETAILS_BATCH) });
+    const staleIds = toLoad.filter((id) => stale.has(id));
+    for (let i = 0; i < staleIds.length; i += DETAILS_BATCH) {
+      const res = await getCaseDetails({ caseIds: staleIds.slice(i, i + DETAILS_BATCH) });
       details.push(...res.data.details);
     }
 
@@ -129,8 +196,23 @@ async function run(activeUser: UserProfile): Promise<number | null> {
       if (existing && isFreshLocalEdit(existing.updatedAt, d.case.updatedAt, now)) return existing;
       return caseDetailToAlertRecord(d, existing, nameOf);
     });
-    storage.replaceCloudImportedAlerts(records);
-    return records.length;
+    // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) === dossiers
+    // inchangés : copie locale reprise telle quelle (même ordre que la liste).
+    const fresh = new Map(records.map((r) => [r.id, r]));
+    const allRecords: AlertRecord[] = [];
+    for (const id of toLoad) {
+      const rid = caseSummaryId(id);
+      const rec = fresh.get(rid) ?? (unchanged.includes(id) ? existingById.get(rid) : undefined);
+      if (rec) allRecords.push(rec);
+    }
+    storage.replaceCloudImportedAlerts(allRecords);
+    const nextFingerprints: Record<string, string> = {};
+    for (const c of listedToLoad) {
+      if (fresh.has(caseSummaryId(c.caseId)) || unchanged.includes(c.caseId)) nextFingerprints[c.caseId] = caseFingerprint(c);
+    }
+    writeFingerprints(nextFingerprints);
+    if (forceAll) lastFullRefresh = now0;
+    return allRecords.length;
   } catch {
     return null;
   }

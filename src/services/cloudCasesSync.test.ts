@@ -23,3 +23,32 @@ describe('cloudCasesSync — isFreshLocalEdit', () => {
     expect(isFreshLocalEdit(undefined, '2026-10-05T09:00:00Z', now)).toBe(false);
   });
 });
+
+// === AMÉLIORATION AJOUTÉE (chargement rapide du portail) ===
+import { caseFingerprint, casesNeedingDetails } from './cloudCasesSync';
+
+describe('casesNeedingDetails', () => {
+  const listed = [
+    { caseId: 'a', updatedAt: '2026-10-05T10:00:00Z', lastActivityAt: '2026-10-05T10:05:00Z' },
+    { caseId: 'b', updatedAt: '2026-10-05T09:00:00Z' },
+    { caseId: 'c', updatedAt: '2026-10-05T08:00:00Z' },
+  ];
+  const fingerprints = {
+    a: caseFingerprint(listed[0]),
+    b: '2026-10-05T08:59:00Z|',
+    c: caseFingerprint(listed[2]),
+  };
+
+  it('ne recharge que les dossiers nouveaux, modifiés ou sans copie locale', () => {
+    const local = new Set(['a', 'b']);
+    expect(casesNeedingDetails(listed, fingerprints, (id) => local.has(id), false)).toEqual(['b', 'c']);
+  });
+
+  it('recharge tout lors du rechargement complet de sécurité', () => {
+    expect(casesNeedingDetails(listed, fingerprints, () => true, true)).toEqual(['a', 'b', 'c']);
+  });
+
+  it("change d'empreinte à chaque nouvelle activité sur le dossier", () => {
+    expect(caseFingerprint({ updatedAt: 'x', lastActivityAt: 'y' })).not.toBe(caseFingerprint({ updatedAt: 'x', lastActivityAt: 'z' }));
+  });
+});

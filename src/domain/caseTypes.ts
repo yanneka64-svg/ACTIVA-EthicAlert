@@ -122,6 +122,9 @@ export interface Case extends Auditable {
   incidentLocation?: string;
   isOngoing?: boolean;
   customViolationType?: string;
+  // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) === date de la
+  // dernière action sur le dossier (sous-collections comprises), posée par le serveur.
+  lastActivityAt?: string;
 
   closedAt?: ISODateString;
   closedBy?: string;
