@@ -154,6 +154,24 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     };
   }, [cloudAccess?.sessionToken, activeTrackTab, applyLive]);
 
+  // === AMÉLIORATION AJOUTÉE (suivi sur téléphone) === sur petit écran, le
+  // menu des onglets est au-dessus du contenu : toucher « Messages » (ou un
+  // autre onglet) amène directement au contenu choisi.
+  const tabContentRef = useRef<HTMLDivElement>(null);
+  const firstTabRender = useRef(true);
+  useEffect(() => {
+    if (firstTabRender.current) {
+      firstTabRender.current = false;
+      return;
+    }
+    const el = tabContentRef.current;
+    if (!el || typeof window === 'undefined' || window.innerWidth >= 1024) return;
+    if (el.getBoundingClientRect().top > window.innerHeight * 0.5) {
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }
+  }, [activeTrackTab]);
+
   /** Signal « le déclarant écrit » (au plus toutes les 2,5 s). */
   const notifyReporterTyping = (text: string) => {
     const token = sessionTokenRef.current;
@@ -674,7 +692,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
         </div>
 
         {/* Content — `key` : l'onglet choisi rejoue l'apparition en fondu. */}
-        <div key={activeTrackTab} className="activa-enter space-y-5" style={{ '--d': '120ms' } as React.CSSProperties}>
+        <div ref={tabContentRef} key={activeTrackTab} className="activa-enter space-y-5 scroll-mt-4" style={{ '--d': '120ms' } as React.CSSProperties}>
           {/* --- Overview tab --- */}
           {activeTrackTab === 'overview' && (
             <TrackingOverviewTab

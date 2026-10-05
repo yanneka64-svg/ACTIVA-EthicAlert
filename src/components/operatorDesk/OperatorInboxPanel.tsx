@@ -22,6 +22,7 @@ import { NOCA_TONE } from './constants';
 import { useLiveConversation } from '../../hooks/useLiveConversation';
 import { TypingIndicator } from '../ui/TypingIndicator';
 import { MessageAttachments } from '../ui/MessageAttachments';
+import { useAutoScrollToBottom } from '../../hooks/useAutoScrollToBottom';
 
 interface OperatorInboxPanelProps {
   t: Record<string, string>;
@@ -78,6 +79,7 @@ export const OperatorInboxPanel: React.FC<OperatorInboxPanelProps> = ({
   // signalement ouvert, rafraîchie toutes les 3 s.
   const { otherTyping, notifyTyping } = useLiveConversation(panelAlert);
   const recentMessages = panelAlert ? panelAlert.messages.slice(-6) : [];
+  const scrollRef = useAutoScrollToBottom<HTMLDivElement>(`${panelAlert?.id}-${panelAlert?.messages.length ?? 0}-${otherTyping ? 1 : 0}`);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
       <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -166,7 +168,7 @@ export const OperatorInboxPanel: React.FC<OperatorInboxPanelProps> = ({
             <div className="border-t border-slate-100 pt-3">
               {/* === AMÉLIORATION AJOUTÉE (échanges instantanés) === derniers échanges du dossier. */}
               {(recentMessages.length > 0 || otherTyping) && (
-                <div className="mb-3 max-h-64 overflow-y-auto space-y-2 pr-1">
+                <div ref={scrollRef} className="mb-3 max-h-64 overflow-y-auto space-y-2 pr-1">
                   {recentMessages.map((m) => {
                     const isWb = m.sender === 'whistleblower';
                     return (
