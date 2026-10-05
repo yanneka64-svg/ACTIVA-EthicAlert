@@ -1,0 +1,55 @@
+# === AMÉLIORATION AJOUTÉE (diagnostic Firebase en lecture seule) ===
+# Lancement manuel depuis main : affiche dans le journal l'état des dossiers
+# et des comptes du personnel dans Firestore, sans rien modifier et sans
+# aucune donnée sensible (ni description des faits, ni e-mail, ni mot de
+# passe). Voir scripts/firebaseDiagnostics.ts.
+name: Firebase diagnostics
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-diagnostics
+  cancel-in-progress: false
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      HAS_WIF: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' }}
+    steps:
+      - name: Check prerequisites
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::À lancer depuis main uniquement (branche demandée : ${GITHUB_REF})."
+            exit 1
+          fi
+          if [ "$HAS_WIF" != "true" ]; then
+            echo "::error::Fédération d'identité non configurée (variables GCP_WORKLOAD_IDENTITY_PROVIDER / GCP_DEPLOY_SERVICE_ACCOUNT)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2 (v2.2.0)
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3 (v3.0.0)
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Read-only Firestore diagnostics
+        env:
+          GCLOUD_PROJECT: activa-ethicalert-47246
+          FIRESTORE_DATABASE_ID: default
+        run: npx tsx scripts/firebaseDiagnostics.ts
