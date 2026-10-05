@@ -160,7 +160,8 @@ jobs:
         env:
           V_DOMAINS: ${{ vars.NOTIFY_ALLOWED_RECIPIENT_DOMAINS }}
           V_ORIGINS: ${{ vars.NOTIFY_ALLOWED_ORIGINS }}
-          V_FROM: ${{ vars.NOTIFY_FROM_EMAIL }}
+          # === AMÉLIORATION AJOUTÉE === accepte la valeur saisie comme variable OU comme secret
+          V_FROM: ${{ vars.NOTIFY_FROM_EMAIL || secrets.NOTIFY_FROM_EMAIL }}
           V_RATE: ${{ vars.NOTIFY_RATE_LIMIT }}
           V_REPORTER: ${{ vars.REPORTER_CREATE_MAX_PER_HOUR }}
           V_APPCHECK: ${{ vars.ENFORCE_APP_CHECK }}
@@ -168,6 +169,7 @@ jobs:
           {
             echo "NOTIFY_ALLOWED_RECIPIENT_DOMAINS=${V_DOMAINS:-group-activa.com}"
             echo "ENFORCE_APP_CHECK=${V_APPCHECK:-false}"
+            [ -z "$V_FROM" ] && echo "::warning::NOTIFY_FROM_EMAIL introuvable (ni variable ni secret du dépôt) : les e-mails partiront de l'expéditeur de test Resend." >&2
             [ -n "$V_ORIGINS" ] && echo "NOTIFY_ALLOWED_ORIGINS=${V_ORIGINS}"
             [ -n "$V_FROM" ] && echo "NOTIFY_FROM_EMAIL=\"${V_FROM}\""
             [ -n "$V_RATE" ] && echo "NOTIFY_RATE_LIMIT=${V_RATE}"
