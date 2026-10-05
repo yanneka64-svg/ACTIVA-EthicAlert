@@ -70,3 +70,34 @@ describe('reporterCaseToAlertRecord', () => {
     expect(a.detailedDescription).toBe('Faits décrits au dépôt.');
   });
 });
+
+// === AMÉLIORATION AJOUTÉE (messagerie déclarant ↔ équipe) ===
+describe('reporterCaseToAlertRecord — message automatique de dépôt', () => {
+  it('garde le message automatique local en tête, puis les messages du serveur', () => {
+    const existing = {
+      id: 'alt-1',
+      trackingNumber: 'AIIG-26-10-0001',
+      createdAt: '2026-10-05T11:15:58Z',
+      updatedAt: '2026-10-05T11:15:58Z',
+      whistleblower: { isAnonymous: true },
+      messages: [
+        { id: 'msg-init', sender: 'admin', senderDisplayName: 'DARC Groupe ACTIVA', content: 'Reçu', createdAt: '2026-10-05T11:15:58Z' },
+        { id: 'local-2', sender: 'whistleblower', senderDisplayName: 'Moi', content: 'local seulement', createdAt: '2026-10-05T11:16:00Z' },
+      ],
+    } as unknown as import('../types').AlertRecord;
+    const r = reporterCaseToAlertRecord(
+      {
+        caseNumber: 'CASE-2026-000005',
+        status: 'new',
+        receivedAt: '2026-10-05T11:15:56Z',
+        description: 'x',
+        communications: [
+          { messageId: 'm1', caseId: 'c', sender: 'investigator', senderDisplayName: 'DARC', content: 'Bonjour', createdAt: '2026-10-05T11:24:00Z', createdBy: 'u', updatedAt: '', updatedBy: 'u' },
+        ],
+      },
+      'AIIG-26-10-0001',
+      existing
+    );
+    expect(r.messages.map((m) => m.id)).toEqual(['msg-init', 'm1']);
+  });
+});

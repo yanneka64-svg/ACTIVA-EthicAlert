@@ -104,15 +104,19 @@ async function main() {
     );
     // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === contenu
     // détaillé réellement stocké (comptes uniquement, aucune donnée personnelle).
-    const [persons, evidence, risks, identity] = await Promise.all([
+    const [persons, evidence, risks, identity, comms] = await Promise.all([
       d.ref.collection('persons').count().get(),
       d.ref.collection('evidence').count().get(),
       d.ref.collection('risk_assessments').count().get(),
       db.collection('reporter_identities').doc(d.id).get(),
+      // === AMÉLIORATION AJOUTÉE (messagerie) === expéditeur et heure seulement, jamais le contenu.
+      d.ref.collection('communications').get(),
     ]);
     console.log(
       `    ↳ dates=${c.incidentDate ? 'oui' : 'non'} | lieu=${c.incidentLocation ? 'oui' : 'non'} | impact=${c.impactType ? 'oui' : 'non'} | priorité=${c.priority} | score=${c.riskScore} | personnes=${persons.data().count} | pièces=${evidence.data().count} | évaluations=${risks.data().count} | identité=${identity.exists ? 'oui' : 'non'} | échéance=${c.slaDueAt ? 'oui' : 'non'}`
     );
+    const msgs = comms.docs.map((m) => m.data()).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+    console.log(`    ↳ messages=${msgs.length}${msgs.map((m) => ` [${m.createdAt} ${m.sender}]`).join('')}`);
   }
 
   const refs = await db.collection('external_references').orderBy('createdAt', 'desc').limit(10).get();
@@ -253,7 +257,7 @@ async function functionLogs() {
     return;
   }
   const since = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
-  const services = ['listcases', 'getcasedetails', 'getmystaffprofile', 'liststaffdirectory', 'createcaseasreporter'];
+  const services = ['listcases', 'getcasedetails', 'getmystaffprofile', 'liststaffdirectory', 'createcaseasreporter', 'addcommunication', 'getcaseforreporter', 'addcommunicationasreporter'];
   const filter = [
     'resource.type="cloud_run_revision"',
     `resource.labels.service_name=(${services.map((x) => `"${x}"`).join(' OR ')})`,

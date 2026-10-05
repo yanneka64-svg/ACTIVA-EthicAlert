@@ -55,3 +55,23 @@ export async function sendReporterMessage(caseNumber: string, accessCode: string
     return false;
   }
 }
+
+// === AMÉLIORATION AJOUTÉE (messagerie déclarant ↔ équipe) ===
+// Juste après un dépôt, « Suivre mon signalement » ouvrait la copie LOCALE
+// du dossier (sans mot de passe) : elle ne reçoit jamais les réponses de
+// l'équipe. Le code d'accès que le déclarant vient de recevoir est gardé
+// EN MÉMOIRE seulement (jamais enregistré, perdu au rechargement de la
+// page) pour ouvrir directement la version du serveur.
+const pendingAccess = new Map<string, string>();
+
+export function rememberReporterAccess(trackingNumber: string, accessCode: string): void {
+  if (trackingNumber && accessCode) pendingAccess.set(trackingNumber.trim().toUpperCase(), accessCode);
+}
+
+/** Code d'accès gardé en mémoire pour ce numéro (lu une seule fois), ou `null`. */
+export function takeReporterAccess(trackingNumber: string): string | null {
+  const key = (trackingNumber || '').trim().toUpperCase();
+  const code = pendingAccess.get(key) ?? null;
+  pendingAccess.delete(key);
+  return code;
+}
