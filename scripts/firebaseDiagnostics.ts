@@ -60,6 +60,35 @@ async function main() {
     );
   }
 
+  // Appel anonyme de chaque fonction (corps vide) : 400/401/403 en JSON =
+  // la fonction est joignable et répond elle-même ; 403 en HTML (« Forbidden »)
+  // = Cloud Run bloque l'appel avant la fonction (droit d'invocation absent).
+  console.log(`\n=== Fonctions joignables depuis un navigateur ? ===`);
+  const names = [
+    'createCaseAsReporter',
+    'getCaseForReporter',
+    'addCommunicationAsReporter',
+    'listCases',
+    'getCaseDetails',
+    'assignCase',
+    'getMyStaffProfile',
+    'listStaffDirectory',
+  ];
+  for (const name of names) {
+    try {
+      const res = await fetch(`https://us-central1-${projectId}.cloudfunctions.net/${name}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: {} }),
+      });
+      const text = await res.text();
+      const blocked = !text.trim().startsWith('{');
+      console.log(`${name} : HTTP ${res.status} ${blocked ? 'BLOQUÉE par Cloud Run (droit d’invocation absent)' : 'joignable'}`);
+    } catch (e) {
+      console.log(`${name} : erreur réseau ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
   const limits = await db.collection('rate_limits').get();
   const creates = limits.docs.filter((d) => d.id.startsWith('create_'));
   console.log(`\n=== Compteurs de dépôt (anti-abus) : ${creates.length} ===`);
