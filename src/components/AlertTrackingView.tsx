@@ -444,17 +444,21 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
   // Active Alert Tracking Detail View
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    // === AMÉLIORATION AJOUTÉE (suivi — design modernisé) === `activa-form` :
+    // styles et animations partagés avec le formulaire (index.css) ; menu et
+    // contenu apparaissent en douceur, chaque onglet s'affiche en fondu.
+    <div className="activa-form max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <button
         onClick={goBackToLogin}
-        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition mb-4"
+        className="activa-enter group flex items-center gap-1.5 px-2.5 py-1.5 -ml-2.5 rounded-full text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-white transition-all mb-4"
       >
-        <ArrowLeft className="w-3.5 h-3.5" />
+        <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-0.5" strokeWidth={2} />
         {t.track_back}
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 items-start">
         {/* Sidebar navigation */}
+        <div className="activa-enter lg:sticky lg:top-6" style={{ '--d': '60ms' } as React.CSSProperties}>
         <TrackingSidebar
           t={t}
           activeAlert={activeAlert}
@@ -462,9 +466,10 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
           setActiveTrackTab={setActiveTrackTab}
           onGoToContact={onGoToContact}
         />
+        </div>
 
-        {/* Content */}
-        <div className="space-y-5">
+        {/* Content — `key` : l'onglet choisi rejoue l'apparition en fondu. */}
+        <div key={activeTrackTab} className="activa-enter space-y-5" style={{ '--d': '120ms' } as React.CSSProperties}>
           {/* --- Overview tab --- */}
           {activeTrackTab === 'overview' && (
             <TrackingOverviewTab

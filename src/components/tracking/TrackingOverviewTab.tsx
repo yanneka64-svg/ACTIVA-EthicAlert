@@ -12,7 +12,7 @@
  * `renderStatusBadge` déplacé ici (seul utilisateur).
  */
 import React from 'react';
-import { Search, CheckCircle2, Clock, FileText, Download, Trash2, Building2, UserCheck, UserX, FileCheck2, Calendar, ShieldCheck, MapPin, Tag, Pencil } from 'lucide-react';
+import { Search, CheckCircle2, Clock, FileText, Download, Trash2, Building2, UserCheck, UserX, FileCheck2, Calendar, ShieldCheck, MapPin, Tag, Pencil, Check } from 'lucide-react';
 import { Language, AlertRecord } from '../../types';
 import { storage } from '../../services/storage';
 import { formatCountryLabel } from '../../data/activaConfig';
@@ -93,10 +93,14 @@ export const TrackingOverviewTab: React.FC<TrackingOverviewTabProps> = ({
 
   return (
     <>
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      {/* === AMÉLIORATION AJOUTÉE (suivi — design modernisé) === carte à
+          ombre douce, étapes avec halo pulsé sur l'étape en cours, coche
+          animée pour les étapes franchies et traits de liaison qui se
+          tracent ; cartes d'informations aux coins plus arrondis. */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-20px_rgb(15_23_42/0.18)] p-6">
         <div className="pb-6 border-b border-slate-100">
           <div className="flex items-center gap-3 mb-1 flex-wrap">
-            <span className="font-mono text-xl font-extrabold text-[#0B2545]">
+            <span className="font-mono text-xl font-extrabold tracking-tight text-[#0B2545]">
               {activeAlert.trackingNumber}
             </span>
             {renderStatusBadge(activeAlert.status)}
@@ -136,15 +140,15 @@ export const TrackingOverviewTab: React.FC<TrackingOverviewTabProps> = ({
                 <React.Fragment key={idx}>
                   <div className="flex flex-col items-center text-center w-20 sm:w-28">
                     <span
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border-2 ${
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors duration-500 ${
                         done
-                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md shadow-emerald-500/30'
                           : active
-                          ? 'bg-blue-600 border-blue-600 text-white'
-                          : 'bg-white border-slate-200 text-slate-400'
+                          ? 'activa-pulse-dot bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-md shadow-blue-600/30'
+                          : 'bg-white ring-2 ring-inset ring-slate-200 text-slate-400'
                       }`}
                     >
-                      {done ? <CheckCircle2 className="w-4 h-4" /> : n}
+                      {done ? <Check className="activa-pop w-4 h-4" strokeWidth={3} style={{ animationDelay: `${idx * 120}ms` }} /> : n}
                     </span>
                     <span
                       className={`mt-1.5 text-[10px] sm:text-[11px] leading-tight ${
@@ -155,7 +159,14 @@ export const TrackingOverviewTab: React.FC<TrackingOverviewTabProps> = ({
                     </span>
                   </div>
                   {idx < trackSteps.length - 1 && (
-                    <div className={`flex-1 h-0.5 mt-4 ${n < currentStepNumber ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                    <div className="flex-1 h-1 mt-4 rounded-full bg-slate-100 overflow-hidden">
+                      {n < currentStepNumber && (
+                        <div
+                          className="activa-draw-x h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500"
+                          style={{ '--d': `${200 + idx * 150}ms` } as React.CSSProperties}
+                        />
+                      )}
+                    </div>
                   )}
                 </React.Fragment>
               );
@@ -178,7 +189,7 @@ export const TrackingOverviewTab: React.FC<TrackingOverviewTabProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+        <div className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgb(15_23_42/0.04),0_14px_32px_-20px_rgb(15_23_42/0.18)] transition-shadow duration-300 hover:shadow-[0_2px_4px_rgb(15_23_42/0.04),0_20px_40px_-20px_rgb(15_23_42/0.25)] p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold text-slate-900">{t.track_general_info_title}</h4>
             <button
@@ -257,7 +268,7 @@ export const TrackingOverviewTab: React.FC<TrackingOverviewTabProps> = ({
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgb(15_23_42/0.04),0_14px_32px_-20px_rgb(15_23_42/0.18)] transition-shadow duration-300 hover:shadow-[0_2px_4px_rgb(15_23_42/0.04),0_20px_40px_-20px_rgb(15_23_42/0.25)] p-5">
             <h4 className="text-sm font-bold text-slate-900 mb-2">{t.track_field_description}</h4>
             <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
               {activeAlert.detailedDescription}
