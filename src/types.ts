@@ -315,6 +315,9 @@ export interface AlertRecord {
   // (id/name/size/type/dataUrl/uploadedBy), déjà utilisé par "Preuves &
   // pièces jointes" — aucun nouveau mécanisme de dépôt de fichier réinventé.
   investigationReportFile?: EvidenceFile;
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===
+  // identifiant de la pièce du serveur qui contient le fichier du rapport.
+  investigationReportFileId?: string;
   // === AMÉLIORATION AJOUTÉE (Phase 1 — évolution multi-pays/multi-entité) ===
   // Escalade vers la DARC Groupe (brief §14/§44). Le pays/entité d'origine
   // ci-dessus (country/concernedEntity/countryId/entityId) ne sont JAMAIS

@@ -30,6 +30,8 @@ export const PORTAL_LONG_TEXT_FIELDS = ['closureSummary', 'closureMessageToWhist
 export const PORTAL_SHORT_TEXT_FIELDS = [
   'closedBy', 'reopenedBy', 'investigationReportBy', 'escalatedBy', 'escalatedOwnerId', 'escalatedRecipientId',
   'independentRoutingFallbackRecipientId', 'targetCompletionDate',
+  // === AMÉLIORATION AJOUTÉE (Phase 2) === pièce du serveur contenant le fichier du rapport.
+  'investigationReportFileId',
 ] as const;
 /** Dates ISO. */
 export const PORTAL_DATE_FIELDS = [

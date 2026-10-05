@@ -786,6 +786,26 @@ class StorageService {
     }
   }
 
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===
+  /** Une pièce de ce dossier est désormais enregistrée sur le serveur (téléchargeable depuis tout poste). */
+  public markEvidenceStoredOnServer(alertId: string, evidenceId: string, caseId: string): void {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (!alert) return;
+    let changed = false;
+    alert.evidences = alert.evidences.map((e) => {
+      if (e.id !== evidenceId || e.cloudCaseId) return e;
+      changed = true;
+      return { ...e, cloudCaseId: caseId };
+    });
+    if (alert.investigationReportFile?.id === evidenceId && !alert.investigationReportFile.cloudCaseId) {
+      alert.investigationReportFile = { ...alert.investigationReportFile, cloudCaseId: caseId };
+      changed = true;
+    }
+    if (!changed) return;
+    this.persistAlerts();
+    this.notify();
+  }
+
   public deleteAlert(alertId: string): boolean {
     const initialLen = this.alerts.length;
     this.alerts = this.alerts.filter(a => a.id !== alertId);

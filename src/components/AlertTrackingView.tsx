@@ -128,6 +128,17 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
   const lastTypingSent = useRef(0);
   const typingActive = useRef(false);
 
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===
+  // fichiers joints au formulaire depuis cet appareil et pas encore transmis
+  // (envoi interrompu après le dépôt) : transmis dès l'ouverture du suivi.
+  useEffect(() => {
+    const token = cloudAccess?.sessionToken;
+    if (!token || !cloudAccess?.caseNumber) return;
+    const local = storage.getAlertByTracking(cloudAccess.caseNumber);
+    if (!local?.evidences?.some((e) => e.dataUrl)) return;
+    void import('../services/evidenceUpload').then(({ uploadSubmissionFiles }) => uploadSubmissionFiles(token, local));
+  }, [cloudAccess?.sessionToken, cloudAccess?.caseNumber]);
+
   const applyLive = useCallback((st: Awaited<ReturnType<typeof pollReporterConversation>>) => {
     if (!st) return;
     if (st.sessionToken) sessionTokenRef.current = st.sessionToken;

@@ -73,7 +73,7 @@ import { formatTrackingNumber, parseReporterCaseInput } from '../../src/domain/r
 // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
 import type { ReporterCaseDetails } from '../../src/domain/reporterCaseDetails';
 // === AMÉLIORATION AJOUTÉE (échanges instantanés, anonymat, documents du déclarant) ===
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   MessageAttachment,
   REPORTER_FILE_MAX_BYTES,
@@ -1721,7 +1721,17 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
   }
 
-  return { caseId: outcome.caseId, caseNumber: outcome.caseNumber, trackingNumber: outcome.trackingNumber };
+  // === AMÉLIORATION AJOUTÉE (pièces jointes du formulaire transmises) ===
+  // session courte remise au déclarant pour un dossier tout juste créé : elle
+  // permet d'envoyer aussitôt les fichiers joints au formulaire
+  // (addSubmissionEvidenceAsReporter). Jamais pour un dépôt rejoué.
+  const sessionToken = outcome.created ? await issueReporterSession(outcome.caseId) : undefined;
+  return {
+    caseId: outcome.caseId,
+    caseNumber: outcome.caseNumber,
+    trackingNumber: outcome.trackingNumber,
+    ...(sessionToken ? { sessionToken } : {}),
+  };
 });
 
 // ---------------------------------------------------------------------------
@@ -2262,4 +2272,138 @@ export const applyPortalUpdate = onCall(async (request) => {
   }
 
   return { ok: true, applied, rejected };
+});
+
+// ---------------------------------------------------------------------------
+// === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===
+// Documents : fichiers joints au formulaire de signalement, pièces et rapport
+// d'enquête ajoutés par le personnel. Même stockage que les documents de la
+// messagerie (morceaux dans Firestore, Cloud Storage n'étant pas activé),
+// même téléchargement audité (getEvidenceFileForStaff).
+// ---------------------------------------------------------------------------
+
+function decodeEvidenceFile(dataBase64: unknown): Buffer {
+  if (typeof dataBase64 !== 'string' || !dataBase64) throw new HttpsError('invalid-argument', 'File content is required.');
+  const bytes = Buffer.from(dataBase64, 'base64');
+  if (bytes.length === 0) throw new HttpsError('invalid-argument', 'Empty file.');
+  if (bytes.length > REPORTER_FILE_MAX_BYTES) throw new HttpsError('invalid-argument', 'File too large.');
+  return bytes;
+}
+
+function writeEvidenceChunks(batch: FirebaseFirestore.WriteBatch, ref: FirebaseFirestore.DocumentReference, evidenceId: string, bytes: Buffer) {
+  for (let i = 0, n = 0; i < bytes.length; i += EVIDENCE_CHUNK_BYTES, n++) {
+    batch.set(ref.collection('evidence_chunks').doc(`${evidenceId}_${String(n).padStart(3, '0')}`), {
+      evidenceId,
+      index: n,
+      data: bytes.subarray(i, i + EVIDENCE_CHUNK_BYTES),
+    });
+  }
+}
+
+/**
+ * Fichier joint au formulaire de signalement : complète la pièce déjà
+ * décrite lors du dépôt (même nom, même taille, sans contenu) ; sinon,
+ * ajoute une nouvelle pièce. Aucun message n'est créé dans la conversation.
+ */
+export const addSubmissionEvidenceAsReporter = onCall(async (request) => {
+  const { sessionToken, fileName, fileType, dataBase64 } = (request.data ?? {}) as {
+    sessionToken?: string;
+    fileName?: string;
+    fileType?: string;
+    dataBase64?: string;
+  };
+  const { ref } = await verifyReporterSession(sessionToken ?? '');
+  const bytes = decodeEvidenceFile(dataBase64);
+  const name = safeFileName(fileName ?? 'document');
+  const type = typeof fileType === 'string' && fileType.length <= 120 ? fileType : 'application/octet-stream';
+  const sha256Hash = createHash('sha256').update(bytes).digest('hex');
+  const nowIso = new Date().toISOString();
+
+  const existing = await ref.collection('evidence').where('createdBy', '==', 'reporter').get();
+  if (existing.docs.some((d) => (d.data() as Evidence).sha256Hash === sha256Hash)) {
+    return { ok: true, duplicate: true }; // déjà transmis (nouvel essai)
+  }
+  const placeholder = existing.docs.find((d) => {
+    const e = d.data() as Evidence;
+    return !e.storagePath && e.fileSize === bytes.length && (e.fileName === name || safeFileName(e.fileName) === name);
+  });
+  if (!placeholder && existing.size >= REPORTER_FILE_MAX_PER_CASE) {
+    throw new HttpsError('resource-exhausted', 'Too many files for this case.');
+  }
+  const evidenceId = placeholder ? placeholder.id : newId('ev');
+
+  const batch = db.batch();
+  writeEvidenceChunks(batch, ref, evidenceId, bytes);
+  if (placeholder) {
+    batch.update(placeholder.ref, {
+      storagePath: `firestore:evidence_chunks/${evidenceId}`,
+      sha256Hash,
+      fileType: type,
+      description: 'Pièce déposée par le déclarant avec son signalement.',
+      updatedAt: nowIso,
+      updatedBy: 'reporter',
+    });
+  } else {
+    const evidence: Evidence = {
+      evidenceId, caseId: ref.id, fileName: name, fileType: type, fileSize: bytes.length,
+      description: 'Pièce déposée par le déclarant avec son signalement.',
+      storagePath: `firestore:evidence_chunks/${evidenceId}`, sha256Hash,
+      version: 1, confidentiality: 'restricted', status: 'active',
+      createdAt: nowIso, createdBy: 'reporter', updatedAt: nowIso, updatedBy: 'reporter',
+    };
+    batch.set(ref.collection('evidence').doc(evidenceId), evidence);
+  }
+  await batch.commit();
+  await appendTimeline(ref.id, 'EVIDENCE_ADDED_BY_REPORTER', 'reporter', name);
+  await appendAudit({ actorId: 'reporter', action: 'EVIDENCE_ADDED_BY_REPORTER', caseId: ref.id, objectType: 'evidence', objectId: evidenceId });
+  return { ok: true, evidenceId };
+});
+
+/**
+ * Pièce ajoutée par le personnel (onglet Preuves) ou fichier du rapport
+ * d'enquête. Permission `evidence.upload` sur le dossier ; même identifiant
+ * que la copie du portail ; audité.
+ */
+export const addEvidenceAsStaff = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId, fileName, fileType, dataBase64, description, clientId } = (request.data ?? {}) as {
+    caseId?: string;
+    fileName?: string;
+    fileType?: string;
+    dataBase64?: string;
+    description?: string;
+    clientId?: string;
+  };
+  if (typeof caseId !== 'string' || !caseId) throw new HttpsError('invalid-argument', 'caseId is required.');
+  const { ref } = await requireCaseAccess(caseId, user, 'evidence.upload');
+  const bytes = decodeEvidenceFile(dataBase64);
+  const name = safeFileName(fileName ?? 'document');
+  const type = typeof fileType === 'string' && fileType.length <= 120 ? fileType : 'application/octet-stream';
+  const sha256Hash = createHash('sha256').update(bytes).digest('hex');
+  const nowIso = new Date().toISOString();
+
+  let evidenceId = newId('ev');
+  if (typeof clientId === 'string' && CLIENT_ID_RE.test(clientId)) {
+    const current = await ref.collection('evidence').doc(clientId).get();
+    if (current.exists) {
+      if ((current.data() as Evidence).sha256Hash === sha256Hash) return { ok: true, evidenceId: clientId, duplicate: true };
+    } else {
+      evidenceId = clientId;
+    }
+  }
+
+  const batch = db.batch();
+  writeEvidenceChunks(batch, ref, evidenceId, bytes);
+  const evidence: Evidence = {
+    evidenceId, caseId, fileName: name, fileType: type, fileSize: bytes.length,
+    description: typeof description === 'string' && description.trim() ? description.trim().slice(0, 1000) : 'Pièce ajoutée par l’équipe.',
+    storagePath: `firestore:evidence_chunks/${evidenceId}`, sha256Hash,
+    version: 1, confidentiality: 'restricted', status: 'active',
+    createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId,
+  };
+  batch.set(ref.collection('evidence').doc(evidenceId), evidence);
+  await batch.commit();
+  await appendTimeline(caseId, 'EVIDENCE_ADDED', user.userId, name);
+  await appendAudit({ actorId: user.userId, action: 'EVIDENCE_UPLOADED', caseId, objectType: 'evidence', objectId: evidenceId });
+  return { ok: true, evidenceId };
 });

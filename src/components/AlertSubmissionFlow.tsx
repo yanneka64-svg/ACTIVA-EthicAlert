@@ -584,6 +584,14 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     // Firebase déjà confirmé, ou mise en file d'attente avec le numéro remis.
     if (serverResult) {
       storage.linkMirroredCase(newRecord.id, serverResult.caseId, serverResult.caseNumber);
+      // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===
+      // les fichiers joints au formulaire sont transmis à l'équipe (jusqu'ici
+      // seule leur liste l'était) ; sinon, à la prochaine connexion au suivi.
+      if (serverResult.sessionToken && evidences.some((e) => e.dataUrl)) {
+        const token = serverResult.sessionToken;
+        const toSend = { trackingNumber, evidences };
+        void import('../services/evidenceUpload').then(({ uploadSubmissionFiles }) => uploadSubmissionFiles(token, toSend));
+      }
     } else if (queueForRetry) {
       enqueueSubmission(newRecord.id, { ...mirrorInput, externalReference: trackingNumber });
       void flushSubmissionOutbox();
