@@ -53,7 +53,7 @@ import { resolveRoute, pathForTab } from './routing/routes';
 // ne servent plus qu'à l'aiguillage des écrans staff, déplacé dans
 // ./app/renderStaffScreen.tsx (qui les importe lui-même).
 import { AuthenticatedRoute } from './routing/guards';
-import { isGlobalCaseViewer } from './services/authz';
+import { isGlobalCaseViewer, userCan } from './services/authz';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -314,6 +314,10 @@ function AppShell() {
   const CLOUD_CASES_SYNC_MS = 20 * 1000;
   useEffect(() => {
     if (!isStaffSessionActive || activeUser.role === 'reporter') return;
+    // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === un compte
+    // sans accès aux dossiers (ex. administrateur système) ne les demande pas
+    // au serveur (refus systématique toutes les 20 s).
+    if (!userCan(activeUser, 'cases.read')) return;
     let cancelled = false;
     const sync = () => {
       if (cancelled || document.visibilityState === 'hidden') return;

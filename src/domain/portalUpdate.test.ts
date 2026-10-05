@@ -106,3 +106,12 @@ describe('portalVisibleCaseStatus', () => {
     expect(portalVisibleCaseStatus('new', { status: 'closed', workflowStatus: 'investigation' })).toBe('closed');
   });
 });
+
+import { reporterVisibleCaseStatus } from './portalUpdate';
+describe('reporterVisibleCaseStatus', () => {
+  it('en attente d’informations reste à l’étape Investigation pour le déclarant', () => {
+    expect(reporterVisibleCaseStatus('new', { status: 'investigation', workflowStatus: 'pending_information' })).toBe('investigation');
+    expect(reporterVisibleCaseStatus('new', { status: 'closed', workflowStatus: 'closed' })).toBe('closed');
+    expect(reporterVisibleCaseStatus('under_review', undefined)).toBe('under_review');
+  });
+});

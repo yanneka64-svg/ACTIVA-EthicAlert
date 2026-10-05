@@ -32,6 +32,10 @@ import { STORAGE_KEYS, DATA_CHANGE_EVENT } from './storageKeys';
 // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
 import { diffPortalUpdate, PORTAL_LOCAL_ONLY_KEYS } from '../domain/portalUpdate';
 import type { PortalConfigSection } from '../domain/portalConfig';
+
+// === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === ancien envoi des
+// statuts vers changeCaseStatus, remplacé par applyPortalUpdate (voir plus bas).
+const LEGACY_STATUS_MIRROR = false;
 import * as storageBackfill from './storageBackfill';
 
 class StorageService {
@@ -1083,7 +1087,11 @@ class StorageService {
     // de l'application, jamais d'import statique d'un module qui touche
     // firebase/functions ici — voir services/statusMirrorSync.ts.
     const mirroredCaseId = alert.mirroredCaseId;
-    if (mirroredCaseId) {
+    // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === le statut est
+    // désormais enregistré par applyPortalUpdate (syncPortalChanges) ; l'ancien
+    // envoi vers changeCaseStatus, refusé par la machine d'états du serveur,
+    // n'inscrivait que de faux « changement de statut refusé » dans l'audit.
+    if (mirroredCaseId && LEGACY_STATUS_MIRROR) {
       import('./statusMirrorSync')
         .then(({ mirrorStatusChangeToRealBackend }) => mirrorStatusChangeToRealBackend({ caseId: mirroredCaseId, to: toStatus, reason }))
         .catch(() => {});
@@ -1194,7 +1202,11 @@ class StorageService {
     // ci-dessus) reste local pour l'instant — mirer aussi l'attribution
     // réelle (assignCase) est un chantier séparé, pas mélangé ici.
     const mirroredCaseId = alert.mirroredCaseId;
-    if (mirroredCaseId) {
+    // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === le statut est
+    // désormais enregistré par applyPortalUpdate (syncPortalChanges) ; l'ancien
+    // envoi vers changeCaseStatus, refusé par la machine d'états du serveur,
+    // n'inscrivait que de faux « changement de statut refusé » dans l'audit.
+    if (mirroredCaseId && LEGACY_STATUS_MIRROR) {
       import('./statusMirrorSync')
         .then(({ mirrorStatusChangeToRealBackend }) => mirrorStatusChangeToRealBackend({ caseId: mirroredCaseId, to: 'escalated', reason }))
         .catch(() => {});

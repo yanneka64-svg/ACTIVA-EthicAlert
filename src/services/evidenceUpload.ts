@@ -111,3 +111,48 @@ export async function uploadStaffEvidence(caseId: string, file: EvidenceFile, de
     return false;
   }
 }
+
+/**
+ * === AMÉLIORATION AJOUTÉE (pièces jointes du formulaire transmises) ===
+ * Transmet les fichiers du formulaire conservés sur l'appareil
+ * (pendingUploads.ts) ; chaque fichier transmis (ou déjà présent sur le
+ * serveur) est retiré de l'appareil. Renvoie le nombre de fichiers transmis.
+ */
+export async function uploadPendingSubmissionBlobs(
+  sessionToken: string,
+  trackingNumber: string,
+  /** Fichiers encore en mémoire (si l'appareil n'a pas pu les conserver). */
+  inMemory: { id: string; name: string; type: string; blob: Blob }[] = []
+): Promise<number> {
+  if (!sessionToken || !trackingNumber || !isPhase4Configured()) return 0;
+  const { listPendingUploads, deletePendingUpload } = await import('./pendingUploads');
+  const stored = await listPendingUploads(trackingNumber);
+  const storedIds = new Set(stored.map((p) => p.id));
+  const pending = [...stored, ...inMemory.filter((m) => !storedIds.has(m.id))];
+  if (!pending.length) return 0;
+  const { fileToBase64 } = await import('./reporterCloudAccess');
+  let sent = 0;
+  try {
+    const fn = await callable<{ sessionToken: string; fileName: string; fileType: string; dataBase64: string }, { ok: true }>(
+      'addSubmissionEvidenceAsReporter'
+    );
+    for (const item of pending) {
+      if (item.blob.size > MAX_BYTES) {
+        await deletePendingUpload(item.id);
+        continue;
+      }
+      try {
+        const dataBase64 = await fileToBase64(item.blob);
+        await fn({ sessionToken, fileName: item.name, fileType: item.type || 'application/octet-stream', dataBase64 });
+        await deletePendingUpload(item.id);
+        markUploaded(trackingNumber, item.id);
+        sent++;
+      } catch (e) {
+        if ((e as { code?: string }).code === 'functions/invalid-argument') await deletePendingUpload(item.id);
+      }
+    }
+  } catch {
+    /* Firebase indisponible : nouvel essai à la prochaine connexion au suivi */
+  }
+  return sent;
+}

@@ -13,7 +13,7 @@
  */
 import { isPortalConfigSection, parsePortalConfigSection, PORTAL_CONFIG_SECTIONS, type PortalConfigSection } from '../domain/portalConfig';
 import type { UserProfile } from '../types';
-import { getPhase4Firebase, getPhase4Functions, isPhase4Configured } from './firebaseClient';
+import { getPhase4Firebase, getPhase4Functions, isPhase4Configured, waitForFirebaseSession } from './firebaseClient';
 
 const OUTBOX_KEY = 'activa_config_outbox_v1';
 
@@ -97,7 +97,7 @@ export function pushSharedConfigSection(section: PortalConfigSection, value: unk
  * sections mises à jour dans ce navigateur.
  */
 export async function pullSharedConfig(user: UserProfile): Promise<number> {
-  if (!signedIn()) return 0;
+  if (!(await waitForFirebaseSession())) return 0;
   await flushConfigOutbox();
   const [{ storage }, { canManageConfiguration }] = await Promise.all([import('./storage'), import('./authz')]);
   let res: { sections: Record<string, string> };

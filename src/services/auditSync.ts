@@ -9,7 +9,7 @@
  */
 import { PORTAL_AUDIT_BATCH_MAX, type ServerAuditRecord } from '../domain/auditTrail';
 import type { AuditLogEntry } from '../types';
-import { getPhase4Firebase, getPhase4Functions, isPhase4Configured } from './firebaseClient';
+import { getPhase4Firebase, getPhase4Functions, isPhase4Configured, waitForFirebaseSession } from './firebaseClient';
 
 const OUTBOX_KEY = 'activa_audit_outbox_v1';
 /** Au-delà, les plus anciens événements non transmis sont abandonnés (le journal local les garde). */
@@ -88,7 +88,7 @@ export function queuePortalAudit(entry: AuditLogEntry): void {
 
 /** Journal commun (null si indisponible ou non autorisé). */
 export async function fetchServerAuditLogs(limit = 500): Promise<ServerAuditRecord[] | null> {
-  if (!signedIn()) return null;
+  if (!(await waitForFirebaseSession())) return null;
   try {
     await flushAuditOutbox();
     const fn = await callable<{ limit: number }, { entries: ServerAuditRecord[] }>('listAuditLogs');
