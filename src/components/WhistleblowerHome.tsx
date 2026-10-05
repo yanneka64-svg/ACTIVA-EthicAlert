@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
+// === AMÉLIORATION AJOUTÉE (effet « ralenti » au défilement) ===
+import { useScrollMotion } from '../hooks/useScrollMotion';
 
 // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip 3D)
 // === Sur demande explicite : chaque carte pivote à 180° au clic/tap pour
@@ -141,6 +143,9 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   onGoToFaq,
 }) => {
   const t = TRANSLATIONS[lang];
+  // === AMÉLIORATION AJOUTÉE (effet « ralenti » au défilement) === voir useScrollMotion.ts
+  const motionRootRef = React.useRef<HTMLDivElement>(null);
+  useScrollMotion(motionRootRef);
 
   // === AMÉLIORATION AJOUTÉE (retrait de la carte de valeurs flottante) ===
   // Carte "Transparence / Une culture d'ouverture" (et les 3 autres
@@ -148,7 +153,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   // l'accueil public, sur demande explicite de l'utilisateur.
 
   return (
-    <div className="space-y-8 pb-6">
+    <div ref={motionRootRef} className="space-y-8 pb-6">
       {/* === AMÉLIORATION AJOUTÉE (Phase 20 — hero plein cadre) ===
           Retour à une photo en arrière-plan sur toute la largeur du hero
           (au lieu de la colonne dédiée Phase 17), avec un léger voile bleu
@@ -189,6 +194,8 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           Marge basse agrandie : le bandeau de confiance vient désormais
           chevaucher le bas de la photo. */}
       <div className="relative overflow-hidden min-h-[440px] sm:min-h-[520px] flex items-center bg-slate-100">
+        {/* === AMÉLIORATION AJOUTÉE (parallaxe) === la photo glisse plus lentement que la page. */}
+        <div className="activa-parallax-img absolute inset-0">
         <img
           src="/brand/activa-hq-hero.jpg"
           alt={t.home_hero_img_alt}
@@ -196,6 +203,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           decoding="async"
           className="activa-kenburns absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"
         />
+        </div>
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
         <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/35 to-transparent pointer-events-none" />
 
@@ -245,7 +253,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             max-width ; `max-w-xl` ne contraint plus que le contenu réel, à
             l'intérieur. */}
         <div className="relative z-10 px-8 pt-10 pb-24 sm:px-12 sm:pt-12 sm:pb-28 lg:pl-[calc((100vw-80rem)/2+2rem)]">
-          <div className="max-w-xl space-y-5">
+          <div className="activa-parallax-text max-w-xl space-y-5">
             {/* === AMÉLIORATION AJOUTÉE (ligne unique nom de produit + accroche) ===
                 Sur demande explicite, alignée sur la capture de référence
                 fournie : "activa-whistleblowing" + "Canal éthique du Groupe
@@ -385,9 +393,11 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc },
           { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc },
           { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc },
-        ].map(({ Icon, title, desc }) => (
+        ].map(({ Icon, title, desc }, i) => (
           <div
             key={title}
+            data-reveal
+            style={{ '--rd': `${i * 110}ms` } as React.CSSProperties}
             className="group relative z-0 hover:z-10 p-5 sm:p-6 flex items-center gap-4 rounded-2xl transition-all duration-300 ease-out hover:bg-white hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/5"
           >
             <span className="relative overflow-hidden w-11 h-11 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 ring-1 ring-inset ring-blue-200/70 flex items-center justify-center shrink-0 transition-all duration-500 ease-out group-hover:text-white group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-blue-600/30">
@@ -407,7 +417,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
       <div id="how-it-works-section" className="space-y-6 pt-4">
         {/* === AMÉLIORATION AJOUTÉE (design modernisé) === apparition au
             défilement (navigateurs compatibles, sinon simplement visible). */}
-        <div className="activa-reveal space-y-1">
+        <div data-reveal className="space-y-1">
           <span className="text-xs uppercase font-bold tracking-[0.16em] text-blue-600">
             {t.process_label}
           </span>
@@ -469,7 +479,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               emerald: 'bg-gradient-to-br from-emerald-500 to-teal-600',
             };
             return (
-              <div key={idx} className="activa-reveal h-full">
+              <div key={idx} data-reveal className="h-full" style={{ '--rd': `${idx * 120}ms` } as React.CSSProperties}>
               <HowItWorksCard
                 idx={idx}
                 Icon={step.icon}
