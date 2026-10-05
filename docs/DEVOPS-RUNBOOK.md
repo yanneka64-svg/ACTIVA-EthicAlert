@@ -320,7 +320,7 @@ Fonctionnement (code : `src/domain/staffAccounts.ts`,
    ```
 2. **Déployer les fonctions** (§3.8, `mode = deploy`, toutes les fonctions).
    Le site se déploie seul après fusion dans `main`.
-3. **Secret GitHub `STAFF_BOOTSTRAP_PASSWORD`**, de 12 caractères minimum.
+3. **Secret GitHub `STAFF_BOOTSTRAP_PASSWORD`**, de 8 caractères minimum.
    C'est le mot de passe initial du premier administrateur, à changer à sa
    première connexion.
 4. **Workflow *Bootstrap staff admin*** (Actions → Run workflow) : saisir le

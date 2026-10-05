@@ -32,9 +32,13 @@ import {
   staffAuthEmail,
   staffClaimsFor,
   staffScopeFor,
+  STAFF_PASSWORD_MIN_LENGTH,
 } from '../src/domain/staffAccounts';
 
-const BOOTSTRAP_PASSWORD_MIN_LENGTH = 12;
+// === AMÉLIORATION AJOUTÉE (demande explicite) === même minimum que tout
+// mot de passe du personnel (8 caractères) ; le mot de passe initial reste
+// temporaire, à changer à la première connexion.
+const BOOTSTRAP_PASSWORD_MIN_LENGTH = STAFF_PASSWORD_MIN_LENGTH;
 
 function fail(message: string): never {
   console.error(`::error::${message}`);

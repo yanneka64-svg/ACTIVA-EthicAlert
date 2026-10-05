@@ -169,6 +169,60 @@ export function isStaffTempPasswordExpired(mustChangePassword: boolean, password
   return now - setAt > STAFF_TEMP_PASSWORD_TTL_MS;
 }
 
+// === AMÉLIORATION AJOUTÉE (format d'identifiant demandé : « y.mebada01 ») ===
+function asciiLower(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function isUpperCaseWord(word: string): boolean {
+  return /\p{L}/u.test(word) && word === word.toUpperCase();
+}
+
+/**
+ * Suggestion d'identifiant au format demandé : initiale du DERNIER prénom,
+ * « . », premier mot du nom de famille, numéro à 2 chiffres (01, 02… : le
+ * premier libre parmi `taken`). Ex. « MEBADA EKANI Barnabe Yannick » →
+ * `y.mebada01`.
+ *
+ * Nom de famille = mots en MAJUSCULES en tête du nom complet ; prénoms = la
+ * suite (tout en majuscules : premier mot = nom, dernier = prénom). Sans
+ * nom en majuscules (« Jean Dupont »), le premier mot est pris
+ * comme prénom et le dernier comme nom. Accents et caractères spéciaux
+ * retirés. Renvoie '' si le nom ne permet aucune suggestion.
+ */
+export function suggestStaffUsername(fullName: string, taken: string[] = []): string {
+  const words = fullName.trim().split(/\s+/).filter((w) => asciiLower(w));
+  if (words.length === 0) return '';
+
+  let surname: string;
+  let givenName: string;
+  const leadingUpper = words.findIndex((w) => !isUpperCaseWord(w));
+  // Tout en majuscules (« MEBADA YANNICK ») : même convention NOM Prénom.
+  if (leadingUpper > 0 || (leadingUpper === -1 && words.length >= 2)) {
+    surname = words[0];
+    givenName = words[words.length - 1];
+  } else if (words.length >= 2) {
+    givenName = words[0];
+    surname = words[words.length - 1];
+  } else {
+    surname = words[0];
+    givenName = '';
+  }
+
+  const initial = asciiLower(givenName).charAt(0);
+  const base = (initial ? `${initial}.` : '') + asciiLower(surname).slice(0, 50);
+  const used = new Set(taken.map((t) => normalizeStaffUsername(t)));
+  for (let n = 1; n <= 99; n += 1) {
+    const candidate = `${base}${String(n).padStart(2, '0')}`;
+    if (!used.has(candidate) && STAFF_USERNAME_RE.test(candidate)) return candidate;
+  }
+  return '';
+}
+
 /** Nouveau mot de passe choisi par l'utilisateur. */
 export function validateStaffNewPassword(value: unknown): StaffParseResult<string> {
   if (typeof value !== 'string' || value.length < STAFF_PASSWORD_MIN_LENGTH) {

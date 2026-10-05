@@ -33,6 +33,7 @@ import { generateAccessPassword, generateSalt, hashPassword } from '../../servic
 // compte Firebase ayant `users.manage`, les comptes sont créés et gérés dans
 // Firebase (Auth + Firestore) via les Cloud Functions ; sinon, comportement
 // local inchangé.
+import { suggestStaffUsername } from '../../domain/staffAccounts';
 import {
   canManageFirebaseStaffAccounts,
   createFirebaseStaffAccount,
@@ -153,7 +154,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
   // Suggestion à partir du nom saisi (même schéma que `slugify`, réutilisé),
   // jamais imposée — l'admin reste libre de la modifier avant d'enregistrer.
   const suggestUsername = () => {
-    if (userName.trim()) setUserUsername(slugify(userName).replace(/_/g, '.'));
+    if (!userName.trim()) return;
+    // === AMÉLIORATION AJOUTÉE (format d'identifiant demandé : « y.mebada01 »)
+    // === initiale du dernier prénom + « . » + premier mot du nom + numéro
+    // libre à 2 chiffres (src/domain/staffAccounts.ts). Repli sur l'ancienne
+    // suggestion si le nom ne permet pas d'en produire une.
+    const taken = storage.getUsers().filter((u) => u.id !== editingUserId).map((u) => u.username);
+    setUserUsername(suggestStaffUsername(userName, taken) || slugify(userName).replace(/_/g, '.'));
   };
   // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire)
   // === handler devenu asynchrone : la création génère désormais un vrai
@@ -259,10 +266,14 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
     // sans cela, la plateforme se retrouve sans aucun admin capable de créer
     // ou réinitialiser des comptes (verrouillage complet côté client, sans
     // recours puisqu'il n'y a pas de backend distant pour restaurer un accès).
-    if (u.role === 'system_admin' && u.active) {
+    // === AMÉLIORATION AJOUTÉE (correctif) === `active` absent signifie
+    // « actif » (types.ts, UserProfile.active) : `!== false` au lieu d'un
+    // test de vérité, sinon un autre administrateur bien actif mais sans ce
+    // champ n'était pas compté et la suppression était refusée à tort.
+    if (u.role === 'system_admin' && u.active !== false) {
       const remainingActiveAdmins = storage
         .getUsers()
-        .filter((other) => other.id !== u.id && other.role === 'system_admin' && other.active).length;
+        .filter((other) => other.id !== u.id && other.role === 'system_admin' && other.active !== false).length;
       if (remainingActiveAdmins === 0) {
         alert(t.users_last_admin);
         setDeleteUserConfirmId(null);
