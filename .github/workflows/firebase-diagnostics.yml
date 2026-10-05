@@ -52,4 +52,10 @@ jobs:
         env:
           GCLOUD_PROJECT: activa-ethicalert-47246
           FIRESTORE_DATABASE_ID: default
+          # === AMÉLIORATION AJOUTÉE (diagnostic App Check) === mêmes valeurs
+          # que celles injectées dans le site (publiques dans son code) ; la
+          # clé API n'est jamais affichée.
+          FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
         run: npx tsx scripts/firebaseDiagnostics.ts
