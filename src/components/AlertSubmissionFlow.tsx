@@ -711,7 +711,14 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                 copiedTracking={copiedTracking}
                 copyToClipboard={copyToClipboard}
                 handlePrintReceipt={handlePrintReceipt}
-                onSuccessNavigateToTrack={onSuccessNavigateToTrack}
+                // === AMÉLIORATION AJOUTÉE (messagerie déclarant ↔ équipe) === le
+                // suivi s'ouvre sur la version du serveur (code gardé en mémoire).
+                onSuccessNavigateToTrack={(tracking: string) => {
+                  void import('../services/reporterCloudAccess').then(({ rememberReporterAccess }) => {
+                    rememberReporterAccess(tracking, password);
+                    onSuccessNavigateToTrack(tracking);
+                  }).catch(() => onSuccessNavigateToTrack(tracking));
+                }}
               />
             ) : (
               <form onSubmit={handleSubmit} className="activa-caret-blink space-y-6">

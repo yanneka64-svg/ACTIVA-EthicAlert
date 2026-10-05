@@ -105,6 +105,9 @@ export function reporterCaseToAlertRecord(
     whistleblower: rc ? { ...base.whistleblower, isAnonymous: rc.reportingMode !== 'identified' } : base.whistleblower,
     status: alertStatusFromCaseStatus(payload.status),
     ...(rc?.closedAt ? { closedAt: rc.closedAt } : {}),
-    messages,
+    // === AMÉLIORATION AJOUTÉE (messagerie déclarant ↔ équipe) === le
+    // message automatique de dépôt (copie locale, `msg-init`) reste en tête
+    // de la conversation : le serveur ne le connaît pas.
+    messages: [...(existing?.messages ?? []).filter((m) => m.id === 'msg-init'), ...messages],
   };
 }

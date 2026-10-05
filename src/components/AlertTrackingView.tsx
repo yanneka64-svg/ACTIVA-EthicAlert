@@ -25,6 +25,8 @@ import type { TimelineEntry } from './tracking/TrackingUpdatesTab';
 import { TrackingSupplementModal } from './tracking/TrackingSupplementModal';
 // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
 import { isReporterCloudConfigured, openReporterCase, sendReporterMessage } from '../services/reporterCloudAccess';
+// === AMÉLIORATION AJOUTÉE (messagerie déclarant ↔ équipe) ===
+import { takeReporterAccess } from '../services/reporterCloudAccess';
 import { reporterCaseToAlertRecord } from '../domain/reporterCaseToAlert';
 
 interface AlertTrackingViewProps {
@@ -118,6 +120,19 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
       if (found) {
         // In demo preview, allow auto-viewing freshly created alerts or prompt
         setActiveAlert(found);
+      }
+      // === AMÉLIORATION AJOUTÉE (messagerie déclarant ↔ équipe) === juste
+      // après le dépôt : bascule sur la version du serveur (réponses de
+      // l'équipe, statut), avec le code d'accès gardé en mémoire.
+      const code = takeReporterAccess(initialTrackingNumber);
+      if (code && isReporterCloudConfigured()) {
+        const caseNumber = initialTrackingNumber.trim().toUpperCase();
+        void openReporterCase(caseNumber, code).then((remote) => {
+          if (remote.ok !== true) return;
+          const access = { caseNumber, accessCode: code };
+          setCloudAccess(access);
+          setActiveAlert(reporterCaseToAlertRecord(remote.payload, caseNumber, storage.getAlertByTracking(caseNumber)));
+        });
       }
     }
   }, [initialTrackingNumber]);
