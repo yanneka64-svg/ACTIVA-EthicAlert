@@ -45,6 +45,12 @@ import {
   updateFirebaseStaffAccount,
 } from '../../services/staffAccountsClient';
 
+// === AMÉLIORATION AJOUTÉE (demande explicite) === le bandeau « où sont
+// enregistrés les comptes » et les badges Firebase / Local ne sont plus
+// affichés. Le fonctionnement est inchangé (gestion dans Firebase dès qu'un
+// administrateur Firebase est connecté) ; passer à `true` pour les réafficher.
+const SHOW_ACCOUNT_STORAGE_INDICATORS = false;
+
 interface UsersTabProps {
   users: UserProfile[];
   entities: EntityDef[];
@@ -347,7 +353,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
 
         {/* === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
             Indique où les comptes créés ici sont enregistrés. */}
-        {firebaseConfigured && cloudMode !== null && (
+        {SHOW_ACCOUNT_STORAGE_INDICATORS && firebaseConfigured && cloudMode !== null && (
           <p
             id="users-storage-notice"
             className={`flex items-start gap-2 rounded-lg border p-2.5 leading-relaxed ${
@@ -366,7 +372,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                 <div className="font-bold text-slate-900 truncate">
                   {u.name}
                   {/* === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) === */}
-                  {firebaseConfigured && (
+                  {SHOW_ACCOUNT_STORAGE_INDICATORS && firebaseConfigured && (
                     <span
                       className={`ml-2 align-middle px-1.5 py-0.5 rounded text-[9px] font-bold ${
                         u.authSource === 'firebase' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
