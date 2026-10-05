@@ -40,9 +40,12 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
   onGoToNewAlert,
 }) => {
   return (
-    <div className="min-h-[70vh] flex items-center justify-center py-8 px-4 sm:px-6">
+    // === AMÉLIORATION AJOUTÉE (suivi — design modernisé) === carte qui
+    // apparaît en douceur, photo qui se pose, textes en cascade, champs et
+    // boutons animés (styles `activa-form` partagés avec le formulaire).
+    <div className="activa-form min-h-[70vh] flex items-center justify-center py-8 px-4 sm:px-6">
     <div className="w-full max-w-3xl mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
+      <div className="activa-modal-in grid grid-cols-1 lg:grid-cols-2 rounded-3xl overflow-hidden border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)]">
         {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
             l'utilisateur) === Remplace la photo du siège par une photo de
             bureau avec vue sur skyline, servie depuis
@@ -58,7 +61,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
             alt={t.space_img_alt}
             fetchPriority="high"
             decoding="async"
-            className="absolute inset-0 w-full h-full object-cover object-left"
+            className="activa-kenburns absolute inset-0 w-full h-full object-cover object-left"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/90 via-[#0B2545]/55 to-[#0B2545]/15" />
           <div className="relative z-10 space-y-5">
@@ -68,10 +71,12 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
                 `t.track_subtitle`), sur demande explicite de l'utilisateur.
                 `track_login_tagline` reste défini dans translations.ts
                 (non supprimé) mais n'est plus utilisé ici. */}
-            <p className="text-2xl font-bold leading-snug max-w-xs">{t.track_subtitle}</p>
-            <div className="w-10 h-px bg-white/40" />
-            <div className="flex items-start gap-2.5">
-              <ShieldCheck className="w-4 h-4 text-white shrink-0 mt-0.5" />
+            <p className="activa-enter text-2xl font-extrabold tracking-tight leading-snug max-w-xs" style={{ '--d': '250ms' } as React.CSSProperties}>{t.track_subtitle}</p>
+            <div className="activa-draw-x w-10 h-0.5 rounded-full bg-gradient-to-r from-sky-300 to-white/40" style={{ '--d': '450ms' } as React.CSSProperties} />
+            <div className="activa-enter flex items-start gap-3" style={{ '--d': '550ms' } as React.CSSProperties}>
+              <span className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-md ring-1 ring-inset ring-white/25 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-[18px] h-[18px] text-white" strokeWidth={1.75} />
+              </span>
               <div>
                 <div className="text-sm font-bold">{t.sidebar_confidentiality_title}</div>
                 <div className="text-xs text-white/80">{t.track_login_photo_note}</div>
@@ -91,17 +96,18 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
               qu'il s'affiche désormais aussi sur le bandeau photo à
               gauche — retiré ici sur demande explicite de l'utilisateur,
               la clé de traduction reste inchangée et utilisée côté photo. */}
-          <div className="mb-4">
-            <h2 className="text-xl font-bold text-slate-900">{t.track_title}</h2>
+          <div className="activa-enter mb-5" style={{ '--d': '150ms' } as React.CSSProperties}>
+            <h2 className="text-xl font-extrabold tracking-tight text-slate-900">{t.track_title}</h2>
+            <div className="mt-2 w-8 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400" />
           </div>
 
           {loginError && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+            <div className="activa-enter mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
               {loginError}
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="activa-caret-blink space-y-4">
+          <form onSubmit={handleLogin} className="activa-enter activa-caret-blink space-y-4" style={{ '--d': '250ms' } as React.CSSProperties}>
             <div>
               <label htmlFor="input-tracking-number" className="block text-xs font-semibold text-slate-700 mb-1">
                 {t.track_label_case_number} *
@@ -112,7 +118,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
                 value={trackingNumberInput}
                 onChange={(e) => setTrackingNumberInput(e.target.value)}
                 /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.track_placeholder_case_number}) */
-                className="w-full px-3 py-2.5 text-xs font-mono font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 uppercase tracking-wider"
+                className="w-full px-3.5 py-3 text-xs font-mono font-bold bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 uppercase tracking-wider"
               />
             </div>
 
@@ -127,14 +133,14 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder={t.track_placeholder_password}
-                  className="w-full px-3 py-2.5 pr-9 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-3 pr-10 text-xs bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
                 </button>
               </div>
               {/* === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
@@ -148,14 +154,14 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
               type="submit"
               id="btn-submit-tracking-login"
               disabled={isVerifying}
-              className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-bold shadow transition flex items-center justify-center gap-2"
+              className="activa-shine group w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:opacity-60 text-white text-xs font-bold shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/35 enabled:hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
             >
               <span>{isVerifying ? t.common_verifying : t.btn_login_tracking}</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
             </button>
           </form>
 
-          <div className="flex items-center gap-3 my-5">
+          <div className="activa-enter flex items-center gap-3 my-5" style={{ '--d': '350ms' } as React.CSSProperties}>
             <div className="flex-1 h-px bg-slate-200" />
             {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
                 BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core : text-slate-400
@@ -167,10 +173,11 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
 
           <button
             onClick={onGoToNewAlert}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-blue-700 text-xs font-semibold transition"
+            className="activa-enter group w-full flex items-center justify-between px-4 py-3 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50/70 to-white hover:from-blue-50 hover:border-blue-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-600/10 text-blue-700 text-xs font-semibold transition-all duration-300"
+            style={{ '--d': '420ms' } as React.CSSProperties}
           >
             <span>{t.track_switch_to_new_alert}</span>
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
           </button>
         </div>
       </div>
