@@ -32,7 +32,9 @@ function mirrorAddedPerson(
   name: string,
   position: string,
   hierarchyRole: string,
-  linkedUserId: string | undefined
+  linkedUserId: string | undefined,
+  // === AMÉLIORATION AJOUTÉE === même identifiant côté serveur (rattachement ultérieur).
+  clientId?: string
 ): void {
   if (!alert.mirroredCaseId) return;
   const mirroredCaseId = alert.mirroredCaseId;
@@ -45,6 +47,7 @@ function mirrorAddedPerson(
         position: position || undefined,
         hierarchyLevel: HIERARCHY_ROLE_TO_LEVEL[hierarchyRole],
         linkedUserId,
+        clientId,
       })
     )
     .catch(() => {});
@@ -81,7 +84,7 @@ export function usePersonForms(selectedAlert: AlertRecord | null, activeUser: Us
         linkedUserId: personLinkedUserId || undefined,
       };
       storage.saveAlert({ ...selectedAlert, involvedPersons: [...selectedAlert.involvedPersons, entry], updatedAt: new Date().toISOString() });
-      mirrorAddedPerson(selectedAlert, 'subject', entry.name, entry.position, entry.hierarchyRole, entry.linkedUserId);
+      mirrorAddedPerson(selectedAlert, 'subject', entry.name, entry.position, entry.hierarchyRole, entry.linkedUserId, entry.id);
     } else {
       const entry: Witness = {
         id: 'wit-' + Date.now(),
@@ -92,7 +95,7 @@ export function usePersonForms(selectedAlert: AlertRecord | null, activeUser: Us
         linkedUserId: personLinkedUserId || undefined,
       };
       storage.saveAlert({ ...selectedAlert, witnesses: [...selectedAlert.witnesses, entry], updatedAt: new Date().toISOString() });
-      mirrorAddedPerson(selectedAlert, 'witness', entry.name, entry.position, entry.hierarchyRole, entry.linkedUserId);
+      mirrorAddedPerson(selectedAlert, 'witness', entry.name, entry.position, entry.hierarchyRole, entry.linkedUserId, entry.id);
     }
     // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
     // Un rattachement défini dès la création déclenche immédiatement le

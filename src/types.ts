@@ -385,6 +385,10 @@ export interface AlertRecord {
   // configuré (l'immense majorité des cas aujourd'hui — voir
   // casesCloudSync.ts), jamais lus par le moindre écran existant.
   mirroredCaseId?: string;
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+  // travail du personnel tel que le serveur le connaît (Case.portal), pour
+  // n'envoyer que ce qu'il ne connaît pas encore. Technique, jamais affiché.
+  serverPortal?: Record<string, unknown>;
   mirroredCaseNumber?: string;
   // === AMÉLIORATION AJOUTÉE (lecture des dossiers Firebase par le portail)
   // === `true` : dossier chargé depuis Firebase (services/cloudCasesSync.ts)

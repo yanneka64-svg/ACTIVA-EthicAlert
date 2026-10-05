@@ -67,6 +67,16 @@ export function useCloseForm(selectedAlert: AlertRecord | null, activeUser: User
     };
 
     storage.saveAlert(updatedAlert);
+    // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur) === le
+    // message de clôture est aussi envoyé au serveur : le déclarant le reçoit
+    // dans son espace de suivi (la clôture elle-même part par applyPortalUpdate).
+    const closingMessage = updatedAlert.messages[updatedAlert.messages.length - 1];
+    const mirroredCaseId = selectedAlert.mirroredCaseId;
+    if (mirroredCaseId && closingMessage) {
+      import('../../../services/caseMirrorSync')
+        .then(({ mirrorAddCommunication }) => mirrorAddCommunication({ caseId: mirroredCaseId, content: closingMessage.content }))
+        .catch(() => {});
+    }
     storage.logAudit(
       'ALERT_CLOSED',
       `Clôture formelle du dossier ${selectedAlert.trackingNumber} par ${activeUser.name}.`,

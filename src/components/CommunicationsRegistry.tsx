@@ -100,6 +100,15 @@ export const CommunicationsRegistry: React.FC<CommunicationsRegistryProps> = ({ 
       updatedAt: new Date().toISOString(),
     };
     storage.saveAlert(updatedAlert);
+    // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur) === le
+    // message est aussi envoyé au serveur : le déclarant le reçoit, comme
+    // depuis la fiche dossier.
+    const mirroredCaseId = selectedThread.alert.mirroredCaseId;
+    if (mirroredCaseId) {
+      import('../services/caseMirrorSync')
+        .then(({ mirrorAddCommunication }) => mirrorAddCommunication({ caseId: mirroredCaseId, content: newMsg.content }))
+        .catch(() => {});
+    }
     storage.logAudit(
       'MESSAGE_SENT',
       `Message sécurisé transmis au lanceur d'alerte pour le dossier ${selectedThread.alert.trackingNumber}.`,

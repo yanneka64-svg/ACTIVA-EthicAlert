@@ -125,6 +125,10 @@ export interface Case extends Auditable {
   // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) === date de la
   // dernière action sur le dossier (sous-collections comprises), posée par le serveur.
   lastActivityAt?: string;
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+  // Travail du personnel enregistré par `applyPortalUpdate` (statut affiché,
+  // clôture, réouverture, escalade, rapport…) — voir domain/portalUpdate.ts.
+  portal?: import('./portalUpdate').PortalState;
 
   closedAt?: ISODateString;
   closedBy?: string;

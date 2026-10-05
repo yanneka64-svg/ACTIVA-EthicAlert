@@ -29,6 +29,8 @@ import { needsRehash } from './crypto';
 // `STORAGE_KEYS` et `DATA_CHANGE_EVENT` déplacés tels quels dans
 // ./storageKeys.ts (mêmes valeurs), désormais exportés.
 import { STORAGE_KEYS, DATA_CHANGE_EVENT } from './storageKeys';
+// === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+import { diffPortalUpdate, PORTAL_LOCAL_ONLY_KEYS } from '../domain/portalUpdate';
 import * as storageBackfill from './storageBackfill';
 
 class StorageService {
@@ -354,7 +356,84 @@ class StorageService {
     }
   }
 
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+  /**
+   * Dernier état connu du serveur pour chaque dossier lié au serveur
+   * (`mirroredCaseId`). À chaque enregistrement, l'écart avec cet état
+   * (attribution, statut, clôture, réouverture, escalade, routage, rapport,
+   * tâches, rattachements) est envoyé au serveur par services/portalSync.ts.
+   * Un seul point de passage : toutes les actions des écrans, y compris
+   * celles qui modifient un dossier sur place, passent par persistAlerts().
+   */
+  private portalBaseline: Map<string, AlertRecord> | null = null;
+
+  private static portalSnapshot(a: AlertRecord): AlertRecord {
+    return {
+      ...a,
+      assignedInvestigators: [...(a.assignedInvestigators ?? [])],
+      independentRoutingExcludedUserIds: a.independentRoutingExcludedUserIds ? [...a.independentRoutingExcludedUserIds] : undefined,
+      tasks: a.tasks?.map((t) => ({ ...t })),
+      involvedPersons: (a.involvedPersons ?? []).map((p) => ({ ...p })),
+      witnesses: (a.witnesses ?? []).map((p) => ({ ...p })),
+    };
+  }
+
+  /**
+   * État de référence = ce qui vient d'être reçu du serveur. Les champs que
+   * seul le portail connaît prennent la valeur que le serveur a réellement
+   * (`serverPortal`) : une valeur saisie auparavant dans ce navigateur et
+   * inconnue du serveur lui est donc envoyée une fois.
+   */
+  private resetPortalBaseline(records: AlertRecord[]): void {
+    if (!this.portalBaseline) return;
+    for (const r of records) {
+      if (!r.mirroredCaseId) continue;
+      const snap = StorageService.portalSnapshot(r) as unknown as Record<string, unknown>;
+      if (r.serverPortal) {
+        for (const key of PORTAL_LOCAL_ONLY_KEYS) snap[key] = r.serverPortal[key] ?? undefined;
+      }
+      this.portalBaseline.set(r.id, snap as unknown as AlertRecord);
+    }
+  }
+
+  /** Première utilisation : la référence est le dernier état enregistré dans le navigateur. */
+  private ensurePortalBaseline(): Map<string, AlertRecord> {
+    if (!this.portalBaseline) {
+      let stored: AlertRecord[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEYS.ALERTS) || '[]');
+        stored = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        stored = [];
+      }
+      this.portalBaseline = new Map(stored.filter((a) => a?.mirroredCaseId).map((a) => [a.id, StorageService.portalSnapshot(a)]));
+    }
+    return this.portalBaseline;
+  }
+
+  private syncPortalChanges(): void {
+    try {
+      this.ensurePortalBaseline();
+      if (!this.portalBaseline) return;
+      for (const a of this.alerts) {
+        if (!a.mirroredCaseId) continue;
+        const snap = StorageService.portalSnapshot(a);
+        const base = this.portalBaseline.get(a.id);
+        this.portalBaseline.set(a.id, snap);
+        if (!base) continue; // dossier tout juste lié : rien à rattraper
+        const patch = diffPortalUpdate(base, snap);
+        if (!patch) continue;
+        const caseId = a.mirroredCaseId;
+        import('./portalSync').then(({ queuePortalUpdate }) => queuePortalUpdate(caseId, patch)).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[storage] synchronisation serveur impossible', e);
+    }
+  }
+
   private persistAlerts() {
+    // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+    this.syncPortalChanges();
     try {
       localStorage.setItem(STORAGE_KEYS.ALERTS, JSON.stringify(this.alerts));
     } catch (e) {
@@ -626,6 +705,10 @@ class StorageService {
     const ids = new Set(incoming.map((r) => r.id));
     const kept = this.alerts.filter((a) => !a.cloudImported && !ids.has(a.id));
     this.alerts = [...kept, ...incoming];
+    // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
+    // état reçu du serveur : référence, jamais renvoyé.
+    this.ensurePortalBaseline();
+    this.resetPortalBaseline(incoming);
     this.persistAlerts();
     this.notify();
   }
@@ -743,6 +826,7 @@ class StorageService {
             owner: task.owner,
             priority: TASK_PRIORITY_TO_CASE_PRIORITY[task.priority],
             dueDate: task.dueDate,
+            clientId: task.id, // === AMÉLIORATION AJOUTÉE === même identifiant côté serveur
           })
         )
         .catch(() => {});
