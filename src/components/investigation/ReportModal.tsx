@@ -16,6 +16,8 @@
 import React from 'react';
 import { ClipboardList, FileText, Paperclip, X } from 'lucide-react';
 import { AlertRecord, EvidenceFile } from '../../types';
+// === AMÉLIORATION AJOUTÉE (revue design) === tailles de fichier lisibles
+import { formatFileSize } from '../ui/fileSize';
 
 interface ReportModalProps {
   t: Record<string, string>;
@@ -77,7 +79,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               </span>
               <div className="min-w-0 flex-1">
                 <span className="font-medium text-slate-800 block truncate">{reportFile.name}</span>
-                <span className="text-[10px] text-slate-400">{Math.round(reportFile.size / 1024)} Ko</span>
+                <span className="text-[10px] text-slate-400">{formatFileSize(reportFile.size)}</span>
               </div>
               <button
                 type="button"

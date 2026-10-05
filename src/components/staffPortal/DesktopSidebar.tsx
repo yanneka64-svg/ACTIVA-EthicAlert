@@ -33,7 +33,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
     // === AMÉLIORATION AJOUTÉE (écrans de travail — design modernisé) ===
     // carte à ombre douce qui apparaît en douceur, tuiles de titre en
     // dégradé, encart d'aide en dégradé.
-    <aside className={`activa-enter hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-0 lg:z-30 ${selectedSpace === 'admin' ? 'lg:self-stretch' : 'lg:self-start'} bg-white border border-slate-200/80 rounded-2xl shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-22px_rgb(15_23_42/0.2)] overflow-hidden mt-6`}>
+    <aside className={`activa-enter activa-vt-sidebar hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-0 lg:z-30 ${selectedSpace === 'admin' ? 'lg:self-stretch' : 'lg:self-start'} bg-white border border-slate-200/80 rounded-2xl shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-22px_rgb(15_23_42/0.2)] overflow-hidden mt-6`}>
       {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
           sélecteur en barre latérale) === Le petit bloc "ESPACES" qui
           vivait ici (2-3 boutons empilés en haut de la sidebar) est

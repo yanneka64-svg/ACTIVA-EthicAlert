@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* === AMÉLIORATION AJOUTÉE (revue design) === police hébergée avec l'application */
+@import "@fontsource-variable/plus-jakarta-sans";
 
 /* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 2, design system) ===
    Jusqu'ici, la couleur de marque (navy) était répétée en dur en
@@ -389,5 +391,195 @@ input[type='password']::-ms-clear {
   }
   .activa-portal button:not(:disabled):active {
     scale: none;
+  }
+}
+
+/* === AMÉLIORATION AJOUTÉE (revue design — finitions et mouvements) ===
+   Couche commune à TOUTE l'application, sans modifier les écrans un par un :
+   - typographie : Plus Jakarta Sans (hébergée avec l'application — la
+     politique de sécurité interdit les polices externes), rendu affiné ;
+   - courbes et durées de mouvement communes (tokens ci-dessous) ;
+   - transitions douces entre écrans (API View Transitions, voir
+     src/app/viewTransition.ts), l'en-tête et le pied de page restant fixes ;
+   - boutons, liens, cartes, lignes de tableau et champs : transitions
+     fluides, focus clavier visible et élégant ;
+   - barres de défilement fines, sélection de texte aux couleurs de marque ;
+   - chargement : squelette animé au lieu d'un simple sablier.
+   Sélecteurs `:where()` (spécificité nulle) : toute classe Tailwind déjà
+   posée sur un élément garde la priorité — rien de l'existant n'est écrasé.
+   Tout mouvement est coupé si l'utilisateur limite les animations. */
+@theme {
+  --font-sans: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --ease-activa: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-activa-soft: cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+:root {
+  --activa-dur-fast: 180ms;
+  --activa-dur: 320ms;
+  --activa-dur-slow: 700ms;
+}
+
+@layer base {
+/* Typographie */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+}
+:where(h1, h2, h3) {
+  text-wrap: balance;
+}
+/* Espace entre les mots plus généreuse : l'espace de cette police est
+   étroite (« En revue » se lisait « Enrevue »). */
+body {
+  word-spacing: 0.08em;
+}
+:where(p) {
+  text-wrap: pretty;
+}
+:where(table, .tabular-nums) {
+  font-variant-numeric: tabular-nums;
+}
+::selection {
+  background: rgb(37 99 235 / 0.18);
+  color: inherit;
+}
+
+/* Barres de défilement fines */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.55) transparent;
+}
+
+/* Interactions : transitions fluides par défaut (les classes existantes priment) */
+:where(button, a, [role='button'], summary, select, input, textarea) {
+  transition-property: color, background-color, border-color, outline-color, box-shadow, transform, opacity, translate, scale;
+  transition-duration: var(--activa-dur-fast);
+  transition-timing-function: var(--ease-activa-soft);
+}
+:where(button, a, [role='button'], summary, [tabindex]):focus-visible {
+  outline: 2px solid rgb(37 99 235 / 0.85);
+  outline-offset: 2px;
+  border-radius: 0.6rem;
+}
+}
+
+/* Cartes cliquables du personnel : légère élévation au survol */
+.activa-portal :is(button, a):is(.rounded-2xl, .rounded-xl):is(.border, .shadow-sm):not(:disabled) {
+  transition-duration: var(--activa-dur);
+  transition-timing-function: var(--ease-activa);
+}
+.activa-portal :is(button, a).rounded-2xl:is(.border, .shadow-sm):not(:disabled):hover {
+  translate: 0 -2px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 18px 34px -20px rgb(15 23 42 / 0.32);
+}
+
+/* Lignes de tableau : apparition en cascade (les 14 premières) */
+@keyframes activa-row-in {
+  from { opacity: 0; translate: 0 4px; }
+  to { opacity: 1; translate: 0 0; }
+}
+.activa-portal tbody tr {
+  animation: activa-row-in 0.5s var(--ease-activa) backwards;
+}
+.activa-portal tbody tr:nth-child(2) { animation-delay: 30ms; }
+.activa-portal tbody tr:nth-child(3) { animation-delay: 60ms; }
+.activa-portal tbody tr:nth-child(4) { animation-delay: 90ms; }
+.activa-portal tbody tr:nth-child(5) { animation-delay: 120ms; }
+.activa-portal tbody tr:nth-child(6) { animation-delay: 150ms; }
+.activa-portal tbody tr:nth-child(7) { animation-delay: 180ms; }
+.activa-portal tbody tr:nth-child(8) { animation-delay: 210ms; }
+.activa-portal tbody tr:nth-child(n + 9) { animation-delay: 240ms; }
+
+/* Transitions entre écrans (View Transitions) */
+@keyframes activa-vt-out {
+  to { opacity: 0; transform: translateY(-6px) scale(0.995); filter: blur(2px); }
+}
+@keyframes activa-vt-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.995); filter: blur(3px); }
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-group(activa-main) {
+  animation-duration: 0.55s;
+  animation-timing-function: var(--ease-activa);
+}
+::view-transition-old(activa-main) {
+  animation: activa-vt-out 0.22s ease-in both;
+}
+::view-transition-new(activa-main) {
+  animation: activa-vt-in 0.6s var(--ease-activa) 0.08s both;
+}
+.activa-vt-main {
+  view-transition-name: activa-main;
+}
+/* Le menu latéral reste en place pendant la transition (seul le contenu bouge) */
+.activa-vt-sidebar {
+  view-transition-name: activa-sidebar;
+}
+::view-transition-group(activa-sidebar) {
+  animation: none;
+}
+::view-transition-old(activa-sidebar) {
+  animation: none;
+  opacity: 0;
+}
+::view-transition-new(activa-sidebar) {
+  animation: none;
+}
+
+/* En-tête : ombre qui apparaît dès que le contenu défile */
+.activa-navbar-shell {
+  position: relative;
+  z-index: 40;
+  transition: box-shadow var(--activa-dur) var(--ease-activa);
+}
+[data-scrolled='true'] .activa-navbar-shell {
+  box-shadow: 0 1px 0 rgb(15 23 42 / 0.04), 0 10px 30px -18px rgb(15 23 42 / 0.35);
+}
+
+/* Squelette de chargement */
+@keyframes activa-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+.activa-skeleton {
+  background: linear-gradient(100deg, rgb(226 232 240 / 0.7) 30%, rgb(241 245 249) 50%, rgb(226 232 240 / 0.7) 70%);
+  background-size: 200% 100%;
+  animation: activa-shimmer 1.6s ease-in-out infinite;
+  border-radius: 0.75rem;
+}
+
+/* Chiffres clés : apparition en douceur */
+@keyframes activa-count-in {
+  from { opacity: 0; translate: 0 6px; filter: blur(4px); }
+  to { opacity: 1; translate: 0 0; filter: blur(0); }
+}
+.activa-count-in {
+  animation: activa-count-in 0.9s var(--ease-activa) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @layer base {
+    :where(button, a, [role='button'], summary, select, input, textarea) {
+      transition-duration: 0.01ms;
+    }
+  }
+  .activa-portal tbody tr,
+  .activa-skeleton,
+  .activa-count-in {
+    animation: none !important;
+  }
+  .activa-portal :is(button, a).rounded-2xl:hover {
+    translate: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

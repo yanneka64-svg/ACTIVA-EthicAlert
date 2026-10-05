@@ -173,7 +173,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     // rien. `shrink-0` évite qu'un flex-parent ne le rétrécisse jamais ;
     // `z-40` reste nécessaire pour que les menus déroulants (langue,
     // compte) de ce header s'affichent au-dessus du contenu en dessous.
-    <header className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm shrink-0 relative z-40">
+    <header className="activa-navbar-shell bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm shrink-0 relative z-40">
       {/* === AMÉLIORATION AJOUTÉE (Phase 24) === bande utilitaire (Phase 23)
           retirée sur demande explicite. */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">

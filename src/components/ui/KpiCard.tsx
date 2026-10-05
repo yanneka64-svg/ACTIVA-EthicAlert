@@ -9,6 +9,8 @@
  * requirement that KPI cards be clickable.
  */
 import React from 'react';
+// === AMÉLIORATION AJOUTÉE (revue design) === chiffres qui défilent en douceur
+import { CountUp } from './CountUp';
 
 export type KpiTone = 'neutral' | 'blue' | 'amber' | 'rose' | 'orange' | 'emerald' | 'purple' | 'indigo';
 
@@ -54,7 +56,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({ value, label, tone = 'neutral'
           {icon}
           <span>{label}</span>
         </div>
-        <div className={`text-2xl sm:text-[28px] font-extrabold mt-2 ${style.text}`}>{value}</div>
+        <div className={`activa-count-in text-2xl sm:text-[28px] font-extrabold mt-2 tabular-nums ${style.text}`}><CountUp value={value} /></div>
         {sub && <div className="text-[11px] font-semibold mt-1 flex items-center gap-1 text-slate-500">{sub}</div>}
       </Tag>
     );
@@ -65,7 +67,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({ value, label, tone = 'neutral'
       onClick={onClick}
       className={`p-3 sm:p-4 rounded-xl border text-center w-full ${style.bg} ${style.border} ${interactive}`}
     >
-      <div className={`text-xl sm:text-2xl font-extrabold ${style.text}`}>{value}</div>
+      <div className={`activa-count-in text-xl sm:text-2xl font-extrabold tabular-nums ${style.text}`}><CountUp value={value} /></div>
       {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
           BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core : text-slate-500 sur
           les fonds teintés (blue-50/rose-50...) de certains tons passe tout

@@ -18,6 +18,8 @@ import React from 'react';
 import { Plus, FileText } from 'lucide-react';
 import { AlertRecord, Language } from '../../types';
 import { EvidenceDownloadButton } from '../ui/EvidenceDownloadButton';
+// === AMÉLIORATION AJOUTÉE (revue design) === tailles de fichier lisibles
+import { formatFileSize } from '../ui/fileSize';
 
 interface EvidenceSectionProps {
   selectedAlert: AlertRecord;
@@ -59,7 +61,7 @@ export const EvidenceSection: React.FC<EvidenceSectionProps> = ({ selectedAlert,
                   {new Date(ev.uploadedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
                 </span>
               </div>
-              <span className="text-[10px] text-slate-400 shrink-0">{Math.round(ev.size / 1024)} Ko</span>
+              <span className="text-[10px] text-slate-400 shrink-0">{formatFileSize(ev.size)}</span>
               {/* === AMÉLIORATION AJOUTÉE (documents du déclarant accessibles à l'enquêteur) === */}
               <EvidenceDownloadButton file={ev} t={t} />
             </div>

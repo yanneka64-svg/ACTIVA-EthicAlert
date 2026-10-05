@@ -275,6 +275,14 @@ export const pt: Record<string, string> = {
   status_closed: 'Concluído / Fechado',
   status_archived: 'Arquivado',
   status_reopened: 'Reaberto',
+  // === AMÉLIORATION AJOUTÉE (revue design) === libellés courts du badge de statut (fiche dossier)
+  case_badge_status_new: 'Novo',
+  case_badge_status_under_review: 'Análise preliminar',
+  case_badge_status_investigation: 'Em investigação',
+  case_badge_status_corrective_action: 'Medidas corretivas',
+  case_badge_status_closed: 'Encerrado',
+  case_badge_status_archived: 'Arquivado',
+  case_badge_status_reopened: 'Reaberto',
 
   portal_title: 'Portal DARC & Gestão de Alertas',
   portal_total_alerts: 'Total de alertas registrados',
@@ -1215,6 +1223,10 @@ export const pt: Record<string, string> = {
   perm_security_manage: 'Gerir a segurança (autenticação, MFA, sessões)',
   roles_matrix_title: 'Matriz de funções e permissões',
   roles_save: 'Guardar as permissões',
+  // === AMÉLIORATION AJOUTÉE (écran aéré) ===
+  roles_view_by_role: 'Por função',
+  roles_view_compare: 'Vista comparativa',
+  roles_protected_short: 'Protegido',
   gov_add_recipient: 'Adicionar um destinatário',
   gov_none: 'Nenhum destinatário configurado.',
   gov_col_name: 'Nome',

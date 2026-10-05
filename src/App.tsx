@@ -39,6 +39,8 @@ import { StaffSpaceHome, CaseLookup, StaffLoginView } from './app/lazyScreens';
 import { StaffLoadingFallback } from './app/StaffLoadingFallback';
 import { renderStaffScreen } from './app/renderStaffScreen';
 import { AppFooter } from './app/AppFooter';
+// === AMÉLIORATION AJOUTÉE (revue design) ===
+import { withViewTransition } from './app/viewTransition';
 // === AMÉLIORATION AJOUTÉE : correction post-fusion ===
 // Ces imports (routage par URL, garde-fous, pont RBAC, écran de connexion
 // interne — Phase 12.2/12.3/12.4) avaient disparu lors de la fusion avec la
@@ -142,6 +144,8 @@ function AppShell() {
   const t = TRANSLATIONS[lang];
   setCurrentLang(lang);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
+  // === AMÉLIORATION AJOUTÉE (revue design) === contenu défilé (ombre de l'en-tête)
+  const [scrolled, setScrolled] = useState(false);
   const [prefilledTrackingNumber, setPrefilledTrackingNumber] = useState<string>('');
   // === AMÉLIORATION AJOUTÉE (Phase 5) === filter the Control Panel's KPI
   // cards/quick actions hand off to InvestigationDesk when navigating there.
@@ -393,8 +397,11 @@ function AppShell() {
   // filter so it never leaks into a later, unrelated visit to "portal" —
   // only navigateToCases() below sets a filter, deliberately.
   const goToTab = (tab: string) => {
-    setPendingCaseFilter(undefined);
-    navigate(pathForTab(tab));
+    // === AMÉLIORATION AJOUTÉE (revue design) === transition douce entre écrans
+    withViewTransition(() => {
+      setPendingCaseFilter(undefined);
+      navigate(pathForTab(tab));
+    });
   };
 
   const navigateToCases = (filter?: { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean }) => {
@@ -402,13 +409,16 @@ function AppShell() {
     // précis devient une vraie URL partageable (/cases/:trackingNumber) —
     // tout autre filtre (statut, non-attribué, mes dossiers…) continue de
     // transiter par l'état React existant, exactement comme avant.
-    if (filter?.trackingNumber) {
-      setPendingCaseFilter(undefined);
-      navigate(`/cases/${encodeURIComponent(filter.trackingNumber)}`);
-      return;
-    }
-    setPendingCaseFilter(filter);
-    navigate(pathForTab('portal'));
+    // === AMÉLIORATION AJOUTÉE (revue design) === transition douce entre écrans
+    withViewTransition(() => {
+      if (filter?.trackingNumber) {
+        setPendingCaseFilter(undefined);
+        navigate(`/cases/${encodeURIComponent(filter.trackingNumber)}`);
+        return;
+      }
+      setPendingCaseFilter(filter);
+      navigate(pathForTab('portal'));
+    });
   };
 
   const handleAlertSubmitted = (trackingNumber: string) => {
@@ -468,7 +478,9 @@ function AppShell() {
     // débuter juste en dessous. L'en-tête (Navbar) reste hors de cette zone
     // scrollable, donc toujours visible, sans avoir besoin d'être `sticky`
     // (son parent ne défile plus).
-    <div className="h-screen overflow-hidden bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+    // === AMÉLIORATION AJOUTÉE (revue design) === `data-scrolled` : l'en-tête
+    // prend une ombre douce dès que le contenu défile (index.css).
+    <div data-scrolled={scrolled ? 'true' : 'false'} className="h-screen overflow-hidden bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       {/* Top Main Navigation */}
       <Navbar
         currentTab={currentTab}
@@ -504,7 +516,13 @@ function AppShell() {
           `min-h-0` est nécessaire : sans lui, un enfant flex refuse par
           défaut de rétrécir sous la taille de son contenu, empêchant
           `overflow-y-auto` de jouer son rôle ici. */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+      <div
+        className="activa-vt-main flex-1 min-h-0 overflow-y-auto flex flex-col"
+        onScroll={(e) => {
+          const next = e.currentTarget.scrollTop > 4;
+          if (next !== scrolled) setScrolled(next);
+        }}
+      >
       {/* Main Content Area */}
       <main className="flex-1 pb-16">
         {currentTab === 'home' && (

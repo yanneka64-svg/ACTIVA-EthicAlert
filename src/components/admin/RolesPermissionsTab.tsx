@@ -19,6 +19,9 @@
  */
 import React, { useState } from 'react';
 import { ShieldCheck, ChevronRight, ChevronDown } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (écran aéré) ===
+import { Check, Columns3, Lock, UserCog } from 'lucide-react';
+import { SaveBar, SegmentedTabs, Switch } from '../ui/AdminControls';
 import { Language, UserProfile } from '../../types';
 // === AMÉLIORATION AJOUTÉE : onglet traduit (FR/EN/PT) ===
 import { TRANSLATIONS } from '../../i18n/translations';
@@ -53,6 +56,10 @@ export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ active
   // Preuves...), chaque section reste une vraie grille rôles × permissions
   // une fois dépliée.
   const [expandedPermissionGroups, setExpandedPermissionGroups] = useState<Set<string>>(new Set());
+  // === AMÉLIORATION AJOUTÉE (écran aéré) === vue « un rôle à la fois »
+  // (interrupteurs par permission) ou vue comparative (matrice).
+  const [rolesView, setRolesView] = useState<'role' | 'compare'>('role');
+  const [selectedRole, setSelectedRole] = useState<RoleId>('investigator');
   const togglePermissionGroup = (group: string) => {
     setExpandedPermissionGroups((prev) => {
       const next = new Set(prev);
@@ -94,6 +101,14 @@ export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ active
     }
     onSaved(changedCount > 0 ? t.roles_saved.replace('{n}', String(changedCount)) : t.roles_no_change);
   };
+
+  // === AMÉLIORATION AJOUTÉE (écran aéré) === modifications non enregistrées
+  const savedRolePermissions = storage.getRolePermissions();
+  const rolesDirty = Object.keys(rolePermissionsDraft).some((r) => {
+    const a = [...(savedRolePermissions[r as RoleId] ?? [])].sort().join('|');
+    const b = [...(rolePermissionsDraft[r as RoleId] ?? [])].sort().join('|');
+    return a !== b;
+  });
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — matrice des rôles & permissions) ===
   // Structure d'affichage (groupes/libellés) au-dessus de la table réelle.
@@ -191,21 +206,86 @@ export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ active
               case Administrateur système × Gérer la configuration reste
               protégée côté logique (isProtectedPermissionCell). */}
         </div>
-        <button
-          type="submit"
-          className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-xs transition shrink-0"
-        >
-          {t.roles_save}
-        </button>
+        {/* === AMÉLIORATION AJOUTÉE (écran aéré) === deux vues ; l'enregistrement
+            passe par la barre collante en bas (même action « submit »). */}
+        <SegmentedTabs<'role' | 'compare'>
+          idPrefix="roles-view"
+          value={rolesView}
+          onChange={setRolesView}
+          tabs={[
+            { key: 'role', label: t.roles_view_by_role || 'Par rôle', icon: <UserCog className="w-3.5 h-3.5" /> },
+            { key: 'compare', label: t.roles_view_compare || 'Vue comparative', icon: <Columns3 className="w-3.5 h-3.5" /> },
+          ]}
+        />
       </div>
 
-      <div className="overflow-x-auto">
+      {rolesView === 'role' && (
+        <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-4 items-start">
+          <nav className="activa-enter rounded-2xl border border-slate-200 bg-slate-50/50 p-1.5 space-y-0.5" aria-label={t.roles_matrix_title}>
+            {ALL_ROLE_IDS.map((r) => {
+              const active = r === selectedRole;
+              const n = (rolePermissionsDraft[r] ?? []).length;
+              const total = PERMISSION_GROUPS.reduce((acc, g) => acc + g.permissions.length, 0);
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  id={`role-pick-${r}`}
+                  onClick={() => setSelectedRole(r)}
+                  className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left transition-all duration-300 ${
+                    active ? 'bg-white shadow-sm ring-1 ring-blue-200 text-blue-800' : 'text-slate-700 hover:bg-white/70'
+                  }`}
+                >
+                  <span className="font-semibold truncate">{ROLE_ID_LABELS[r]}</span>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${active ? 'bg-blue-600 text-white' : 'bg-slate-200/70 text-slate-600'}`}>
+                    {n}/{total}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+          <div key={selectedRole} className="activa-enter grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+            {PERMISSION_GROUPS.map((g) => (
+              <section key={g.group} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                <h4 className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">{g.group}</h4>
+                <ul className="divide-y divide-slate-100">
+                  {g.permissions.map((p) => {
+                    const protectedCell = isProtectedPermissionCell(selectedRole, p.key);
+                    const checked = (rolePermissionsDraft[selectedRole] ?? []).includes(p.key);
+                    return (
+                      <li key={p.key} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                        <span className={`font-medium ${checked ? 'text-slate-800' : 'text-slate-500'}`}>{p.label}</span>
+                        {protectedCell ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400" title={t.roles_protected}>
+                            <Lock className="w-3 h-3" />
+                            {t.roles_protected_short || 'Protégé'}
+                          </span>
+                        ) : (
+                          <Switch
+                            id={`perm-${selectedRole}-${p.key.replace('.', '-')}`}
+                            checked={checked}
+                            onChange={() => toggleRolePermissionDraft(selectedRole, p.key)}
+                            label={undefined}
+                          />
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rolesView === 'compare' && (
+      <div className="activa-enter overflow-x-auto rounded-2xl border border-slate-200">
         <table className="min-w-full border-collapse text-[11px]">
           <thead>
             <tr>
-              <th className="p-2 text-left sticky left-0 bg-white z-10"></th>
+              <th className="p-2 text-left sticky left-0 bg-slate-50 z-10"></th>
               {ALL_ROLE_IDS.map((r) => (
-                <th key={r} className="p-2 text-center font-bold text-slate-700 whitespace-nowrap">
+                <th key={r} className="p-2.5 text-center font-bold text-slate-600 bg-slate-50 text-[10px] uppercase tracking-wide align-bottom">
                   {ROLE_ID_LABELS[r]}
                 </th>
               ))}
@@ -256,6 +336,15 @@ export const RolesPermissionsTab: React.FC<RolesPermissionsTabProps> = ({ active
           </tbody>
         </table>
       </div>
+      )}
+
+      {/* === AMÉLIORATION AJOUTÉE (écran aéré) === */}
+      <SaveBar
+        type="submit"
+        dirty={rolesDirty}
+        onSave={() => undefined}
+        saveLabel={t.roles_save}
+      />
     </form>
   );
 };

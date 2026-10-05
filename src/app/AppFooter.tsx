@@ -15,8 +15,10 @@ interface AppFooterProps {
 
 export const AppFooter: React.FC<AppFooterProps> = ({ t, goToTab }) => {
   return (
-    <footer className="shrink-0 bg-[#0B2545] text-slate-300 text-[11px] py-5 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+    // === AMÉLIORATION AJOUTÉE (revue design) === plus compact sur téléphone :
+    // il reste épinglé en bas de l'écran, mais prend moitié moins de place.
+    <footer className="shrink-0 bg-[#0B2545] text-slate-300 text-[11px] py-2.5 sm:py-5 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-3">
         {/* === AMÉLIORATION AJOUTÉE (Phase 20) === logo retiré du pied de page sur demande explicite (ajouté Phase 17). */}
         <span>{t.footer_copyright.replace('{year}', String(new Date().getFullYear()))}</span>
         {/* === AMÉLIORATION AJOUTÉE (liens réels du pied de page) === Les
