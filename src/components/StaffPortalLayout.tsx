@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 // === AMÉLIORATION AJOUTÉE (Refactor StaffPortalLayout — extraction par section) ===
 // Seul `ChevronRight` (utilisé par `renderNavButton`, resté ici) est encore
 // importé : les autres icônes vivent désormais dans ./staffPortal/navItems.tsx
@@ -126,6 +126,20 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   }, [selectedSpace, activeNavLabel, lang]);
   useEffect(() => () => setStaffBreadcrumb(null), []);
 
+  // === AMÉLIORATION AJOUTÉE (écrans de travail — design modernisé) ===
+  // À chaque changement d'écran, le contenu rejoue une apparition en fondu.
+  // L'animation est relancée sur le même élément (sans `key`) : l'écran
+  // affiché n'est jamais démonté/remonté pour l'occasion, son état interne
+  // (filtres, saisie en cours…) reste donc strictement inchangé.
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    el.classList.remove('activa-enter');
+    void el.offsetWidth;
+    el.classList.add('activa-enter');
+  }, [currentTab]);
+
   const renderNavButton = (item: NavItem, mobile = false) => {
     const active = currentTab === item.key;
     if (mobile) {
@@ -133,8 +147,10 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
         <button
           key={`${item.key}-${item.label}`}
           onClick={() => setCurrentTab(item.key)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border transition ${
-            active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border transition-all duration-300 ${
+            active
+              ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 shadow-md shadow-blue-600/25'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
           }`}
         >
           {item.icon}
@@ -147,10 +163,19 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
         id={`sidebar-nav-${item.key}-${item.label.replace(/\s+/g, '-').toLowerCase()}`}
         key={`${item.key}-${item.label}`}
         onClick={() => setCurrentTab(item.key)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-          active ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+        // === AMÉLIORATION AJOUTÉE (écrans de travail — design modernisé) ===
+        // élément actif en dégradé doux avec repère latéral, léger décalage
+        // au survol ; hauteur strictement identique actif/inactif (cf. ci-dessous).
+        className={`group relative w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-300 ${
+          active
+            ? 'bg-gradient-to-r from-blue-50 to-blue-50/30 text-blue-700 ring-1 ring-blue-100'
+            : 'text-slate-600 hover:bg-slate-50 hover:translate-x-0.5'
         }`}
       >
+        <span
+          aria-hidden="true"
+          className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-gradient-to-b from-blue-500 to-sky-400 transition-opacity duration-300 ${active ? 'opacity-100' : 'opacity-0'}`}
+        />
         {/* === AMÉLIORATION AJOUTÉE (Correction bug — la liste change de
             position au clic) === BUG PRÉEXISTANT CORRIGÉ, signalé par
             l'utilisateur sur "Toutes les communications" : sans
@@ -162,16 +187,20 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
             libellé garantit une hauteur strictement identique, actif ou
             non, pour tous les éléments du menu. */}
         <span className="flex items-center gap-2.5 min-w-0">
-          <span className={active ? 'text-blue-600' : 'text-slate-400'}>{item.icon}</span>
+          <span className={`transition-colors duration-300 ${active ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-500'}`}>{item.icon}</span>
           <span className="truncate">{item.label}</span>
         </span>
-        {active && <ChevronRight className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
+        {active && <ChevronRight className="activa-enter-x w-3.5 h-3.5 text-blue-500 shrink-0" />}
       </button>
     );
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
+    // === AMÉLIORATION AJOUTÉE (écrans de travail — design modernisé) ===
+    // `activa-form` + `activa-portal` : finitions communes à tous les écrans
+    // de travail (champs, boutons, icônes au trait fin, ombres douces,
+    // fenêtres animées — voir index.css), sans toucher chaque écran.
+    <div className="activa-form activa-portal max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
       {/* === AMÉLIORATION AJOUTÉE (sidebar sous la topbar) === z-index
           explicite, strictement inférieur à celui de la topbar
@@ -209,7 +238,7 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
       </div>
 
       {/* Content canvas — sa propre largeur maximale centrée */}
-      <div className="flex-1 min-w-0 w-full max-w-[1600px] mx-auto lg:px-6 xl:px-8 lg:py-6">{children}</div>
+      <div ref={contentRef} className="flex-1 min-w-0 w-full max-w-[1600px] mx-auto lg:px-6 xl:px-8 lg:py-6">{children}</div>
     </div>
   );
 };

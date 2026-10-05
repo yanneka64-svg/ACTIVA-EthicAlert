@@ -339,3 +339,55 @@ input[type='password']::-ms-clear {
     transform: none;
   }
 }
+
+/* === AMÉLIORATION AJOUTÉE (écrans de travail — design modernisé) ===
+   Finitions communes à tous les écrans de travail du personnel (classe
+   `activa-portal` posée par StaffPortalLayout.tsx), sans modifier chaque
+   écran un par un :
+   - icônes au trait plus fin (les coches volontairement épaisses gardent
+     leur épaisseur) ;
+   - ombres « sm » adoucies en deux couches ;
+   - survol des lignes de tableau en transition douce ;
+   - fenêtres (fond assombri + carte) qui apparaissent en douceur ;
+   - léger enfoncement des boutons au clic.
+   Rien n'est masqué ni déplacé ; animations coupées si l'utilisateur
+   limite les animations. */
+@keyframes activa-opacity-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.activa-portal svg.lucide:not([stroke-width="3"]):not([stroke-width="3.5"]):not([stroke-width="2.5"]) {
+  stroke-width: 1.75;
+}
+.activa-portal .shadow-sm {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 10px 26px -18px rgb(15 23 42 / 0.22);
+}
+.activa-portal tbody tr {
+  transition: background-color 0.2s ease;
+}
+.activa-portal .fixed.inset-0[class*="bg-slate-900"],
+.activa-portal .fixed.inset-0[class*="bg-black"] {
+  animation: activa-opacity-in 0.25s ease-out both;
+}
+.activa-portal .fixed.inset-0[class*="bg-slate-900"] > *,
+.activa-portal .fixed.inset-0[class*="bg-black"] > * {
+  animation: activa-modal-in 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.activa-portal button:not(:disabled):active {
+  scale: 0.98;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activa-portal .fixed.inset-0[class*="bg-slate-900"],
+  .activa-portal .fixed.inset-0[class*="bg-black"],
+  .activa-portal .fixed.inset-0[class*="bg-slate-900"] > *,
+  .activa-portal .fixed.inset-0[class*="bg-black"] > * {
+    animation: none !important;
+  }
+  .activa-portal button:not(:disabled):active {
+    scale: none;
+  }
+}

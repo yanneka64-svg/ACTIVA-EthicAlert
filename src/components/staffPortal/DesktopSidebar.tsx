@@ -30,7 +30,10 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   let lastGroup: string | null = null;
 
   return (
-    <aside className={`hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-0 lg:z-30 ${selectedSpace === 'admin' ? 'lg:self-stretch' : 'lg:self-start'} bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-6`}>
+    // === AMÉLIORATION AJOUTÉE (écrans de travail — design modernisé) ===
+    // carte à ombre douce qui apparaît en douceur, tuiles de titre en
+    // dégradé, encart d'aide en dégradé.
+    <aside className={`activa-enter hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-0 lg:z-30 ${selectedSpace === 'admin' ? 'lg:self-stretch' : 'lg:self-start'} bg-white border border-slate-200/80 rounded-2xl shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-22px_rgb(15_23_42/0.2)] overflow-hidden mt-6`}>
       {/* === AMÉLIORATION AJOUTÉE (Accueil des espaces — remplace le
           sélecteur en barre latérale) === Le petit bloc "ESPACES" qui
           vivait ici (2-3 boutons empilés en haut de la sidebar) est
@@ -57,7 +60,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           utilisateurs et configuration") reste retiré. */}
       {selectedSpace === 'admin' && (
         <div className="flex items-center gap-2.5 px-3.5 pt-4 pb-1">
-          <span className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 shrink-0">
+          <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-md shadow-blue-600/25 flex items-center justify-center text-white shrink-0">
             <Settings className="w-4 h-4" />
           </span>
           <div className="min-w-0">
@@ -74,7 +77,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           ou de modification. */}
       {selectedSpace === 'general' && (
         <div className="flex items-center gap-2.5 px-3.5 pt-4 pb-1">
-          <span className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 shrink-0">
+          <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-md shadow-blue-600/25 flex items-center justify-center text-white shrink-0">
             <Eye className="w-4 h-4" />
           </span>
           <div className="min-w-0">
@@ -107,8 +110,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       </nav>
 
       {/* "Besoin d'aide ?" — exact match with the reference mockup's sidebar footer */}
-      <div className="m-2.5 p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
-        <span className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+      <div className="m-2.5 p-3 rounded-xl bg-gradient-to-br from-blue-50 to-sky-50/50 border border-blue-100 flex items-start gap-2.5">
+        <span className="w-7 h-7 rounded-lg bg-white ring-1 ring-inset ring-blue-200/70 shadow-sm flex items-center justify-center text-blue-600 shrink-0">
           <HelpCircle className="w-4 h-4" />
         </span>
         <div className="text-[11px] leading-snug">
