@@ -64,6 +64,8 @@ import { can, implicatedUserIdsFromPersons, Permission } from '../../src/domain/
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
 // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
 import { PortalPatchError, PORTAL_KEYS, portalVisibleCaseStatus, sanitizePortalPatch, type PortalPatch } from '../../src/domain/portalUpdate';
+import { serializePortalConfigSection, type PortalConfigSection } from '../../src/domain/portalConfig';
+import { sanitizePortalAuditBatch, type PortalAuditInput } from '../../src/domain/auditTrail';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
 import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src/domain/caseVisibility';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
@@ -2406,4 +2408,129 @@ export const addEvidenceAsStaff = onCall(async (request) => {
   await appendTimeline(caseId, 'EVIDENCE_ADDED', user.userId, name);
   await appendAudit({ actorId: user.userId, action: 'EVIDENCE_UPLOADED', caseId, objectType: 'evidence', objectId: evidenceId });
   return { ok: true, evidenceId };
+});
+
+// ---------------------------------------------------------------------------
+// === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 3) ===
+// Configuration partagée par tous les postes (entités, pays, catégories,
+// SLA, niveaux hiérarchiques, rôles, transitions, destinataires d'escalade).
+// Lecture : tout compte du personnel. Écriture : permission
+// configuration.manage, auditée. Stockage : `config/portal`, chaque section
+// sérialisée (domain/portalConfig.ts).
+// ---------------------------------------------------------------------------
+
+export const getPortalConfig = onCall(async (request) => {
+  requireAppUser(request);
+  const snap = await db.collection('config').doc('portal').get();
+  const data = (snap.data() ?? {}) as { sections?: Record<string, string>; versions?: Record<string, unknown> };
+  return { sections: data.sections ?? {}, versions: data.versions ?? {} };
+});
+
+export const savePortalConfig = onCall(async (request) => {
+  const user = requireAppUser(request);
+  if (!can(user, 'configuration.manage')) throw new HttpsError('permission-denied', 'Permission configuration.manage required.');
+  const { section, value } = (request.data ?? {}) as { section?: unknown; value?: unknown };
+  let serialized: { section: PortalConfigSection; json: string };
+  try {
+    serialized = serializePortalConfigSection(section, value);
+  } catch (e) {
+    throw new HttpsError('invalid-argument', e instanceof Error ? e.message : 'Invalid configuration.');
+  }
+  const nowIso = new Date().toISOString();
+  const ref = db.collection('config').doc('portal');
+  const previous = (await ref.get()).data()?.sections?.[serialized.section];
+  if (previous === serialized.json) return { ok: true, unchanged: true };
+  await ref.set(
+    {
+      sections: { [serialized.section]: serialized.json },
+      versions: { [serialized.section]: { updatedAt: nowIso, updatedBy: user.userId } },
+    },
+    { merge: true }
+  );
+  await appendAudit({ actorId: user.userId, action: 'CONFIG_UPDATED', objectType: 'config', objectId: serialized.section });
+  return { ok: true, updatedAt: nowIso };
+});
+
+// ---------------------------------------------------------------------------
+// === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 4) ===
+// Piste d'audit centralisée. recordPortalAudit copie dans `audit_logs` les
+// événements enregistrés par le portail (auteur, rôle et adresse IP fixés
+// ici, jamais par le navigateur ; identifiant stable : un nouvel envoi
+// n'ajoute jamais de doublon). listAuditLogs renvoie le journal commun aux
+// comptes habilités (audit.read).
+// ---------------------------------------------------------------------------
+
+export const recordPortalAudit = onCall(async (request) => {
+  const user = requireAppUser(request);
+  let entries: PortalAuditInput[];
+  try {
+    entries = sanitizePortalAuditBatch((request.data as { entries?: unknown } | undefined)?.entries);
+  } catch (e) {
+    throw new HttpsError('invalid-argument', e instanceof Error ? e.message : 'Invalid entries.');
+  }
+  const receivedAt = new Date().toISOString();
+  const ip = request.rawRequest?.ip ?? '';
+  const batch = db.batch();
+  for (const e of entries) {
+    const docId = `portal-${user.userId}-${e.id}`.slice(0, 200);
+    batch.set(db.collection('audit_logs').doc(docId), {
+      id: docId,
+      source: 'portal',
+      portalEntryId: e.id,
+      action: e.actionType,
+      details: e.details,
+      actorId: user.userId,
+      actorName: user.name,
+      actorRole: user.roleId,
+      ...(e.alertId ? { alertId: e.alertId } : {}),
+      ...(e.trackingNumber ? { trackingNumber: e.trackingNumber } : {}),
+      timestamp: e.timestamp,
+      receivedAt,
+      ...(ip ? { ipAddress: ip } : {}),
+    });
+  }
+  await batch.commit();
+  return { ok: true, recorded: entries.length };
+});
+
+export const listAuditLogs = onCall(async (request) => {
+  const user = requireAppUser(request);
+  if (!can(user, 'audit.read')) throw new HttpsError('permission-denied', 'Permission audit.read required.');
+  const { limit: rawLimit, before } = (request.data ?? {}) as { limit?: unknown; before?: unknown };
+  const limit = typeof rawLimit === 'number' && Number.isFinite(rawLimit) ? Math.max(1, Math.min(1000, Math.floor(rawLimit))) : 500;
+  let query = db.collection('audit_logs').orderBy('timestamp', 'desc');
+  if (typeof before === 'string' && before.length <= 40) query = query.where('timestamp', '<', before);
+  const snap = await query.limit(limit).get();
+  const rows = snap.docs.map((d) => d.data() as Record<string, unknown>);
+
+  // Numéro de suivi des dossiers et nom des comptes (événements du serveur).
+  const caseIds = [...new Set(rows.map((r) => r.caseId).filter((v): v is string => typeof v === 'string' && !!v))];
+  const actorIds = [...new Set(rows.filter((r) => !r.actorName).map((r) => r.actorId).filter((v): v is string => typeof v === 'string' && !!v && v !== 'reporter' && v !== 'maintenance'))];
+  const [caseDocs, staffDocs] = await Promise.all([
+    caseIds.length ? db.getAll(...caseIds.map((id) => db.collection('cases').doc(id))) : Promise.resolve([]),
+    actorIds.length ? db.getAll(...actorIds.map((id) => db.collection('staff_users').doc(id))) : Promise.resolve([]),
+  ]);
+  const refOf = new Map(caseDocs.filter((d) => d.exists).map((d) => [d.id, String(d.data()?.externalReference || d.data()?.caseNumber || '')]));
+  const nameOf = new Map(staffDocs.filter((d) => d.exists).map((d) => [d.id, String(d.data()?.name || d.data()?.username || '')]));
+  const text = (v: unknown, max = 4000) => (typeof v === 'string' ? v.slice(0, max) : undefined);
+
+  const entries = rows.map((r) => ({
+    id: String(r.id ?? ''),
+    source: r.source === 'portal' ? 'portal' : 'server',
+    portalEntryId: text(r.portalEntryId, 80),
+    action: String(r.action ?? ''),
+    details: text(r.details),
+    actorId: text(r.actorId, 200),
+    actorName: text(r.actorName, 200) ?? (typeof r.actorId === 'string' ? nameOf.get(r.actorId) : undefined),
+    actorRole: text(r.actorRole, 64),
+    caseId: text(r.caseId, 128),
+    alertId: text(r.alertId, 128),
+    trackingNumber: text(r.trackingNumber, 64) ?? (typeof r.caseId === 'string' ? refOf.get(r.caseId) : undefined),
+    objectType: text(r.objectType, 64),
+    objectId: text(r.objectId, 200),
+    reason: text(r.reason, 1000),
+    timestamp: String(r.timestamp ?? ''),
+    ipAddress: text(r.ipAddress, 64),
+  }));
+  return { entries };
 });

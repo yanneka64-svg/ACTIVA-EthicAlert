@@ -1318,6 +1318,10 @@ export const en: Record<string, string> = {
   audit_title: 'Immutable Audit Trail & Traceability',
   audit_subtitle: 'Complete history of access, changes, views and decisions. Retention period: 10 years.',
   audit_sealed: 'Tamper-evident, sealed audit register',
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — piste d'audit commune) ===
+  audit_source_server: 'Shared log (server)',
+  audit_source_loading: 'Loading shared log…',
+  audit_source_local: 'This device\'s log only',
   audit_backend_sync: '{synced}/{total} cases linked to the real backend',
   audit_export: 'Ad-hoc audit export',
   audit_search_ph: 'Search the audit by author, reference, keyword...',

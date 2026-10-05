@@ -332,6 +332,37 @@ function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStaffSessionActive, activeUser.id]);
 
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 3) ===
+  // Configuration partagée (entités, pays, catégories, SLA, rôles…) : chargée
+  // à la connexion puis toutes les 5 minutes et au retour sur l'onglet.
+  useEffect(() => {
+    if (!isStaffSessionActive || activeUser.role === 'reporter') return;
+    let cancelled = false;
+    let last = 0;
+    const pull = (force = false) => {
+      if (cancelled || document.visibilityState === 'hidden') return;
+      if (!force && Date.now() - last < 60 * 1000) return;
+      last = Date.now();
+      import('./services/configSync')
+        .then(({ pullSharedConfig }) => pullSharedConfig(storage.getActiveUser()))
+        .catch(() => {});
+    };
+    // la session Firebase peut s'établir juste après l'ouverture : second essai rapproché.
+    const first = setTimeout(() => pull(true), 1500);
+    const second = setTimeout(() => pull(true), 8000);
+    const interval = setInterval(() => pull(true), 5 * 60 * 1000);
+    const onVisible = () => pull();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      clearTimeout(first);
+      clearTimeout(second);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaffSessionActive, activeUser.id]);
+
   // === AMÉLIORATION AJOUTÉE (dépôt confirmé par le serveur) ===
   // Renvoi automatique des signalements déposés sans réseau
   // (services/submissionOutbox.ts) : au démarrage, au retour de la

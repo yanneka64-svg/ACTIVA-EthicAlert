@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+// === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 4) ===
+import { mergeAuditLogs, type ServerAuditRecord } from '../domain/auditTrail';
 import {
   History,
   Search,
@@ -26,7 +28,30 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
   activeUser,
 }) => {
   const t = TRANSLATIONS[lang];
-  const logs = storage.getAuditLogs();
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 4) ===
+  // journal commun à tous les postes (serveur), complété par les événements
+  // de ce navigateur pas encore transmis ; à défaut, journal local inchangé.
+  const [serverLogs, setServerLogs] = useState<ServerAuditRecord[] | null>(null);
+  const [serverState, setServerState] = useState<'loading' | 'ok' | 'local'>('loading');
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      import('../services/auditSync')
+        .then(({ fetchServerAuditLogs }) => fetchServerAuditLogs(1000))
+        .then((rows) => {
+          if (cancelled) return;
+          setServerLogs(rows);
+          setServerState(rows ? 'ok' : 'local');
+        })
+        .catch(() => !cancelled && setServerState('local'));
+    void load();
+    const interval = setInterval(load, 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+  const logs = mergeAuditLogs(storage.getAuditLogs(), serverLogs);
 
   // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 8 :
   // indicateur de synchronisation) === Lecture seule, purement informative :
@@ -99,6 +124,20 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
             <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
               {t.audit_sealed}
             </span>
+            {/* === AMÉLIORATION AJOUTÉE (Phase 4) === origine du journal affiché. */}
+            {isPhase4Configured() && (
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                  serverState === 'ok' ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200'
+                }`}
+              >
+                {serverState === 'ok'
+                  ? t.audit_source_server || 'Journal commun (serveur)'
+                  : serverState === 'loading'
+                    ? t.audit_source_loading || 'Chargement du journal commun…'
+                    : t.audit_source_local || 'Journal de ce poste uniquement'}
+              </span>
+            )}
 
             {/* === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 8) === */}
             {isPhase4Configured() && (

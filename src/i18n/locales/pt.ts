@@ -1318,6 +1318,10 @@ export const pt: Record<string, string> = {
   audit_title: 'Registo de Auditoria Imutável e Rastreabilidade',
   audit_subtitle: 'Histórico integral de acessos, alterações, consultas e decisões. Prazo de conservação: 10 anos.',
   audit_sealed: 'Registo de auditoria íntegro e selado',
+  // === AMÉLIORATION AJOUTÉE (Phase 4 — piste d'audit commune) ===
+  audit_source_server: 'Registo comum (servidor)',
+  audit_source_loading: 'A carregar o registo comum…',
+  audit_source_local: 'Apenas o registo deste posto',
   audit_backend_sync: '{synced}/{total} processos ligados ao backend real',
   audit_export: 'Exportação de auditoria ad hoc',
   audit_search_ph: 'Pesquisar na auditoria por autor, referência, palavra-chave...',

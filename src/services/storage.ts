@@ -31,6 +31,7 @@ import { needsRehash } from './crypto';
 import { STORAGE_KEYS, DATA_CHANGE_EVENT } from './storageKeys';
 // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
 import { diffPortalUpdate, PORTAL_LOCAL_ONLY_KEYS } from '../domain/portalUpdate';
+import type { PortalConfigSection } from '../domain/portalConfig';
 import * as storageBackfill from './storageBackfill';
 
 class StorageService {
@@ -93,6 +94,94 @@ class StorageService {
 
   constructor() {
     this.init();
+    // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 3) ===
+    this.configSyncReady = true;
+  }
+
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 3) ===
+  /**
+   * Configuration partagée : toute modification faite en administration est
+   * envoyée au serveur (services/configSync.ts) ; la configuration reçue du
+   * serveur est appliquée sans être renvoyée. Jamais pendant l'initialisation
+   * (valeurs par défaut) ni pendant une remise à zéro locale.
+   */
+  private configSyncReady = false;
+  private applyingSharedConfig = false;
+
+  private onConfigPersist(section: PortalConfigSection): void {
+    if (!this.configSyncReady || this.applyingSharedConfig) return;
+    const value = this.getSharedConfigSection(section);
+    import('./configSync').then(({ pushSharedConfigSection }) => pushSharedConfigSection(section, value)).catch(() => {});
+  }
+
+  /** Valeur actuelle d'une section de configuration partagée. */
+  public getSharedConfigSection(section: PortalConfigSection): unknown {
+    switch (section) {
+      case 'entities': return this.entities;
+      case 'countries': return this.countries;
+      case 'categories': return this.categories;
+      case 'slaConfig': return this.slaConfig;
+      case 'hierarchyLevels': return this.hierarchyLevels;
+      case 'rolePermissions': return this.rolePermissions;
+      case 'workflowTransitions': return this.workflowTransitions;
+      case 'escalationRecipients': return this.escalationRecipients;
+    }
+  }
+
+  /**
+   * Applique une section reçue du serveur (sans audit ni renvoi). Renvoie
+   * `true` si quelque chose a changé.
+   */
+  public applySharedConfigSection(section: PortalConfigSection, value: unknown): boolean {
+    if (value === null || value === undefined) return false;
+    if (JSON.stringify(this.getSharedConfigSection(section)) === JSON.stringify(value)) return false;
+    this.applyingSharedConfig = true;
+    try {
+      switch (section) {
+        case 'entities':
+          if (!Array.isArray(value)) return false;
+          this.entities = value as EntityDef[];
+          this.persistEntities();
+          break;
+        case 'countries':
+          if (!Array.isArray(value)) return false;
+          this.countries = value as CountryDef[];
+          this.persistCountries();
+          break;
+        case 'categories':
+          if (!Array.isArray(value)) return false;
+          this.categories = value as CategoryDef[];
+          this.persistCategories();
+          break;
+        case 'escalationRecipients':
+          if (!Array.isArray(value)) return false;
+          this.escalationRecipients = value as EscalationRecipient[];
+          this.persistEscalationRecipients();
+          break;
+        case 'slaConfig':
+          this.slaConfig = { ...DEFAULT_SLA_CONFIG, ...(value as Partial<SlaConfig>) };
+          this.persistSlaConfig();
+          break;
+        case 'hierarchyLevels':
+          this.hierarchyLevels = { ...DEFAULT_HIERARCHY_LEVELS, ...(value as Partial<HierarchyLevels>) };
+          this.persistHierarchyLevels();
+          break;
+        case 'rolePermissions':
+          this.rolePermissions = { ...ROLE_PERMISSIONS, ...(value as Partial<Record<UserRole, Permission[]>>) };
+          this.persistRolePermissions();
+          setRolePermissionOverrides(this.rolePermissions);
+          break;
+        case 'workflowTransitions':
+          this.workflowTransitions = { ...ALLOWED_TRANSITIONS, ...(value as Partial<Record<CaseStatus, CaseStatus[]>>) };
+          this.persistWorkflowTransitions();
+          setWorkflowTransitions(this.workflowTransitions);
+          break;
+      }
+    } finally {
+      this.applyingSharedConfig = false;
+    }
+    this.notify();
+    return true;
   }
 
   private init() {
@@ -549,6 +638,8 @@ class StorageService {
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
   private persistEntities() {
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === configuration partagée entre les postes.
+    this.onConfigPersist('entities');
     try {
       localStorage.setItem(STORAGE_KEYS.ENTITIES, JSON.stringify(this.entities));
     } catch (e) {
@@ -559,6 +650,8 @@ class StorageService {
   }
 
   private persistCategories() {
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === configuration partagée entre les postes.
+    this.onConfigPersist('categories');
     try {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(this.categories));
     } catch (e) {
@@ -570,6 +663,8 @@ class StorageService {
 
   // === AMÉLIORATION AJOUTÉE (Registre des destinataires d'escalade et de routage) ===
   private persistEscalationRecipients() {
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === configuration partagée entre les postes.
+    this.onConfigPersist('escalationRecipients');
     try {
       localStorage.setItem(STORAGE_KEYS.ESCALATION_RECIPIENTS, JSON.stringify(this.escalationRecipients));
     } catch (e) {
@@ -592,6 +687,8 @@ class StorageService {
 
   // === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
   private persistCountries() {
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === configuration partagée entre les postes.
+    this.onConfigPersist('countries');
     try {
       localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(this.countries));
     } catch (e) {
@@ -603,6 +700,8 @@ class StorageService {
 
   // === AMÉLIORATION AJOUTÉE (Phase 7 — configuration SLA éditable) ===
   private persistSlaConfig() {
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === configuration partagée entre les postes.
+    this.onConfigPersist('slaConfig');
     try {
       localStorage.setItem(STORAGE_KEYS.SLA_CONFIG, JSON.stringify(this.slaConfig));
     } catch (e) {
@@ -614,6 +713,8 @@ class StorageService {
 
   // === AMÉLIORATION AJOUTÉE (Phase 1 — routage indépendant) ===
   private persistHierarchyLevels() {
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === configuration partagée entre les postes.
+    this.onConfigPersist('hierarchyLevels');
     try {
       localStorage.setItem(STORAGE_KEYS.HIERARCHY_LEVELS, JSON.stringify(this.hierarchyLevels));
     } catch (e) {
@@ -625,6 +726,8 @@ class StorageService {
 
   // === AMÉLIORATION AJOUTÉE (Rôles & permissions éditables) ===
   private persistRolePermissions() {
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === configuration partagée entre les postes.
+    this.onConfigPersist('rolePermissions');
     try {
       localStorage.setItem(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(this.rolePermissions));
     } catch (e) {
@@ -636,6 +739,8 @@ class StorageService {
 
   // === AMÉLIORATION AJOUTÉE (Workflows & statuts éditables) ===
   private persistWorkflowTransitions() {
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === configuration partagée entre les postes.
+    this.onConfigPersist('workflowTransitions');
     try {
       localStorage.setItem(STORAGE_KEYS.WORKFLOW_TRANSITIONS, JSON.stringify(this.workflowTransitions));
     } catch (e) {
@@ -1266,6 +1371,9 @@ class StorageService {
     this.notify();
     // Asynchronous Cloud Firestore audit sync
     saveAuditLogToCloud(entry).catch(() => {});
+    // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 4) ===
+    // copie sur le serveur : piste d'audit commune à tous les postes.
+    import('./auditSync').then(({ queuePortalAudit }) => queuePortalAudit(entry)).catch(() => {});
   }
 
   // --- Active User & Roles ---
@@ -1796,6 +1904,9 @@ class StorageService {
 
   // Reset to initial test dataset
   public resetToFactory(): void {
+    // === AMÉLIORATION AJOUTÉE (Phase 3) === remise à zéro LOCALE : la
+    // configuration partagée du serveur n'est jamais écrasée par celle-ci.
+    this.applyingSharedConfig = true;
     this.alerts = [...INITIAL_ALERTS];
     this.auditLogs = [...INITIAL_AUDIT_LOGS];
     this.users = INITIAL_USERS.length > 0 ? [...INITIAL_USERS] : this.emergencyAdminSeed();
@@ -1826,6 +1937,7 @@ class StorageService {
     this.persistRolePermissions();
     this.persistWorkflowTransitions();
     this.clearDraft();
+    this.applyingSharedConfig = false;
     this.notify();
   }
 }
