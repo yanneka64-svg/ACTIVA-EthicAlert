@@ -15,9 +15,20 @@
  * 3. définir le secret GitHub VITE_FIREBASE_APPCHECK_SITE_KEY et redéployer ;
  * 4. observer les métriques « vérifiées / non vérifiées » quelques jours,
  *    PUIS seulement activer l'application stricte (« Enforce ») par service.
+ *
+ * === AMÉLIORATION AJOUTÉE (correctif App Check) === le SDK est désormais
+ * importé statiquement (voir plus bas) : sans clé, il reste chargé mais
+ * inactif (aucun appel réseau, aucun script reCAPTCHA).
  */
 import type { FirebaseApp } from 'firebase/app';
 import type { AppCheck } from 'firebase/app-check';
+// === AMÉLIORATION AJOUTÉE (correctif App Check — requêtes « non validées ») ===
+// Import STATIQUE : App Check doit être initialisé AVANT getAuth() /
+// getFirestore() (exigence Firebase). Avec l'ancien `await import(...)`,
+// l'initialisation arrivait après la création d'Auth/Firestore : les
+// premières requêtes de chaque visite partaient sans jeton et étaient
+// comptées « non validées » (≈ 47 % Firestore / 22 % Auth en console).
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppCheckTokenSdk } from 'firebase/app-check';
 
 const metaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env || {};
 
@@ -28,7 +39,18 @@ const activated = new WeakSet<FirebaseApp>();
 const instances = new WeakMap<FirebaseApp, AppCheck>();
 
 export function getAppCheckSiteKey(): string {
-  return (metaEnv.VITE_FIREBASE_APPCHECK_SITE_KEY || '').trim();
+  // === AMÉLIORATION AJOUTÉE (correctif App Check) === repli sur la forme
+  // littérale `import.meta.env.X` (remplacée de la même façon par Vite au
+  // build) : la forme castée ci-dessus n'est pas transformée par Vitest,
+  // ce qui empêchait de tester l'activation (appCheck.test.ts).
+  const literal = (() => {
+    try {
+      return import.meta.env?.VITE_FIREBASE_APPCHECK_SITE_KEY as string | undefined;
+    } catch {
+      return undefined;
+    }
+  })();
+  return (metaEnv.VITE_FIREBASE_APPCHECK_SITE_KEY || literal || '').trim();
 }
 
 /**
@@ -42,7 +64,9 @@ export async function activateAppCheck(app: FirebaseApp | null | undefined): Pro
   if (!app || !siteKey || typeof window === 'undefined' || activated.has(app)) return false;
   activated.add(app);
   try {
-    const { initializeAppCheck, ReCaptchaEnterpriseProvider } = await import('firebase/app-check');
+    // === AMÉLIORATION AJOUTÉE (correctif App Check) === initialisation
+    // synchrone (aucun `await` avant) : effective dès le retour de l'appel
+    // `void activateAppCheck(app)`, donc avant getAuth()/getFirestore().
     const instance = initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
     instances.set(app, instance);
     return true;
@@ -61,8 +85,8 @@ export async function getAppCheckToken(app: FirebaseApp | null | undefined): Pro
   const instance = app ? instances.get(app) : undefined;
   if (!instance) return null;
   try {
-    const { getToken } = await import('firebase/app-check');
-    return (await getToken(instance, false)).token;
+    // === AMÉLIORATION AJOUTÉE (correctif App Check) === SDK importé statiquement.
+    return (await getAppCheckTokenSdk(instance, false)).token;
   } catch {
     return null;
   }
