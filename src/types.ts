@@ -383,6 +383,12 @@ export interface AlertRecord {
   // casesCloudSync.ts), jamais lus par le moindre écran existant.
   mirroredCaseId?: string;
   mirroredCaseNumber?: string;
+  // === AMÉLIORATION AJOUTÉE (lecture des dossiers Firebase par le portail)
+  // === `true` : dossier chargé depuis Firebase (services/cloudCasesSync.ts)
+  // et non créé dans ce navigateur. Sa copie locale est remplacée à chaque
+  // synchronisation (storage.ts `replaceCloudImportedAlerts`). Absent =
+  // dossier créé dans ce navigateur, comportement inchangé.
+  cloudImported?: boolean;
 }
 
 // === AMÉLIORATION AJOUTÉE (Phase 1 — frontend completion, data model extension) ===

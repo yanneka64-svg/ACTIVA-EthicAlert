@@ -610,6 +610,26 @@ class StorageService {
     saveAlertToCloud(alert).catch(() => {});
   }
 
+  /**
+   * === AMÉLIORATION AJOUTÉE (lecture des dossiers Firebase par le portail) ===
+   * Remplace la copie locale des dossiers chargés depuis Firebase
+   * (`cloudImported`) par `records`, sans toucher aux dossiers créés dans ce
+   * navigateur. Un dossier qui n'est plus renvoyé par Firebase (supprimé, ou
+   * plus visible pour ce compte : réattribué, mis en cause…) disparaît donc
+   * aussi de ce navigateur. Synchronisation technique : ni audit, ni
+   * `updatedAt`, ni écriture cloud ; rien n'est réécrit si rien n'a changé.
+   */
+  public replaceCloudImportedAlerts(records: AlertRecord[]): void {
+    const incoming = records.map((r) => ({ ...r, cloudImported: true as const }));
+    const previous = this.alerts.filter((a) => a.cloudImported);
+    if (JSON.stringify(previous) === JSON.stringify(incoming)) return;
+    const ids = new Set(incoming.map((r) => r.id));
+    const kept = this.alerts.filter((a) => !a.cloudImported && !ids.has(a.id));
+    this.alerts = [...kept, ...incoming];
+    this.persistAlerts();
+    this.notify();
+  }
+
   // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 7 : lien
   // dossier local ↔ dossier réel) === Appelée en best-effort par
   // AlertSubmissionFlow.tsx une fois que le miroir Phase 4
