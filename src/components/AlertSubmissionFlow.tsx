@@ -20,6 +20,21 @@ import {
 import { storage } from '../services/storage';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 4) ===
 import { mirrorSubmissionToRealBackend } from '../services/casesCloudSync';
+// === AMÉLIORATION AJOUTÉE (dépôt confirmé par le serveur) ===
+import { submitReportToBackend } from '../services/casesCloudSync';
+import type { CaseMirrorInput, CaseMirrorResult } from '../services/casesCloudSync';
+import { isPhase4Configured } from '../services/firebaseClient';
+import { enqueueSubmission, flushSubmissionOutbox } from '../services/submissionOutbox';
+
+/** Identifiant unique d'un dépôt (rend les nouveaux essais d'envoi sans doublon). */
+function newSubmissionId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  } catch {
+    /* repli ci-dessous */
+  }
+  return `sub-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
 // === AMÉLIORATION AJOUTÉE : hachage salé côté client du mot de passe de suivi (jamais stocké en clair) ===
 // === AMÉLIORATION AJOUTÉE (Phase 26) === generateAccessPassword génère
 // désormais le mot de passe lui-même (voir plus bas) ; hashPassword/generateSalt
@@ -370,7 +385,13 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     // mois, par entité). `matchedEntity` provient toujours du menu
     // déroulant (jamais du champ libre "Autre entité"), donc son `code`
     // est toujours celui de EntityDef — jamais deviné ici.
-    const trackingNumber = storage.generateCaseNumber(matchedEntity?.code ?? 'GRP');
+    // === AMÉLIORATION AJOUTÉE (numéro de suivi attribué par le serveur) ===
+    // Numéro local calculé comme avant, mais remplacé par celui attribué par
+    // Firebase dès que le serveur confirme l'enregistrement (unique entre
+    // tous les appareils) ; le numéro local ne sert plus que si le serveur
+    // est injoignable (signalement alors mis en file d'attente, voir plus bas).
+    const entityCode = matchedEntity?.code ?? 'GRP';
+    let trackingNumber = storage.generateCaseNumber(entityCode);
 
     // === AMÉLIORATION AJOUTÉE (Phase 26) === le mot de passe d'accès est
     // désormais généré automatiquement (conforme à la maquette de référence,
@@ -404,6 +425,37 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
         : liveRisk.nocaThreshold === 'NOCA 2'
         ? 'confidential'
         : 'restricted';
+
+    // === AMÉLIORATION AJOUTÉE (dépôt confirmé par le serveur) ===
+    // Le signalement est envoyé à Firebase et la confirmation n'est affichée
+    // qu'après sa réponse (quelques secondes au plus) : un dépôt n'est plus
+    // jamais « perdu » sans qu'on le sache. Si le serveur est injoignable,
+    // le signalement est enregistré sur l'appareil comme avant et placé en
+    // file d'attente : il sera renvoyé automatiquement (submissionOutbox.ts),
+    // sans doublon grâce à `submissionId`.
+    const submissionId = newSubmissionId();
+    const mirrorInput: CaseMirrorInput = {
+      category: selectedCategory,
+      subcategory: selectedSubCategory,
+      country,
+      entity: customEntityInput.trim() || concernedEntity,
+      description: detailedDescription,
+      reportingMode: isAnonymous ? 'anonymous' : 'identified',
+      confidentialityLevel,
+      accessCode: generatedPassword,
+      submissionId,
+    };
+    let serverResult: CaseMirrorResult | null = null;
+    let queueForRetry = false;
+    if (isPhase4Configured()) {
+      const res = await submitReportToBackend({ ...mirrorInput, entityCode });
+      if (res.ok === true) {
+        serverResult = res.result;
+        if (res.result.trackingNumber) trackingNumber = res.result.trackingNumber;
+      } else if (res.retryable) {
+        queueForRetry = true;
+      }
+    }
 
     const newRecord: AlertRecord = {
       id: 'alt-' + Date.now(),
@@ -471,21 +523,16 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     // services/casesCloudSync.ts. En cas de succès, persiste l'identifiant
     // réel renvoyé sur l'AlertRecord local (storage.linkMirroredCase) —
     // préalable à toute future mise en miroir des mutations ultérieures.
-    mirrorSubmissionToRealBackend({
-      category: newRecord.category,
-      subcategory: newRecord.subCategory,
-      country: newRecord.country,
-      entity: newRecord.concernedEntity,
-      description: newRecord.detailedDescription,
-      reportingMode: isAnonymous ? 'anonymous' : 'identified',
-      confidentialityLevel: newRecord.confidentialityLevel,
-      // === AMÉLIORATION AJOUTÉE (revue PR #139) === mêmes identifiants de
-      // suivi pour le dossier local et le dossier réel.
-      accessCode: generatedPassword,
-      externalReference: trackingNumber,
-    }).then((result) => {
-      if (result) storage.linkMirroredCase(newRecord.id, result.caseId, result.caseNumber);
-    }).catch(() => {});
+    // === AMÉLIORATION AJOUTÉE (dépôt confirmé par le serveur) === remplace
+    // l'ancien envoi en arrière-plan sans retour (mirrorSubmissionToRealBackend,
+    // toujours disponible dans casesCloudSync.ts) : lien avec le dossier
+    // Firebase déjà confirmé, ou mise en file d'attente avec le numéro remis.
+    if (serverResult) {
+      storage.linkMirroredCase(newRecord.id, serverResult.caseId, serverResult.caseNumber);
+    } else if (queueForRetry) {
+      enqueueSubmission(newRecord.id, { ...mirrorInput, externalReference: trackingNumber });
+      void flushSubmissionOutbox();
+    }
 
     storage.logAudit(
       'ALERT_SUBMITTED',
