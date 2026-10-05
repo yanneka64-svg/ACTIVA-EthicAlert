@@ -192,7 +192,12 @@ export class FirestoreCaseRepository implements CaseRepository {
     try {
       const fn = await call<{ filter: CaseListFilter; limit: number; offset: number }, Page<Case>>('listCases');
       const { data } = await fn({ filter, limit, offset });
-      return data;
+      // === AMÉLIORATION AJOUTÉE (correctif — pagination sans fin) === un
+      // `nextOffset` absent côté serveur arrive en `null` (l'encodage des
+      // fonctions appelables transforme `undefined` en `null`) : sans cette
+      // normalisation, les appelants (`offset !== undefined`) redemandaient
+      // la page 0 jusqu'à leur limite (50 appels par synchronisation).
+      return { ...data, nextOffset: typeof data.nextOffset === 'number' && data.nextOffset > offset ? data.nextOffset : undefined };
     } catch (err) {
       return translateError(err);
     }
