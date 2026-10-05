@@ -160,7 +160,10 @@ input[type='password']::-ms-clear {
      contenu est simplement visible, sans JavaScript ni risque de rester
      masqué ;
    - `activa-shine` : reflet qui balaie le bouton principal au survol.
-   Tout est désactivé si l'utilisateur a demandé moins d'animations. */
+   Tout est désactivé si l'utilisateur a demandé moins d'animations.
+   Remplissage `backwards` : l'élément est masqué pendant son délai, puis
+   l'animation ne fige rien une fois finie — les effets de survol
+   (soulèvement) restent donc actifs sur les éléments animés. */
 @keyframes activa-rise {
   from {
     opacity: 0;
@@ -209,11 +212,11 @@ input[type='password']::-ms-clear {
   }
 }
 .activa-enter {
-  animation: activa-rise 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: activa-rise 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
   animation-delay: var(--d, 0ms);
 }
 .activa-enter-x {
-  animation: activa-rise-x 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: activa-rise-x 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
   animation-delay: var(--d, 0ms);
 }
 .activa-kenburns {
@@ -262,5 +265,77 @@ input[type='password']::-ms-clear {
   }
   .activa-shine::after {
     display: none;
+  }
+}
+
+/* === AMÉLIORATION AJOUTÉE (formulaire de signalement — design modernisé) ===
+   Portée limitée au formulaire public (classe `activa-form` posée par
+   AlertSubmissionFlow.tsx) : aucun autre écran n'est touché.
+   - chaque étape apparaît en fondu + légère montée (la classe
+     `animate-fadeIn` était déjà présente sur chaque étape mais n'était
+     définie nulle part) ;
+   - champs : transitions douces de bordure et de fond, survol visible ;
+   - boutons principaux (`bg-brand`) : léger soulèvement et ombre au survol,
+     flèche finale qui avance. */
+.activa-form .animate-fadeIn {
+  animation: activa-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.activa-form :is(input:not([type="radio"]):not([type="checkbox"]), select, textarea) {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.activa-form :is(input:not([type="radio"]):not([type="checkbox"]):not(:focus), select:not(:focus), textarea:not(:focus)):hover {
+  border-color: rgb(148 163 184);
+}
+.activa-form button.bg-brand {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+.activa-form button.bg-brand:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px -12px rgb(11 37 69 / 0.55);
+}
+.activa-form button.bg-brand > svg:last-child {
+  transition: transform 0.25s ease;
+}
+.activa-form button.bg-brand:not(:disabled):hover > svg:last-child {
+  transform: translateX(3px);
+}
+@keyframes activa-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.activa-pop {
+  animation: activa-pop 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes activa-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.activa-modal-in {
+  animation: activa-modal-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activa-form .animate-fadeIn,
+  .activa-pop,
+  .activa-modal-in {
+    animation: none !important;
+  }
+  .activa-form button.bg-brand:hover,
+  .activa-form button.bg-brand:hover > svg:last-child {
+    transform: none;
   }
 }

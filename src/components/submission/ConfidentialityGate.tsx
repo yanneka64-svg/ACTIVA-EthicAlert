@@ -27,8 +27,10 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
   setConfidentialityConfirmed,
 }) => {
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+    // === AMÉLIORATION AJOUTÉE (formulaire — design modernisé) === la fenêtre
+    // apparaît en douceur ; bouton de confirmation en dégradé avec reflet.
+    <div className="activa-fade-in fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="activa-modal-in relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl shadow-slate-900/40 overflow-hidden grid grid-cols-1 md:grid-cols-2">
         <button
           type="button"
           onClick={onCancel}
@@ -92,7 +94,7 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
             <button
               type="button"
               onClick={onCancel}
-              className="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition"
+              className="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-400 transition-all duration-300"
             >
               {t.confidentiality_gate_cancel}
             </button>
@@ -100,10 +102,10 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
               type="button"
               id="confidentiality-gate-confirm"
               onClick={() => setConfidentialityConfirmed(true)}
-              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition"
+              className="activa-shine group flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-sm shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/35 hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
             >
               {t.confidentiality_gate_confirm}
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
             </button>
           </div>
         </div>

@@ -549,26 +549,39 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   // Step5Review.tsx (seuls utilisateurs respectifs).
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    // === AMÉLIORATION AJOUTÉE (formulaire — design modernisé) === classe
+    // `activa-form` : styles et animations propres au formulaire (index.css).
+    <div className="activa-form max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
         {/* Sidebar */}
+        <div className="activa-enter lg:sticky lg:top-6" style={{ '--d': '0ms' } as React.CSSProperties}>
         <WizardSidebar
           t={t}
           currentStep={currentStep}
           submittedAlert={submittedAlert}
           setCurrentStep={setCurrentStep}
         />
+        </div>
 
         {/* Main content */}
-        <div>
+        <div className="activa-enter" style={{ '--d': '120ms' } as React.CSSProperties}>
           {errorMsg && (
-            <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+            <div className="activa-enter mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+          {/* === AMÉLIORATION AJOUTÉE (formulaire — design modernisé) ===
+              carte à ombre douce et fine barre de progression en haut,
+              qui avance à chaque étape (6 étapes au total). */}
+          <div className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-20px_rgb(15_23_42/0.18)] p-6 sm:p-8">
+            <div className="absolute inset-x-0 top-0 h-1 bg-slate-100" aria-hidden="true">
+              <div
+                className="h-full rounded-r-full bg-gradient-to-r from-blue-600 to-sky-400 transition-[width] duration-700 ease-[cubic-bezier(0.2,0.7,0.2,1)]"
+                style={{ width: `${((submittedAlert ? 6 : currentStep) / 6) * 100}%` }}
+              />
+            </div>
             {submittedAlert ? (
               /* STEP 6: ACKNOWLEDGMENT */
               <AcknowledgmentStep
