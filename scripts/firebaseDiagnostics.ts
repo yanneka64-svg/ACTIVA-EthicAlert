@@ -13,6 +13,7 @@
  * Sert à vérifier qu'un signalement externe est bien arrivé dans Firebase
  * et qui peut le voir.
  */
+import { createHash } from 'node:crypto';
 import { applicationDefault, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 // === AMÉLIORATION AJOUTÉE (diagnostic boîte de réception) ===
@@ -117,6 +118,26 @@ async function main() {
     );
     const msgs = comms.docs.map((m) => m.data()).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
     console.log(`    ↳ messages=${msgs.length}${msgs.map((m) => ` [${m.createdAt} ${m.sender}]`).join('')}`);
+    // === AMÉLIORATION AJOUTÉE (documents du déclarant) === intégrité des
+    // documents stockés par morceaux : taille et empreinte SHA-256 recalculées
+    // depuis les morceaux (aucun nom ni contenu affiché).
+    const evDocs = await d.ref.collection('evidence').get();
+    for (const ev of evDocs.docs) {
+      const e = ev.data();
+      if (!String(e.storagePath ?? '').startsWith('firestore:')) continue;
+      const chunks = await d.ref.collection('evidence_chunks').where('evidenceId', '==', ev.id).get();
+      const buf = Buffer.concat(
+        chunks.docs
+          .map((x) => x.data() as { index: number; data: Uint8Array })
+          .sort((a, b) => a.index - b.index)
+          .map((x) => Buffer.from(x.data))
+      );
+      const sha = createHash('sha256').update(buf).digest('hex');
+      const linked = msgs.some((m) => (m.attachmentFiles ?? []).some((a: { evidenceId?: string }) => a.evidenceId === ev.id));
+      console.log(
+        `    ↳ document ${ev.id} [${e.createdAt}] type=${e.fileType} taille=${e.fileSize} morceaux=${chunks.size} reconstitué=${buf.length} empreinte=${sha === e.sha256Hash ? 'OK' : 'DIFFÉRENTE'} message=${linked ? 'oui' : 'non'}`
+      );
+    }
   }
 
   const refs = await db.collection('external_references').orderBy('createdAt', 'desc').limit(10).get();
