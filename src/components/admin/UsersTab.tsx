@@ -259,10 +259,14 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
     // sans cela, la plateforme se retrouve sans aucun admin capable de créer
     // ou réinitialiser des comptes (verrouillage complet côté client, sans
     // recours puisqu'il n'y a pas de backend distant pour restaurer un accès).
-    if (u.role === 'system_admin' && u.active) {
+    // === AMÉLIORATION AJOUTÉE (correctif) === `active` absent signifie
+    // « actif » (types.ts, UserProfile.active) : `!== false` au lieu d'un
+    // test de vérité, sinon un autre administrateur bien actif mais sans ce
+    // champ n'était pas compté et la suppression était refusée à tort.
+    if (u.role === 'system_admin' && u.active !== false) {
       const remainingActiveAdmins = storage
         .getUsers()
-        .filter((other) => other.id !== u.id && other.role === 'system_admin' && other.active).length;
+        .filter((other) => other.id !== u.id && other.role === 'system_admin' && other.active !== false).length;
       if (remainingActiveAdmins === 0) {
         alert(t.users_last_admin);
         setDeleteUserConfirmId(null);
