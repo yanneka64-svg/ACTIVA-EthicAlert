@@ -9,6 +9,7 @@ import {
   staffAuthEmail,
   staffClaimsFor,
   staffScopeFor,
+  suggestStaffUsername,
   validateStaffNewPassword,
 } from './staffAccounts';
 
@@ -91,6 +92,41 @@ describe('staffAccounts — portée et claims', () => {
   it('ajoute `pwdTemp` uniquement tant que le mot de passe temporaire n’a pas été changé', () => {
     expect(staffClaimsFor('investigator', 'Cameroun', '', true)).toEqual({ role: 'investigator', countries: ['Cameroun'], entities: [], pwdTemp: true });
     expect(staffClaimsFor('investigator', 'Cameroun', '', false)).toEqual({ role: 'investigator', countries: ['Cameroun'], entities: [] });
+  });
+});
+
+describe('staffAccounts — suggestion d’identifiant (format y.mebada01)', () => {
+  it('initiale du dernier prénom + premier mot du nom + 01', () => {
+    expect(suggestStaffUsername('MEBADA EKANI Barnabe Yannick')).toBe('y.mebada01');
+  });
+
+  it('prend le premier numéro libre', () => {
+    expect(suggestStaffUsername('MEBADA EKANI Barnabe Yannick', ['y.mebada01', 'Y.MEBADA02'])).toBe('y.mebada03');
+  });
+
+  it('retire accents, tirets et apostrophes', () => {
+    expect(suggestStaffUsername("N'DIAYE Hélène-Marie")).toBe('h.ndiaye01');
+    expect(suggestStaffUsername('ÉTOUNDI Jérôme')).toBe('j.etoundi01');
+  });
+
+  it('sans nom en majuscules : premier mot = prénom, dernier mot = nom', () => {
+    expect(suggestStaffUsername('Jean Dupont')).toBe('j.dupont01');
+  });
+
+  it('tout en majuscules : premier mot = nom, dernier mot = prénom', () => {
+    expect(suggestStaffUsername('MEBADA YANNICK')).toBe('y.mebada01');
+  });
+
+  it('un seul mot, ou rien d’exploitable', () => {
+    expect(suggestStaffUsername('DUPONT')).toBe('dupont01');
+    expect(suggestStaffUsername('   ')).toBe('');
+  });
+
+  it('produit toujours un identifiant valide', () => {
+    for (const name of ['MEBADA EKANI Barnabe Yannick', 'Jean Dupont', "N'DIAYE Hélène-Marie", 'X'.repeat(80) + ' Paul']) {
+      const id = suggestStaffUsername(name);
+      expect(parseStaffAccountInput({ ...valid, username: id }).ok).toBe(true);
+    }
   });
 });
 

@@ -33,6 +33,7 @@ import { generateAccessPassword, generateSalt, hashPassword } from '../../servic
 // compte Firebase ayant `users.manage`, les comptes sont créés et gérés dans
 // Firebase (Auth + Firestore) via les Cloud Functions ; sinon, comportement
 // local inchangé.
+import { suggestStaffUsername } from '../../domain/staffAccounts';
 import {
   canManageFirebaseStaffAccounts,
   createFirebaseStaffAccount,
@@ -153,7 +154,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
   // Suggestion à partir du nom saisi (même schéma que `slugify`, réutilisé),
   // jamais imposée — l'admin reste libre de la modifier avant d'enregistrer.
   const suggestUsername = () => {
-    if (userName.trim()) setUserUsername(slugify(userName).replace(/_/g, '.'));
+    if (!userName.trim()) return;
+    // === AMÉLIORATION AJOUTÉE (format d'identifiant demandé : « y.mebada01 »)
+    // === initiale du dernier prénom + « . » + premier mot du nom + numéro
+    // libre à 2 chiffres (src/domain/staffAccounts.ts). Repli sur l'ancienne
+    // suggestion si le nom ne permet pas d'en produire une.
+    const taken = storage.getUsers().filter((u) => u.id !== editingUserId).map((u) => u.username);
+    setUserUsername(suggestStaffUsername(userName, taken) || slugify(userName).replace(/_/g, '.'));
   };
   // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire)
   // === handler devenu asynchrone : la création génère désormais un vrai
