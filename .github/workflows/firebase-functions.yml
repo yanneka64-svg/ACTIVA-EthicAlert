@@ -165,6 +165,8 @@ jobs:
           V_RATE: ${{ vars.NOTIFY_RATE_LIMIT }}
           V_REPORTER: ${{ vars.REPORTER_CREATE_MAX_PER_HOUR }}
           V_APPCHECK: ${{ vars.ENFORCE_APP_CHECK }}
+          # === AMÉLIORATION AJOUTÉE (domaine personnalisé) === lien du portail dans les e-mails
+          V_APPURL: ${{ vars.NOTIFY_APP_URL || secrets.NOTIFY_APP_URL || 'https://activa-alertes.com' }}
         run: |
           {
             echo "NOTIFY_ALLOWED_RECIPIENT_DOMAINS=${V_DOMAINS:-group-activa.com}"
@@ -174,6 +176,7 @@ jobs:
             [ -n "$V_FROM" ] && echo "NOTIFY_FROM_EMAIL=\"${V_FROM}\""
             [ -n "$V_RATE" ] && echo "NOTIFY_RATE_LIMIT=${V_RATE}"
             [ -n "$V_REPORTER" ] && echo "REPORTER_CREATE_MAX_PER_HOUR=${V_REPORTER}"
+            [ -n "$V_APPURL" ] && echo "NOTIFY_APP_URL=${V_APPURL}"
             true
           } > functions/.env
           echo "functions/.env :"; cat functions/.env

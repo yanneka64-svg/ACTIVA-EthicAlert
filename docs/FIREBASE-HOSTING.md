@@ -8,6 +8,14 @@ projet Firebase que Firestore/Auth/Storage : `activa-ethicalert-47246`.
 
 - URL : https://activa-ethicalert-47246.web.app
   (et https://activa-ethicalert-47246.firebaseapp.com)
+- === AMÉLIORATION AJOUTÉE === Domaine personnalisé (5 octobre 2026) :
+  **https://activa-alertes.com** (DNS chez GoDaddy : `A @ 199.36.158.100`,
+  `TXT @ hosting-site=activa-ethicalert-47246`, `TXT _acme-challenge`).
+  Les adresses `*.web.app` / `*.firebaseapp.com` restent actives. Le nom doit
+  aussi figurer dans les domaines autorisés de Firebase Authentication, les
+  sites de la clé API Web et les domaines de la clé reCAPTCHA (App Check).
+  Les liens des e-mails utilisent `NOTIFY_APP_URL` (par défaut ce domaine,
+  écrit par le workflow « Deploy Cloud Functions »).
 - Config : bloc `hosting` de `firebase.json` (dossier publié `dist/`, toutes
   les routes réécrites vers `/index.html` pour React Router, cache long sur
   `/assets/**` dont les noms sont hachés par Vite, `no-cache` sur `index.html`).
