@@ -171,3 +171,13 @@ describe('caseDetailToAlertRecord — fusion avec la copie locale', () => {
     expect(merged.evidences[1].dataUrl).toBe(localEvidence.dataUrl);
   });
 });
+
+// === AMÉLIORATION AJOUTÉE (vérification de bout en bout) ===
+describe('caseDetailToAlertRecord — statut enregistré par le portail', () => {
+  it('le statut détaillé suit le statut affiché (attribution → en investigation)', () => {
+    const d = makeDetail();
+    const r = caseDetailToAlertRecord({ ...d, case: { ...d.case, status: 'new', portal: { status: 'investigation' } } }, undefined, nameOf);
+    expect(r.status).toBe('investigation');
+    expect(r.workflowStatus).toBe('investigation');
+  });
+});

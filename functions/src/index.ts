@@ -63,7 +63,7 @@ import {
 import { can, implicatedUserIdsFromPersons, Permission } from '../../src/domain/permissions';
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
 // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
-import { PortalPatchError, PORTAL_KEYS, portalVisibleCaseStatus, sanitizePortalPatch, type PortalPatch } from '../../src/domain/portalUpdate';
+import { PortalPatchError, PORTAL_KEYS, portalVisibleCaseStatus, reporterVisibleCaseStatus, sanitizePortalPatch, type PortalPatch, type PortalState } from '../../src/domain/portalUpdate';
 import { serializePortalConfigSection, type PortalConfigSection } from '../../src/domain/portalConfig';
 import { sanitizePortalAuditBatch, type PortalAuditInput } from '../../src/domain/auditTrail';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
@@ -153,6 +153,11 @@ initializeApp();
 // `getFirestore()` sans argument : tout accès Firestore échouait avec
 // NOT_FOUND. Même valeur que le client (firebaseClient.ts) et les scripts.
 const db = getFirestore(process.env.FIRESTORE_DATABASE_ID || 'default');
+// === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === un champ
+// facultatif non renseigné (ex. `entity` d'une mesure corrective, `scheduledAt`
+// d'un entretien) arrivait `undefined` et faisait échouer l'écriture (erreur
+// 500) : il est désormais simplement omis.
+db.settings({ ignoreUndefinedProperties: true });
 
 // === AMÉLIORATION AJOUTÉE ===
 // Verified directly against the real project: this bucket does not exist
@@ -1184,7 +1189,7 @@ export const getCaseForReporter = onCall(async (request) => {
   // meant to see (see docs/DATABASE.md).
   return {
     caseNumber: kase.caseNumber,
-    status: portalVisibleCaseStatus(kase.status, kase.portal), // === AMÉLIORATION AJOUTÉE (statut affiché par le portail) ===
+    status: reporterVisibleCaseStatus(kase.status, kase.portal), // === AMÉLIORATION AJOUTÉE (statut affiché par le portail) ===
     receivedAt: kase.receivedAt,
     description: kase.description,
     communications,
@@ -1329,7 +1334,7 @@ export const reporterConversation = onCall(async (request) => {
   }
   const [commsSnap, presence] = await Promise.all([ref.collection('communications').orderBy('createdAt', 'asc').get(), presenceRef.get()]);
   return {
-    status: portalVisibleCaseStatus(kase.status, kase.portal), // === AMÉLIORATION AJOUTÉE (statut affiché par le portail) ===
+    status: reporterVisibleCaseStatus(kase.status, kase.portal), // === AMÉLIORATION AJOUTÉE (statut affiché par le portail) ===
     communications: sanitizeCommunicationsForReporter(commsSnap.docs.map((d) => d.data() as Communication)),
     teamTypingAt: (presence.data()?.teamTypingAt as string | undefined) ?? null,
     ...(expiresAt - Date.now() < 30 * 60 * 1000 ? { sessionToken: await issueReporterSession(ref.id) } : {}),
@@ -2140,6 +2145,18 @@ export const applyPortalUpdate = onCall(async (request) => {
         if (!(key in patch.portal)) continue;
         const value = (patch.portal as Record<string, unknown>)[key];
         update[`portal.${key}`] = value === null ? FieldValue.delete() : value;
+      }
+      // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === le statut
+      // officiel du dossier suit le statut tenu par le portail (seul moteur de
+      // workflow utilisé par les équipes ; permission vérifiée ci-dessus).
+      const nextStatus = portalVisibleCaseStatus(kase.status, { ...(kase.portal ?? {}), ...(patch.portal as object) } as PortalState);
+      if (nextStatus !== kase.status) {
+        update.status = nextStatus;
+        if (nextStatus === 'closed' && !kase.closedAt) {
+          update.closedAt = nowIso;
+          update.closedBy = user.userId;
+        }
+        if (nextStatus === 'archived') update.archivedAt = nowIso;
       }
       applied.push('portal');
     } else {

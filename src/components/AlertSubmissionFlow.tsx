@@ -345,6 +345,10 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     setWitnesses(witnesses.filter(w => w.id !== id));
   };
 
+  // === AMÉLIORATION AJOUTÉE (pièces jointes du formulaire transmises) ===
+  // fichiers choisis (contenu), indexés par l'identifiant de la pièce.
+  const evidenceFilesRef = useRef<Map<string, File>>(new Map());
+
   // Evidence file upload handler (simulated client-side storage via dataUrl)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -352,8 +356,14 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
     const newFiles: EvidenceFile[] = [];
     Array.from(files).forEach((file: File) => {
+      const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+      // === AMÉLIORATION AJOUTÉE (pièces jointes du formulaire transmises) ===
+      // contenu du fichier gardé en mémoire jusqu'au dépôt (auparavant
+      // seuls le nom et la taille étaient conservés : l'équipe ne recevait
+      // jamais le fichier).
+      evidenceFilesRef.current.set(fileId, file);
       newFiles.push({
-        id: 'file-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+        id: fileId,
         name: file.name,
         size: file.size,
         type: file.type || 'document',
@@ -365,6 +375,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   };
 
   const removeEvidence = (id: string) => {
+    evidenceFilesRef.current.delete(id); // === AMÉLIORATION AJOUTÉE ===
     setEvidences(evidences.filter(f => f.id !== id));
   };
 
@@ -582,6 +593,24 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     // l'ancien envoi en arrière-plan sans retour (mirrorSubmissionToRealBackend,
     // toujours disponible dans casesCloudSync.ts) : lien avec le dossier
     // Firebase déjà confirmé, ou mise en file d'attente avec le numéro remis.
+    // === AMÉLIORATION AJOUTÉE (pièces jointes du formulaire transmises) ===
+    // contenu des fichiers conservé sur l'appareil jusqu'à son envoi.
+    const chosenFiles = evidences
+      .map((e) => ({ id: e.id, name: e.name, type: e.type, blob: evidenceFilesRef.current.get(e.id) }))
+      .filter((f): f is { id: string; name: string; type: string; blob: File } => Boolean(f.blob));
+    const filesSaved = chosenFiles.length
+      ? import('../services/pendingUploads')
+          .then(({ savePendingUpload }) => Promise.all(chosenFiles.map((f) => savePendingUpload({ ...f, trackingNumber }))))
+          .catch(() => undefined)
+      : Promise.resolve(undefined);
+    if (serverResult?.sessionToken && chosenFiles.length) {
+      const token = serverResult.sessionToken;
+      const finalTracking = trackingNumber;
+      void filesSaved
+        .then(() => import('../services/evidenceUpload'))
+        .then(({ uploadPendingSubmissionBlobs }) => uploadPendingSubmissionBlobs(token, finalTracking, chosenFiles));
+    }
+
     if (serverResult) {
       storage.linkMirroredCase(newRecord.id, serverResult.caseId, serverResult.caseNumber);
       // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===

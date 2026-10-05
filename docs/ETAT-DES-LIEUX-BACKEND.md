@@ -81,3 +81,30 @@ envoyée au serveur.
 - Préférences d'affichage et état « lu / non lu » des messages (propres à chaque poste).
 - Copie locale des dossiers (cache pour l'affichage rapide et le travail hors ligne,
   resynchronisée avec le serveur toutes les 20 s).
+
+## 6. Vérification de bout en bout dans le portail réel (5 octobre 2026)
+
+Portail réel (navigateur) relié à des émulateurs Firebase vierges
+(`VITE_FIREBASE_EMULATOR_HOST=127.0.0.1`, réservé aux tests), sans aucune
+donnée de production :
+
+| Étape | Résultat |
+|---|---|
+| Administrateur de départ (script de production), 1re connexion, changement de mot de passe | OK |
+| Création d'un opérateur et d'un enquêteur depuis l'écran Utilisateurs, 1res connexions | OK |
+| Dépôt public depuis un téléphone avec pièce jointe | OK — fichier présent sur le serveur |
+| Opérateur : dossier dans la boîte de réception, attribution | OK — attribution enregistrée sur le serveur |
+| Enquêteur : dossier visible, téléchargement de la pièce, message, tâche, rapport, demande d'informations | OK |
+| Déclarant : statut, message de l'équipe (sans nom d'enquêteur), réponse avec document | OK |
+| Enquêteur : réponse et document reçus, téléchargement identique, compteur « non lus » | OK |
+| Reprise, envoi en revue, mesure corrective, clôture ; le déclarant voit la clôture et le message | OK |
+| Configuration modifiée par l'administrateur reçue par un autre poste ; piste d'audit commune | OK |
+
+Défauts trouvés et corrigés pendant cette vérification :
+- le formulaire public ne lisait jamais le contenu des fichiers joints (seuls nom et taille) ;
+- menu « Actions » vide pour l'enquêteur après une attribution (statut détaillé non relu) ;
+- statut officiel du serveur jamais mis à jour et faux « changement de statut refusé » dans l'audit ;
+- le déclarant voyait « analyse préliminaire » pendant une demande d'informations ;
+- erreur 500 sur toute écriture serveur avec un champ facultatif vide (mesure corrective, entretien…) ;
+- piste d'audit commune non chargée à l'ouverture directe de la page ;
+- appels inutiles (refusés) de la liste des dossiers pour l'administrateur système.

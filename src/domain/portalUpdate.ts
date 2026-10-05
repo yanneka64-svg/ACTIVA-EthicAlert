@@ -324,3 +324,14 @@ export function portalVisibleCaseStatus(serverStatus: CaseStatus, portal: Portal
   if (legacy) return LEGACY_TO_CASE[legacy];
   return wf ?? serverStatus;
 }
+
+/**
+ * === AMÉLIORATION AJOUTÉE (vérification de bout en bout) ===
+ * Statut montré au déclarant : l'étape affichée par le portail quand elle
+ * existe (ex. « en attente d'informations » reste à l'étape Investigation),
+ * sinon le statut détaillé.
+ */
+export function reporterVisibleCaseStatus(serverStatus: CaseStatus, portal: PortalState | undefined | null): CaseStatus {
+  if (portal?.status) return LEGACY_TO_CASE[portal.status];
+  return portalVisibleCaseStatus(serverStatus, portal);
+}

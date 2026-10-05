@@ -30,8 +30,8 @@
  */
 
 import { FirebaseApp, getApps, initializeApp } from 'firebase/app';
-import { Auth, getAuth } from 'firebase/auth';
-import { Firestore, getFirestore } from 'firebase/firestore';
+import { Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
+import { connectFirestoreEmulator, Firestore, getFirestore } from 'firebase/firestore';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 3 :
 // FirestoreCaseRepository) === type-only : le SDK `firebase/functions`
 // lui-même est chargé dynamiquement (voir getPhase4Functions ci-dessous),
@@ -69,6 +69,13 @@ export function getPhase4Config(): Phase4FirebaseConfig {
   };
 }
 
+// === AMÉLIORATION AJOUTÉE (vérification de bout en bout) ===
+/** Hôte des émulateurs Firebase locaux (tests uniquement), sinon chaîne vide. */
+export function firebaseEmulatorHost(): string {
+  const host = (metaEnv.VITE_FIREBASE_EMULATOR_HOST || '').trim();
+  return /^(127\.0\.0\.1|localhost)$/.test(host) ? host : '';
+}
+
 export function isPhase4Configured(): boolean {
   const c = getPhase4Config();
   return Boolean(c.apiKey && c.projectId && c.appId);
@@ -96,6 +103,14 @@ export function getPhase4Firebase(): { app: FirebaseApp; auth: Auth; db: Firesto
   void activateAppCheck(app);
   auth = getAuth(app);
   db = getFirestore(app, config.databaseId);
+  // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === émulateurs
+  // Firebase locaux, UNIQUEMENT si VITE_FIREBASE_EMULATOR_HOST est défini
+  // (tests ; jamais défini par les workflows de production).
+  const emulatorHost = firebaseEmulatorHost();
+  if (emulatorHost) {
+    connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
+    connectFirestoreEmulator(db, emulatorHost, 8080);
+  }
   return { app, auth, db };
 }
 
@@ -125,5 +140,29 @@ export async function getPhase4Functions(): Promise<Functions> {
   // valeur que ce défaut. Si elle change un jour, passer la même région
   // ici : getFunctions(phase4App, '<région>').
   fns = getFunctions(phase4App);
+  // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === voir getPhase4Firebase.
+  const emulatorHost = firebaseEmulatorHost();
+  if (emulatorHost) {
+    const { connectFunctionsEmulator } = await import('firebase/functions');
+    connectFunctionsEmulator(fns, emulatorHost, 5001);
+  }
   return fns;
+}
+
+// === AMÉLIORATION AJOUTÉE (vérification de bout en bout) ===
+/**
+ * Attend que Firebase ait rétabli la session (au chargement d'une page, elle
+ * n'est connue qu'après quelques instants), au plus `timeoutMs`. `true` si
+ * une session du personnel est ouverte.
+ */
+export async function waitForFirebaseSession(timeoutMs = 6000): Promise<boolean> {
+  if (!isPhase4Configured()) return false;
+  try {
+    const { auth: a } = getPhase4Firebase();
+    if (a.currentUser) return true;
+    await Promise.race([a.authStateReady(), new Promise((r) => setTimeout(r, timeoutMs))]);
+    return Boolean(a.currentUser);
+  } catch {
+    return false;
+  }
 }

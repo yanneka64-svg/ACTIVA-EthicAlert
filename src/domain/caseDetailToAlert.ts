@@ -56,7 +56,7 @@ import {
   Task,
 } from './caseTypes';
 import { caseSummaryId, caseToAlertSummary } from './caseToAlertSummary';
-import { PORTAL_LOCAL_ONLY_KEYS } from './portalUpdate';
+import { PORTAL_LOCAL_ONLY_KEYS, portalVisibleCaseStatus } from './portalUpdate';
 
 /** Réponse de la Cloud Function `getCaseDetails` pour un dossier. */
 export interface CaseDetail {
@@ -311,7 +311,9 @@ export function caseDetailToAlertRecord(
   };
   // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
   // le statut affiché enregistré par le portail l'emporte sur le statut déduit.
-  if (kase.portal?.workflowStatus) fresh.workflowStatus = kase.portal.workflowStatus;
+  // Statut détaillé cohérent avec le statut affiché enregistré par le portail
+  // (ex. attribution : « En investigation » sans statut détaillé enregistré).
+  if (kase.portal) fresh.workflowStatus = portalVisibleCaseStatus(kase.status, kase.portal);
   // === AMÉLIORATION AJOUTÉE (Phase 2) === fichier du rapport d'enquête enregistré sur le serveur.
   if (fresh.investigationReportFileId) {
     const serverFile = cloudEvidence.find((e) => e.id === fresh.investigationReportFileId);

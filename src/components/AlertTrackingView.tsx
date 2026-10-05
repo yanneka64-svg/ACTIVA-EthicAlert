@@ -134,9 +134,13 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
   useEffect(() => {
     const token = cloudAccess?.sessionToken;
     if (!token || !cloudAccess?.caseNumber) return;
-    const local = storage.getAlertByTracking(cloudAccess.caseNumber);
-    if (!local?.evidences?.some((e) => e.dataUrl)) return;
-    void import('../services/evidenceUpload').then(({ uploadSubmissionFiles }) => uploadSubmissionFiles(token, local));
+    const caseNumber = cloudAccess.caseNumber;
+    const local = storage.getAlertByTracking(caseNumber);
+    void import('../services/evidenceUpload').then(({ uploadSubmissionFiles, uploadPendingSubmissionBlobs }) => {
+      // fichiers du formulaire conservés sur cet appareil (envoi interrompu)
+      void uploadPendingSubmissionBlobs(token, caseNumber);
+      if (local?.evidences?.some((e) => e.dataUrl)) void uploadSubmissionFiles(token, local);
+    });
   }, [cloudAccess?.sessionToken, cloudAccess?.caseNumber]);
 
   const applyLive = useCallback((st: Awaited<ReturnType<typeof pollReporterConversation>>) => {
