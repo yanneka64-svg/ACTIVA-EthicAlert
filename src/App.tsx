@@ -56,6 +56,8 @@ import { resolveRoute, pathForTab } from './routing/routes';
 // ./app/renderStaffScreen.tsx (qui les importe lui-même).
 import { AuthenticatedRoute } from './routing/guards';
 import { isGlobalCaseViewer, userCan } from './services/authz';
+// === AMÉLIORATION AJOUTÉE (accueil des espaces — derniers dossiers consultés) ===
+import { recordRecentCase } from './services/recentCases';
 
 // Tabs handled by the top Navbar: 'home' | 'new_alert' | 'track' | 'portal' | 'reports' | 'audit' | 'settings' | 'firebase_lookup'
 // === AMÉLIORATION AJOUTÉE (Phase 9) === plus, via la nouvelle barre latérale
@@ -209,6 +211,11 @@ function AppShell() {
   // (brief section 30, « System Administrator ≠ Case Access » — voir
   // src/services/authz.ts).
   const isGlobalViewer = isGlobalCaseViewer(activeUser);
+  // === AMÉLIORATION AJOUTÉE (accueil des espaces — derniers dossiers consultés) ===
+  // Chaque fiche dossier ouverte (/cases/:numéro) est mémorisée pour ce compte.
+  useEffect(() => {
+    if (routeTrackingNumber && activeUser?.id) recordRecentCase(activeUser.id, routeTrackingNumber);
+  }, [routeTrackingNumber, activeUser?.id]);
 
   // Count of "new" alerts visible to the active user (mirrors the visibility rule enforced in
   // InvestigationDesk: a non-admin only sees cases explicitly assigned to them).
@@ -580,7 +587,7 @@ function AppShell() {
         {currentTab === 'space_home' && (
           <AuthenticatedRoute lang={lang} isAuthenticated={isStaffSessionActive} onGoToLogin={() => goToTab('login')}>
             <Suspense fallback={<StaffLoadingFallback />}>
-              <StaffSpaceHome lang={lang} activeUser={activeUser} setCurrentTab={goToTab} />
+              <StaffSpaceHome lang={lang} activeUser={activeUser} setCurrentTab={goToTab} onOpenCase={(trackingNumber) => navigateToCases({ trackingNumber })} />
             </Suspense>
           </AuthenticatedRoute>
         )}

@@ -1,14 +1,19 @@
 import React from 'react';
-import { Briefcase, Search, Settings, Users, ChevronRight, ShieldOff, X } from 'lucide-react';
+import { Briefcase, Search, Settings, Users, ChevronRight, ShieldOff, X, ArrowRight, Lock, ShieldCheck, Clock3, UserRound } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
 import { computeAvailableSpaces, computeGeneralDashboardTab, SPACE_DASHBOARD_TAB, SpaceKey } from '../domain/staffSpaces';
+// === AMÉLIORATION AJOUTÉE (accueil des espaces — tableau de bord) ===
+import { computeVisibleAlerts } from '../hooks/useVisibleAlerts';
+import { getRecentCases } from '../services/recentCases';
 
 interface StaffSpaceHomeProps {
   lang: Language;
   activeUser: UserProfile;
   setCurrentTab: (tab: string) => void;
+  /** === AMÉLIORATION AJOUTÉE === ouvre la fiche d'un dossier (derniers dossiers consultés). */
+  onOpenCase?: (trackingNumber: string) => void;
 }
 
 /**
@@ -29,7 +34,7 @@ interface StaffSpaceHomeProps {
  * n'est jamais atteignable sans être déjà authentifié (App.tsx,
  * AuthenticatedRoute).
  */
-export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser, setCurrentTab }) => {
+export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser, setCurrentTab, onOpenCase }) => {
   const t = TRANSLATIONS[lang];
 
   // === AMÉLIORATION AJOUTÉE (retrait du libellé de fonction dans la
@@ -109,153 +114,172 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
     },
   };
 
+  // === AMÉLIORATION AJOUTÉE (accueil des espaces — tableau de bord, proposition A
+  // choisie par l'utilisateur) === Couleur d'accent de chaque espace (barre,
+  // icône, compteur, lien « Ouvrir »).
+  const ACCENT: Record<SpaceKey, { bar: string; tile: string; pill: string; dot: string; link: string }> = {
+    operator: { bar: 'bg-blue-600', tile: 'bg-blue-50 text-blue-600', pill: 'bg-blue-50 text-blue-700', dot: 'bg-blue-600', link: 'text-blue-600' },
+    investigator: { bar: 'bg-indigo-600', tile: 'bg-indigo-50 text-indigo-600', pill: 'bg-indigo-50 text-indigo-700', dot: 'bg-indigo-600', link: 'text-indigo-600' },
+    admin: { bar: 'bg-emerald-600', tile: 'bg-emerald-50 text-emerald-600', pill: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-600', link: 'text-emerald-600' },
+    general: { bar: 'bg-amber-500', tile: 'bg-amber-50 text-amber-600', pill: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500', link: 'text-amber-600' },
+  };
+  const locale = lang === 'en' ? 'en-GB' : lang === 'pt' ? 'pt-PT' : 'fr-FR';
+  const today = new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  // Derniers dossiers consultés : recoupés avec les dossiers que ce compte a
+  // réellement le droit de voir (jamais un dossier devenu inaccessible).
+  const visible = computeVisibleAlerts(alerts, activeUser);
+  const recent = getRecentCases(activeUser.id)
+    .map((e) => ({ entry: e, alert: visible.find((a) => a.trackingNumber === e.trackingNumber) }))
+    .filter((r): r is { entry: typeof r.entry; alert: NonNullable<typeof r.alert> } => !!r.alert)
+    .slice(0, 4);
+  const scope =
+    (activeUser.entities?.length ? activeUser.entities : activeUser.countries?.length ? activeUser.countries : null)?.join(', ') ??
+    t.space_home_scope_group;
+  const STATUS_PILL: Record<string, string> = {
+    new: 'bg-blue-50 text-blue-700',
+    under_review: 'bg-sky-50 text-sky-700',
+    investigation: 'bg-amber-50 text-amber-700',
+    corrective_action: 'bg-violet-50 text-violet-700',
+    closed: 'bg-emerald-50 text-emerald-700',
+    reopened: 'bg-rose-50 text-rose-700',
+    archived: 'bg-slate-100 text-slate-600',
+  };
+
   return (
     <>
-    {/* === AMÉLIORATION AJOUTÉE (élargissement de la fenêtre) === max-w-3xl →
-        max-w-5xl, sur demande explicite de l'utilisateur (trop d'espace vide
-        de part et d'autre sur grand écran).
-        === AMÉLIORATION AJOUTÉE (réduction de la largeur de la carte) ===
-        max-w-5xl → max-w-4xl, puis max-w-4xl → max-w-3xl, sur demandes
-        explicites successives de l'utilisateur — reste centrée
-        (`mx-auto`, inchangé). */}
-    {/* === AMÉLIORATION AJOUTÉE (position verticale de la carte) === La
-        carte étant désormais plus compacte (réductions successives), elle
-        restait collée en haut de l'écran avec un grand vide en dessous sur
-        les résolutions hautes. `min-h-[70vh] flex items-center` la
-        centre verticalement dans l'espace disponible, la faisant
-        "descendre" au lieu de laisser le vide uniquement en bas — sur
-        demande explicite de l'utilisateur. */}
-    <div className="min-h-[70vh] flex items-center justify-center py-8 px-4 sm:px-6">
-    <div className="w-full max-w-3xl mx-auto">
-      {/* === AMÉLIORATION AJOUTÉE (espace du personnel — design modernisé)
-          === carte qui apparaît en douceur (mêmes dimensions), photo qui se
-          pose, salutation et choix d'espaces en cascade, tuiles d'icône en
-          dégradé, flèche qui avance au survol, fenêtre « accès restreint »
-          animée. Animations coupées si l'utilisateur limite les animations. */}
-      <div className="activa-modal-in grid grid-cols-1 lg:grid-cols-2 rounded-3xl overflow-hidden border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)]">
-        {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
-            l'utilisateur) === Remplace la photo du siège par une photo de
-            bureau avec vue sur skyline (heure dorée), servie depuis
-            public/brand/space-home-bg.jpg. */}
-        {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
-            BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : couleur de
-            repli (`bg-[#0B2545]`, même teinte que le voile ci-dessous) le
-            temps du chargement au lieu d'un flash blanc, + priorité de
-            chargement explicite sur l'image. */}
-        {/* === AMÉLIORATION AJOUTÉE (centrage vertical, aligné à gauche)
-            === sur demande explicite de l'utilisateur : `justify-end`
-            (bloc de texte collé en bas) → `justify-center` (centré
-            verticalement dans la carte) ; reste aligné à gauche (aucun
-            `items-center`, comportement par défaut déjà conservé).
-            === AMÉLIORATION AJOUTÉE (réduction de la hauteur de la carte)
-            === `min-h-[460px]` → `min-h-[340px]` → `min-h-[260px]`, sur
-            demandes explicites successives de l'utilisateur ; padding
-            `p-10`→`p-8` également resserré. */}
-        <div className="relative hidden lg:flex flex-col justify-center p-6 sm:p-8 min-h-[260px] text-white overflow-hidden bg-[#0B2545]">
-          {/* === AMÉLIORATION AJOUTÉE (flou léger) === sur demande
-              explicite de l'utilisateur : léger flou (`blur-[2px]`) sur la
-              photo, pour un rendu plus ambiant/discret derrière le texte.
-              `scale-105` évite de révéler un bord net/transparent que le
-              flou ferait apparaître sur les contours de l'image. */}
-          {/* Le léger dézoom à l'ouverture est porté par un conteneur : le
-              `scale-105` de l'image (bords du flou) reste intact. */}
-          <div className="activa-kenburns absolute inset-0">
-          <img
-            src="/brand/space-home-bg.jpg"
-            alt={t.space_img_alt}
-            fetchPriority="high"
-            decoding="async"
-            className="absolute inset-0 w-full h-full object-cover object-left blur-[2px] scale-105"
-          />
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/95 via-[#0B2545]/70 to-[#0B2545]/35" />
-          {/* === AMÉLIORATION AJOUTÉE (retrait du label et de la rangée de
-              valeurs, nom sur sa propre ligne) === sur demande explicite de
-              l'utilisateur : le repère "ACTIVA-WHISTLEBLOWING" au-dessus de
-              "Bonjour" et la rangée Confidentialité/Intégrité/Responsabilité
-              sont retirés ; le nom passe sur sa propre ligne, sous
-              "Bonjour".
-              === AMÉLIORATION AJOUTÉE (police alignée sur la référence) ===
-              `tracking-tight` ajouté, même traitement typographique que le
-              titre "Signalez en toute confiance" de la page d'accueil
-              (WhistleblowerHome.tsx) donné en référence par l'utilisateur —
-              même famille de police (aucune police custom dans l'app),
-              même graisse `font-extrabold` déjà présente, seul le
-              resserrement des lettres manquait. */}
-          <div className="relative z-10 space-y-3">
-            <div className="space-y-1.5">
-              <h2 className="activa-enter text-2xl sm:text-3xl font-extrabold text-white leading-tight tracking-tight" style={{ '--d': '250ms' } as React.CSSProperties}>
-                Bonjour<br />M. {greetingName}
-              </h2>
-              <p className="activa-enter text-lg font-semibold text-blue-200" style={{ '--d': '380ms' } as React.CSSProperties}>
-                {t.space_welcome}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* === AMÉLIORATION AJOUTÉE (réduction de la hauteur de la carte,
-            suite) === le panneau gauche (image) n'était pas la contrainte
-            de hauteur réelle : la colonne CSS Grid s'étire pour matcher la
-            colonne la plus haute, ici ce panneau de droite (espacement
-            entre les 4 boutons). Resserré ici aussi pour que la réduction
-            de hauteur demandée soit visible : `p-10`→`p-8`, `mb-6`→`mb-4`
-            →`mb-3`, boutons `py-3.5`→`py-3`→`py-2.5`, écart entre boutons
-            `space-y-2.5`→`space-y-2`→`space-y-1.5`, bulles d'icône
-            `w-10 h-10`→`w-8 h-8` (glyphe `w-5 h-5`→`w-4 h-4`), textes
-            resserrés (`text-sm`→`text-xs`, `text-[11px]`→`text-[10px]`) —
-            sur demandes explicites successives de l'utilisateur. */}
-        <div id="staff-space-home-panel" className="bg-white p-6 sm:p-8 flex flex-col justify-center">
-          <div className="activa-enter mb-3" style={{ '--d': '150ms' } as React.CSSProperties}>
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#0B2545]">{t.space_home_title_plural}</h1>
-            {/* === AMÉLIORATION AJOUTÉE (justification du texte) === */}
-            <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-sm">{t.space_home_subtitle_plural}</p>
-          </div>
-
-          <div className="space-y-1.5">
-            {spaces.map((space, i) => {
-              const content = SPACE_CONTENT[space];
-              // Mis en avant visuellement seulement si le compte y a
-              // réellement accès (`computeAvailableSpaces`) — jamais pour
-              // un espace qu'il ne peut pas ouvrir.
-              const highlighted = realSpaces.includes(space);
-              // === AMÉLIORATION AJOUTÉE (boutons réactifs au survol) ===
-              // sur demande explicite de l'utilisateur : légère montée +
-              // ombre sur tout le bouton, icône mise à l'échelle
-              // (`group-hover`), au survol de N'IMPORTE QUELLE partie du
-              // bouton — même traitement que les bulles de la page d'accueil.
-              return (
-                <button
-                  key={space}
-                  id={`space-home-choice-${space}`}
-                  onClick={() => (highlighted ? setCurrentTab(targetTabFor(space)) : setDeniedSpace(space))}
-                  className={`activa-enter group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-300 text-left hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
-                    highlighted
-                      ? 'border-blue-200 bg-gradient-to-r from-blue-50 to-white hover:border-blue-300 hover:shadow-[0_14px_28px_-16px_rgb(37_99_235/0.45)]'
-                      : 'border-slate-200 bg-white hover:bg-slate-50 hover:shadow-md'
-                  }`}
-                  style={{ '--d': `${250 + i * 70}ms` } as React.CSSProperties}
-                >
-                  <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 ${content.tone}`}>
-                    {content.icon}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-xs font-bold text-[#0B2545]">{content.title}</span>
-                    {content.stat && (
-                      <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10.5px] font-bold">
-                        <span aria-hidden="true" className="activa-pulse-dot w-1.5 h-1.5 rounded-full bg-blue-600" />
-                        {content.stat}
-                      </span>
-                    )}
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 transition-all duration-300 group-hover:translate-x-1 group-hover:text-blue-600" strokeWidth={2} />
-                </button>
-              );
-            })}
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      {/* En-tête : date, salutation, rappel de sécurité */}
+      <div className="activa-enter mb-7" style={{ '--d': '60ms' } as React.CSSProperties}>
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{today}</p>
+        <h1 className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0B2545]">
+          {(t.space_home_greeting || 'Bonjour, M. {name}').replace('{name}', greetingName)}
+        </h1>
+        <div className="mt-2 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <p className="text-sm text-slate-600">{t.space_home_choose || t.space_home_subtitle_plural}</p>
+          <div className="inline-flex items-center gap-2 self-start lg:self-auto lg:shrink-0 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-600 shadow-[0_1px_2px_rgb(15_23_42/0.04)]">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" strokeWidth={1.9} />
+            {t.space_home_secure_session}
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Les 4 espaces */}
+      <div id="staff-space-home-panel" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+        {spaces.map((space, i) => {
+          const content = SPACE_CONTENT[space];
+          const accent = ACCENT[space];
+          // Mis en avant seulement si le compte y a réellement accès
+          // (`computeAvailableSpaces`) — jamais pour un espace qu'il ne peut pas ouvrir.
+          const highlighted = realSpaces.includes(space);
+          return (
+            <button
+              key={space}
+              id={`space-home-choice-${space}`}
+              onClick={() => (highlighted ? setCurrentTab(targetTabFor(space)) : setDeniedSpace(space))}
+              aria-disabled={!highlighted}
+              className={`activa-enter group relative overflow-hidden text-left flex flex-col sm:min-h-[232px] p-5 sm:p-6 rounded-2xl border transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
+                highlighted
+                  ? 'bg-white border-slate-200 shadow-[0_1px_2px_rgb(15_23_42/0.04)] hover:-translate-y-1 hover:shadow-[0_22px_40px_-24px_rgb(15_23_42/0.45)] hover:border-slate-300'
+                  : 'bg-slate-50/70 border-slate-200/80 cursor-not-allowed'
+              }`}
+              style={{ '--d': `${140 + i * 70}ms` } as React.CSSProperties}
+            >
+              {highlighted && <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-[3px] ${accent.bar}`} />}
+              <span
+                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105 ${
+                  highlighted ? accent.tile : 'bg-slate-100 text-slate-400'
+                } [&_svg]:w-5 [&_svg]:h-5`}
+              >
+                {content.icon}
+              </span>
+              <span className={`mt-4 text-[15px] font-bold ${highlighted ? 'text-[#0B2545]' : 'text-slate-400'}`}>{content.title}</span>
+              <span className={`mt-1.5 text-[12.5px] leading-relaxed flex-1 ${highlighted ? 'text-slate-500' : 'text-slate-400'}`}>{content.desc}</span>
+              <span className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                {highlighted ? (
+                  content.stat ? (
+                    <span className={`inline-flex items-center gap-1.5 min-w-0 px-2.5 py-1 rounded-lg text-[11px] leading-tight font-bold ${accent.pill}`}>
+                      <span aria-hidden="true" className={`activa-pulse-dot shrink-0 w-1.5 h-1.5 rounded-full ${accent.dot}`} />
+                      {content.stat}
+                    </span>
+                  ) : (
+                    <span className="text-[11.5px] text-slate-400">{t.space_home_nothing_pending}</span>
+                  )
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-400">
+                    <Lock className="w-3.5 h-3.5" strokeWidth={2} />
+                    {t.space_home_no_access}
+                  </span>
+                )}
+                {highlighted && (
+                  // Flèche seule (libellé lu par les lecteurs d'écran) : tient
+                  // dans les cartes étroites à côté du compteur.
+                  <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center bg-slate-50 transition-all duration-300 group-hover:bg-slate-100 ${accent.link}`}>
+                    <span className="sr-only">{t.space_home_open}</span>
+                    <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-0.5" strokeWidth={2.2} />
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Derniers dossiers consultés + profil */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 mt-5">
+        <section className="activa-enter lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6" style={{ '--d': '440ms' } as React.CSSProperties}>
+          <h2 className="flex items-center gap-2 text-[13px] font-bold text-[#0B2545] mb-2">
+            <Clock3 className="w-4 h-4 text-slate-400" strokeWidth={1.9} />
+            {t.space_home_recent_title}
+          </h2>
+          {recent.length ? (
+            <ul className="divide-y divide-slate-100">
+              {recent.map(({ entry, alert }) => (
+                <li key={entry.trackingNumber}>
+                  <button
+                    type="button"
+                    onClick={() => onOpenCase?.(entry.trackingNumber)}
+                    disabled={!onOpenCase}
+                    className="group w-full flex items-center gap-3 py-2.5 text-left rounded-lg hover:bg-slate-50 -mx-2 px-2 transition-colors"
+                  >
+                    <span className="font-bold text-[13px] text-[#0B2545] tabular-nums whitespace-nowrap">{entry.trackingNumber}</span>
+                    <span className="hidden sm:inline text-slate-300">·</span>
+                    <span className="flex-1 min-w-0 truncate text-[13px] text-slate-600 hidden sm:block">{alert.category}</span>
+                    <span className="flex-1 sm:hidden" />
+                    <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${STATUS_PILL[alert.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                      {t[`case_badge_status_${alert.status}`] ?? t[`status_${alert.status}`] ?? alert.status}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:text-slate-500" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-3 text-[13px] text-slate-400">{t.space_home_recent_empty}</p>
+          )}
+        </section>
+        <section className="activa-enter bg-white border border-slate-200 rounded-2xl p-5 sm:p-6" style={{ '--d': '510ms' } as React.CSSProperties}>
+          <h2 className="flex items-center gap-2 text-[13px] font-bold text-[#0B2545] mb-2">
+            <UserRound className="w-4 h-4 text-slate-400" strokeWidth={1.9} />
+            {t.space_home_profile_title}
+          </h2>
+          <dl className="divide-y divide-slate-100 text-[13px]">
+            <div className="flex items-start justify-between gap-3 py-2.5">
+              <dt className="text-slate-500">{t.space_home_profile_role}</dt>
+              <dd className="font-bold text-[#0B2545] text-right">{activeUser.roleTitle}</dd>
+            </div>
+            <div className="flex items-start justify-between gap-3 py-2.5">
+              <dt className="text-slate-500">{t.space_home_profile_scope}</dt>
+              <dd className="font-bold text-[#0B2545] text-right">{scope}</dd>
+            </div>
+            {activeUser.entity && (
+              <div className="flex items-start justify-between gap-3 py-2.5">
+                <dt className="text-slate-500">{t.space_home_profile_entity}</dt>
+                <dd className="font-bold text-[#0B2545] text-right">{activeUser.entity}</dd>
+              </div>
+            )}
+          </dl>
+        </section>
+      </div>
     </div>
 
     {/* === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) === */}
