@@ -238,3 +238,67 @@ export const SaveBar: React.FC<{
     </div>
   </div>
 );
+
+// === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
+/**
+ * En-tête commun des écrans d'administration : tuile d'icône, titre, sous-titre
+ * explicatif et actions à droite (bouton « Ajouter »…).
+ */
+export const AdminPageHeader: React.FC<{
+  icon: React.ReactNode;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  actions?: React.ReactNode;
+  tone?: 'blue' | 'emerald' | 'violet' | 'amber' | 'rose';
+}> = ({ icon, title, subtitle, actions, tone = 'blue' }) => {
+  const tile: Record<string, string> = {
+    blue: 'from-blue-500 to-blue-700 shadow-blue-600/25',
+    emerald: 'from-emerald-500 to-emerald-700 shadow-emerald-600/25',
+    violet: 'from-violet-500 to-violet-700 shadow-violet-600/25',
+    amber: 'from-amber-400 to-amber-600 shadow-amber-500/25',
+    rose: 'from-rose-500 to-rose-700 shadow-rose-600/25',
+  };
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+      <div className="flex items-center gap-3.5 min-w-0">
+        <span className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${tile[tone]} shadow-md text-white flex items-center justify-center shrink-0 [&_svg]:w-5 [&_svg]:h-5`}>
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-base font-extrabold tracking-tight text-[#0B2545]">{title}</h3>
+          {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+        </div>
+      </div>
+      {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+    </div>
+  );
+};
+
+/** Champ de recherche arrondi avec loupe et bouton d'effacement. */
+export const SearchField: React.FC<{ id: string; value: string; onChange: (v: string) => void; placeholder?: string }> = ({
+  id,
+  value,
+  onChange,
+  placeholder,
+}) => (
+  <label htmlFor={id} className="relative flex items-center w-full sm:w-72">
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="absolute left-3 w-4 h-4 text-slate-400 fill-none stroke-current" strokeWidth={2} strokeLinecap="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+    <input
+      id={id}
+      type="text"
+      role="searchbox"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+    />
+    {value && (
+      <button type="button" onClick={() => onChange('')} aria-label="Effacer" className="absolute right-2 p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+        <X className="w-3.5 h-3.5" />
+      </button>
+    )}
+  </label>
+);

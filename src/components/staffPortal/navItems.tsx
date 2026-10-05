@@ -10,7 +10,7 @@
  * composant) est désormais exporté d'ici. Aucun changement de comportement.
  */
 import React from 'react';
-import { LayoutDashboard, FolderOpen, Search, Paperclip, MessageSquare, Wrench, LayoutGrid, Users, ShieldCheck, Globe2, Network, SlidersHorizontal, Inbox, UserPlus, Clock3, CheckCircle2, ListChecks, BarChart3, Building2, Tag, ClipboardCheck, Eye, Archive, Mail } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Search, Paperclip, MessageSquare, Wrench, LayoutGrid, Users, ShieldCheck, Globe2, Network, SlidersHorizontal, Inbox, UserPlus, Clock3, CheckCircle2, ListChecks, BarChart3, Tag, ClipboardCheck, Eye, Archive, Mail } from 'lucide-react';
 import type { UserProfile } from '../../types';
 import { userCan } from '../../services/authz';
 import type { Permission } from '../../domain/permissions';
@@ -122,8 +122,10 @@ export function buildSpaceNavItems(
   // (déjà la bonne route) porte donc directement le libellé "Paramètres
   // système" de la référence.
   const adminItems: NavItem[] = [
-    { key: 'admin_organization', label: t.side_organisation, icon: <Globe2 className="w-4 h-4" />, group: '' },
-    { key: 'admin_entities', label: t.guard_label_group_entities, icon: <Building2 className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (Organisation du Groupe) === pays et entités
+    // réunis sur un seul écran : une seule entrée de menu (l'adresse
+    // /admin/entities reste valable et ouvre ce même écran).
+    { key: 'admin_organization', label: t.org_title || t.side_organisation, icon: <Globe2 className="w-4 h-4" />, group: '' },
     { key: 'admin_categories', label: t.side_categories, icon: <Tag className="w-4 h-4" />, group: '' },
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },

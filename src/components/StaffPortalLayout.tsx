@@ -209,7 +209,9 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   }, [currentTab]);
 
   const renderNavButton = (item: NavItem, mobile = false) => {
-    const active = currentTab === item.key;
+    // === AMÉLIORATION AJOUTÉE (Organisation du Groupe) === l'ancienne adresse
+    // des Entités ouvre le même écran que « Organisation du Groupe ».
+    const active = currentTab === item.key || (item.key === 'admin_organization' && currentTab === 'admin_entities');
     if (mobile) {
       return (
         <button

@@ -16,8 +16,8 @@ import { storage } from '../services/storage';
 // n'est plus importé ici : sur demande explicite de l'utilisateur, ce
 // routeur ne propose plus jamais cet onglet (voir plus bas).
 import { RolesPermissionsTab } from './admin/RolesPermissionsTab';
-import { OrganizationCountriesTab } from './admin/OrganizationCountriesTab';
-import { EntitiesTab } from './admin/EntitiesTab';
+// === AMÉLIORATION AJOUTÉE (Organisation du Groupe — pays et entités réunis) ===
+import { OrganizationGroupTab } from './admin/OrganizationGroupTab';
 import { GovernanceRecipientsTab } from './admin/GovernanceRecipientsTab';
 import { RiskMatrixSlaTab } from './admin/RiskMatrixSlaTab';
 import { CategoriesTab } from './admin/CategoriesTab';
@@ -167,9 +167,13 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           onglet) === contenu déplacé tel quel dans son propre composant,
           voir src/components/admin/EntitiesTab.tsx (modale Ajouter/Modifier
           entité incluse). */}
-      {configTab === 'entities' && (
-        <EntitiesTab lang={lang} entities={entities} countries={countries} activeUser={activeUser} onSaved={flashBanner} slugify={slugify} />
+      {/* === AMÉLIORATION AJOUTÉE (Organisation du Groupe) === les onglets
+          « entities » et « organization » affichent désormais le même écran
+          réuni (OrganizationGroupTab) ; les anciens composants EntitiesTab et OrganizationCountriesTab ne sont plus affichés. */}
+      {(configTab === 'entities' || configTab === 'organization') && (
+        <OrganizationGroupTab lang={lang} entities={entities} countries={countries} activeUser={activeUser} onSaved={flashBanner} slugify={slugify} />
       )}
+
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 8 — évolution multi-pays/multi-entité) ===
           ORGANIZATION TAB (pays) — même motif CRUD que l'onglet Entités
@@ -182,9 +186,7 @@ export const AdminConfigView: React.FC<AdminConfigViewProps> = ({
           onglet) === contenu déplacé tel quel dans son propre composant,
           voir src/components/admin/OrganizationCountriesTab.tsx (modale
           Ajouter/Modifier pays incluse). */}
-      {configTab === 'organization' && (
-        <OrganizationCountriesTab lang={lang} countries={countries} entities={entities} activeUser={activeUser} onSaved={flashBanner} />
-      )}
+      {/* (onglet « organization » : voir OrganizationGroupTab ci-dessus) */}
 
       {/* === AMÉLIORATION AJOUTÉE (Phase 7 — Administration CRUD) ===
           3. CATEGORIES TAB — real CRUD (categories + their subcategories)

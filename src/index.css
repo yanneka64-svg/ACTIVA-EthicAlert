@@ -615,10 +615,11 @@ body {
       *-100) un peu plus saturées, et gris « slate » clairs légèrement
       bleutés : même palette, plus d'éclat, sans toucher aux textes ni au
       contraste. Une seule source, appliquée à tous les écrans. */
+/* === AMÉLIORATION AJOUTÉE === fond des pages remis comme avant sur demande
+   (gris très clair d'origine) : `.activa-app-bg` n'est plus posé sur la racine
+   et les gris « slate » gardent leurs valeurs d'origine. Seules les teintes
+   colorées douces restent plus vives. */
 @theme {
-  --color-slate-50: oklch(98.4% 0.009 250);
-  --color-slate-100: oklch(96.7% 0.016 252);
-  --color-slate-200: oklch(92.8% 0.022 255);
   --color-blue-50: oklch(96.8% 0.027 254);
   --color-blue-100: oklch(93% 0.052 255);
   --color-sky-50: oklch(97.5% 0.024 236);
