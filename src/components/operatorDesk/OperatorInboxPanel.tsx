@@ -18,6 +18,10 @@ import { Button, PriorityBadge, EmptyState } from '../ui';
 import { trData } from '../../i18n/dataLabels';
 import { ConfidentialityBadge } from './ConfidentialityBadge';
 import { NOCA_TONE } from './constants';
+// === AMÉLIORATION AJOUTÉE (échanges instantanés, documents du déclarant) ===
+import { useLiveConversation } from '../../hooks/useLiveConversation';
+import { TypingIndicator } from '../ui/TypingIndicator';
+import { MessageAttachments } from '../ui/MessageAttachments';
 
 interface OperatorInboxPanelProps {
   t: Record<string, string>;
@@ -70,6 +74,10 @@ export const OperatorInboxPanel: React.FC<OperatorInboxPanelProps> = ({
   handleQuickReply,
   onOpenCase,
 }) => {
+  // === AMÉLIORATION AJOUTÉE (échanges instantanés) === conversation du
+  // signalement ouvert, rafraîchie toutes les 3 s.
+  const { otherTyping, notifyTyping } = useLiveConversation(panelAlert);
+  const recentMessages = panelAlert ? panelAlert.messages.slice(-6) : [];
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
       <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -156,11 +164,41 @@ export const OperatorInboxPanel: React.FC<OperatorInboxPanelProps> = ({
             </div>
 
             <div className="border-t border-slate-100 pt-3">
+              {/* === AMÉLIORATION AJOUTÉE (échanges instantanés) === derniers échanges du dossier. */}
+              {(recentMessages.length > 0 || otherTyping) && (
+                <div className="mb-3 max-h-64 overflow-y-auto space-y-2 pr-1">
+                  {recentMessages.map((m) => {
+                    const isWb = m.sender === 'whistleblower';
+                    return (
+                      <div key={m.id} className={`flex flex-col ${isWb ? 'items-start' : 'items-end'}`}>
+                        <span className="text-[10px] text-slate-400 mb-0.5">
+                          {m.senderDisplayName} · {new Date(m.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <div
+                          className={`max-w-[90%] px-3 py-2 rounded-2xl text-xs whitespace-pre-wrap ${
+                            isWb ? 'bg-amber-50 border border-amber-200 text-amber-950 rounded-tl-none' : 'bg-blue-600 text-white rounded-tr-none'
+                          }`}
+                        >
+                          {m.content}
+                          {m.attachments && m.attachments.length > 0 && (
+                            <MessageAttachments files={m.attachments} t={t} allowCloudDownload tone={isWb ? 'light' : 'dark'} />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {otherTyping && <TypingIndicator label={t.chat_reporter_typing} />}
+                </div>
+              )}
               <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block">{t.op_reply_wb}</label>
               <div className="flex items-end gap-2">
                 <textarea
                   value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
+                  onChange={(e) => {
+                    setReplyText(e.target.value);
+                    // === AMÉLIORATION AJOUTÉE (échanges instantanés) === signal de frappe.
+                    notifyTyping(e.target.value);
+                  }}
                   rows={2}
                   placeholder={t.op_reply_ph}
                   className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm"

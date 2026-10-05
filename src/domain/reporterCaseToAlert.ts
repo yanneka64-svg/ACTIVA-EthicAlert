@@ -21,6 +21,10 @@ export interface ReporterCasePayload {
   receivedAt: string;
   description: string;
   communications: Communication[];
+  // === AMÉLIORATION AJOUTÉE (échanges instantanés) === session courte de la
+  // conversation en direct et « l'équipe est en train d'écrire ».
+  sessionToken?: string;
+  teamTypingAt?: string | null;
   /** Absent si les fonctions déployées sont antérieures à cet ajout. */
   reporterCase?: {
     externalReference: string | null;
@@ -56,6 +60,10 @@ export function reporterCaseToAlertRecord(
       senderDisplayName: c.senderDisplayName,
       content: c.content,
       createdAt: c.createdAt,
+      // === AMÉLIORATION AJOUTÉE (documents du déclarant) ===
+      ...(c.attachmentFiles?.length
+        ? { attachments: c.attachmentFiles.map((a) => ({ id: a.evidenceId, name: a.fileName, size: a.fileSize, type: a.fileType, uploadedAt: c.createdAt })) }
+        : {}),
     }));
 
   const base: AlertRecord = existing
@@ -109,5 +117,35 @@ export function reporterCaseToAlertRecord(
     // message automatique de dépôt (copie locale, `msg-init`) reste en tête
     // de la conversation : le serveur ne le connaît pas.
     messages: [...(existing?.messages ?? []).filter((m) => m.id === 'msg-init'), ...messages],
+  };
+}
+
+// === AMÉLIORATION AJOUTÉE (échanges instantanés) ===
+/**
+ * Applique un rafraîchissement de conversation (toutes les quelques
+ * secondes) au dossier affiché : messages du serveur (le message automatique
+ * de dépôt local reste en tête) et statut.
+ */
+export function applyReporterConversation(
+  alert: AlertRecord,
+  communications: Pick<Communication, 'messageId' | 'sender' | 'senderDisplayName' | 'content' | 'createdAt' | 'attachmentFiles'>[],
+  status?: CaseStatus
+): AlertRecord {
+  const messages: CaseMessage[] = [...communications]
+    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+    .map((c) => ({
+      id: c.messageId,
+      sender: SENDER[c.sender] ?? 'admin',
+      senderDisplayName: c.senderDisplayName,
+      content: c.content,
+      createdAt: c.createdAt,
+      ...(c.attachmentFiles?.length
+        ? { attachments: c.attachmentFiles.map((a) => ({ id: a.evidenceId, name: a.fileName, size: a.fileSize, type: a.fileType, uploadedAt: c.createdAt })) }
+        : {}),
+    }));
+  return {
+    ...alert,
+    ...(status ? { status: alertStatusFromCaseStatus(status) } : {}),
+    messages: [...alert.messages.filter((m) => m.id === 'msg-init'), ...messages],
   };
 }

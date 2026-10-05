@@ -302,6 +302,11 @@ export interface Communication extends Auditable {
   senderDisplayName: string;
   content: string;
   attachments?: string[]; // Evidence ids
+  // === AMÉLIORATION AJOUTÉE (documents du déclarant, anonymat) ===
+  /** Description des pièces jointes du message (le contenu est stocké à part). */
+  attachmentFiles?: { evidenceId: string; fileName: string; fileType: string; fileSize: number }[];
+  /** Nom réel de l'auteur (équipe) — interne, jamais renvoyé au déclarant. */
+  authorName?: string;
 }
 
 // ---------------------------------------------------------------------------

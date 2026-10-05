@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 // === AMÉLIORATION AJOUTÉE (Refactor AlertTrackingView — extraction par
 // section) === les icônes de chaque bloc sont désormais importées par leur
 // composant (src/components/tracking/*). Seul le bouton « Retour », resté
@@ -27,6 +27,11 @@ import { TrackingSupplementModal } from './tracking/TrackingSupplementModal';
 import { isReporterCloudConfigured, openReporterCase, sendReporterMessage } from '../services/reporterCloudAccess';
 // === AMÉLIORATION AJOUTÉE (messagerie déclarant ↔ équipe) ===
 import { takeReporterAccess } from '../services/reporterCloudAccess';
+// === AMÉLIORATION AJOUTÉE (échanges instantanés, documents du déclarant) ===
+import { pollReporterConversation, sendReporterFile, sendReporterMessageWithSession } from '../services/reporterCloudAccess';
+import type { SendFileResult } from '../services/reporterCloudAccess';
+import { applyReporterConversation } from '../domain/reporterCaseToAlert';
+import { isTypingNow } from '../domain/conversation';
 import { reporterCaseToAlertRecord } from '../domain/reporterCaseToAlert';
 
 interface AlertTrackingViewProps {
@@ -91,7 +96,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
   // seulement, jamais enregistrés) : servent à rafraîchir le dossier et à
   // envoyer les messages à l'équipe. `null` = dossier ouvert depuis la
   // copie locale de ce navigateur (comportement d'origine).
-  const [cloudAccess, setCloudAccess] = useState<{ caseNumber: string; accessCode: string } | null>(null);
+  const [cloudAccess, setCloudAccess] = useState<{ caseNumber: string; accessCode: string; sessionToken?: string } | null>(null);
   const [sendError, setSendError] = useState('');
 
   const refreshFromCloud = async (access: { caseNumber: string; accessCode: string }) => {
@@ -112,6 +117,79 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudAccess]);
 
+  // === AMÉLIORATION AJOUTÉE (échanges instantanés) ===
+  // Tant que l'onglet « Messages » est ouvert sur la version du serveur : la
+  // conversation est rafraîchie toutes les 3 s (réponses de l'équipe, statut)
+  // et « l'équipe est en train d'écrire » s'affiche — sans aucun nom.
+  const sessionTokenRef = useRef<string | undefined>(undefined);
+  sessionTokenRef.current = cloudAccess?.sessionToken ?? sessionTokenRef.current;
+  const [teamTyping, setTeamTyping] = useState(false);
+  const [chatNotice, setChatNotice] = useState('');
+  const lastTypingSent = useRef(0);
+  const typingActive = useRef(false);
+
+  const applyLive = useCallback((st: Awaited<ReturnType<typeof pollReporterConversation>>) => {
+    if (!st) return;
+    if (st.sessionToken) sessionTokenRef.current = st.sessionToken;
+    setTeamTyping(isTypingNow(st.teamTypingAt));
+    setActiveAlert((prev) => (prev ? applyReporterConversation(prev, st.communications, st.status as never) : prev));
+  }, []);
+
+  useEffect(() => {
+    if (!cloudAccess?.sessionToken || activeTrackTab !== 'messages') {
+      setTeamTyping(false);
+      return;
+    }
+    let stopped = false;
+    const tick = async () => {
+      if (document.visibilityState === 'hidden' || !sessionTokenRef.current) return;
+      const st = await pollReporterConversation(sessionTokenRef.current);
+      if (!stopped) applyLive(st);
+    };
+    void tick();
+    const id = window.setInterval(() => void tick(), 3000);
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+    };
+  }, [cloudAccess?.sessionToken, activeTrackTab, applyLive]);
+
+  /** Signal « le déclarant écrit » (au plus toutes les 2,5 s). */
+  const notifyReporterTyping = (text: string) => {
+    const token = sessionTokenRef.current;
+    if (!token) return;
+    const typing = text.trim().length > 0;
+    const now = Date.now();
+    if (typing && now - lastTypingSent.current < 2500) return;
+    if (!typing && !typingActive.current) return;
+    lastTypingSent.current = typing ? now : 0;
+    typingActive.current = typing;
+    void pollReporterConversation(token, typing).then(applyLive);
+  };
+
+  /** Envoi d'un document (et d'un message facultatif) depuis le trombone. */
+  const handleSendFile = async (file: File, message: string): Promise<SendFileResult> => {
+    const token = sessionTokenRef.current;
+    if (!token) return { ok: false, reason: 'expired' };
+    setChatNotice('');
+    const res = await sendReporterFile(token, file, message || undefined);
+    if (res.ok === true) {
+      typingActive.current = false;
+      applyLive(await pollReporterConversation(token));
+    } else {
+      setChatNotice(
+        res.reason === 'too_large'
+          ? t.chat_file_too_large
+          : res.reason === 'too_many'
+          ? t.chat_file_too_many
+          : res.reason === 'expired'
+          ? t.chat_session_expired
+          : t.chat_file_failed
+      );
+    }
+    return res;
+  };
+
   // Sync if initial tracking number passed
   useEffect(() => {
     if (initialTrackingNumber) {
@@ -129,7 +207,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
         const caseNumber = initialTrackingNumber.trim().toUpperCase();
         void openReporterCase(caseNumber, code).then((remote) => {
           if (remote.ok !== true) return;
-          const access = { caseNumber, accessCode: code };
+          const access = { caseNumber, accessCode: code, sessionToken: remote.payload.sessionToken };
           setCloudAccess(access);
           setActiveAlert(reporterCaseToAlertRecord(remote.payload, caseNumber, storage.getAlertByTracking(caseNumber)));
         });
@@ -182,7 +260,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
       if (remote.ok === true) {
         clearAttempts(trimmedNum);
         const local = storage.getAlertByTracking(trimmedNum);
-        const access = { caseNumber: trimmedNum, accessCode: passwordInput };
+        const access = { caseNumber: trimmedNum, accessCode: passwordInput, sessionToken: remote.payload.sessionToken };
         setCloudAccess(access);
         setActiveAlert(reporterCaseToAlertRecord(remote.payload, trimmedNum, local));
         setIsVerifying(false);
@@ -247,6 +325,21 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     if (cloudAccess) {
       const content = replyContent.trim();
       setSendError('');
+      // === AMÉLIORATION AJOUTÉE (échanges instantanés) === envoi par la
+      // session de conversation (puis affichage immédiat), sinon comme avant.
+      const token = sessionTokenRef.current;
+      if (token) {
+        void sendReporterMessageWithSession(token, content).then(async (ok) => {
+          if (ok) {
+            setReplyContent('');
+            typingActive.current = false;
+            applyLive(await pollReporterConversation(token));
+          } else {
+            setSendError(t.track_cloud_send_error);
+          }
+        });
+        return;
+      }
       void sendReporterMessage(cloudAccess.caseNumber, cloudAccess.accessCode, content).then((ok) => {
         if (ok) {
           setReplyContent('');
@@ -608,7 +701,12 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               setActiveTrackTab={setActiveTrackTab}
               handleSendMessage={handleSendMessage}
               formatDateTime={formatDateTime}
-              sendError={sendError}
+              sendError={sendError || chatNotice}
+              // === AMÉLIORATION AJOUTÉE (échanges instantanés, documents) ===
+              teamTyping={teamTyping}
+              onTyping={cloudAccess?.sessionToken ? notifyReporterTyping : undefined}
+              onSendFile={cloudAccess?.sessionToken ? handleSendFile : undefined}
+              isLive={Boolean(cloudAccess?.sessionToken)}
             />
           )}
 
