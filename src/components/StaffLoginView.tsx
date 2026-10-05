@@ -276,23 +276,25 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
   // === AMÉLIORATION AJOUTÉE : page « Mot de passe oublié ? » ===
   if (showForgot) {
     return (
-      <div className="min-h-full flex items-center justify-center px-4 pt-32">
-        <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 activa-fade-in">
+      <div className="activa-form min-h-full flex items-center justify-center px-4 pt-32">
+        <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-3xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)] p-6 sm:p-8">
+          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0B2545] via-blue-600 to-sky-400" />
           <div className="text-center">
-            <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
-              <KeyRound className="w-6 h-6" />
+            <span className="activa-enter inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30" style={{ '--d': '120ms' } as React.CSSProperties}>
+              <KeyRound className="w-6 h-6" strokeWidth={1.75} />
             </span>
-            <p className="text-xs font-bold text-slate-900">{t.login_forgot_title}</p>
-            <div className="w-10 h-1 rounded-full bg-blue-500 mx-auto mt-3" />
-            <p id="forgot-password-message" className="text-sm text-slate-700 mt-5 leading-relaxed">{t.login_forgot_message}</p>
+            <p className="activa-enter text-sm font-extrabold tracking-tight text-slate-900" style={{ '--d': '200ms' } as React.CSSProperties}>{t.login_forgot_title}</p>
+            <div className="activa-draw-x w-10 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400 mx-auto mt-3" style={{ '--d': '320ms', transformOrigin: 'center' } as React.CSSProperties} />
+            <p id="forgot-password-message" className="activa-enter text-sm text-slate-700 mt-5 leading-relaxed" style={{ '--d': '300ms' } as React.CSSProperties}>{t.login_forgot_message}</p>
           </div>
           <button
             type="button"
             id="btn-forgot-back"
             onClick={() => setShowForgot(false)}
-            className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-xs font-bold tracking-wide shadow-md shadow-[#0B2545]/25 hover:bg-[#12294f] transition"
+            className="activa-enter activa-shine group mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#0B2545] to-[#134074] text-white text-xs font-bold tracking-wide shadow-lg shadow-[#0B2545]/25 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
+            style={{ '--d': '400ms' } as React.CSSProperties}
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-0.5" strokeWidth={2} />
             {t.login_forgot_back}
           </button>
         </div>
@@ -302,20 +304,21 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
 
   if (pendingUser) {
     return (
-      <div className="min-h-full flex items-center justify-center px-4 pt-32">
-        <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+      <div className="activa-form min-h-full flex items-center justify-center px-4 pt-32">
+        <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-3xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)] p-6 sm:p-8">
+          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0B2545] via-blue-600 to-sky-400" />
           <div className="text-center mb-6">
-            <span className="inline-flex w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 items-center justify-center mx-auto mb-4">
-              <ShieldAlert className="w-6 h-6" />
+            <span className="activa-enter inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/30" style={{ '--d': '120ms' } as React.CSSProperties}>
+              <ShieldAlert className="w-6 h-6" strokeWidth={1.75} />
             </span>
-            <p className="text-xs font-bold text-slate-900">{t.login_change_title}</p>
+            <p className="activa-enter text-sm font-extrabold tracking-tight text-slate-900" style={{ '--d': '200ms' } as React.CSSProperties}>{t.login_change_title}</p>
             <p className="text-[11px] text-slate-500 mt-1.5">
               {t.login_change_intro.replace('{name}', pendingUser.name)}
             </p>
-            <div className="w-10 h-1 rounded-full bg-amber-500 mx-auto mt-3" />
+            <div className="activa-draw-x w-10 h-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 mx-auto mt-3" style={{ '--d': '320ms', transformOrigin: 'center' } as React.CSSProperties} />
           </div>
 
-          <form onSubmit={handleChangePassword} className="activa-caret-blink space-y-4">
+          <form onSubmit={handleChangePassword} className="activa-enter activa-caret-blink space-y-4" style={{ '--d': '300ms' } as React.CSSProperties}>
             <div>
               <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
                 {t.login_new_password}
@@ -326,7 +329,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder={t.login_new_password_hint}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white text-xs focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none"
                 aria-describedby="password-rules"
               />
               {/* === AMÉLIORATION AJOUTÉE (règles du mot de passe visibles) ===
@@ -361,19 +364,19 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 id="input-confirm-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white text-xs focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none"
               />
             </div>
 
             {changeError && (
-              <p className="text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{changeError}</p>
+              <p className="activa-enter text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{changeError}</p>
             )}
 
             <button
               type="submit"
               id="btn-submit-change-password"
               disabled={isChangingPassword}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-xs font-bold hover:bg-[#0B2545]/90 disabled:opacity-50 transition"
+              className="activa-shine w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#0B2545] to-[#134074] text-white text-xs font-bold shadow-lg shadow-[#0B2545]/25 enabled:hover:shadow-xl enabled:hover:-translate-y-0.5 disabled:opacity-50 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
             >
               {isChangingPassword ? t.login_change_pending : t.login_change_submit}
             </button>
@@ -384,30 +387,36 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
   }
 
   return (
-    <div className="min-h-full flex items-center justify-center px-4 pt-32">
-      <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+    <div className="activa-form min-h-full flex items-center justify-center px-4 pt-32">
+      <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-3xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)] p-6 sm:p-8">
+          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0B2545] via-blue-600 to-sky-400" />
         <div className="text-center mb-6">
-          <span className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 items-center justify-center mx-auto mb-4">
-            <User className="w-6 h-6" />
+          {/* === AMÉLIORATION AJOUTÉE (connexion du personnel — design
+              modernisé) === carte qui apparaît en douceur avec liseré de
+              marque, tuile d'icône en dégradé, titre et champs en cascade,
+              champs dont l'icône se colore au focus, bouton en dégradé de
+              marque avec reflet. Même position, même comportement. */}
+          <span className="activa-enter inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30" style={{ '--d': '120ms' } as React.CSSProperties}>
+            <User className="w-6 h-6" strokeWidth={1.75} />
           </span>
-          <p className="text-xs font-bold text-slate-900">{t.login_heading}</p>
-          <div className="w-10 h-1 rounded-full bg-blue-500 mx-auto mt-3" />
+          <p className="activa-enter text-sm font-extrabold tracking-tight text-slate-900" style={{ '--d': '200ms' } as React.CSSProperties}>{t.login_heading}</p>
+          <div className="activa-draw-x w-10 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400 mx-auto mt-3" style={{ '--d': '320ms', transformOrigin: 'center' } as React.CSSProperties} />
         </div>
 
-        <form onSubmit={handleSubmit} className="activa-caret-blink space-y-4">
+        <form onSubmit={handleSubmit} className="activa-enter activa-caret-blink space-y-4" style={{ '--d': '300ms' } as React.CSSProperties}>
           <div>
             <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
               {t.login_username}
             </label>
-            <div className="relative">
-              <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="relative group">
+              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-blue-600" strokeWidth={1.75} />
               <input
                 type="text"
                 id="input-login-username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full pl-10 pr-3 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white text-xs focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none"
               />
             </div>
           </div>
@@ -428,28 +437,28 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 </button>
               )}
             </div>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="relative group">
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-blue-600" strokeWidth={1.75} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full pl-10 pr-11 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white text-xs focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 tabIndex={-1}
                 aria-label={showPassword ? t.login_hide_password : t.login_show_password}
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
               </button>
             </div>
           </div>
 
           {loginError && (
-            <p className="text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{loginError}</p>
+            <p className="activa-enter text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{loginError}</p>
           )}
 
           {/* === AMÉLIORATION AJOUTÉE (bouton "Se connecter" redessiné, plus
@@ -463,7 +472,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
             type="submit"
             id="btn-submit-staff-login"
             disabled={!username.trim() || !password || isVerifying}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] text-white text-xs font-bold tracking-wide shadow-md shadow-[#0B2545]/25 hover:bg-[#12294f] hover:shadow-lg hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2545]/50 focus-visible:ring-offset-2 transition-all duration-150"
+            className="activa-shine w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#0B2545] to-[#134074] text-white text-xs font-bold tracking-wide shadow-lg shadow-[#0B2545]/25 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2545]/50 focus-visible:ring-offset-2 transition-all duration-300"
           >
             {isVerifying ? (
               <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -471,7 +480,7 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : (
-              <LogIn className="w-4 h-4" />
+              <LogIn className="w-4 h-4" strokeWidth={2} />
             )}
             {isVerifying ? t.login_verifying : t.login_submit}
           </button>
