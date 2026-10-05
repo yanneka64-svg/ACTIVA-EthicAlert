@@ -52,7 +52,7 @@ code** :
 
 | # | Action | Qui | Comment |
 |---|---|---|---|
-| B1 | Rendre l'envoi d'e-mails réel | Informatique (DNS) + administrateur GitHub | 1) Vérifier le domaine `group-activa.com` dans Resend (enregistrements DNS SPF / DKIM). 2) Variable de dépôt `NOTIFY_FROM_EMAIL` = `ACTIVA EthicAlert <notifications@group-activa.com>`. 3) Relancer « Deploy Cloud Functions ». 4) Bouton « Envoyer un e-mail d'essai » pour chaque groupe. |
+| B1 | Rendre l'envoi d'e-mails réel — **domaine `activa-alertes.com` vérifié dans Resend le 5 octobre** ; reste le déploiement des fonctions avec `NOTIFY_FROM_EMAIL` = `ACTIVA EthicAlert <alertes@activa-alertes.com>`, puis l'e-mail d'essai | Informatique (DNS) + administrateur GitHub | 1) Vérifier le domaine `group-activa.com` dans Resend (enregistrements DNS SPF / DKIM). 2) Variable de dépôt `NOTIFY_FROM_EMAIL` = `ACTIVA EthicAlert <notifications@group-activa.com>`. 3) Relancer « Deploy Cloud Functions ». 4) Bouton « Envoyer un e-mail d'essai » pour chaque groupe. |
 | B2 | Créer les comptes réels et saisir les destinataires | Administrateur du portail | Utilisateurs : opérateurs, compte(s) DARC / Conformité, enquêteurs. Notifications e-mail : adresses DGA, DRH et boîte DARC. Vérifier avec la Simulation. |
 | B3 | Activer les sauvegardes | Propriétaire du projet Google Cloud | Commandes prêtes (`docs/DEVOPS-RUNBOOK.md` §4.2) : PITR, sauvegarde quotidienne (14 j) et hebdomadaire (14 semaines), protection contre la suppression. |
 | B4 | ~~Purger les dossiers de test~~ — **fait le 5 octobre** (essai à blanc, puis suppression confirmée). À refaire après la recette métier (B6) avec le même workflow. | Administrateur GitHub | Workflow « Firebase delete test cases ». |
@@ -69,7 +69,7 @@ code** :
 | R4 | Double authentification pour les administrateurs : MFA désactivée, nécessite Identity Platform (payant à l'usage) | Décision + console |
 | R5 | Supervision : alertes d'erreurs, test de disponibilité, budget (script prêt, `gcp-hardening.sh monitoring` / `budget`) | Cloud Shell |
 | R6 | Révoquer l'ancienne clé JSON de déploiement (le déploiement par WIF fonctionne) — rappel prévu le 11 octobre | Cloud Shell |
-| R7 | Domaine personnalisé (ex. `alerte.group-activa.com`) au lieu de `*.web.app`, puis `NOTIFY_APP_URL` | Informatique (DNS) |
+| R7 | ~~Domaine personnalisé au lieu de `*.web.app`, puis `NOTIFY_APP_URL`~~ — **fait le 5 octobre** : https://activa-alertes.com ; liens des e-mails au prochain déploiement des fonctions | — |
 | R8 | ~~Un seul mécanisme d'e-mail pour l'escalade~~ — **fait** | — |
 
 ### Après l'ouverture (améliorations)

@@ -19,7 +19,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { AlertRecord } from '../types';
-import { ActivaLogo } from './ui/ActivaLogo';
 import { trData } from '../i18n/dataLabels';
 import { getCurrentLang } from '../i18n/currentLang';
 
@@ -61,7 +60,8 @@ export const ReceiptPrintView: React.FC<ReceiptPrintViewProps> = ({ t, alert, pa
   return createPortal(
     <div className="print-only bg-white text-slate-900 text-[12px] leading-relaxed p-10">
       <header className="flex items-start justify-between border-b-2 border-[#0B2545] pb-4 mb-6">
-        <ActivaLogo className="h-12" />
+        {/* === AMÉLIORATION AJOUTÉE (logo du site d'alerte sur l'accusé) === */}
+        <img src="/brand/activa-whistleblowing-logo.png" alt="activa.whistleblowing" className="h-10 w-auto object-contain" />
         <div className="text-right">
           <p className="text-base font-extrabold text-[#0B2545]">{t.receipt_print_title}</p>
           <p className="text-slate-500">{now.toLocaleDateString(locale)}</p>

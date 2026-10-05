@@ -531,6 +531,29 @@ body {
 ::view-transition-new(activa-sidebar) {
   animation: none;
 }
+/* === AMÉLIORATION AJOUTÉE (transition sans débordement sur le pied de page) ===
+   Signalé par l'utilisateur : au clic sur un onglet, le menu latéral semblait
+   déborder sur la barre du bas. Pendant une View Transition, chaque élément
+   nommé est dessiné au-dessus du reste de la page : le menu latéral de
+   l'administration (étiré sur toute la hauteur du contenu) recouvrait le pied
+   de page, et le contenu qui glisse de quelques pixels aussi.
+   1) le pied de page a son propre nom : nommé après le contenu, il est dessiné
+      au-dessus pendant l'animation, et ne bouge pas ;
+   2) l'animation du contenu est rognée à sa propre zone. */
+.activa-vt-footer {
+  view-transition-name: activa-footer;
+}
+::view-transition-group(activa-footer),
+::view-transition-new(activa-footer) {
+  animation: none;
+}
+::view-transition-old(activa-footer) {
+  animation: none;
+  opacity: 0;
+}
+::view-transition-group(activa-main) {
+  overflow: clip;
+}
 
 /* En-tête : ombre qui apparaît dès que le contenu défile */
 .activa-navbar-shell {

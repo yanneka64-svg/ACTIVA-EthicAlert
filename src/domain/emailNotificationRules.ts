@@ -14,6 +14,8 @@
  *   l'identité du déclarant ni le nom des personnes mises en cause.
  */
 import type { CasePriority, HierarchyLevel, RoleId } from './caseTypes';
+// === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) ===
+import { renderBrandedEmailHtml } from './emailTemplate';
 
 export type NotificationEvent = 'new_report' | 'assigned' | 'escalated' | 'closed' | 'reopened';
 export type NotificationCondition = 'always' | 'critical' | 'hr' | 'senior_implicated';
@@ -388,7 +390,7 @@ export function buildNotificationEmail(input: {
   group: RecipientGroupId;
   reason: NotificationCondition | 'escalation';
   appUrl: string;
-}): { subject: string; body: string } {
+}): { subject: string; body: string; html: string } {
   const { event, facts, group, reason, appUrl } = input;
   const link = `${appUrl.replace(/\/+$/, '')}/cases/${encodeURIComponent(facts.reference)}`;
   const why = REASON_LABEL[reason] ? ` — motif : ${REASON_LABEL[reason]}` : '';
@@ -409,7 +411,24 @@ export function buildNotificationEmail(input: {
     'Pour des raisons de confidentialité, aucun détail du signalement n’est transmis par e-mail.',
     '— activa-whistleblowing (message automatique, ne pas répondre)',
   ].join('\n');
-  return { subject, body };
+  // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) === même contenu
+  // en HTML : logo du site d'alerte, tableau du dossier, bouton vers la fiche.
+  const html = renderBrandedEmailHtml({
+    appUrl,
+    title: `${EVENT_TITLE[event]} — ${facts.reference}`,
+    preheader: `${EVENT_SENTENCE[event]} : dossier ${facts.reference}.`,
+    paragraphs: ['Bonjour,', `${EVENT_SENTENCE[event]}.`],
+    facts: [
+      { label: 'Dossier', value: facts.reference },
+      { label: 'Entité', value: `${facts.entity} (${facts.country})` },
+      { label: 'Catégorie', value: facts.category },
+      { label: 'Priorité', value: PRIORITY_LABEL[facts.priority] ?? facts.priority },
+      { label: 'Destinataire', value: `${GROUP_LABEL[group]}${REASON_LABEL[reason] ? ` — ${REASON_LABEL[reason]}` : ''}` },
+    ],
+    cta: { label: 'Consulter le dossier', url: link },
+    note: 'Pour des raisons de confidentialité, aucun détail du signalement n’est transmis par e-mail. Connectez-vous au portail sécurisé pour le consulter.',
+  });
+  return { subject, body, html };
 }
 
 /** Validation stricte des réglages enregistrés par un administrateur. */

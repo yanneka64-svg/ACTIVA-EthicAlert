@@ -25,7 +25,7 @@ SA_NAME="github-deployer"
 SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 POOL="github"
 PROVIDER_ID="github-provider"
-DOMAINS=("activa-ethicalert-47246.web.app" "activa-ethicalert-47246.firebaseapp.com" "activa-ethicalert.group-activa.com")
+DOMAINS=("activa-ethicalert-47246.web.app" "activa-ethicalert-47246.firebaseapp.com" "activa-ethicalert.group-activa.com" "activa-alertes.com")
 UPTIME_HOST="activa-ethicalert-47246.web.app"
 
 say()  { printf '\n\033[1m== %s\033[0m\n' "$*"; }
