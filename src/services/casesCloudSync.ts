@@ -48,11 +48,19 @@ export interface CaseMirrorInput {
   // en HTTPS, qui n'en stocke que l'empreinte PBKDF2.
   accessCode?: string;
   externalReference?: string;
+  // === AMÉLIORATION AJOUTÉE (numéro de suivi attribué par le serveur) ===
+  /** Sans `externalReference` : le serveur attribue le numéro de suivi avec ce code d'entité. */
+  entityCode?: string;
+  /** Identifiant du dépôt : un nouvel essai renvoie le dossier déjà créé (jamais de doublon). */
+  submissionId?: string;
 }
 
 export interface CaseMirrorResult {
   caseId: string;
   caseNumber: string;
+  // === AMÉLIORATION AJOUTÉE (numéro de suivi attribué par le serveur) ===
+  /** Numéro de suivi remis au déclarant (attribué ou confirmé par le serveur). */
+  trackingNumber?: string;
 }
 
 /** Toujours résout (succès best-effort) — ne rejette jamais, ne doit jamais être `await`é de façon bloquante par l'appelant. `null` si non configuré ou en cas d'échec. */
@@ -68,3 +76,30 @@ export async function mirrorSubmissionToRealBackend(input: CaseMirrorInput): Pro
     return null;
   }
 }
+
+// === AMÉLIORATION AJOUTÉE (dépôt confirmé par le serveur) ===
+export type SubmitReportResult =
+  | { ok: true; result: CaseMirrorResult }
+  | { ok: false; retryable: boolean };
+
+/**
+ * Envoie le signalement à Firebase et ATTEND la réponse (au plus
+ * `timeoutMs`). Contrairement à `mirrorSubmissionToRealBackend` (envoi en
+ * arrière-plan, sans retour), l'appelant sait si le dossier est réellement
+ * enregistré : sinon il le garde en file d'attente (submissionOutbox.ts).
+ * `retryable: false` = contenu refusé par le serveur (inutile de réessayer).
+ */
+export async function submitReportToBackend(input: CaseMirrorInput, timeoutMs = 20000): Promise<SubmitReportResult> {
+  if (!isPhase4Configured()) return { ok: false, retryable: false };
+  try {
+    const functions = await getPhase4Functions();
+    const { httpsCallable } = await import('firebase/functions');
+    const fn = httpsCallable<CaseMirrorInput, CaseMirrorResult>(functions, 'createCaseAsReporter', { timeout: timeoutMs });
+    const response = await fn(input);
+    return { ok: true, result: response.data };
+  } catch (e) {
+    const code = typeof e === 'object' && e && 'code' in e ? String((e as { code: unknown }).code) : '';
+    return { ok: false, retryable: code !== 'functions/invalid-argument' };
+  }
+}
+

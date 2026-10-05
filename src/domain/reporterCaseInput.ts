@@ -27,6 +27,11 @@ const CONFIDENTIALITY_LEVELS: readonly ConfidentialityLevel[] = ['standard', 're
 const ACCESS_CODE_RE = /^[A-Za-z0-9]{8,64}$/;
 /** Numéro de suivi local, ex. AACMR-26-09-0001. */
 const EXTERNAL_REFERENCE_RE = /^[A-Z0-9][A-Z0-9-]{2,39}$/;
+// === AMÉLIORATION AJOUTÉE (numéro de suivi attribué par le serveur) ===
+/** Code d'entité du numéro de suivi (ex. AACMR, GRP). */
+const ENTITY_CODE_RE = /^[A-Z]{2,10}$/;
+/** Identifiant unique d'un dépôt, pour qu'un nouvel essai ne crée jamais de doublon. */
+const SUBMISSION_ID_RE = /^[A-Za-z0-9-]{8,64}$/;
 
 export interface ReporterCaseInput {
   category: string;
@@ -40,6 +45,11 @@ export interface ReporterCaseInput {
   accessCode?: string;
   /** Numéro de suivi local déjà remis au lanceur d'alerte. */
   externalReference?: string;
+  // === AMÉLIORATION AJOUTÉE (numéro de suivi attribué par le serveur) ===
+  /** Sans `externalReference` : le serveur attribue le numéro de suivi avec ce code d'entité. */
+  entityCode?: string;
+  /** Identifiant du dépôt : un nouvel essai avec le même identifiant renvoie le dossier déjà créé. */
+  submissionId?: string;
 }
 
 export type ReporterCaseInputResult = { ok: true; value: ReporterCaseInput } | { ok: false; error: string };
@@ -89,5 +99,22 @@ export function parseReporterCaseInput(input: unknown): ReporterCaseInputResult 
     if (!EXTERNAL_REFERENCE_RE.test(ref)) return { ok: false, error: 'Invalid externalReference.' };
     value.externalReference = ref;
   }
+  // === AMÉLIORATION AJOUTÉE (numéro de suivi attribué par le serveur) ===
+  if (raw.entityCode !== undefined) {
+    if (typeof raw.entityCode !== 'string' || !ENTITY_CODE_RE.test(raw.entityCode)) return { ok: false, error: 'Invalid entityCode.' };
+    value.entityCode = raw.entityCode;
+  }
+  if (raw.submissionId !== undefined) {
+    if (typeof raw.submissionId !== 'string' || !SUBMISSION_ID_RE.test(raw.submissionId)) return { ok: false, error: 'Invalid submissionId.' };
+    value.submissionId = raw.submissionId;
+  }
   return { ok: true, value };
+}
+
+// === AMÉLIORATION AJOUTÉE (numéro de suivi attribué par le serveur) ===
+/** Numéro de suivi officiel : CODE-AA-MM-NNNN (séquence par entité et par mois). */
+export function formatTrackingNumber(entityCode: string, date: Date, seq: number): string {
+  const yy = String(date.getUTCFullYear() % 100).padStart(2, '0');
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  return `${entityCode}-${yy}-${mm}-${String(seq).padStart(4, '0')}`;
 }

@@ -327,6 +327,25 @@ function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStaffSessionActive, activeUser.id]);
 
+  // === AMÉLIORATION AJOUTÉE (dépôt confirmé par le serveur) ===
+  // Renvoi automatique des signalements déposés sans réseau
+  // (services/submissionOutbox.ts) : au démarrage, au retour de la
+  // connexion et toutes les minutes, quelle que soit la page affichée.
+  // Import dynamique, même discipline que ci-dessus.
+  useEffect(() => {
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    import('./services/submissionOutbox')
+      .then(({ startSubmissionOutbox }) => {
+        if (!cancelled) stop = startSubmissionOutbox();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, []);
+
   // === AMÉLIORATION AJOUTÉE (Phase 5) ===
   // A plain tab switch (Navbar / sidebar) clears any Control-Panel-driven
   // filter so it never leaks into a later, unrelated visit to "portal" —

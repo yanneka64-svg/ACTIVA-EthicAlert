@@ -65,7 +65,7 @@ import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
 import { caseQueryEqualities, normalizePagination } from '../../src/domain/caseQuery';
 // === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution de la soumission publique.
-import { parseReporterCaseInput } from '../../src/domain/reporterCaseInput';
+import { formatTrackingNumber, parseReporterCaseInput } from '../../src/domain/reporterCaseInput';
 // === AMÉLIORATION AJOUTÉE : réutilise le HASH/SALT existant, jamais réimplémenté ===
 // Same salted, iterated-SHA256 verification already used by the legacy
 // client-side AlertTrackingView (src/components/AlertTrackingView.tsx) —
@@ -1293,26 +1293,77 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   // UNE transaction : jamais de réservation orpheline si une écriture échoue.
   // Seule une réservation existante (lue dans la transaction) fait créer le
   // dossier sans `externalReference` ; toute autre erreur est propagée.
-  await db.runTransaction(async (tx) => {
+  // === AMÉLIORATION AJOUTÉE (numéro de suivi attribué par le serveur +
+  // dépôt rejouable sans doublon) ===
+  // - `submissionId` : un nouvel essai du même dépôt (réseau coupé, page
+  //   rechargée, file d'attente du navigateur) renvoie le dossier déjà créé
+  //   au lieu d'en créer un second ; si cet essai porte un numéro local déjà
+  //   remis au déclarant, ce numéro est ajouté comme alias du même dossier.
+  // - `entityCode` sans `externalReference` : le serveur attribue le numéro
+  //   de suivi officiel (CODE-AA-MM-NNNN), unique, via un compteur par
+  //   entité et par mois — fini les numéros identiques générés par deux
+  //   appareils différents.
+  type CreateOutcome = { caseId: string; caseNumber: string; trackingNumber: string; created: boolean };
+  const outcome: CreateOutcome = await db.runTransaction(async (tx) => {
     const caseRef = db.collection('cases').doc(caseId);
     const credsRef = db.collection('reporter_credentials').doc(caseId);
+    const submissionRef = data.submissionId ? db.collection('reporter_submissions').doc(data.submissionId) : null;
+
+    // Toutes les lectures d'abord (règle des transactions Firestore).
+    const previous = submissionRef ? await tx.get(submissionRef) : null;
+    if (previous?.exists) {
+      const prev = previous.data() as { caseId: string; caseNumber: string; trackingNumber: string };
+      if (data.externalReference && data.externalReference !== prev.trackingNumber) {
+        const aliasRef = db.collection('external_references').doc(data.externalReference);
+        const alias = await tx.get(aliasRef);
+        if (!alias.exists) tx.create(aliasRef, { caseId: prev.caseId, createdAt: nowIso });
+      }
+      return { ...prev, created: false };
+    }
+
     let doc: Case = kase;
+    let trackingNumber = kase.caseNumber;
     if (data.externalReference) {
       const reservationRef = db.collection('external_references').doc(data.externalReference);
       const reservation = await tx.get(reservationRef);
       if (!reservation.exists) {
         tx.create(reservationRef, { caseId, createdAt: nowIso });
         doc = { ...kase, externalReference: data.externalReference };
+        trackingNumber = data.externalReference;
       }
+    } else if (data.entityCode) {
+      const now = new Date(nowIso);
+      const period = `${String(now.getUTCFullYear() % 100).padStart(2, '0')}${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+      const counterRef = db.collection('counters').doc(`tracking_${data.entityCode}_${period}`);
+      const counter = await tx.get(counterRef);
+      let seq = counter.exists ? Number((counter.data() as { value?: number }).value ?? 0) : 0;
+      let candidate: string | null = null;
+      for (let attempt = 0; attempt < 50 && !candidate; attempt++) {
+        seq += 1;
+        const ref = formatTrackingNumber(data.entityCode, now, seq);
+        const taken = await tx.get(db.collection('external_references').doc(ref));
+        if (!taken.exists) candidate = ref;
+      }
+      if (!candidate) throw new HttpsError('resource-exhausted', 'Could not allocate a tracking number. Try again.');
+      tx.set(counterRef, { value: seq }, { merge: true });
+      tx.create(db.collection('external_references').doc(candidate), { caseId, createdAt: nowIso });
+      doc = { ...kase, externalReference: candidate };
+      trackingNumber = candidate;
     }
     tx.set(caseRef, doc);
     tx.set(credsRef, credentials);
+    if (submissionRef) {
+      tx.create(submissionRef, { caseId, caseNumber: kase.caseNumber, trackingNumber, createdAt: nowIso });
+    }
+    return { caseId, caseNumber: kase.caseNumber, trackingNumber, created: true };
   });
 
-  await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
-  await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
+  if (outcome.created) {
+    await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
+    await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
+  }
 
-  return { caseId, caseNumber: kase.caseNumber };
+  return { caseId: outcome.caseId, caseNumber: outcome.caseNumber, trackingNumber: outcome.trackingNumber };
 });
 
 // ---------------------------------------------------------------------------
