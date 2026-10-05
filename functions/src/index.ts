@@ -82,6 +82,8 @@ import {
   type RecipientGroupId,
   type StaffRecipientCandidate,
 } from '../../src/domain/emailNotificationRules';
+// === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail : logo + lien) ===
+import { plainTextToBrandedHtml, renderBrandedEmailHtml } from '../../src/domain/emailTemplate';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
 import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src/domain/caseVisibility';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
@@ -2037,7 +2039,15 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 
         'Content-Type': 'application/json',
       },
       // === AMÉLIORATION AJOUTÉE === valeurs normalisées par le garde-fou.
-      body: JSON.stringify({ from: fromAddress, to: [guard.to], subject: outgoing.subject, text: outgoing.body }),
+      // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) === version HTML
+      // (logo, liens cliquables) en plus du texte brut.
+      body: JSON.stringify({
+        from: fromAddress,
+        to: [guard.to],
+        subject: outgoing.subject,
+        text: outgoing.body,
+        html: plainTextToBrandedHtml(outgoing.body, notifyAppUrl(), outgoing.subject.replace(/^\[[^\]]*\]\s*/, '')),
+      }),
     });
 
     if (!resendRes.ok) {
@@ -2660,7 +2670,9 @@ function notifyAppUrl(): string {
 }
 
 /** Envoi d'un e-mail (Resend). Ne lève jamais. */
-async function sendNotificationEmail(to: string, subject: string, body: string): Promise<{ ok: boolean; error?: string }> {
+// === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) === `html` facultatif :
+// envoyé avec le texte brut (les messageries choisissent la version à afficher).
+async function sendNotificationEmail(to: string, subject: string, body: string, html?: string): Promise<{ ok: boolean; error?: string }> {
   let apiKey = '';
   try {
     apiKey = NOTIFY_RESEND_KEY.value();
@@ -2680,7 +2692,7 @@ async function sendNotificationEmail(to: string, subject: string, body: string):
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [to], subject, text: body }),
+      body: JSON.stringify({ from, to: [to], subject, text: body, ...(html ? { html } : {}) }),
       signal: controller.signal,
     }).finally(() => clearTimeout(timer));
     if (!res.ok) return { ok: false, error: `Resend ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}` };
@@ -2701,8 +2713,8 @@ async function notifyCaseEvent(
     const appUrl = notifyAppUrl();
     const results = await Promise.all(
       recipients.map(async (r) => {
-        const { subject, body } = buildNotificationEmail({ event, facts: input.facts, group: r.group, reason: r.reason, appUrl });
-        return { r, res: await sendNotificationEmail(r.email, subject, body) };
+        const { subject, body, html } = buildNotificationEmail({ event, facts: input.facts, group: r.group, reason: r.reason, appUrl });
+        return { r, res: await sendNotificationEmail(r.email, subject, body, html) };
       })
     );
     for (const { r, res } of results) {
@@ -2756,7 +2768,19 @@ export const sendTestNotificationEmail = onCall({ secrets: [NOTIFY_RESEND_KEY] }
     `Portail : ${notifyAppUrl()}`,
     '— activa-whistleblowing (message automatique, ne pas répondre)',
   ].join('\n');
-  const results = await Promise.all(emails.map(async (email) => ({ email, ...(await sendNotificationEmail(email, subject, body)) })));
+  // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) ===
+  const html = renderBrandedEmailHtml({
+    appUrl: notifyAppUrl(),
+    title: 'E-mail d’essai',
+    preheader: `Notifications du groupe « ${GROUP_LABEL[group.id]} »`,
+    paragraphs: [
+      'Bonjour,',
+      `Ceci est un e-mail d’essai envoyé depuis l’administration du portail activa-whistleblowing par ${user.name}.`,
+      `Vous recevrez les notifications prévues pour le groupe « ${GROUP_LABEL[group.id]} ».`,
+    ],
+    cta: { label: 'Ouvrir le portail', url: notifyAppUrl() },
+  });
+  const results = await Promise.all(emails.map(async (email) => ({ email, ...(await sendNotificationEmail(email, subject, body, html)) })));
   await appendAudit({ actorId: user.userId, action: 'EMAIL_TEST_SENT', objectType: 'email', objectId: group.id, newValue: results.map((r) => ({ email: r.email, ok: r.ok })) });
   return { results };
 });

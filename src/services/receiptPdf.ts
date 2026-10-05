@@ -68,9 +68,11 @@ export function pdfSafeText(text: string): string {
     .replace(/[  ]/g, ' ');
 }
 
-async function loadLogo(): Promise<{ data: string; w: number; h: number } | null> {
+// === AMÉLIORATION AJOUTÉE (logo du site d'alerte sur l'accusé) === le chemin
+// devient un paramètre ; par défaut, toujours le logo corporate ACTIVA.
+async function loadLogo(path = '/brand/activa-logo.png'): Promise<{ data: string; w: number; h: number } | null> {
   try {
-    const res = await fetch('/brand/activa-logo.png');
+    const res = await fetch(path);
     if (!res.ok) return null;
     const blob = await res.blob();
     const data = await new Promise<string>((resolve, reject) => {
@@ -110,9 +112,13 @@ export async function downloadReceiptPdf(t: Record<string, string>, alert: Alert
     let y = M;
 
     // En-tête : logo à gauche, titre et date à droite.
-    const logo = await loadLogo();
+    // === AMÉLIORATION AJOUTÉE (logo du site d'alerte sur l'accusé) === logo
+    // « activa.whistleblowing » (celui de l'en-tête du site), repli sur le
+    // logo ACTIVA s'il ne se charge pas. Hauteur adaptée à son format allongé.
+    const siteLogo = await loadLogo('/brand/activa-whistleblowing-logo.png');
+    const logo = siteLogo ?? (await loadLogo());
     if (logo) {
-      const h = 14;
+      const h = siteLogo ? 11 : 14;
       doc.addImage(logo.data, 'PNG', M, y, (logo.w / logo.h) * h, h);
     }
     doc.setFont('helvetica', 'bold');
