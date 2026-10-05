@@ -63,7 +63,7 @@ const WRONG_CREDENTIALS = ['auth/invalid-credential', 'auth/wrong-password', 'au
 
 export type StaffSignInResult =
   | { ok: true; user: UserProfile; mustChangePassword: boolean }
-  | { ok: false; reason: 'wrong_credentials' | 'expired' | 'locked' | 'not_provisioned' | 'unavailable' };
+  | { ok: false; reason: 'wrong_credentials' | 'expired' | 'locked' | 'not_provisioned' | 'unavailable' | 'password_policy' };
 
 /**
  * Connexion par identifiant + mot de passe contre Firebase Auth, puis
@@ -76,6 +76,10 @@ export async function signInStaffWithUsername(username: string, password: string
     const code = staffErrorCode(e);
     if (WRONG_CREDENTIALS.includes(code)) return { ok: false, reason: 'wrong_credentials' };
     if (code === 'auth/too-many-requests') return { ok: false, reason: 'locked' };
+    // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) === en
+    // mode « Exiger », Firebase refuse la connexion avec un ancien mot de
+    // passe qui ne respecte plus la politique : il faut une réinitialisation.
+    if (code === 'auth/password-does-not-meet-requirements') return { ok: false, reason: 'password_policy' };
     return { ok: false, reason: 'unavailable' };
   }
   try {

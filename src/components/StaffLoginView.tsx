@@ -139,6 +139,17 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
           setLoginError(t.login_error_expired);
           return;
         }
+        // === AMÉLIORATION AJOUTÉE (messages de connexion précis) === ces
+        // refus Firebase ne sont pas un mot de passe incorrect : les afficher
+        // tels quels plutôt que « Identifiant ou mot de passe incorrect ».
+        if (remote.reason === 'password_policy') {
+          setLoginError(t.login_error_policy_signin);
+          return;
+        }
+        if (remote.reason === 'locked') {
+          setLoginError(t.login_error_too_many_firebase);
+          return;
+        }
       }
 
       const result = await storage.verifyStaffLogin(trimmedUsername, password);

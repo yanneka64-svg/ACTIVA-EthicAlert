@@ -816,6 +816,9 @@ export const pt: Record<string, string> = {
   login_error_mismatch: 'As duas palavras-passe não coincidem.',
   // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) ===
   login_error_policy: 'A palavra-passe deve conter pelo menos uma maiúscula, uma minúscula, um algarismo e um carácter especial (ex.: ! @ # % & * ?).',
+  // === AMÉLIORATION AJOUTÉE (messages de connexion précis) ===
+  login_error_policy_signin: 'A sua palavra-passe já não cumpre a política de segurança. Peça a um administrador que a reponha em Administração → Utilizadores.',
+  login_error_too_many_firebase: 'Demasiadas tentativas de início de sessão. Aguarde alguns minutos antes de tentar novamente, ou peça a um administrador que reponha a sua palavra-passe.',
   login_change_submit: 'Definir esta palavra-passe',
   login_change_pending: 'A atualizar…',
   // === AMÉLIORATION AJOUTÉE : rôles, navigation, accueil, QR code (FR/EN/PT) ===
