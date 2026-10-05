@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageCircle, Mail, CheckCircle2, Copy, ExternalLink, Info, ShieldCheck } from 'lucide-react';
+import { MessageCircle, Mail, CheckCircle2, Copy, ExternalLink, Info, ShieldCheck, Check } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 
@@ -40,38 +40,62 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
     t.contact_whatsapp_tip4,
   ];
 
+  // === AMÉLIORATION AJOUTÉE (Contact — design modernisé) ===
+  // En-tête animé, cartes de canal blanches à halo coloré qui apparaissent en
+  // cascade et se soulèvent au survol, tuiles d'icône en dégradé, point
+  // « disponible » pulsé pour WhatsApp, bouton de copie dont l'icône devient
+  // une coche animée, boutons avec flèche/lien qui avance, conseils en
+  // cascade, encart confidentialité en dégradé. Mêmes canaux, mêmes liens,
+  // même comportement de copie. Animations coupées si l'utilisateur limite
+  // les animations (index.css).
+  const cardBase =
+    'activa-enter relative overflow-hidden grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-6 sm:gap-8 p-6 sm:p-8 rounded-2xl border bg-white transition-all duration-300 hover:-translate-y-0.5';
+  const copyBtn =
+    'w-8 h-8 rounded-lg flex items-center justify-center ring-1 ring-inset transition-all duration-300';
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
-      <div className="max-w-2xl space-y-1.5">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t.contact_title}</h1>
-        <p className="text-sm text-slate-600">{t.contact_subtitle}</p>
+      <div className="max-w-2xl space-y-3">
+        <h1 className="activa-enter text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight" style={{ '--d': '0ms' } as React.CSSProperties}>{t.contact_title}</h1>
+        <div className="activa-draw-x w-12 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400" style={{ '--d': '150ms' } as React.CSSProperties} />
+        <p className="activa-enter text-sm text-slate-600" style={{ '--d': '120ms' } as React.CSSProperties}>{t.contact_subtitle}</p>
       </div>
 
       {/* WhatsApp Business */}
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-6 sm:gap-8 p-6 sm:p-8 rounded-2xl border border-emerald-200 bg-emerald-50/40">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <span className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-              <MessageCircle className="w-7 h-7" />
+      <div
+        className={`${cardBase} border-emerald-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-22px_rgb(5_150_105/0.35)] hover:shadow-[0_2px_4px_rgb(15_23_42/0.04),0_26px_50px_-22px_rgb(5_150_105/0.45)]`}
+        style={{ '--d': '200ms' } as React.CSSProperties}
+      >
+        <span aria-hidden="true" className="pointer-events-none absolute -left-20 -top-24 w-72 h-72 rounded-full bg-emerald-300/20 blur-3xl" />
+        <div className="relative space-y-4">
+          <div className="flex items-center gap-3.5">
+            <span className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-emerald-600/30">
+              <MessageCircle className="w-7 h-7" strokeWidth={1.75} />
             </span>
             <div>
-              <div className="text-base font-bold text-slate-900">{t.contact_whatsapp_title}</div>
-              <div className="text-sm font-semibold text-emerald-700">{t.contact_whatsapp_available}</div>
+              <div className="text-base font-bold text-slate-900 tracking-tight">{t.contact_whatsapp_title}</div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                <span aria-hidden="true" className="relative flex w-2 h-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping motion-reduce:animate-none" />
+                  <span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-500" />
+                </span>
+                {t.contact_whatsapp_available}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-extrabold text-slate-900 tracking-tight">{WHATSAPP_DISPLAY}</span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl font-extrabold text-slate-900 tracking-tight tabular-nums">{WHATSAPP_DISPLAY}</span>
             <button
               type="button"
               id="btn-copy-whatsapp"
               onClick={() => copy(WHATSAPP_DISPLAY.replace(/\s+/g, ''), 'phone')}
-              className="p-1.5 rounded-lg hover:bg-white/70 text-slate-500"
+              className={`${copyBtn} ${copiedField === 'phone' ? 'bg-emerald-500 text-white ring-emerald-500' : 'bg-white text-slate-500 ring-slate-200 hover:text-emerald-700 hover:ring-emerald-300'}`}
               title={t.btn_copy}
             >
-              <Copy className="w-4 h-4" />
+              {copiedField === 'phone' ? <Check key="ok" className="activa-pop w-4 h-4" strokeWidth={3} /> : <Copy className="w-4 h-4" strokeWidth={1.75} />}
             </button>
-            {copiedField === 'phone' && <span className="text-xs text-emerald-700 font-semibold">{t.btn_copy} ✓</span>}
+            {copiedField === 'phone' && <span className="activa-fade-in text-xs text-emerald-700 font-semibold">{t.btn_copy} ✓</span>}
           </div>
 
           <a
@@ -79,20 +103,26 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
             target="_blank"
             rel="noopener noreferrer"
             id="btn-open-whatsapp"
-            className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition"
+            className="activa-shine group inline-flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 hover:shadow-xl hover:shadow-emerald-600/35 hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
           >
-            <MessageCircle className="w-4 h-4" />
+            <MessageCircle className="w-4 h-4" strokeWidth={1.75} />
             <span>{t.contact_whatsapp_btn}</span>
-            <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+            <ExternalLink className="w-3.5 h-3.5 opacity-80 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={2} />
           </a>
         </div>
 
-        <div className="hidden sm:block w-px bg-emerald-200" />
+        <div className="hidden sm:block w-px bg-gradient-to-b from-transparent via-emerald-200 to-transparent" />
 
-        <ul className="space-y-2.5 self-center">
+        <ul className="relative space-y-3 self-center">
           {whatsappTips.map((tip, idx) => (
-            <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <li
+              key={idx}
+              className="activa-enter flex items-start gap-3 text-sm text-slate-700"
+              style={{ '--d': `${350 + idx * 80}ms` } as React.CSSProperties}
+            >
+              <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-200 flex items-center justify-center shrink-0 mt-0.5">
+                <Check className="w-3 h-3" strokeWidth={3} />
+              </span>
               <span>{tip}</span>
             </li>
           ))}
@@ -100,49 +130,59 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
       </div>
 
       {/* Dedicated email */}
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-6 sm:gap-8 p-6 sm:p-8 rounded-2xl border border-blue-200 bg-blue-50/40">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <span className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-              <Mail className="w-7 h-7" />
+      <div
+        className={`${cardBase} border-blue-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-22px_rgb(37_99_235/0.35)] hover:shadow-[0_2px_4px_rgb(15_23_42/0.04),0_26px_50px_-22px_rgb(37_99_235/0.45)]`}
+        style={{ '--d': '320ms' } as React.CSSProperties}
+      >
+        <span aria-hidden="true" className="pointer-events-none absolute -left-20 -top-24 w-72 h-72 rounded-full bg-sky-300/20 blur-3xl" />
+        <div className="relative space-y-4">
+          <div className="flex items-center gap-3.5">
+            <span className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/30">
+              <Mail className="w-7 h-7" strokeWidth={1.75} />
             </span>
             <div>
-              <div className="text-base font-bold text-slate-900">{t.contact_email_title}</div>
-              <div className="text-sm font-semibold text-blue-700">{t.contact_email_recommended}</div>
+              <div className="text-base font-bold text-slate-900 tracking-tight">{t.contact_email_title}</div>
+              <div className="inline-flex items-center gap-1.5 mt-0.5 px-2 py-0.5 rounded-full bg-blue-50 ring-1 ring-inset ring-blue-200 text-xs font-semibold text-blue-700">
+                {t.contact_email_recommended}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-lg sm:text-xl font-bold text-blue-700 hover:underline break-all">
-              {CONTACT_EMAIL}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Retour à la ligne autorisé juste après « @ » (au lieu de couper
+                n'importe où, ex. « .c / om » sur mobile). */}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-base sm:text-xl font-bold text-blue-700 hover:text-blue-800 underline-offset-4 hover:underline break-words">
+              {CONTACT_EMAIL.split('@')[0]}@<wbr />{CONTACT_EMAIL.split('@')[1]}
             </a>
             <button
               type="button"
               id="btn-copy-email"
               onClick={() => copy(CONTACT_EMAIL, 'email')}
-              className="p-1.5 rounded-lg hover:bg-white/70 text-slate-500"
+              className={`${copyBtn} ${copiedField === 'email' ? 'bg-blue-600 text-white ring-blue-600' : 'bg-white text-slate-500 ring-slate-200 hover:text-blue-700 hover:ring-blue-300'}`}
               title={t.btn_copy}
             >
-              <Copy className="w-4 h-4" />
+              {copiedField === 'email' ? <Check key="ok" className="activa-pop w-4 h-4" strokeWidth={3} /> : <Copy className="w-4 h-4" strokeWidth={1.75} />}
             </button>
-            {copiedField === 'email' && <span className="text-xs text-blue-700 font-semibold">{t.btn_copy} ✓</span>}
+            {copiedField === 'email' && <span className="activa-fade-in text-xs text-blue-700 font-semibold">{t.btn_copy} ✓</span>}
           </div>
 
           <a
             href={`mailto:${CONTACT_EMAIL}`}
             id="btn-send-email"
-            className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3 rounded-xl bg-white hover:bg-blue-50 border border-blue-300 text-blue-700 font-bold text-sm shadow-sm transition"
+            className="group inline-flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3 rounded-xl bg-white hover:bg-blue-50 border border-blue-300 hover:border-blue-400 text-blue-700 font-bold text-sm shadow-sm hover:shadow-md hover:shadow-blue-600/10 hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
           >
-            <Mail className="w-4 h-4" />
+            <Mail className="w-4 h-4" strokeWidth={1.75} />
             <span>{t.contact_email_btn}</span>
-            <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+            <ExternalLink className="w-3.5 h-3.5 opacity-80 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={2} />
           </a>
         </div>
 
-        <div className="hidden sm:block w-px bg-blue-200" />
+        <div className="hidden sm:block w-px bg-gradient-to-b from-transparent via-blue-200 to-transparent" />
 
-        <div className="flex items-start gap-2.5 self-center text-sm text-slate-700">
-          <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <div className="relative flex items-start gap-3 self-center text-sm text-slate-700">
+          <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 ring-1 ring-inset ring-blue-200 flex items-center justify-center shrink-0">
+            <Info className="w-4 h-4" strokeWidth={1.75} />
+          </span>
           <div className="space-y-2.5">
             <p>{t.contact_email_info1}</p>
             <p>{t.contact_email_info2}</p>
@@ -152,12 +192,15 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
       </div>
 
       {/* Confidentiality note — même motif que le formulaire de signalement */}
-      <div className="flex items-center gap-4 p-5 rounded-2xl border border-slate-200 bg-white">
-        <span className="w-11 h-11 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-5 h-5" />
+      <div
+        className="activa-enter flex items-center gap-4 p-5 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-sky-50/50"
+        style={{ '--d': '440ms' } as React.CSSProperties}
+      >
+        <span className="w-11 h-11 rounded-xl bg-white text-blue-700 ring-1 ring-inset ring-blue-200/70 shadow-sm flex items-center justify-center shrink-0">
+          <ShieldCheck className="w-5 h-5" strokeWidth={1.75} />
         </span>
         <div>
-          <div className="font-bold text-base text-blue-900">{t.sidebar_confidentiality_title}</div>
+          <div className="font-bold text-base text-blue-900 tracking-tight">{t.sidebar_confidentiality_title}</div>
           <p className="text-sm text-slate-600">{t.contact_confidentiality_desc}</p>
         </div>
       </div>
