@@ -135,7 +135,8 @@ export const CaseDetailHeader: React.FC<CaseDetailHeaderProps> = ({
                 {selectedAlert.trackingNumber}
               </h1>
               {getPriorityBadge(selectedAlert)}
-              <StatusBadge status={selectedAlert.status} label={selectedAlert.status.toUpperCase().replace('_', ' ')} size="sm" />
+              {/* === AMÉLIORATION AJOUTÉE (revue design) === libellé traduit (« CLOSED » s'affichait en anglais) */}
+              <StatusBadge status={selectedAlert.status} label={(t[`case_badge_status_${selectedAlert.status}`] || selectedAlert.status.replace('_', ' ')).toUpperCase()} size="sm" />
               {/* === AMÉLIORATION AJOUTÉE (Visibilité de l'escalade —
                   impasse UX corrigée) === BUG PRÉEXISTANT CORRIGÉ,
                   identifié lors d'une analyse critique du frontend :

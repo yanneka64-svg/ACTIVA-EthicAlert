@@ -25,6 +25,8 @@ import { AlertRecord, Language, UserProfile, EvidenceFile } from '../../types';
 import { storage } from '../../services/storage';
 import { PersonRow } from './PersonRow';
 import { EvidenceDownloadButton } from '../ui/EvidenceDownloadButton';
+// === AMÉLIORATION AJOUTÉE (revue design) === tailles de fichier lisibles
+import { formatFileSize } from '../ui/fileSize';
 
 interface OverviewSectionProps {
   selectedAlert: AlertRecord;
@@ -183,7 +185,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
                 <div className="min-w-0 flex-1">
                   <span className="font-medium text-slate-800 block truncate">{selectedAlert.investigationReportFile.name}</span>
                 </div>
-                <span className="text-[10px] text-slate-400 shrink-0">{Math.round(selectedAlert.investigationReportFile.size / 1024)} Ko</span>
+                <span className="text-[10px] text-slate-400 shrink-0">{formatFileSize(selectedAlert.investigationReportFile.size)}</span>
                 {/* === AMÉLIORATION AJOUTÉE (Phase 2) === fichier du rapport téléchargeable depuis tout poste. */}
                 <EvidenceDownloadButton file={selectedAlert.investigationReportFile} t={t} />
               </div>
@@ -269,7 +271,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
                     {new Date(ev.uploadedAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR')}
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-400 shrink-0">{Math.round(ev.size / 1024)} Ko</span>
+                <span className="text-[10px] text-slate-400 shrink-0">{formatFileSize(ev.size)}</span>
                 {/* === AMÉLIORATION AJOUTÉE (documents du déclarant accessibles à l'enquêteur) === */}
                 <EvidenceDownloadButton file={ev} t={t} />
               </div>

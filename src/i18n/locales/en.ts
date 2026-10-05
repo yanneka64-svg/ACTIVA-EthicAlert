@@ -274,6 +274,14 @@ export const en: Record<string, string> = {
   status_closed: 'Closed',
   status_archived: 'Archived',
   status_reopened: 'Reopened',
+  // === AMÉLIORATION AJOUTÉE (revue design) === libellés courts du badge de statut (fiche dossier)
+  case_badge_status_new: 'New',
+  case_badge_status_under_review: 'Preliminary review',
+  case_badge_status_investigation: 'Under investigation',
+  case_badge_status_corrective_action: 'Corrective actions',
+  case_badge_status_closed: 'Closed',
+  case_badge_status_archived: 'Archived',
+  case_badge_status_reopened: 'Reopened',
 
   portal_title: 'DARC Investigation & Alert Desk',
   portal_total_alerts: 'Total registered alerts',

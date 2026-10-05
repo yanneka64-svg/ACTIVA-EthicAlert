@@ -275,6 +275,14 @@ export const pt: Record<string, string> = {
   status_closed: 'Concluído / Fechado',
   status_archived: 'Arquivado',
   status_reopened: 'Reaberto',
+  // === AMÉLIORATION AJOUTÉE (revue design) === libellés courts du badge de statut (fiche dossier)
+  case_badge_status_new: 'Novo',
+  case_badge_status_under_review: 'Análise preliminar',
+  case_badge_status_investigation: 'Em investigação',
+  case_badge_status_corrective_action: 'Medidas corretivas',
+  case_badge_status_closed: 'Encerrado',
+  case_badge_status_archived: 'Arquivado',
+  case_badge_status_reopened: 'Reaberto',
 
   portal_title: 'Portal DARC & Gestão de Alertas',
   portal_total_alerts: 'Total de alertas registrados',
