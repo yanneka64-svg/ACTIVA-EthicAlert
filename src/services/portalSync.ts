@@ -61,8 +61,15 @@ function notify(detail: { caseId: string; ok: boolean; rejected?: { part: string
 
 /** Erreurs définitives (droits, données refusées) : inutile de réessayer. */
 function isPermanent(code: string | undefined): boolean {
-  return ['functions/invalid-argument', 'functions/permission-denied', 'functions/not-found', 'functions/failed-precondition'].includes(code ?? '');
+  return ['functions/invalid-argument', 'functions/permission-denied', 'functions/failed-precondition'].includes(code ?? '');
 }
+
+/**
+ * « Introuvable » peut aussi signifier que la fonction serveur n'est pas
+ * encore déployée (quelques minutes lors d'une mise à jour) : envoi conservé
+ * et rejoué, abandonné seulement après de nombreux essais (~1 h).
+ */
+const MAX_NOT_FOUND_ATTEMPTS = 120;
 
 export async function flushPortalOutbox(): Promise<void> {
   if (flushing || !isPhase4Configured()) return;
@@ -90,7 +97,7 @@ export async function flushPortalOutbox(): Promise<void> {
       } catch (e) {
         const code = (e as { code?: string }).code;
         const message = e instanceof Error ? e.message : String(e);
-        if (isPermanent(code)) {
+        if (isPermanent(code) || (code === 'functions/not-found' && entry.attempts + 1 >= MAX_NOT_FOUND_ATTEMPTS)) {
           writeOutbox(readOutbox().filter((x) => !(x.caseId === entry.caseId && x.queuedAt === entry.queuedAt)));
           console.warn('[portalSync] refusé par le serveur', entry.caseId, message);
           notify({ caseId: entry.caseId, ok: false, error: message });
