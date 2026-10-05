@@ -31,7 +31,7 @@
  * oublié ?"), distincte de l'identifiant de connexion.
  */
 import React, { useState } from 'react';
-import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft } from 'lucide-react';
+import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft, Check, Circle } from 'lucide-react';
 import { Language, UserProfile } from '../types';
 // === AMÉLIORATION AJOUTÉE : page de connexion traduite (FR/EN/PT) ===
 import { TRANSLATIONS } from '../i18n/translations';
@@ -327,7 +327,30 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder={t.login_new_password_hint}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                aria-describedby="password-rules"
               />
+              {/* === AMÉLIORATION AJOUTÉE (règles du mot de passe visibles) ===
+                  Rappel permanent des règles (politique Firebase), chacune
+                  cochée dès qu'elle est respectée pendant la saisie. */}
+              <ul id="password-rules" className="mt-2 grid grid-cols-1 gap-1" aria-live="polite">
+                {(
+                  [
+                    ['length', t.login_rule_length],
+                    ['uppercase', t.login_rule_uppercase],
+                    ['lowercase', t.login_rule_lowercase],
+                    ['digit', t.login_rule_digit],
+                    ['special', t.login_rule_special],
+                  ] as const
+                ).map(([rule, label]) => {
+                  const ok = !staffPasswordPolicyIssues(newPassword).includes(rule);
+                  return (
+                    <li key={rule} className={`flex items-center gap-1.5 text-[11px] ${ok ? 'text-emerald-700' : 'text-slate-500'}`}>
+                      {ok ? <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> : <Circle className="w-3 h-3 shrink-0" aria-hidden="true" />}
+                      <span>{label}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">

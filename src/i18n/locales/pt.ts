@@ -819,6 +819,12 @@ export const pt: Record<string, string> = {
   // === AMÉLIORATION AJOUTÉE (messages de connexion précis) ===
   login_error_policy_signin: 'A sua palavra-passe já não cumpre a política de segurança. Peça a um administrador que a reponha em Administração → Utilizadores.',
   login_error_too_many_firebase: 'Demasiadas tentativas de início de sessão. Aguarde alguns minutos antes de tentar novamente, ou peça a um administrador que reponha a sua palavra-passe.',
+  // === AMÉLIORATION AJOUTÉE (règles du mot de passe visibles) ===
+  login_rule_length: 'Mínimo de 8 caracteres',
+  login_rule_uppercase: 'Uma letra maiúscula (A-Z)',
+  login_rule_lowercase: 'Uma letra minúscula (a-z)',
+  login_rule_digit: 'Um algarismo (0-9)',
+  login_rule_special: 'Um carácter especial (ex.: ! @ # % & * ?)',
   login_change_submit: 'Definir esta palavra-passe',
   login_change_pending: 'A atualizar…',
   // === AMÉLIORATION AJOUTÉE : rôles, navigation, accueil, QR code (FR/EN/PT) ===
