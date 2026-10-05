@@ -236,7 +236,57 @@ async function appCheckDiagnostics() {
   }
 }
 
+// === AMÉLIORATION AJOUTÉE (diagnostic boîte de réception) ===
+/**
+ * Journaux Cloud Logging des fonctions lues par le portail (2 dernières
+ * heures) : chaque appel reçu (heure, code HTTP) et chaque erreur. Montre
+ * si le navigateur d'un membre du personnel appelle bien listCases /
+ * getCaseDetails, et ce que le serveur répond.
+ */
+async function functionLogs() {
+  console.log(`\n=== Journaux des fonctions du portail (2 h) ===`);
+  let token = '';
+  try {
+    token = (await applicationDefault().getAccessToken()).access_token ?? '';
+  } catch (e) {
+    console.log(`jeton indisponible : ${e instanceof Error ? e.message : e}`);
+    return;
+  }
+  const since = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
+  const services = ['listcases', 'getcasedetails', 'getmystaffprofile', 'liststaffdirectory', 'createcaseasreporter'];
+  const filter = [
+    'resource.type="cloud_run_revision"',
+    `resource.labels.service_name=(${services.map((x) => `"${x}"`).join(' OR ')})`,
+    `timestamp>="${since}"`,
+  ].join(' AND ');
+  const res = await fetch('https://logging.googleapis.com/v2/entries:list', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ resourceNames: [`projects/${projectId}`], filter, orderBy: 'timestamp desc', pageSize: 120 }),
+  });
+  const body = (await res.json()) as { entries?: any[]; error?: { message?: string } };
+  if (!res.ok) {
+    console.log(`lecture des journaux impossible : HTTP ${res.status} ${body.error?.message?.slice(0, 200) ?? ''}`);
+    return;
+  }
+  const entries = body.entries ?? [];
+  if (!entries.length) {
+    console.log('aucune entrée');
+    return;
+  }
+  for (const e of entries.reverse()) {
+    const svc = e.resource?.labels?.service_name ?? '?';
+    if (e.httpRequest) {
+      console.log(`${e.timestamp} | ${svc} | HTTP ${e.httpRequest.status} | ${e.httpRequest.latency ?? ''}`);
+    } else if ((e.severity ?? '') !== 'DEFAULT' && (e.severity ?? '') !== 'INFO' && (e.severity ?? '') !== 'DEBUG') {
+      const msg = e.textPayload ?? e.jsonPayload?.message ?? JSON.stringify(e.jsonPayload ?? {});
+      console.log(`${e.timestamp} | ${svc} | ${e.severity} | ${String(msg).replace(/\s+/g, ' ').slice(0, 300)}`);
+    }
+  }
+}
+
 main()
+  .then(() => functionLogs().catch((e) => console.log(`journaux : ${e instanceof Error ? e.message : e}`)))
   .then(() => appCheckDiagnostics())
   .then(
   () => process.exit(0),
