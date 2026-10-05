@@ -14,6 +14,8 @@ import { storage } from './services/storage';
 import { TRANSLATIONS } from './i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === bannière d'échec d'enregistrement.
 import { PersistFailureBanner } from './app/PersistFailureBanner';
+// === AMÉLIORATION AJOUTÉE (nouvelle version disponible) ===
+import { UpdateAvailableBanner } from './app/UpdateAvailableBanner';
 // === AMÉLIORATION AJOUTÉE : langue courante partagée avec les petits composants ===
 import { setCurrentLang } from './i18n/currentLang';
 import { Navbar } from './components/Navbar';
@@ -306,7 +308,10 @@ function AppShell() {
   // Firebase n'est pas celle de ce compte. Import dynamique : même discipline
   // que staffAuthSync ci-dessus (jamais de SDK Firebase dans le bundle
   // principal, chargé aussi par le formulaire public).
-  const CLOUD_CASES_SYNC_MS = 60 * 1000;
+  // === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) === 20 s
+  // au lieu de 60 s : depuis le chargement sélectif (seuls les dossiers
+  // modifiés sont relus), une vérification ne coûte qu'un appel léger.
+  const CLOUD_CASES_SYNC_MS = 20 * 1000;
   useEffect(() => {
     if (!isStaffSessionActive || activeUser.role === 'reporter') return;
     let cancelled = false;
@@ -537,6 +542,8 @@ function AppShell() {
               activeUser={activeUser}
               currentTab={currentTab}
               setCurrentTab={goToTab}
+              // === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) ===
+              onOpenCase={(trackingNumber) => navigateToCases({ trackingNumber })}
             >
               <Suspense fallback={<StaffLoadingFallback />}>{renderStaffContent()}</Suspense>
             </StaffPortalLayout>
@@ -577,6 +584,7 @@ function AppShell() {
       {/* === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === alerte visible si le
           navigateur refuse un enregistrement (quota plein) — invisible sinon. */}
       <PersistFailureBanner t={t} />
+      <UpdateAvailableBanner t={t} />
 
       {/* QR Code Modal */}
       <QrCodeModal

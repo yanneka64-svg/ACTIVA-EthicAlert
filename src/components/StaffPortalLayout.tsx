@@ -21,6 +21,15 @@ import { spaceOfTab } from './staffPortal/spaceOfTab';
 import { buildSpaceNavItems } from './staffPortal/navItems';
 import type { NavItem } from './staffPortal/navItems';
 import { DesktopSidebar } from './staffPortal/DesktopSidebar';
+// === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) ===
+import { storage } from '../services/storage';
+import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
+import { useUnreadMessages } from '../hooks/useUnreadMessages';
+import { NewMessageToast } from './staffPortal/NewMessageToast';
+import type { AlertRecord } from '../types';
+
+/** Entrées du menu qui affichent le nombre de messages du déclarant non lus. */
+const UNREAD_BADGE_KEYS = new Set(['op_inbox', 'inv_inbox', 'inv_dashboard', 'communications']);
 
 /**
  * === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
@@ -59,6 +68,9 @@ interface StaffPortalLayoutProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
   children: React.ReactNode;
+  // === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) ===
+  /** Ouvre un dossier (depuis la notification « Nouveau message »). */
+  onOpenCase?: (trackingNumber: string) => void;
 }
 
 export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
@@ -67,8 +79,42 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   currentTab,
   setCurrentTab,
   children,
+  onOpenCase,
 }) => {
   const t = TRANSLATIONS[lang];
+
+  // === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) ===
+  // Messages du déclarant non lus sur les dossiers visibles par ce compte :
+  // pastille dans le menu, titre de l'onglet du navigateur, et notification
+  // à l'écran à l'arrivée d'un nouveau message.
+  const [allAlerts, setAllAlerts] = useState<AlertRecord[]>(() => storage.getAlerts());
+  useEffect(() => storage.subscribe(() => setAllAlerts(storage.getAlerts())), []);
+  const visibleForUnread = useVisibleAlerts(allAlerts, activeUser);
+  const unread = useUnreadMessages(visibleForUnread, activeUser);
+  const [toast, setToast] = useState<{ alertId: string; trackingNumber: string; preview: string } | null>(null);
+  const previousUnread = useRef<Map<string, number> | null>(null);
+  useEffect(() => {
+    const prev = previousUnread.current;
+    previousUnread.current = unread.byAlert;
+    if (!prev) return;
+    for (const [alertId, n] of unread.byAlert) {
+      if (n > (prev.get(alertId) ?? 0)) {
+        const a = visibleForUnread.find((x) => x.id === alertId);
+        if (!a) continue;
+        const last = [...a.messages].reverse().find((m) => m.sender === 'whistleblower');
+        setToast({ alertId, trackingNumber: a.trackingNumber, preview: last?.attachments?.length ? `📎 ${last.attachments[0].name}` : last?.content ?? '' });
+        break;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unread]);
+  const baseTitle = useRef<string>(typeof document !== 'undefined' ? document.title.replace(/^\(\d+\)\s*/, '') : '');
+  useEffect(() => {
+    document.title = unread.total > 0 ? `(${unread.total}) ${baseTitle.current}` : baseTitle.current;
+    return () => {
+      document.title = baseTitle.current;
+    };
+  }, [unread.total]);
 
   // === AMÉLIORATION AJOUTÉE : correction post-fusion === ces deux
   // vérifications utilisaient encore l'ancien rôle `auditor` (5 rôles),
@@ -155,6 +201,10 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
         >
           {item.icon}
           <span>{item.label}</span>
+          {/* === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) === */}
+          {UNREAD_BADGE_KEYS.has(item.key) && unread.total > 0 && (
+            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">{unread.total}</span>
+          )}
         </button>
       );
     }
@@ -190,6 +240,15 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
           <span className={`transition-colors duration-300 ${active ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-500'}`}>{item.icon}</span>
           <span className="truncate">{item.label}</span>
         </span>
+        {/* === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) === */}
+        {UNREAD_BADGE_KEYS.has(item.key) && unread.total > 0 && (
+          <span
+            className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow-sm shadow-rose-600/30 motion-safe:animate-pulse"
+            title={(t.chat_unread_badge || '{n} message(s) non lu(s)').replace('{n}', String(unread.total))}
+          >
+            {unread.total}
+          </span>
+        )}
         {active && <ChevronRight className="activa-enter-x w-3.5 h-3.5 text-blue-500 shrink-0" />}
       </button>
     );
@@ -239,6 +298,16 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
 
       {/* Content canvas — sa propre largeur maximale centrée */}
       <div ref={contentRef} className="flex-1 min-w-0 w-full max-w-[1600px] mx-auto lg:px-6 xl:px-8 lg:py-6">{children}</div>
+      {/* === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) === */}
+      {toast && (
+        <NewMessageToast
+          t={t}
+          trackingNumber={toast.trackingNumber}
+          preview={toast.preview}
+          onOpen={onOpenCase ? () => { onOpenCase(toast.trackingNumber); setToast(null); } : undefined}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };

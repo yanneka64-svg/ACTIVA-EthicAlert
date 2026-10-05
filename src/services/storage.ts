@@ -651,8 +651,20 @@ class StorageService {
     if (!alert || messages.length === 0) return;
     const known = new Set(alert.messages.map((m) => m.id));
     const added = messages.filter((m) => !known.has(m.id));
-    if (added.length === 0) return;
-    alert.messages = [...alert.messages, ...added].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+    // === AMÉLIORATION AJOUTÉE (documents du déclarant) === un message déjà
+    // présent sans sa pièce jointe (version antérieure) la reçoit.
+    const incomingById = new Map(messages.map((m) => [m.id, m]));
+    let enriched = false;
+    const current = alert.messages.map((m) => {
+      const inc = incomingById.get(m.id);
+      if (inc?.attachments?.length && !m.attachments?.length) {
+        enriched = true;
+        return { ...m, attachments: inc.attachments };
+      }
+      return m;
+    });
+    if (added.length === 0 && !enriched) return;
+    alert.messages = [...current, ...added].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
     this.persistAlerts();
     this.notify();
   }
