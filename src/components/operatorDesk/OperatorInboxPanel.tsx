@@ -23,6 +23,8 @@ import { useLiveConversation } from '../../hooks/useLiveConversation';
 import { TypingIndicator } from '../ui/TypingIndicator';
 import { MessageAttachments } from '../ui/MessageAttachments';
 import { useAutoScrollToBottom } from '../../hooks/useAutoScrollToBottom';
+import { useUnreadMessages } from '../../hooks/useUnreadMessages';
+import { markConversationRead } from '../../services/messageReadState';
 
 interface OperatorInboxPanelProps {
   t: Record<string, string>;
@@ -80,6 +82,13 @@ export const OperatorInboxPanel: React.FC<OperatorInboxPanelProps> = ({
   const { otherTyping, notifyTyping } = useLiveConversation(panelAlert);
   const recentMessages = panelAlert ? panelAlert.messages.slice(-6) : [];
   const scrollRef = useAutoScrollToBottom<HTMLDivElement>(`${panelAlert?.id}-${panelAlert?.messages.length ?? 0}-${otherTyping ? 1 : 0}`);
+  // === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) ===
+  // signalements avec messages non lus mis en évidence ; ouvrir le panneau
+  // d'un signalement marque sa conversation comme lue.
+  const unread = useUnreadMessages(filteredAlerts, storage.getActiveUser());
+  React.useEffect(() => {
+    if (panelAlert) markConversationRead(storage.getActiveUser()?.id ?? '', panelAlert);
+  }, [panelAlert?.id, panelAlert?.messages.length]);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
       <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -97,7 +106,8 @@ export const OperatorInboxPanel: React.FC<OperatorInboxPanelProps> = ({
               <button
                 key={a.id}
                 onClick={() => setPanelAlertId(a.id)}
-                className={`w-full text-left p-3.5 flex items-start gap-2.5 hover:bg-slate-50 transition ${panelAlertId === a.id ? 'bg-blue-50' : ''}`}
+                // === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) === repère rouge à gauche.
+                className={`w-full text-left p-3.5 flex items-start gap-2.5 hover:bg-slate-50 transition border-l-4 ${panelAlertId === a.id ? 'bg-blue-50' : unread.byAlert.get(a.id) ? 'bg-rose-50/50' : ''} ${unread.byAlert.get(a.id) ? 'border-rose-500' : 'border-transparent'}`}
               >
                 {canActOnRows && (
                   <input
@@ -110,7 +120,16 @@ export const OperatorInboxPanel: React.FC<OperatorInboxPanelProps> = ({
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono font-bold text-[#0B2545] text-xs">{a.trackingNumber}</span>
+                    <span className="font-mono font-bold text-[#0B2545] text-xs flex items-center gap-1.5">
+                      {a.trackingNumber}
+                      {/* === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) === */}
+                      {(unread.byAlert.get(a.id) ?? 0) > 0 && (
+                        <span className="font-sans inline-flex items-center gap-1 text-[10px] font-bold text-white bg-rose-600 rounded-full px-1.5 py-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white motion-safe:animate-pulse" />
+                          {(t.chat_unread_chip || '{n} nouveau(x)').replace('{n}', String(unread.byAlert.get(a.id)))}
+                        </span>
+                      )}
+                    </span>
                     <PriorityBadge priority={effectivePriority(a)} label={urgencyLabels[effectivePriority(a)]} size="sm" />
                   </div>
                   <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{trData(a.category, lang)} — {a.concernedEntity}</p>

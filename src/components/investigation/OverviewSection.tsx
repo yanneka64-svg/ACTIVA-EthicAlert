@@ -24,6 +24,7 @@ import { FileText, SlidersHorizontal, ArrowUpCircle, ClipboardList, Plus, Paperc
 import { AlertRecord, Language, UserProfile, EvidenceFile } from '../../types';
 import { storage } from '../../services/storage';
 import { PersonRow } from './PersonRow';
+import { EvidenceDownloadButton } from '../ui/EvidenceDownloadButton';
 
 interface OverviewSectionProps {
   selectedAlert: AlertRecord;
@@ -267,6 +268,8 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
                   </span>
                 </div>
                 <span className="text-[10px] text-slate-400 shrink-0">{Math.round(ev.size / 1024)} Ko</span>
+                {/* === AMÉLIORATION AJOUTÉE (documents du déclarant accessibles à l'enquêteur) === */}
+                <EvidenceDownloadButton file={ev} t={t} />
               </div>
             ))}
           </div>

@@ -23,6 +23,8 @@ import { useLiveConversation } from '../../hooks/useLiveConversation';
 import { TypingIndicator } from '../ui/TypingIndicator';
 import { MessageAttachments } from '../ui/MessageAttachments';
 import { useAutoScrollToBottom } from '../../hooks/useAutoScrollToBottom';
+import { markConversationRead } from '../../services/messageReadState';
+import { storage } from '../../services/storage';
 
 interface MessagesSectionProps {
   selectedAlert: AlertRecord;
@@ -43,6 +45,11 @@ export const MessagesSection: React.FC<MessagesSectionProps> = ({
   // « le déclarant est en train d'écrire », signal de frappe (anonyme).
   const { otherTyping, notifyTyping, live } = useLiveConversation(selectedAlert);
   const scrollRef = useAutoScrollToBottom<HTMLDivElement>(`${selectedAlert.messages.length}-${otherTyping ? 1 : 0}`);
+  // === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) ===
+  // conversation affichée = messages lus (pastilles et notification retirées).
+  React.useEffect(() => {
+    markConversationRead(storage.getActiveUser()?.id ?? '', selectedAlert);
+  }, [selectedAlert.id, selectedAlert.messages.length]);
   return (
     <div className="p-6 flex flex-col h-[560px] text-xs">
       <div className="border-b border-slate-100 pb-3 mb-4">

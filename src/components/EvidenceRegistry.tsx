@@ -155,6 +155,13 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
   // fichier de démonstration n'en a pas (jamais un bouton fantôme).
   const handleDownload = (r: EvidenceRow, e: React.MouseEvent) => {
     e.stopPropagation();
+    // === AMÉLIORATION AJOUTÉE (documents du déclarant) === document envoyé
+    // depuis la messagerie du déclarant : téléchargé depuis le serveur (audité).
+    if (!r.evidence.dataUrl && r.evidence.cloudCaseId) {
+      const caseId = r.evidence.cloudCaseId;
+      void import('../services/staffConversation').then(({ downloadCaseFile }) => downloadCaseFile(caseId, r.evidence.id));
+      return;
+    }
     if (!r.evidence.dataUrl) return;
     const link = document.createElement('a');
     link.href = r.evidence.dataUrl;
@@ -228,8 +235,8 @@ export const EvidenceRegistry: React.FC<EvidenceRegistryProps> = ({ lang, active
         <div className="flex items-center gap-1">
           <button
             onClick={(e) => handleDownload(r, e)}
-            disabled={!r.evidence.dataUrl}
-            title={r.evidence.dataUrl ? t.common_download : t.ev_file_unavailable}
+            disabled={!r.evidence.dataUrl && !r.evidence.cloudCaseId}
+            title={r.evidence.dataUrl || r.evidence.cloudCaseId ? t.common_download : t.ev_file_unavailable}
             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-700 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
             <Download className="w-3.5 h-3.5" />
