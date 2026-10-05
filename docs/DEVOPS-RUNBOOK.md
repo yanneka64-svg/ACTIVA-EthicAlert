@@ -395,6 +395,26 @@ donc chez l'opérateur.
 Déploiement : *Deploy Cloud Functions* (nouvelle fonction `getCaseDetails`),
 puis le site, automatiquement à la fusion.
 
+
+### 3.11 Suivi du signalement depuis n'importe quel appareil
+
+« Suivre mon signalement » interroge d'abord Firebase (`getCaseForReporter`)
+avec le numéro de suivi remis au dépôt et le mot de passe ; le serveur
+vérifie le mot de passe (empreinte PBKDF2) et bloque 5 min après trop
+d'échecs. Le déclarant voit alors, depuis n'importe quel appareil :
+- le statut à jour et les réponses de l'équipe (rafraîchis toutes les 60 s) ;
+- ses messages et compléments, transmis via `addCommunicationAsReporter`
+  et visibles côté équipe à la synchronisation suivante.
+
+Repli : si Firebase ne connaît pas le dossier (ancien dossier resté local)
+ou n'est pas joignable, l'écran utilise la copie locale comme avant.
+
+Limites actuelles : depuis un autre appareil que celui du dépôt, l'ajout de
+pièces jointes n'est pas proposé (étape « pièces jointes dans Cloud
+Storage ») et la suppression de la déclaration n'est pas proposée (le
+serveur ne le permet pas). Nécessite le déploiement des fonctions
+(`getCaseForReporter` renvoie désormais catégorie, entité, pays et mode).
+
 ## 4. Correctifs P2
 
 === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) ===

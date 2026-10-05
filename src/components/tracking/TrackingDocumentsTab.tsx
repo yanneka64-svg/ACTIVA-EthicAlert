@@ -25,6 +25,11 @@ interface TrackingDocumentsTabProps {
   handleDocDrop: (e: React.DragEvent) => void;
   handleDownloadEvidence: (ev: AlertRecord['evidences'][number]) => void;
   handleDeleteEvidence: (id: string) => void;
+  // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) === si
+  // défini, remplace la zone d'ajout : dossier ouvert depuis un autre
+  // appareil que celui du dépôt, où un fichier ajouté ici ne serait pas
+  // transmis à l'équipe pour l'instant.
+  uploadDisabledNote?: string;
 }
 
 export const TrackingDocumentsTab: React.FC<TrackingDocumentsTabProps> = ({
@@ -39,6 +44,7 @@ export const TrackingDocumentsTab: React.FC<TrackingDocumentsTabProps> = ({
   handleDocDrop,
   handleDownloadEvidence,
   handleDeleteEvidence,
+  uploadDisabledNote,
 }) => {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
@@ -49,6 +55,9 @@ export const TrackingDocumentsTab: React.FC<TrackingDocumentsTabProps> = ({
           peut désormais ajouter lui-même des pièces jointes depuis
           son espace de suivi (glisser-déposer ou sélection), pas
           seulement au moment du dépôt initial. */}
+      {uploadDisabledNote ? (
+        <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-blue-900">{uploadDisabledNote}</div>
+      ) : (
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -72,6 +81,7 @@ export const TrackingDocumentsTab: React.FC<TrackingDocumentsTabProps> = ({
           className="mt-3 block mx-auto text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
         />
       </div>
+      )}
 
       <div className="space-y-1.5 mt-4">
         {activeAlert.evidences.length === 0 ? (

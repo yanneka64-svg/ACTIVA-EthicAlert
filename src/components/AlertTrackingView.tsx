@@ -23,6 +23,9 @@ import { TrackingDocumentsTab } from './tracking/TrackingDocumentsTab';
 import { TrackingUpdatesTab } from './tracking/TrackingUpdatesTab';
 import type { TimelineEntry } from './tracking/TrackingUpdatesTab';
 import { TrackingSupplementModal } from './tracking/TrackingSupplementModal';
+// === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
+import { isReporterCloudConfigured, openReporterCase, sendReporterMessage } from '../services/reporterCloudAccess';
+import { reporterCaseToAlertRecord } from '../domain/reporterCaseToAlert';
 
 interface AlertTrackingViewProps {
   lang: Language;
@@ -81,6 +84,32 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
   // === AMÉLIORATION AJOUTÉE (Phase 3 — reporter portal tabbed layout) ===
   const [activeTrackTab, setActiveTrackTab] = useState<'overview' | 'messages' | 'documents' | 'updates'>('overview');
 
+  // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
+  // Identifiants du dossier ouvert depuis Firebase (gardés en mémoire
+  // seulement, jamais enregistrés) : servent à rafraîchir le dossier et à
+  // envoyer les messages à l'équipe. `null` = dossier ouvert depuis la
+  // copie locale de ce navigateur (comportement d'origine).
+  const [cloudAccess, setCloudAccess] = useState<{ caseNumber: string; accessCode: string } | null>(null);
+  const [sendError, setSendError] = useState('');
+
+  const refreshFromCloud = async (access: { caseNumber: string; accessCode: string }) => {
+    const remote = await openReporterCase(access.caseNumber, access.accessCode);
+    if (remote.ok === true) {
+      const local = storage.getAlertByTracking(access.caseNumber);
+      setActiveAlert(reporterCaseToAlertRecord(remote.payload, access.caseNumber, local));
+    }
+  };
+
+  // Rafraîchit le dossier toutes les 60 s tant qu'il est ouvert : les
+  // réponses et changements de statut de l'équipe apparaissent sans
+  // avoir à se reconnecter.
+  useEffect(() => {
+    if (!cloudAccess) return;
+    const id = window.setInterval(() => void refreshFromCloud(cloudAccess), 60 * 1000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudAccess]);
+
   // Sync if initial tracking number passed
   useEffect(() => {
     if (initialTrackingNumber) {
@@ -96,13 +125,16 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
   // Subscribe to storage updates for real-time messages
   useEffect(() => {
     const unsub = storage.subscribe(() => {
+      // Dossier ouvert depuis Firebase : la copie locale ne doit pas
+      // remplacer la version du serveur.
+      if (cloudAccess) return;
       if (activeAlert) {
         const updated = storage.getAlertById(activeAlert.id);
         if (updated) setActiveAlert(updated);
       }
     });
     return unsub;
-  }, [activeAlert]);
+  }, [activeAlert, cloudAccess]);
 
   // === AMÉLIORATION AJOUTÉE : handler asynchrone (vérification hash) + verrou anti-brute-force ===
   const [isVerifying, setIsVerifying] = useState(false);
@@ -123,6 +155,31 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     }
 
     setIsVerifying(true);
+
+    // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
+    // D'abord le dossier enregistré dans Firebase : il est à jour des
+    // réponses et du statut donnés par l'équipe, et s'ouvre depuis
+    // n'importe quel appareil. Si Firebase ne le connaît pas (dossier
+    // ancien resté local) ou n'est pas joignable, on retombe sur la copie
+    // locale de ce navigateur, exactement comme avant.
+    if (isReporterCloudConfigured()) {
+      const remote = await openReporterCase(trimmedNum, passwordInput);
+      if (remote.ok === true) {
+        clearAttempts(trimmedNum);
+        const local = storage.getAlertByTracking(trimmedNum);
+        const access = { caseNumber: trimmedNum, accessCode: passwordInput };
+        setCloudAccess(access);
+        setActiveAlert(reporterCaseToAlertRecord(remote.payload, trimmedNum, local));
+        setIsVerifying(false);
+        return;
+      }
+      if (remote.reason === 'locked') {
+        setLoginError(t.track_error_locked_retry.replace('{time}', formatRemaining(5 * 60 * 1000)));
+        setIsVerifying(false);
+        return;
+      }
+    }
+
     const alert = storage.getAlertByTracking(trimmedNum);
 
     if (!alert) {
@@ -169,6 +226,23 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
     e.preventDefault();
     if (!replyContent.trim() || !activeAlert) return;
 
+    // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
+    // Dossier ouvert depuis Firebase : le message part vers l'équipe via le
+    // serveur, puis le dossier est rechargé (message + éventuelles réponses).
+    if (cloudAccess) {
+      const content = replyContent.trim();
+      setSendError('');
+      void sendReporterMessage(cloudAccess.caseNumber, cloudAccess.accessCode, content).then((ok) => {
+        if (ok) {
+          setReplyContent('');
+          void refreshFromCloud(cloudAccess);
+        } else {
+          setSendError(t.track_cloud_send_error);
+        }
+      });
+      return;
+    }
+
     const newMsg: CaseMessage = {
       id: 'msg-' + Date.now(),
       sender: 'whistleblower',
@@ -199,6 +273,26 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
   // Add supplementary information (Compléter sa déclaration - CDC 3.1.1)
   const handleAddSupplement = () => {
     if (!supplementText.trim() || !activeAlert) return;
+
+    // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
+    // Dossier ouvert depuis Firebase : le complément est transmis à
+    // l'équipe comme un message (même texte que le message de complément
+    // créé ci-dessous en local).
+    if (cloudAccess) {
+      const content = `Complément d'information formel apporté au dossier :\n"${supplementText.trim()}"`;
+      void sendReporterMessage(cloudAccess.caseNumber, cloudAccess.accessCode, content).then((ok) => {
+        if (ok) {
+          setSupplementText('');
+          setShowSupplementModal(false);
+          void refreshFromCloud(cloudAccess);
+        } else {
+          setSendError(t.track_cloud_send_error);
+          setShowSupplementModal(false);
+          setActiveTrackTab('messages');
+        }
+      });
+      return;
+    }
 
     const timestampStr = new Date().toLocaleString(lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-PT' : 'fr-FR');
     const updatedDesc = `${activeAlert.detailedDescription}\n\n--- [Complément apporté le ${timestampStr}] ---\n${supplementText.trim()}`;
@@ -435,6 +529,9 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
 
   const goBackToLogin = () => {
     setActiveAlert(null);
+    // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
+    setCloudAccess(null);
+    setSendError('');
     setPasswordInput('');
   };
 
@@ -482,6 +579,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               handleDeleteAlert={handleDeleteAlert}
               trackSteps={trackSteps}
               currentStepNumber={currentStepNumber}
+              canDelete={!cloudAccess}
             />
           )}
 
@@ -495,6 +593,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               setActiveTrackTab={setActiveTrackTab}
               handleSendMessage={handleSendMessage}
               formatDateTime={formatDateTime}
+              sendError={sendError}
             />
           )}
 
@@ -512,6 +611,7 @@ export const AlertTrackingView: React.FC<AlertTrackingViewProps> = ({
               handleDocDrop={handleDocDrop}
               handleDownloadEvidence={handleDownloadEvidence}
               handleDeleteEvidence={handleDeleteEvidence}
+              uploadDisabledNote={cloudAccess && !storage.getAlertById(activeAlert.id) ? t.track_cloud_docs_note : undefined}
             />
           )}
 

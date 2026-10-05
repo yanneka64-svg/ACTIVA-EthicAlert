@@ -1057,6 +1057,9 @@ export const fr: Record<string, string> = {
   track_delete_confirm: 'Confirmer la suppression irréversible ?',
   track_delete_yes: 'Oui, supprimer',
   track_download_receipt: 'Télécharger le récépissé',
+  // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
+  track_cloud_send_error: 'Le message n’a pas pu être transmis. Vérifiez votre connexion et réessayez.',
+  track_cloud_docs_note: 'Depuis cet appareil, vous pouvez consulter votre dossier et échanger avec l’équipe. L’ajout de pièces jointes se fait pour l’instant depuis l’appareil utilisé pour le dépôt, ou par la messagerie en décrivant le document.',
   // === AMÉLIORATION AJOUTÉE (accusé de réception imprimable) ===
   receipt_print_title: 'Accusé de réception',
   receipt_print_intro: 'Votre signalement a bien été enregistré sur la plateforme activa-whistleblowing du Groupe ACTIVA. Il sera traité de manière confidentielle, uniquement par les personnes habilitées.',
