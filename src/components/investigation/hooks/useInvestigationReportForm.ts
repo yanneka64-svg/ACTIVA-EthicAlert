@@ -39,6 +39,8 @@ export function useInvestigationReportForm(selectedAlert: AlertRecord | null, ac
       ...selectedAlert,
       investigationReport: reportDraft.trim() || undefined,
       investigationReportFile: reportFile,
+      // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===
+      investigationReportFileId: reportFile?.id,
       investigationReportBy: activeUser.name,
       investigationReportAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -49,6 +51,16 @@ export function useInvestigationReportForm(selectedAlert: AlertRecord | null, ac
       { id: selectedAlert.id, trackingNumber: selectedAlert.trackingNumber },
       activeUser
     );
+    // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===
+    // fichier du rapport enregistré sur le serveur (le texte part par applyPortalUpdate).
+    const caseId = selectedAlert.mirroredCaseId;
+    const alertId = selectedAlert.id;
+    const file = reportFile;
+    if (caseId && file?.dataUrl && !file.cloudCaseId) {
+      void import('../../../services/evidenceUpload')
+        .then(({ uploadStaffEvidence }) => uploadStaffEvidence(caseId, file, 'Rapport d’investigation'))
+        .then((ok) => ok && storage.markEvidenceStoredOnServer(alertId, file.id, caseId));
+    }
     setShowReportModal(false);
     setReportDraft('');
     setReportFile(undefined);

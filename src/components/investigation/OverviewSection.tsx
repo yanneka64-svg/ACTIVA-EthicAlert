@@ -184,6 +184,8 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
                   <span className="font-medium text-slate-800 block truncate">{selectedAlert.investigationReportFile.name}</span>
                 </div>
                 <span className="text-[10px] text-slate-400 shrink-0">{Math.round(selectedAlert.investigationReportFile.size / 1024)} Ko</span>
+                {/* === AMÉLIORATION AJOUTÉE (Phase 2) === fichier du rapport téléchargeable depuis tout poste. */}
+                <EvidenceDownloadButton file={selectedAlert.investigationReportFile} t={t} />
               </div>
             )}
             {selectedAlert.investigationReportAt && (

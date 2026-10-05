@@ -70,6 +70,8 @@ export interface CaseMirrorResult {
   // === AMÉLIORATION AJOUTÉE (numéro de suivi attribué par le serveur) ===
   /** Numéro de suivi remis au déclarant (attribué ou confirmé par le serveur). */
   trackingNumber?: string;
+  /** === AMÉLIORATION AJOUTÉE (Phase 2) === session courte pour transmettre les fichiers joints. */
+  sessionToken?: string;
 }
 
 /** Toujours résout (succès best-effort) — ne rejette jamais, ne doit jamais être `await`é de façon bloquante par l'appelant. `null` si non configuré ou en cas d'échec. */

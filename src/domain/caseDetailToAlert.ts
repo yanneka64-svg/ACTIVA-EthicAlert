@@ -312,6 +312,11 @@ export function caseDetailToAlertRecord(
   // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
   // le statut affiché enregistré par le portail l'emporte sur le statut déduit.
   if (kase.portal?.workflowStatus) fresh.workflowStatus = kase.portal.workflowStatus;
+  // === AMÉLIORATION AJOUTÉE (Phase 2) === fichier du rapport d'enquête enregistré sur le serveur.
+  if (fresh.investigationReportFileId) {
+    const serverFile = cloudEvidence.find((e) => e.id === fresh.investigationReportFileId);
+    if (serverFile) fresh.investigationReportFile = serverFile;
+  }
 
   if (!existing) return fresh;
 
@@ -325,6 +330,15 @@ export function caseDetailToAlertRecord(
   for (const key of PORTAL_LOCAL_ONLY_KEYS) {
     const serverValue = (fresh as unknown as Record<string, unknown>)[key];
     if (serverValue !== undefined && serverValue !== null) (merged as unknown as Record<string, unknown>)[key] = serverValue;
+  }
+  // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===
+  // fichier du rapport d'enquête enregistré sur le serveur : celui du
+  // navigateur s'il a le même identifiant (avec son contenu), sinon la pièce
+  // du serveur (téléchargeable).
+  const reportFileId = merged.investigationReportFileId;
+  if (reportFileId && existing.investigationReportFile?.id !== reportFileId) {
+    const serverFile = cloudEvidence.find((e) => e.id === reportFileId);
+    if (serverFile) merged.investigationReportFile = serverFile;
   }
   // Pièces : celles connues de Firebase, plus celles ajoutées dans ce
   // navigateur (avec leur contenu) que Firebase ne connaît pas encore.

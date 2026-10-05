@@ -679,6 +679,15 @@ export const InvestigationDesk: React.FC<InvestigationDeskProps> = ({
         uploadedBy: activeUser.name,
       };
       storage.saveAlert({ ...selectedAlert, evidences: [...selectedAlert.evidences, newEvidence], updatedAt: new Date().toISOString() });
+      // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 2) ===
+      // pièce enregistrée sur le serveur : téléchargeable depuis tout poste.
+      const caseId = selectedAlert.mirroredCaseId;
+      const alertId = selectedAlert.id;
+      if (caseId && newEvidence.dataUrl) {
+        void import('../services/evidenceUpload')
+          .then(({ uploadStaffEvidence }) => uploadStaffEvidence(caseId, newEvidence))
+          .then((ok) => ok && storage.markEvidenceStoredOnServer(alertId, newEvidence.id, caseId));
+      }
     };
     reader.readAsDataURL(file);
     e.target.value = '';

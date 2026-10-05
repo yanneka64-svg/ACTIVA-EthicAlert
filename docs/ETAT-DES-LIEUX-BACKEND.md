@@ -58,3 +58,10 @@ envoyée au serveur.
   d'une personne à un compte, message depuis « Toutes les communications ».
   Le déclarant voit désormais le statut réel de son dossier. Vérifié de bout en
   bout sur émulateurs : `scripts/e2ePortalUpdate.emulator.mts`.
+- **Phase 2 — livrée** : documents. Les fichiers joints au formulaire de
+  signalement sont désormais transmis (jusqu'ici seule leur liste l'était),
+  aussitôt après le dépôt ou à la prochaine connexion du déclarant au suivi
+  (`addSubmissionEvidenceAsReporter`). Les pièces et le fichier du rapport
+  d'enquête ajoutés par le personnel sont enregistrés sur le serveur
+  (`addEvidenceAsStaff`) et téléchargeables depuis tout poste. Vérifié sur
+  émulateurs : `scripts/e2eDocuments.emulator.mts`.
