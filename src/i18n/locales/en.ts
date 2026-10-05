@@ -755,6 +755,8 @@ export const en: Record<string, string> = {
   process_step4_back_title: 'Your report is being handled',
   process_step4_back_desc: 'Every report is reviewed under the applicable procedures. Relevant elements are examined by authorized staff to determine appropriate next steps, in full confidentiality.',
   process_back_button: '← Back',
+  // === AMÉLIORATION AJOUTÉE (design modernisé de l'accueil) ===
+  process_flip_hint: 'Learn more',
   footer_legal_notice: 'Legal notice',
   footer_privacy_policy: 'Privacy policy',
 
