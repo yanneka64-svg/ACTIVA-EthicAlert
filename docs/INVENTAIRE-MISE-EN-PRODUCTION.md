@@ -44,7 +44,7 @@ code** :
 | 2 | **Destinataires absents.** Aucun compte DARC (rôle « DARC / Conformité »), aucune adresse DARC, DGA ou DRH saisie. Seulement 2 comptes : un administrateur système et un responsable des investigations. | Même avec l'envoi réparé, la DARC, le DGA et le DRH ne seraient jamais prévenus. Aucun opérateur pour trier. |
 | 3 | **Sauvegardes inactives.** Restauration à la seconde (PITR) désactivée, protection contre la suppression désactivée, sauvegardes programmées non vérifiables (droit manquant au diagnostic). | Une erreur ou une suppression serait irréversible. |
 | 4 | **3 dossiers de test** en base (`AACMR-26-09-0002`, `AACMR-26-10-0004`, `AIIG-26-10-0001`), non attribués. | Ils fausseraient les statistiques et la numérotation. |
-| 5 | **Deux mécanismes d'e-mail pour l'escalade.** L'ancien envoi depuis le navigateur (registre « Gouvernance ») coexiste avec le nouvel envoi par le serveur. | Risque d'e-mails en double au DGA une fois l'envoi réparé. |
+| 5 | **Deux mécanismes d'e-mail pour l'escalade.** L'ancien envoi depuis le navigateur (registre « Gouvernance ») coexiste avec le nouvel envoi par le serveur. | Risque d'e-mails en double au DGA une fois l'envoi réparé. **Corrigé** : l'escalade n'est plus notifiée que par le serveur. |
 
 ## 3. Reste à faire avant la mise en production
 
@@ -55,7 +55,7 @@ code** :
 | B1 | Rendre l'envoi d'e-mails réel | Informatique (DNS) + administrateur GitHub | 1) Vérifier le domaine `group-activa.com` dans Resend (enregistrements DNS SPF / DKIM). 2) Variable de dépôt `NOTIFY_FROM_EMAIL` = `ACTIVA EthicAlert <notifications@group-activa.com>`. 3) Relancer « Deploy Cloud Functions ». 4) Bouton « Envoyer un e-mail d'essai » pour chaque groupe. |
 | B2 | Créer les comptes réels et saisir les destinataires | Administrateur du portail | Utilisateurs : opérateurs, compte(s) DARC / Conformité, enquêteurs. Notifications e-mail : adresses DGA, DRH et boîte DARC. Vérifier avec la Simulation. |
 | B3 | Activer les sauvegardes | Propriétaire du projet Google Cloud | Commandes prêtes (`docs/DEVOPS-RUNBOOK.md` §4.2) : PITR, sauvegarde quotidienne (14 j) et hebdomadaire (14 semaines), protection contre la suppression. |
-| B4 | Purger les dossiers de test | Développement + administrateur GitHub | Le workflow « Firebase delete test cases » ne supprime que les dossiers marqués « [TEST AUTOMATIQUE] ». Ces 3 dossiers ont été saisis à la main : il faut une purge adaptée (liste explicite des numéros, essai à blanc d'abord), lancée juste avant l'ouverture. |
+| B4 | Purger les dossiers de test | Administrateur GitHub | Workflow « Firebase delete test cases » : numéros `AACMR-26-09-0002, AACMR-26-10-0004, AIIG-26-10-0001`, case « dossiers sans marqueur » cochée, numéros retapés dans la confirmation. Essai à blanc d'abord, puis suppression réelle juste avant l'ouverture. La numérotation continue ensuite à partir des numéros suivants. |
 | B5 | Compléter les mentions légales | Service juridique | Numéro RCCM, représentant légal, hébergeur (Google Cloud / Firebase, base en Europe `eur3`), durée de conservation précise, contact du DPO. Vérifier que l'« accusé de réception automatique » annoncé sur la page Contact existe bien sur la boîte e-mail. |
 | B6 | Recette métier sur la plateforme réelle | DARC + 1 opérateur + 1 enquêteur | Un dossier fictif de bout en bout (dépôt, attribution, échanges, clôture, réception des e-mails), puis purge (B4). |
 
@@ -70,7 +70,7 @@ code** :
 | R5 | Supervision : alertes d'erreurs, test de disponibilité, budget (script prêt, `gcp-hardening.sh monitoring` / `budget`) | Cloud Shell |
 | R6 | Révoquer l'ancienne clé JSON de déploiement (le déploiement par WIF fonctionne) — rappel prévu le 11 octobre | Cloud Shell |
 | R7 | Domaine personnalisé (ex. `alerte.group-activa.com`) au lieu de `*.web.app`, puis `NOTIFY_APP_URL` | Informatique (DNS) |
-| R8 | Un seul mécanisme d'e-mail : retirer l'envoi depuis le navigateur pour l'escalade | Développement |
+| R8 | ~~Un seul mécanisme d'e-mail pour l'escalade~~ — **fait** | — |
 
 ### Après l'ouverture (améliorations)
 
