@@ -265,6 +265,10 @@ function AppShell() {
     // anonyme, donc jamais d'import statique de ce module ici (même
     // discipline que services/firebaseClient.ts/getPhase4Functions).
     import('./services/staffAuthSync').then(({ clearStaffAuthSession }) => clearStaffAuthSession()).catch(() => {});
+    // === AMÉLIORATION AJOUTÉE (lecture des dossiers Firebase par le portail)
+    // === les dossiers chargés depuis Firebase pour ce compte ne restent
+    // jamais dans le navigateur après sa déconnexion.
+    storage.replaceCloudImportedAlerts([]);
     setIsStaffSessionActive(false);
     navigate(pathForTab('login'));
   };
@@ -293,6 +297,35 @@ function AppShell() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStaffSessionActive]);
+
+  // === AMÉLIORATION AJOUTÉE (lecture des dossiers Firebase par le portail) ===
+  // Tant qu'une session interne est active : chargement des dossiers
+  // Firebase visibles par ce compte (services/cloudCasesSync.ts) dès la
+  // connexion, puis toutes les minutes et à chaque retour sur l'onglet. Le
+  // service ne fait rien si Firebase n'est pas configuré ou si la session
+  // Firebase n'est pas celle de ce compte. Import dynamique : même discipline
+  // que staffAuthSync ci-dessus (jamais de SDK Firebase dans le bundle
+  // principal, chargé aussi par le formulaire public).
+  const CLOUD_CASES_SYNC_MS = 60 * 1000;
+  useEffect(() => {
+    if (!isStaffSessionActive || activeUser.role === 'reporter') return;
+    let cancelled = false;
+    const sync = () => {
+      if (cancelled || document.visibilityState === 'hidden') return;
+      import('./services/cloudCasesSync')
+        .then(({ syncCloudCases }) => syncCloudCases(storage.getActiveUser()))
+        .catch(() => {});
+    };
+    sync();
+    const interval = setInterval(sync, CLOUD_CASES_SYNC_MS);
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', sync);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaffSessionActive, activeUser.id]);
 
   // === AMÉLIORATION AJOUTÉE (Phase 5) ===
   // A plain tab switch (Navbar / sidebar) clears any Control-Panel-driven

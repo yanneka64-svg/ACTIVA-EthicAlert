@@ -339,6 +339,40 @@ Limite connue : l'outil interne *Suivre un dossier* (`CaseLookup.tsx`) se
 connecte par adresse Auth. Pour un compte créé depuis le portail, c'est
 l'adresse technique ci-dessus.
 
+### 3.10 Dossiers Firebase dans tous les écrans du portail
+=== AMÉLIORATION AJOUTÉE (lecture des dossiers Firebase par le portail) ===
+
+Quand une session interne est active et connectée à Firebase, le portail
+charge les dossiers Firebase visibles par ce compte. Cela se fait dès la
+connexion, puis toutes les minutes et à chaque retour sur l'onglet
+(`src/services/cloudCasesSync.ts`). Ces dossiers apparaissent dans tous les
+écrans (Boîte de réception, À attribuer, Mes dossiers, fiche dossier,
+recherche, rapports). Une alerte déposée depuis n'importe quel poste arrive
+donc chez l'opérateur.
+
+- **Visibilité.** `listCases` puis `getCaseDetails` (Cloud Function, lots de
+  50 dossiers) appliquent les règles du serveur : mis en cause exclu,
+  périmètre, confidentialité, attribution. Un dossier non autorisé est omis
+  sans le signaler. L'identité du déclarant n'est jamais chargée.
+- **Actions.** Une action sur un dossier chargé part vers Firebase par les
+  miroirs existants (`mirroredCaseId`) : attribution, statut, tâches, notes,
+  messages… La synchronisation suivante reflète l'état du serveur. Une
+  modification locale de moins de 90 s n'est pas écrasée par une version
+  Firebase plus ancienne.
+- **Champs propres au navigateur.** Escalade, rapport d'enquête et pièces
+  jointes avec contenu sont conservés : Firebase n'en garde pas encore la
+  trace (pièces : §étape Cloud Storage à venir).
+- **Déconnexion.** Elle efface la copie locale des dossiers Firebase, y
+  compris la déconnexion automatique après inactivité.
+- **Coût.** Chaque synchronisation lit les dossiers visibles et leurs
+  sous-collections, soit environ 10 lectures Firestore par dossier et par
+  minute et par poste connecté. Le volume reste faible tant que l'usage est
+  interne. Au-delà de quelques centaines de dossiers ouverts, passer à une
+  synchronisation incrémentale (`updatedAt`).
+
+Déploiement : *Deploy Cloud Functions* (nouvelle fonction `getCaseDetails`),
+puis le site, automatiquement à la fusion.
+
 ## 4. Correctifs P2
 
 === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) ===

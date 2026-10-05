@@ -1567,3 +1567,76 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 
     res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error while calling Resend.' });
   }
 });
+
+// === AMÉLIORATION AJOUTÉE (lecture des dossiers Firebase par le portail) ===
+// Détail complet de dossiers déjà connus (ids obtenus par listCases), pour
+// que tous les écrans du portail (Boîte de réception, Mes dossiers, fiche
+// dossier…) affichent les dossiers enregistrés dans Firebase, et plus
+// seulement ceux créés dans le navigateur. Chaque dossier passe par
+// requireCaseAccess(cases.read) : un dossier inconnu, ou non autorisé pour
+// l'appelant (mis en cause, hors périmètre, non attribué…), est simplement
+// omis — jamais signalé, pour ne rien révéler de son existence. Les
+// communications et les métadonnées de pièces exigent en plus leurs propres
+// permissions ; l'identité du déclarant n'est jamais renvoyée ici.
+const CASE_DETAILS_MAX_IDS = 50;
+
+export const getCaseDetails = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const raw = (request.data as { caseIds?: unknown } | undefined)?.caseIds;
+  if (
+    !Array.isArray(raw) ||
+    raw.length === 0 ||
+    raw.length > CASE_DETAILS_MAX_IDS ||
+    raw.some((id) => typeof id !== 'string' || !id || id.length > 128)
+  ) {
+    throw new HttpsError('invalid-argument', `caseIds must list 1 to ${CASE_DETAILS_MAX_IDS} case ids.`);
+  }
+  const caseIds = Array.from(new Set(raw as string[]));
+
+  const byCreatedAt = <T extends { createdAt?: string }>(items: T[]) =>
+    items.sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')));
+
+  const details = [];
+  for (const caseId of caseIds) {
+    let access: { ref: FirebaseFirestore.DocumentReference; kase: Case };
+    try {
+      access = await requireCaseAccess(caseId, user, 'cases.read');
+    } catch {
+      continue;
+    }
+    const { ref, kase } = access;
+    const [persons, tasks, interviews, notes, actions, risks, cois] = await Promise.all([
+      ref.collection('persons').get(),
+      ref.collection('tasks').get(),
+      ref.collection('interviews').get(),
+      ref.collection('investigation_notes').get(),
+      ref.collection('corrective_actions').get(),
+      ref.collection('risk_assessments').where('active', '==', true).limit(1).get(),
+      ref.collection('coi_declarations').get(),
+    ]);
+    const personList = persons.docs.map((d) => d.data() as Person);
+    const context = { case: kase, implicatedUserIds: implicatedUserIdsFromPersons(personList) };
+    const communications = can(user, 'communications.read', context)
+      ? (await ref.collection('communications').get()).docs.map((d) => d.data() as Communication)
+      : [];
+    const evidence = can(user, 'evidence.read', context)
+      ? (await ref.collection('evidence').get()).docs
+          .map((d) => d.data() as Evidence)
+          .filter((e) => e.status !== 'deleted')
+      : [];
+
+    details.push({
+      case: kase,
+      persons: byCreatedAt(personList),
+      tasks: byCreatedAt(tasks.docs.map((d) => d.data() as Task)),
+      interviews: byCreatedAt(interviews.docs.map((d) => d.data() as Interview)),
+      notes: byCreatedAt(notes.docs.map((d) => d.data() as { createdAt?: string })),
+      communications: byCreatedAt(communications),
+      correctiveActions: byCreatedAt(actions.docs.map((d) => d.data() as CorrectiveAction)),
+      riskAssessment: risks.empty ? null : (risks.docs[0].data() as RiskAssessment),
+      coiDeclarations: cois.docs.map((d) => d.data() as ConflictOfInterestDeclaration),
+      evidence: byCreatedAt(evidence),
+    });
+  }
+  return { details };
+});
