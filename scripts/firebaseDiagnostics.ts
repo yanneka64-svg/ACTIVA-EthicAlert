@@ -15,10 +15,73 @@
  */
 import { applicationDefault, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+// === AMÉLIORATION AJOUTÉE (diagnostic boîte de réception) ===
+import { getAuth } from 'firebase-admin/auth';
 
 const projectId = process.env.GCLOUD_PROJECT || 'activa-ethicalert-47246';
 const app = initializeApp({ credential: applicationDefault(), projectId });
 const db = getFirestore(app, process.env.FIRESTORE_DATABASE_ID || 'default');
+
+// === AMÉLIORATION AJOUTÉE (diagnostic boîte de réception) ===
+/**
+ * Pour un compte du personnel : droits portés par sa session Firebase
+ * (claims), puis appel RÉEL de listCases / getCaseDetails avec ces droits
+ * (jeton personnalisé → jeton d'identité). Lecture seule : aucune donnée
+ * de dossier n'est affichée, seulement des numéros et des comptes.
+ */
+async function staffProbe(uid: string, username: string): Promise<void> {
+  try {
+    const user = await getAuth(app).getUser(uid);
+    const c = (user.customClaims ?? {}) as Record<string, unknown>;
+    console.log(
+      `    ↳ session Firebase : rôle=${c.role ?? 'AUCUN'} | pays=${JSON.stringify(c.countries ?? null)} | entités=${JSON.stringify(c.entities ?? null)} | mdp temporaire=${c.pwdTemp === true ? 'OUI (fonctions bloquées)' : 'non'} | désactivé=${user.disabled ? 'OUI' : 'non'} | dernière connexion=${user.metadata.lastSignInTime ?? '-'}`
+    );
+    const apiKey = process.env.FIREBASE_API_KEY;
+    if (!apiKey) return;
+    let idToken: string;
+    try {
+      const custom = await getAuth(app).createCustomToken(uid);
+      const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: custom, returnSecureToken: true }),
+      });
+      const body = (await res.json()) as { idToken?: string; error?: { message?: string } };
+      if (!body.idToken) {
+        console.log(`    ↳ test serveur impossible (connexion) : ${body.error?.message ?? res.status}`);
+        return;
+      }
+      idToken = body.idToken;
+    } catch (e) {
+      console.log(`    ↳ test serveur impossible (jeton) : ${e instanceof Error ? e.message.slice(0, 200) : e}`);
+      return;
+    }
+    const call = async (name: string, data: unknown) => {
+      const res = await fetch(`https://us-central1-${projectId}.cloudfunctions.net/${name}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ data }),
+      });
+      return { status: res.status, body: (await res.json().catch(() => ({}))) as Record<string, any> };
+    };
+    const list = await call('listCases', { filter: {}, limit: 100, offset: 0 });
+    if (list.status !== 200) {
+      console.log(`    ↳ listCases (${username}) : HTTP ${list.status} ${JSON.stringify(list.body.error ?? list.body).slice(0, 300)}`);
+      return;
+    }
+    const items = (list.body.result?.items ?? []) as { caseId: string; caseNumber: string; externalReference?: string }[];
+    console.log(`    ↳ listCases (${username}) : ${items.length} dossier(s) visibles — ${items.map((i) => i.externalReference || i.caseNumber).join(', ') || 'aucun'}`);
+    if (!items.length) return;
+    const details = await call('getCaseDetails', { caseIds: items.map((i) => i.caseId).slice(0, 50) });
+    if (details.status !== 200) {
+      console.log(`    ↳ getCaseDetails : HTTP ${details.status} ${JSON.stringify(details.body.error ?? details.body).slice(0, 300)}`);
+      return;
+    }
+    console.log(`    ↳ getCaseDetails : ${(details.body.result?.details ?? []).length} détail(s) renvoyé(s)`);
+  } catch (e) {
+    console.log(`    ↳ diagnostic du compte impossible : ${e instanceof Error ? e.message.slice(0, 200) : e}`);
+  }
+}
 
 async function main() {
   const casesCount = (await db.collection('cases').count().get()).data().count;
@@ -69,6 +132,10 @@ async function main() {
         `actif=${s.active !== false ? 'oui' : 'non'}`,
       ].join(' | ')
     );
+    // === AMÉLIORATION AJOUTÉE (diagnostic boîte de réception) === droits
+    // réellement portés par la session Firebase du compte, puis ce que le
+    // serveur lui renvoie (listCases / getCaseDetails), en lecture seule.
+    await staffProbe(d.id, s.username);
   }
 
   // Appel anonyme de chaque fonction (corps vide) : 400/401/403 en JSON =
