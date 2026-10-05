@@ -213,3 +213,25 @@ personnes mises en cause. Il n'y a aucune action manuelle à faire.
 - **Le tableau se règle dans Administration → Notifications e-mail.** Une case cochée signifie « ce groupe reçoit l'alerte dans cette situation ». Un encadré **Simulation** montre, sans rien envoyer, qui recevrait une alerte selon la personne ou la fonction saisie.
 - **Le motif est indiqué dans l'e-mail.** Les destinataires prévenus par montée de niveau voient le motif « escalade automatique, un niveau inférieur étant concerné par le signalement ».
 - **Les conditions du « cas échéant » restent valables en plus.** Un groupe hors tableau peut encore être prévenu à ce titre, par exemple le DRH pour un dossier RH ou le DGA pour un dossier critique, sauf s'il est lui-même mis en cause.
+
+### === AMÉLIORATION AJOUTÉE === Sortir Resend du mode test (étapes)
+
+Symptôme : l'e-mail d'essai répond « You can only send testing emails to your
+own email address ». Resend n'écrit alors qu'au propriétaire du compte.
+
+1. **Resend → Domains → Add Domain.** Saisir le domaine d'envoi. Un
+   sous-domaine dédié est recommandé, par exemple `notifications.group-activa.com` :
+   il ne touche pas à la messagerie du domaine principal.
+2. **Ajouter dans le DNS** (service informatique) les enregistrements affichés
+   par Resend :
+   - **DKIM** : TXT `resend._domainkey…` ;
+   - **SPF** : MX et TXT sur `send.…` ;
+   - **DMARC** : facultatif mais recommandé.
+3. **Resend → Verify.** L'état doit passer à *Verified*. La propagation DNS
+   prend de quelques minutes à quelques heures.
+4. **GitHub → Settings → Secrets and variables → Actions → Variables** :
+   `NOTIFY_FROM_EMAIL` = `ACTIVA EthicAlert <alertes@notifications.group-activa.com>`.
+   Le domaine de l'adresse doit être exactement celui vérifié à l'étape 3.
+5. Lancer **Deploy Cloud Functions**.
+6. **Administration → Notifications e-mail → Envoyer un e-mail d'essai** pour
+   chaque groupe.

@@ -98,6 +98,27 @@ const GROUP_HELP: Record<RecipientGroup['id'], string> = {
 
 type TestResult = { email: string; ok: boolean; error?: string };
 
+// === AMÉLIORATION AJOUTÉE (erreurs d'envoi expliquées) ===
+/**
+ * Traduit les refus connus du service d'envoi (Resend) en consigne claire.
+ * Le message d'origine reste disponible au survol (attribut title).
+ */
+function explainSendError(error?: string): React.ReactNode {
+  const raw = String(error ?? '');
+  let text = raw || 'Envoi impossible.';
+  if (/only send testing emails|verify a domain/i.test(raw)) {
+    text =
+      "Le service d'envoi est encore en mode test : il n'écrit qu'au propriétaire du compte Resend. Il faut vérifier le domaine group-activa.com dans Resend, puis définir l'adresse d'expédition (variable NOTIFY_FROM_EMAIL) et redéployer les fonctions.";
+  } else if (/domain is not verified|not verified/i.test(raw)) {
+    text = "Le domaine de l'adresse d'expédition n'est pas encore vérifié dans Resend (enregistrements DNS à ajouter ou à valider).";
+  } else if (/api key|unauthori[sz]ed|401/i.test(raw)) {
+    text = "La clé du service d'envoi est invalide ou absente (secret RESEND_API_KEY).";
+  } else if (/not allowed|domaine|domain/i.test(raw) && /recipient|destinataire/i.test(raw)) {
+    text = "Adresse hors des domaines autorisés (NOTIFY_ALLOWED_RECIPIENT_DOMAINS).";
+  }
+  return <span title={raw}>{text}</span>;
+}
+
 export const EmailNotificationsTab: React.FC<{ activeUser: UserProfile }> = ({ activeUser }) => {
   const [settings, setSettings] = useState<EmailNotificationSettings>(() => storage.getEmailNotificationSettings());
   const [extraText, setExtraText] = useState<Record<string, string>>(() =>
@@ -540,7 +561,7 @@ export const EmailNotificationsTab: React.FC<{ activeUser: UserProfile }> = ({ a
                         <li key={r.email} className="flex items-start gap-1.5">
                           {r.ok ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" /> : <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />}
                           <span className="font-mono">{r.email}</span>
-                          <span className={r.ok ? 'text-emerald-700' : 'text-rose-700'}>{r.ok ? 'envoyé' : r.error}</span>
+                          <span className={r.ok ? 'text-emerald-700' : 'text-rose-700'}>{r.ok ? 'envoyé' : explainSendError(r.error)}</span>
                         </li>
                       ))}
                     </ul>
