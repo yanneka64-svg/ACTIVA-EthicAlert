@@ -147,3 +147,120 @@ input[type='password']::-ms-clear {
     margin: 1.5cm;
   }
 }
+
+/* === AMÉLIORATION AJOUTÉE (accueil public — animations modernes) ===
+   Animations de la page d'accueil (WhistleblowerHome.tsx) :
+   - `activa-enter` : entrée en fondu + légère montée, décalée par élément
+     via la variable `--d` (séquence orchestrée au chargement du hero) ;
+   - `activa-enter-x` : même entrée depuis la droite (valeurs du hero) ;
+   - `activa-kenburns` : la photo du hero se pose doucement (léger dézoom) ;
+   - `activa-draw-x` : la barre d'accent sous le titre se trace ;
+   - `activa-reveal` : apparition au défilement, uniquement dans les
+     navigateurs qui gèrent `animation-timeline: view()` — ailleurs le
+     contenu est simplement visible, sans JavaScript ni risque de rester
+     masqué ;
+   - `activa-shine` : reflet qui balaie le bouton principal au survol.
+   Tout est désactivé si l'utilisateur a demandé moins d'animations. */
+@keyframes activa-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes activa-rise-x {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes activa-kenburns {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes activa-draw-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes activa-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgb(37 99 235 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 0);
+  }
+}
+.activa-enter {
+  animation: activa-rise 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+.activa-enter-x {
+  animation: activa-rise-x 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+.activa-kenburns {
+  animation: activa-kenburns 2.2s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.activa-draw-x {
+  transform-origin: left center;
+  animation: activa-draw-x 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+.activa-pulse-dot {
+  animation: activa-pulse-ring 2.4s ease-out infinite;
+}
+@supports (animation-timeline: view()) {
+  .activa-reveal {
+    animation: activa-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 70%;
+  }
+}
+.activa-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.activa-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.activa-shine:hover::after {
+  transform: translateX(120%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .activa-enter,
+  .activa-enter-x,
+  .activa-kenburns,
+  .activa-draw-x,
+  .activa-pulse-dot,
+  .activa-reveal {
+    animation: none !important;
+  }
+  .activa-shine::after {
+    display: none;
+  }
+}

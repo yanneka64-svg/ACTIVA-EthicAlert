@@ -755,6 +755,8 @@ export const pt: Record<string, string> = {
   process_step4_back_title: 'A sua denúncia está a ser tratada',
   process_step4_back_desc: 'Cada denúncia é objeto de uma análise segundo os procedimentos aplicáveis. Os elementos pertinentes são examinados pelas pessoas habilitadas para determinar as diligências adequadas, no respeito pela confidencialidade.',
   process_back_button: '← Voltar',
+  // === AMÉLIORATION AJOUTÉE (design modernisé de l'accueil) ===
+  process_flip_hint: 'Saber mais',
   footer_legal_notice: 'Aviso legal',
   footer_privacy_policy: 'Política de privacidade',
 

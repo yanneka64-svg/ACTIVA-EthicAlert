@@ -923,6 +923,8 @@ export const fr: Record<string, string> = {
   process_step4_back_title: 'Votre signalement est pris en charge',
   process_step4_back_desc: 'Chaque signalement fait l’objet d’une analyse selon les procédures applicables. Les éléments pertinents sont examinés par les personnes habilitées afin de déterminer les suites appropriées, dans le respect de la confidentialité.',
   process_back_button: '← Retour',
+  // === AMÉLIORATION AJOUTÉE (design modernisé de l'accueil) ===
+  process_flip_hint: 'En savoir plus',
   footer_legal_notice: 'Mentions légales',
   footer_privacy_policy: 'Politique de confidentialité',
 
