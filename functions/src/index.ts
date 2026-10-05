@@ -71,6 +71,8 @@ import {
   DEFAULT_EMAIL_NOTIFICATION_SETTINGS,
   GROUP_LABEL,
   isValidEmail,
+  namesMatch,
+  parseContact,
   RECIPIENT_GROUP_IDS,
   resolveNotificationRecipients,
   sanitizeEmailNotificationSettings,
@@ -1745,11 +1747,18 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   if (outcome.created) {
     await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
     await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
+    // === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) ===
+    // un compte du personnel nommé parmi les personnes mises en cause est
+    // rattaché automatiquement : il ne voit plus le dossier sur le portail.
+    const subjects = (data.details?.persons ?? []).filter((p) => p.kind === 'subject');
+    const implicatedUids = await autoLinkImplicatedStaff(caseId, data.details?.persons ?? []);
     // === AMÉLIORATION AJOUTÉE (notifications e-mail) === superviseurs, DARC,
     // et le cas échéant DGA / DRH (règles de l'administration).
     await notifyCaseEvent('new_report', {
       caseId,
+      excludedUids: implicatedUids,
       facts: {
+        implicatedPersons: subjects.map((p) => ({ name: p.name, position: p.position })),
         reference: outcome.trackingNumber,
         category: kase.category,
         subcategory: kase.subcategory,
@@ -2339,6 +2348,8 @@ export const applyPortalUpdate = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async 
       country: kase.country,
       priority: kase.priority,
       implicatedLevels: persons.filter((p) => p.kind === 'subject').map((p) => p.hierarchyLevel),
+      // === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) ===
+      implicatedPersons: persons.filter((p) => p.kind === 'subject').map((p) => ({ name: p.name, position: p.position })),
     };
     const excludedUids = [user.userId, ...implicatedUserIdsFromPersons(persons)];
     for (const ev of events) await notifyCaseEvent(ev, { caseId, facts, excludedUids });
@@ -2730,7 +2741,8 @@ export const sendTestNotificationEmail = onCall({ secrets: [NOTIFY_RESEND_KEY] }
   const emails = [
     ...new Set([
       ...staff.filter((s) => s.active && group.roles.includes(s.role) && isValidEmail(s.email)).map((s) => s.email.toLowerCase()),
-      ...group.extraEmails,
+      // === AMÉLIORATION AJOUTÉE (acheminement) : contacts « Nom <adresse> »
+      ...group.extraEmails.map((e) => parseContact(e).email),
     ]),
   ];
   if (!emails.length) return { results: [] };
@@ -2748,3 +2760,33 @@ export const sendTestNotificationEmail = onCall({ secrets: [NOTIFY_RESEND_KEY] }
   await appendAudit({ actorId: user.userId, action: 'EMAIL_TEST_SENT', objectType: 'email', objectId: group.id, newValue: results.map((r) => ({ email: r.email, ok: r.ok })) });
   return { results };
 });
+
+// === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) ===
+/**
+ * Rattache automatiquement aux comptes du personnel les personnes mises en
+ * cause dont le nom correspond (prénom et nom) : `implicatedUserIds` est mis à
+ * jour, le compte ne voit plus le dossier sur le portail. Audité. Renvoie les
+ * comptes rattachés. N'échoue jamais.
+ */
+async function autoLinkImplicatedStaff(caseId: string, persons: { kind: string; name: string }[]): Promise<string[]> {
+  try {
+    const subjects = persons.map((p, i) => ({ ...p, personId: `person-${caseId}-${i + 1}` })).filter((p) => p.kind === 'subject');
+    if (!subjects.length) return [];
+    const staff = await loadStaffRecipientCandidates();
+    const ref = db.collection('cases').doc(caseId);
+    const linked: string[] = [];
+    for (const p of subjects) {
+      const match = staff.filter((s) => s.active && s.name && namesMatch(p.name, s.name));
+      if (match.length !== 1) continue; // aucun ou plusieurs homonymes : rien d'automatique
+      const uid = match[0].uid;
+      await ref.collection('persons').doc(p.personId).set({ linkedUserId: uid, updatedAt: new Date().toISOString(), updatedBy: 'system' }, { merge: true });
+      linked.push(uid);
+      await appendAudit({ actorId: 'system', action: 'PERSON_AUTO_LINKED_TO_USER', caseId, objectType: 'person', objectId: p.personId, newValue: uid });
+    }
+    if (linked.length) await ref.update({ implicatedUserIds: FieldValue.arrayUnion(...linked) });
+    return linked;
+  } catch (e) {
+    console.error('autoLinkImplicatedStaff failed', e);
+    return [];
+  }
+}

@@ -22,11 +22,11 @@ if (!CAPTURE) throw new Error('CAPTURE_FILE requis.');
 const admin = adminInit({ projectId: 'demo-activa' });
 const db = adminFs(admin, 'default');
 const auth = adminAuth(admin);
-async function staff(username: string, role: string, email: string, countries: string[] = []) {
+async function staff(username: string, role: string, email: string, countries: string[] = [], name = username) {
   const login = `${username}@notif.test`;
   const u = await auth.createUser({ email: login, password: 'Passw0rd!x' }).catch(() => auth.getUserByEmail(login));
-  await auth.setCustomUserClaims(u.uid, { role, countries, entities: [], name: username });
-  await db.collection('staff_users').doc(u.uid).set({ name: username, username, email, role, countries, entities: [], active: true });
+  await auth.setCustomUserClaims(u.uid, { role, countries, entities: [], name });
+  await db.collection('staff_users').doc(u.uid).set({ name, username, email, role, countries, entities: [], active: true });
   return { uid: u.uid, login };
 }
 const adm = await staff('admin.notif', 'system_admin', 'admin.notif@group-activa.com');
@@ -34,7 +34,7 @@ const op = await staff('op.notif', 'functional_admin', 'operateur@group-activa.c
 await staff('sup.cm', 'senior_investigator', 'superviseur.cameroun@group-activa.com', ['Cameroun']);
 await staff('sup.gh', 'senior_investigator', 'superviseur.ghana@group-activa.com', ['Ghana']);
 await staff('darc', 'darc_compliance', 'darc@group-activa.com');
-const inv = await staff('inv.notif', 'investigator', 'enqueteur@group-activa.com');
+const inv = await staff('inv.notif', 'investigator', 'enqueteur@group-activa.com', [], 'Jean-Paul Mbarga');
 
 const app = initializeApp({ projectId: 'demo-activa', apiKey: 'demo', authDomain: 'demo' });
 const cAuth = getAuth(app);
@@ -124,6 +124,48 @@ check('objet « Dossier clôturé »', captured().every((m) => m.subject.include
 
 const audit = (await db.collection('audit_logs').where('caseId', '==', c2.caseId).get()).docs.map((d) => d.data().action).filter((a) => a.startsWith('EMAIL_'));
 check('chaque envoi est inscrit dans la piste d’audit', audit.length >= 10 && audit.every((a) => a === 'EMAIL_NOTIFICATION_SENT'), audit.length);
+
+// === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) ===
+const report = async (tag: string, persons: unknown[]) =>
+  (await call('createCaseAsReporter')({
+    category: 'Fraude, Corruption et pots-de-vin', subcategory: 'Détournement de fonds', country: 'Cameroun', entity: 'ACTIVA Assurances',
+    description: 'Test acheminement ' + tag, reportingMode: 'anonymous', confidentialityLevel: 'confidential', accessCode: 'Demo1234x',
+    submissionId: `sub-${tag}-` + Date.now(), entityCode: 'AACMR',
+    details: { risk: { financialImpact: 2, hierarchicalLevel: 1, recurrence: 1, reputationRisk: 2, totalScore: 6, priority: 'high' }, persons },
+  })).data as { caseId: string; trackingNumber: string };
+await signOut(cAuth);
+
+// 6. Un enquêteur est mis en cause (nommé, sans accents) → directement à la DARC
+reset();
+const c6 = await report('inv', [{ kind: 'subject', name: 'jean paul MBARGA', position: 'Agent' }]);
+await wait(500);
+check('enquêteur mis en cause : DARC seule (ni superviseurs, ni l’enquêteur)',
+  JSON.stringify(to(captured())) === JSON.stringify(['boite.darc@group-activa.com', 'darc@group-activa.com']), to(captured()));
+const c6doc = (await db.collection('cases').doc(c6.caseId).get()).data()!;
+const p6 = (await db.collection('cases').doc(c6.caseId).collection('persons').get()).docs.map((d) => d.data());
+check('enquêteur rattaché automatiquement et écarté du dossier', (c6doc.implicatedUserIds ?? []).includes(inv.uid) && p6.some((p) => p.linkedUserId === inv.uid), c6doc.implicatedUserIds);
+// même si on tente de lui attribuer le dossier, il ne peut pas l'ouvrir
+await signInWithEmailAndPassword(cAuth, op.login, 'Passw0rd!x');
+await call('applyPortalUpdate')({ caseId: c6.caseId, patch: { assignedInvestigators: [inv.uid] } }).catch(() => undefined);
+await signOut(cAuth);
+await signInWithEmailAndPassword(cAuth, inv.login, 'Passw0rd!x');
+const seen = ((await call('getCaseDetails')({ caseIds: [c6.caseId] })).data as { details?: unknown[] }).details ?? [];
+check('l’enquêteur mis en cause ne peut pas ouvrir le dossier', seen.length === 0, seen.length);
+await signOut(cAuth);
+
+// 7. La DARC est mise en cause (par sa fonction) → DGA et DRH
+reset();
+await report('darc', [{ kind: 'subject', name: 'Inconnu', position: 'Directeur Audit, Risques et Conformité' }]);
+await wait(500);
+const m7 = captured();
+check('DARC mise en cause : DGA et DRH uniquement', JSON.stringify(to(m7)) === JSON.stringify(['dga@group-activa.com', 'drh@group-activa.com']), to(m7));
+check('motif « escalade automatique » indiqué', m7.every((m) => m.text.includes('escalade automatique')));
+
+// 8. Un superviseur est mis en cause → DARC (pas de superviseur)
+reset();
+await report('sup', [{ kind: 'subject', name: 'X', position: 'Superviseur régional' }]);
+await wait(500);
+check('superviseur mis en cause : DARC seule', JSON.stringify(to(captured())) === JSON.stringify(['boite.darc@group-activa.com', 'darc@group-activa.com']), to(captured()));
 
 console.log(failures ? `${failures} échec(s)` : 'TOUT EST VERT');
 process.exit(failures ? 1 : 0);

@@ -189,3 +189,27 @@ compte Resend : l'e-mail d'essai l'indique alors en erreur.
 
 Vérification de bout en bout sur émulateurs, avec un faux service d'envoi :
 `scripts/e2eEmailNotifications.emulator.mts`.
+
+### === AMÉLIORATION AJOUTÉE === Acheminement automatique selon la personne mise en cause
+
+Dès qu'une alerte est déposée, le serveur décide qui la reçoit en fonction des
+personnes mises en cause. Il n'y a aucune action manuelle à faire.
+
+| Situation | Reçoivent l'alerte (par défaut) |
+|---|---|
+| Personne du dispositif n'est mise en cause | Superviseurs + DARC |
+| Un enquêteur est mis en cause | DARC uniquement |
+| Un superviseur est mis en cause | DARC |
+| La DARC est mise en cause | DGA + DRH |
+| Le DGA est mis en cause | DARC + DRH |
+| Le DRH est mis en cause | DARC + DGA |
+
+- **Comment un niveau est reconnu comme mis en cause.** Il suffit que l'alerte remplisse l'une de ces deux conditions :
+  - elle nomme l'un de ses membres : prénom et nom d'un compte du portail ou d'un contact saisi au format « Prénom Nom <adresse> ». La comparaison ignore les accents et l'ordre des mots ;
+  - elle cite l'une de ses fonctions. Ces mots-clés sont réglables par groupe, par exemple « Superviseur », « DARC » ou « Directeur général adjoint ».
+- **Plusieurs niveaux mis en cause.** C'est la règle du niveau le plus élevé qui s'applique.
+- **Un niveau mis en cause ne reçoit jamais l'alerte.** Ses membres ne la reçoivent pas non plus.
+- **Un compte du personnel nommé dans l'alerte est écarté automatiquement du dossier.** La personne est rattachée à son compte (`linkedUserId`, audit `PERSON_AUTO_LINKED_TO_USER`). Ce compte ne peut alors plus ouvrir le dossier, même si on le lui attribue. Le rattachement n'a lieu que si un seul compte correspond : en cas d'homonymes, rien n'est rattaché automatiquement.
+- **Le tableau se règle dans Administration → Notifications e-mail.** Une case cochée signifie « ce groupe reçoit l'alerte dans cette situation ». Un encadré **Simulation** montre, sans rien envoyer, qui recevrait une alerte selon la personne ou la fonction saisie.
+- **Le motif est indiqué dans l'e-mail.** Les destinataires prévenus par montée de niveau voient le motif « escalade automatique, un niveau inférieur étant concerné par le signalement ».
+- **Les conditions du « cas échéant » restent valables en plus.** Un groupe hors tableau peut encore être prévenu à ce titre, par exemple le DRH pour un dossier RH ou le DGA pour un dossier critique, sauf s'il est lui-même mis en cause.
