@@ -92,6 +92,8 @@ export const TAB_TO_PATH: Record<string, string> = {
   admin_organization: '/admin/organization',
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   admin_governance: '/admin/governance',
+  // === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+  admin_notifications: '/admin/notifications',
   // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
   // Nouvelle entrée de barre latérale, partagée (pas spécifique à un
   // espace) — voir StaffPortalLayout.tsx.

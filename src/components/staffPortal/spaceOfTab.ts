@@ -16,7 +16,7 @@ import type { SpaceKey } from '../../domain/staffSpaces';
 // App.tsx) — le backend (`storage.getWorkflowTransitions`/
 // `updateWorkflowTransitions`) reste intact, seule cette entrée de menu vers
 // un écran qui n'existe plus dans la nouvelle structure disparaît.
-export const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_entities', 'admin_categories'];
+export const ADMIN_TABS =['settings', 'admin_users', 'admin_roles', 'admin_config', 'admin_audit', 'admin_reports', 'admin_organization', 'admin_governance', 'admin_entities', 'admin_categories', 'admin_notifications'];
 
 // Dérive l'espace concerné par un `currentTab` donné — `null` pour un onglet
 // "partagé" (Dossiers, Recherche, Rapports, registres...) qui n'appartient à

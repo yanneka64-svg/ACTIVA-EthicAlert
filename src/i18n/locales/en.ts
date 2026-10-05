@@ -1484,6 +1484,8 @@ export const en: Record<string, string> = {
   side_organisation: 'Organisation',
   side_categories: 'Categories',
   side_governance: 'Governance',
+  // === AMÉLIORATION AJOUTÉE (notifications e-mail) ===
+  side_email_notifications: 'Email notifications',
   side_readonly_hint: 'Read-only access, limited to your permissions',
   // === AMÉLIORATION AJOUTÉE : documents PDF imprimés (FR/EN/PT) ===
   print_generated_on: 'Generated on {date} at {time}',

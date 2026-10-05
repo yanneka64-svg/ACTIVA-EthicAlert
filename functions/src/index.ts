@@ -66,6 +66,20 @@ import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow
 import { PortalPatchError, PORTAL_KEYS, portalVisibleCaseStatus, reporterVisibleCaseStatus, sanitizePortalPatch, type PortalPatch, type PortalState } from '../../src/domain/portalUpdate';
 import { serializePortalConfigSection, type PortalConfigSection } from '../../src/domain/portalConfig';
 import { sanitizePortalAuditBatch, type PortalAuditInput } from '../../src/domain/auditTrail';
+import {
+  buildNotificationEmail,
+  DEFAULT_EMAIL_NOTIFICATION_SETTINGS,
+  GROUP_LABEL,
+  isValidEmail,
+  RECIPIENT_GROUP_IDS,
+  resolveNotificationRecipients,
+  sanitizeEmailNotificationSettings,
+  type CaseNotificationFacts,
+  type EmailNotificationSettings,
+  type NotificationEvent,
+  type RecipientGroupId,
+  type StaffRecipientCandidate,
+} from '../../src/domain/emailNotificationRules';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
 import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src/domain/caseVisibility';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
@@ -110,6 +124,7 @@ import {
   clientIp,
   isStaffClaims,
   newAlertNotification,
+  parseCsvList,
   parseNewAlertNotification,
   rateLimitFromEnv,
   validateNotifyEmailRequest,
@@ -145,6 +160,10 @@ export {
 //   (dispositif d'alerte interne, faible volume).
 // - `minInstances: 0` : aucune instance facturée au repos.
 setGlobalOptions({ region: 'us-central1', maxInstances: 10, minInstances: 0 });
+// === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+// même secret que notifyEmail, déclaré ici car utilisé par des fonctions
+// définies plus haut dans ce fichier que RESEND_API_KEY.
+const NOTIFY_RESEND_KEY = defineSecret('RESEND_API_KEY');
 
 initializeApp();
 // === AMÉLIORATION AJOUTÉE (correctif — base Firestore nommée) ===
@@ -1587,7 +1606,7 @@ async function assertCaseCreationAllowed(ip: string): Promise<void> {
 // === AMÉLIORATION AJOUTÉE (revue PR #139) === App Check appliqué dès que
 // ENFORCE_APP_CHECK=true (functions/.env), une fois App Check configuré côté
 // Web (docs/DEVOPS-RUNBOOK.md) — l'activer avant casserait toute soumission.
-export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORCE_APP_CHECK === 'true' }, async (request) => {
+export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORCE_APP_CHECK === 'true', secrets: [NOTIFY_RESEND_KEY] }, async (request) => {
   // === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution
   // (types, tailles, énumérations) : seules les valeurs validées sont écrites.
   const parsed = parseReporterCaseInput(request.data);
@@ -1726,6 +1745,20 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   if (outcome.created) {
     await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
     await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
+    // === AMÉLIORATION AJOUTÉE (notifications e-mail) === superviseurs, DARC,
+    // et le cas échéant DGA / DRH (règles de l'administration).
+    await notifyCaseEvent('new_report', {
+      caseId,
+      facts: {
+        reference: outcome.trackingNumber,
+        category: kase.category,
+        subcategory: kase.subcategory,
+        entity: kase.entity,
+        country: kase.country,
+        priority: kase.priority,
+        implicatedLevels: (data.details?.persons ?? []).filter((p) => p.kind === 'subject').map((p) => p.hierarchyLevel),
+      },
+    });
   }
 
   // === AMÉLIORATION AJOUTÉE (pièces jointes du formulaire transmises) ===
@@ -2103,7 +2136,7 @@ export const getCaseDetails = onCall(async (request) => {
 // d'audit et l'historique du dossier.
 // ---------------------------------------------------------------------------
 
-export const applyPortalUpdate = onCall(async (request) => {
+export const applyPortalUpdate = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async (request) => {
   const user = requireAppUser(request);
   const { caseId, patch: rawPatch } = (request.data ?? {}) as { caseId?: string; patch?: unknown };
   if (typeof caseId !== 'string' || !caseId || caseId.length > 128) throw new HttpsError('invalid-argument', 'caseId is required.');
@@ -2127,6 +2160,7 @@ export const applyPortalUpdate = onCall(async (request) => {
   const rejected: { part: string; reason: string }[] = [];
   const nowIso = new Date().toISOString();
   const update: Record<string, unknown> = {};
+  let newStatus: CaseStatus | null = null; // === AMÉLIORATION AJOUTÉE (notifications e-mail) ===
 
   // 1. Statut affiché, clôture, réouverture, escalade, routage, rapport.
   if (patch.portal) {
@@ -2150,6 +2184,7 @@ export const applyPortalUpdate = onCall(async (request) => {
       // officiel du dossier suit le statut tenu par le portail (seul moteur de
       // workflow utilisé par les équipes ; permission vérifiée ci-dessus).
       const nextStatus = portalVisibleCaseStatus(kase.status, { ...(kase.portal ?? {}), ...(patch.portal as object) } as PortalState);
+      newStatus = nextStatus;
       if (nextStatus !== kase.status) {
         update.status = nextStatus;
         if (nextStatus === 'closed' && !kase.closedAt) {
@@ -2288,6 +2323,25 @@ export const applyPortalUpdate = onCall(async (request) => {
   }
   if (taskWrites.length) {
     await appendAudit({ actorId: user.userId, action: 'TASKS_UPDATED', caseId, newValue: taskWrites.map((w) => w.taskId) });
+  }
+
+  // === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+  const events: NotificationEvent[] = [];
+  if (assignment?.assignee && assignment.assignee !== (kase.assignee ?? null)) events.push('assigned');
+  if (applied.includes('portal') && patch.portal?.escalatedAt && patch.portal.escalatedAt !== kase.portal?.escalatedAt) events.push('escalated');
+  if (newStatus && newStatus !== kase.status && (newStatus === 'closed' || newStatus === 'reopened')) events.push(newStatus);
+  if (events.length) {
+    const facts: CaseNotificationFacts = {
+      reference: kase.externalReference || kase.caseNumber,
+      category: kase.category,
+      subcategory: kase.subcategory,
+      entity: kase.entity,
+      country: kase.country,
+      priority: kase.priority,
+      implicatedLevels: persons.filter((p) => p.kind === 'subject').map((p) => p.hierarchyLevel),
+    };
+    const excludedUids = [user.userId, ...implicatedUserIdsFromPersons(persons)];
+    for (const ev of events) await notifyCaseEvent(ev, { caseId, facts, excludedUids });
   }
 
   return { ok: true, applied, rejected };
@@ -2550,4 +2604,147 @@ export const listAuditLogs = onCall(async (request) => {
     ipAddress: text(r.ipAddress, 64),
   }));
   return { entries };
+});
+
+// ---------------------------------------------------------------------------
+// === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+// Envoi CÔTÉ SERVEUR des notifications (auparavant parties du navigateur : un
+// déclarant externe ne connaissant aucun compte du personnel, un nouveau
+// signalement ne prévenait en pratique personne). Destinataires et conditions
+// réglés dans l'administration (config/portal, section emailNotifications ;
+// valeurs par défaut sinon) — voir src/domain/emailNotificationRules.ts.
+// Chaque envoi (réussi ou non) est inscrit dans la piste d'audit. Un échec
+// d'envoi n'interrompt jamais l'action qui l'a déclenché.
+// ---------------------------------------------------------------------------
+
+async function loadEmailNotificationSettings(): Promise<EmailNotificationSettings> {
+  try {
+    const json = (await db.collection('config').doc('portal').get()).data()?.sections?.emailNotifications;
+    return typeof json === 'string' ? sanitizeEmailNotificationSettings(JSON.parse(json)) : DEFAULT_EMAIL_NOTIFICATION_SETTINGS;
+  } catch {
+    return DEFAULT_EMAIL_NOTIFICATION_SETTINGS;
+  }
+}
+
+async function loadStaffRecipientCandidates(): Promise<StaffRecipientCandidate[]> {
+  const snap = await db.collection('staff_users').get();
+  return snap.docs.map((d) => {
+    const x = d.data();
+    return {
+      uid: d.id,
+      email: String(x.email ?? ''),
+      name: String(x.name ?? ''),
+      role: x.role as RoleId,
+      active: x.active !== false,
+      countries: Array.isArray(x.countries) ? x.countries : [],
+      entities: Array.isArray(x.entities) ? x.entities : [],
+    };
+  });
+}
+
+function notifyAppUrl(): string {
+  if (process.env.NOTIFY_APP_URL) return process.env.NOTIFY_APP_URL;
+  const project = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'activa-ethicalert-47246';
+  return `https://${project}.web.app`;
+}
+
+/** Envoi d'un e-mail (Resend). Ne lève jamais. */
+async function sendNotificationEmail(to: string, subject: string, body: string): Promise<{ ok: boolean; error?: string }> {
+  let apiKey = '';
+  try {
+    apiKey = NOTIFY_RESEND_KEY.value();
+  } catch {
+    apiKey = '';
+  }
+  if (!apiKey) return { ok: false, error: 'Service d’envoi non configuré (RESEND_API_KEY).' };
+  const allowed = parseCsvList(process.env.NOTIFY_ALLOWED_RECIPIENT_DOMAINS);
+  if (allowed.length && !allowed.includes(to.split('@')[1]?.toLowerCase() ?? '')) {
+    return { ok: false, error: `Domaine du destinataire non autorisé (${to.split('@')[1]}).` };
+  }
+  const from = process.env.NOTIFY_FROM_EMAIL || 'ACTIVA EthicAlert <onboarding@resend.dev>';
+  const endpoint = process.env.NOTIFY_RESEND_ENDPOINT || 'https://api.resend.com/emails';
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to: [to], subject, text: body }),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timer));
+    if (!res.ok) return { ok: false, error: `Resend ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Erreur réseau' };
+  }
+}
+
+async function notifyCaseEvent(
+  event: NotificationEvent,
+  input: { caseId: string; facts: CaseNotificationFacts; excludedUids?: string[] }
+): Promise<void> {
+  try {
+    const [settings, staff] = await Promise.all([loadEmailNotificationSettings(), loadStaffRecipientCandidates()]);
+    const recipients = resolveNotificationRecipients({ event, facts: input.facts, settings, staff, excludedUids: input.excludedUids });
+    if (!recipients.length) return;
+    const appUrl = notifyAppUrl();
+    const results = await Promise.all(
+      recipients.map(async (r) => {
+        const { subject, body } = buildNotificationEmail({ event, facts: input.facts, group: r.group, reason: r.reason, appUrl });
+        return { r, res: await sendNotificationEmail(r.email, subject, body) };
+      })
+    );
+    for (const { r, res } of results) {
+      await appendAudit({
+        actorId: 'system-notifications',
+        action: res.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',
+        caseId: input.caseId,
+        objectType: 'email',
+        objectId: r.email,
+        newValue: { event, group: r.group, reason: r.reason },
+        ...(res.error ? { reason: res.error } : {}),
+      });
+    }
+  } catch (e) {
+    console.error('notifyCaseEvent failed', event, e);
+  }
+}
+
+/**
+ * E-mail d'essai vers les destinataires d'un groupe (écran d'administration) :
+ * vérifie le service d'envoi et les adresses. Renvoie le résultat par adresse.
+ */
+export const sendTestNotificationEmail = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async (request) => {
+  const user = requireAppUser(request);
+  if (!can(user, 'configuration.manage')) throw new HttpsError('permission-denied', 'Permission configuration.manage required.');
+  const { groupId, settings: rawSettings } = (request.data ?? {}) as { groupId?: unknown; settings?: unknown };
+  if (!RECIPIENT_GROUP_IDS.includes(groupId as RecipientGroupId)) throw new HttpsError('invalid-argument', 'Unknown group.');
+  let settings: EmailNotificationSettings;
+  try {
+    settings = rawSettings ? sanitizeEmailNotificationSettings(rawSettings) : await loadEmailNotificationSettings();
+  } catch (e) {
+    throw new HttpsError('invalid-argument', e instanceof Error ? e.message : 'Invalid settings.');
+  }
+  const group = settings.groups.find((g) => g.id === groupId)!;
+  const staff = await loadStaffRecipientCandidates();
+  const emails = [
+    ...new Set([
+      ...staff.filter((s) => s.active && group.roles.includes(s.role) && isValidEmail(s.email)).map((s) => s.email.toLowerCase()),
+      ...group.extraEmails,
+    ]),
+  ];
+  if (!emails.length) return { results: [] };
+  const subject = `[activa-whistleblowing] E-mail d’essai — ${GROUP_LABEL[group.id]}`;
+  const body = [
+    'Bonjour,',
+    '',
+    `Ceci est un e-mail d’essai envoyé depuis l’administration du portail activa-whistleblowing par ${user.name}.`,
+    `Vous recevrez les notifications prévues pour le groupe « ${GROUP_LABEL[group.id]} ».`,
+    '',
+    `Portail : ${notifyAppUrl()}`,
+    '— activa-whistleblowing (message automatique, ne pas répondre)',
+  ].join('\n');
+  const results = await Promise.all(emails.map(async (email) => ({ email, ...(await sendNotificationEmail(email, subject, body)) })));
+  await appendAudit({ actorId: user.userId, action: 'EMAIL_TEST_SENT', objectType: 'email', objectId: group.id, newValue: results.map((r) => ({ email: r.email, ok: r.ok })) });
+  return { results };
 });

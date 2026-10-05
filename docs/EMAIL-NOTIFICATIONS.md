@@ -149,3 +149,43 @@ Variables facultatives : `NOTIFY_ALLOWED_ORIGINS`, `NOTIFY_RATE_LIMIT` — voir
   `NOTIFY_VERCEL_ENABLED=true`, en plus de `NOTIFY_ALLOWED_RECIPIENT_DOMAINS` et
   `RESEND_API_KEY`. Ce point d'envoi ne vérifie pas l'appelant comme la Cloud
   Function : ne le réactiver qu'en connaissance de cause.
+
+## === AMÉLIORATION AJOUTÉE === Notifications des superviseurs, de la DARC, du DGA et du DRH
+
+Envoyées **par le serveur** (Cloud Functions `createCaseAsReporter` et
+`applyPortalUpdate`), et non plus depuis le navigateur. Le navigateur d'un
+déclarant externe ne connaît aucun compte du personnel : un nouveau
+signalement ne prévenait donc en pratique personne.
+
+Réglages : **Administration → Notifications e-mail** (`/admin/notifications`,
+permission `configuration.manage`). Ils sont partagés par tous les postes
+(configuration partagée, section `emailNotifications`).
+
+| Groupe | Destinataires par défaut | Prévenu par défaut |
+|---|---|---|
+| Superviseurs | comptes Opérateur (`functional_admin`) et Responsable des investigations (`senior_investigator`), dans leur périmètre pays / entité | nouveau signalement, attribution, escalade, clôture, réouverture |
+| DARC | comptes DARC (`darc_compliance`) + boîte e-mail de la DARC | nouveau signalement, escalade, clôture, réouverture |
+| DGA | adresse(s) à saisir | **le cas échéant** : nouveau signalement et clôture si dossier critique ou personne de rang Direction mise en cause ; toujours en cas d'escalade |
+| DRH | adresse(s) à saisir | **le cas échéant** : nouveau signalement et clôture d'un dossier relevant des Ressources Humaines |
+
+Conditions « le cas échéant » :
+- **Dossier critique** : priorité très élevée ou critique ;
+- **Dossier RH** : catégorie cochée comme RH, ou mention du harcèlement, de la discrimination ou des conditions de travail ;
+- **Direction mise en cause** : personne mise en cause de niveau sous-directeur, directeur ou plus.
+
+Garde-fous :
+- Contenu des e-mails : numéro du dossier, entité, catégorie, priorité, motif et lien vers le portail. Jamais la description des faits, l'identité du déclarant ni le nom des personnes mises en cause.
+- Ne sont jamais prévenus : l'auteur de l'action, un compte rattaché à une personne mise en cause, un compte désactivé.
+- Chaque envoi, réussi ou non, est inscrit dans la piste d'audit (`EMAIL_NOTIFICATION_SENT` / `EMAIL_NOTIFICATION_FAILED`).
+- Domaines de destinataires autorisés : `NOTIFY_ALLOWED_RECIPIENT_DOMAINS` (`group-activa.com` par défaut).
+- Bouton **« Envoyer un e-mail d'essai »** par groupe : vérifie le service d'envoi et les adresses.
+
+**Prérequis d'envoi réel** : clé Resend (`RESEND_API_KEY`, déjà utilisée) et
+adresse d'expédition sur un domaine vérifié dans Resend. Elle se règle par la
+variable de dépôt `NOTIFY_FROM_EMAIL`, par exemple
+`ACTIVA EthicAlert <notifications@group-activa.com>`. Avec l'expéditeur de test
+par défaut (`onboarding@resend.dev`), Resend n'envoie qu'au propriétaire du
+compte Resend : l'e-mail d'essai l'indique alors en erreur.
+
+Vérification de bout en bout sur émulateurs, avec un faux service d'envoi :
+`scripts/e2eEmailNotifications.emulator.mts`.

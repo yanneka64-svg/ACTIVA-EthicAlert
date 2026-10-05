@@ -18,7 +18,7 @@ import React from 'react';
 import type { Language, UserProfile } from '../types';
 import { PermissionGuard } from '../routing/guards';
 import { canSeeAuditTrail, canManageConfiguration, userCan } from '../services/authz';
-import { InvestigationDesk, OperatorCaseDesk, ControlPanel, ReportingDashboard, ExecutiveDashboard, AuditTrailView, AdminConfigView, TasksRegistry, EvidenceRegistry, CommunicationsRegistry, CorrectiveActionsRegistry, AdvancedSearchView } from './lazyScreens';
+import { InvestigationDesk, OperatorCaseDesk, ControlPanel, ReportingDashboard, ExecutiveDashboard, AuditTrailView, AdminConfigView, TasksRegistry, EvidenceRegistry, CommunicationsRegistry, CorrectiveActionsRegistry, AdvancedSearchView, EmailNotificationsTab } from './lazyScreens';
 
 export type StaffCaseFilter = { status?: string; unassignedOnly?: boolean; overdueOnly?: boolean; trackingNumber?: string; myCasesOnly?: boolean };
 
@@ -460,6 +460,14 @@ export function renderStaffScreen(ctx: StaffScreenContext): React.ReactNode {
     );
   }
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
+  // === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+  if (currentTab === 'admin_notifications') {
+    return (
+      <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label="Notifications e-mail">
+        <EmailNotificationsTab activeUser={activeUser} />
+      </PermissionGuard>
+    );
+  }
   if (currentTab === 'admin_governance') {
     return (
       <PermissionGuard lang={lang} allowed={canManageConfiguration(activeUser)} label="Gouvernance">
