@@ -7,6 +7,8 @@
  * propre copie. Règles pures partagées par le navigateur et les Cloud
  * Functions (getPortalConfig / savePortalConfig).
  */
+import { sanitizeEmailNotificationSettings } from './emailNotificationRules';
+
 export const PORTAL_CONFIG_SECTIONS = [
   'entities',
   'countries',
@@ -16,6 +18,8 @@ export const PORTAL_CONFIG_SECTIONS = [
   'rolePermissions',
   'workflowTransitions',
   'escalationRecipients',
+  // === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+  'emailNotifications',
 ] as const;
 export type PortalConfigSection = (typeof PORTAL_CONFIG_SECTIONS)[number];
 
@@ -34,6 +38,8 @@ export function isPortalConfigSection(value: unknown): value is PortalConfigSect
  */
 export function serializePortalConfigSection(section: unknown, value: unknown): { section: PortalConfigSection; json: string } {
   if (!isPortalConfigSection(section)) throw new Error('Unknown configuration section.');
+  // === AMÉLIORATION AJOUTÉE (notifications e-mail) === validation stricte des adresses et règles.
+  if (section === 'emailNotifications') value = sanitizeEmailNotificationSettings(value);
   const isList = LIST_SECTIONS.includes(section);
   if (isList ? !Array.isArray(value) : !value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`Section ${section} must be ${isList ? 'a list' : 'an object'}.`);

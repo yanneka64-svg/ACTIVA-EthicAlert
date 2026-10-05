@@ -10,7 +10,7 @@
  * composant) est désormais exporté d'ici. Aucun changement de comportement.
  */
 import React from 'react';
-import { LayoutDashboard, FolderOpen, Search, Paperclip, MessageSquare, Wrench, LayoutGrid, Users, ShieldCheck, Globe2, Network, SlidersHorizontal, Inbox, UserPlus, Clock3, CheckCircle2, ListChecks, BarChart3, Building2, Tag, ClipboardCheck, Eye, Archive } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Search, Paperclip, MessageSquare, Wrench, LayoutGrid, Users, ShieldCheck, Globe2, Network, SlidersHorizontal, Inbox, UserPlus, Clock3, CheckCircle2, ListChecks, BarChart3, Building2, Tag, ClipboardCheck, Eye, Archive, Mail } from 'lucide-react';
 import type { UserProfile } from '../../types';
 import { userCan } from '../../services/authz';
 import type { Permission } from '../../domain/permissions';
@@ -128,6 +128,8 @@ export function buildSpaceNavItems(
     { key: 'admin_users', label: t.sidebar_admin_users, icon: <Users className="w-4 h-4" />, group: '' },
     { key: 'admin_roles', label: t.sidebar_admin_roles, icon: <ShieldCheck className="w-4 h-4" />, group: '' },
     { key: 'admin_governance', label: t.side_governance, icon: <Network className="w-4 h-4" />, group: '' },
+    // === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+    { key: 'admin_notifications', label: t.side_email_notifications || 'Notifications e-mail', icon: <Mail className="w-4 h-4" />, group: '' },
     // === AMÉLIORATION AJOUTÉE (Correction demandée — onglet "Base de
     // données" retiré) === Entrée "Base de données" retirée d'ici, sur
     // demande explicite de l'utilisateur — l'écran (rattachement Firebase)

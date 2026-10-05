@@ -32,6 +32,7 @@ import { STORAGE_KEYS, DATA_CHANGE_EVENT } from './storageKeys';
 // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
 import { diffPortalUpdate, PORTAL_LOCAL_ONLY_KEYS } from '../domain/portalUpdate';
 import type { PortalConfigSection } from '../domain/portalConfig';
+import { DEFAULT_EMAIL_NOTIFICATION_SETTINGS, sanitizeEmailNotificationSettings, type EmailNotificationSettings } from '../domain/emailNotificationRules';
 
 // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === ancien envoi des
 // statuts vers changeCaseStatus, remplacé par applyPortalUpdate (voir plus bas).
@@ -129,6 +130,7 @@ class StorageService {
       case 'rolePermissions': return this.rolePermissions;
       case 'workflowTransitions': return this.workflowTransitions;
       case 'escalationRecipients': return this.escalationRecipients;
+      case 'emailNotifications': return this.getEmailNotificationSettings();
     }
   }
 
@@ -179,6 +181,9 @@ class StorageService {
           this.workflowTransitions = { ...ALLOWED_TRANSITIONS, ...(value as Partial<Record<CaseStatus, CaseStatus[]>>) };
           this.persistWorkflowTransitions();
           setWorkflowTransitions(this.workflowTransitions);
+          break;
+        case 'emailNotifications':
+          this.persistEmailNotificationSettings(sanitizeEmailNotificationSettings(value));
           break;
       }
     } finally {
@@ -913,6 +918,34 @@ class StorageService {
     if (!changed) return;
     this.persistAlerts();
     this.notify();
+  }
+
+  // === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+  /** Réglages des notifications e-mail (partagés entre les postes, appliqués par le serveur). */
+  public getEmailNotificationSettings(): EmailNotificationSettings {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.EMAIL_NOTIFICATIONS);
+      return raw ? sanitizeEmailNotificationSettings(JSON.parse(raw)) : DEFAULT_EMAIL_NOTIFICATION_SETTINGS;
+    } catch {
+      return DEFAULT_EMAIL_NOTIFICATION_SETTINGS;
+    }
+  }
+
+  private persistEmailNotificationSettings(settings: EmailNotificationSettings): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.EMAIL_NOTIFICATIONS, JSON.stringify(settings));
+    } catch (e) {
+      console.error('Failed to persist email notification settings', e);
+    }
+    this.onConfigPersist('emailNotifications');
+  }
+
+  /** Enregistre les réglages (validés) et les partage avec le serveur. Lève une Error si une adresse est invalide. */
+  public updateEmailNotificationSettings(settings: EmailNotificationSettings, actor: UserProfile): void {
+    const clean = sanitizeEmailNotificationSettings(settings);
+    this.persistEmailNotificationSettings(clean);
+    this.notify();
+    this.logAudit('CONFIG_UPDATED', `Notifications e-mail (superviseurs, DARC, DGA, DRH) mises à jour par ${actor.name}.`, undefined, actor);
   }
 
   public deleteAlert(alertId: string): boolean {

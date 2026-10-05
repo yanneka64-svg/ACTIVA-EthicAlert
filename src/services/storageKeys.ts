@@ -31,6 +31,8 @@ export const STORAGE_KEYS = {
   ESCALATION_RECIPIENTS: 'activa_ethicalert_escalation_recipients_v1',
   // === AMÉLIORATION AJOUTÉE (numérotation officielle des dossiers) ===
   CASE_NUMBER_COUNTERS: 'activa_ethicalert_case_number_counters_v1',
+  // === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+  EMAIL_NOTIFICATIONS: 'activa_ethicalert_email_notifications_v1',
 };
 
 // Event dispatched when data changes

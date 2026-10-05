@@ -104,6 +104,8 @@ const STAFF_TAB_KEYS = [
   'admin_audit', 'admin_reports', 'admin_organization',
   // === AMÉLIORATION AJOUTÉE (Phase 5 — routage indépendant) ===
   'admin_governance',
+  // === AMÉLIORATION AJOUTÉE (notifications e-mail) ===
+  'admin_notifications',
   // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
   'advanced_search',
   // === AMÉLIORATION AJOUTÉE (Navigation Admin unifiée) ===

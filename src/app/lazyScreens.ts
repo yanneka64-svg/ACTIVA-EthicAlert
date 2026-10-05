@@ -45,6 +45,8 @@ export const EvidenceRegistry = lazy(() => import('../components/EvidenceRegistr
 export const CommunicationsRegistry = lazy(() => import('../components/CommunicationsRegistry').then((m) => ({ default: m.CommunicationsRegistry })));
 export const CorrectiveActionsRegistry = lazy(() => import('../components/CorrectiveActionsRegistry').then((m) => ({ default: m.CorrectiveActionsRegistry })));
 // === AMÉLIORATION AJOUTÉE (Recherche avancée dédiée) ===
+// === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
+export const EmailNotificationsTab = lazy(() => import('../components/admin/EmailNotificationsTab').then((m) => ({ default: m.EmailNotificationsTab })));
 export const AdvancedSearchView = lazy(() => import('../components/AdvancedSearchView').then((m) => ({ default: m.AdvancedSearchView })));
 // === AMÉLIORATION AJOUTÉE (Phase 12.4 — connexion interne dédiée) ===
 export const StaffLoginView = lazy(() => import('../components/StaffLoginView').then((m) => ({ default: m.StaffLoginView })));
