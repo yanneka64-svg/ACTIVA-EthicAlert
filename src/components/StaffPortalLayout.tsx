@@ -27,9 +27,21 @@ import { useVisibleAlerts } from '../hooks/useVisibleAlerts';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import { NewMessageToast } from './staffPortal/NewMessageToast';
 import type { AlertRecord } from '../types';
+import { MODE_CONFIG, type OperatorDeskMode } from './operatorDesk/modeConfig';
 
 /** Entrées du menu qui affichent le nombre de messages du déclarant non lus. */
 const UNREAD_BADGE_KEYS = new Set(['op_inbox', 'inv_inbox', 'inv_dashboard', 'communications']);
+// === AMÉLIORATION AJOUTÉE (pastille fidèle à l'écran) === la pastille d'un
+// écran de dossiers ne compte que les messages non lus des dossiers que cet
+// écran affiche réellement (ex. la Boîte de réception opérateur ne liste que
+// les nouveaux signalements) ; « Communications » compte tout.
+const UNREAD_BADGE_MODES: Record<string, OperatorDeskMode> = {
+  op_inbox: 'inbox',
+  op_pending_info: 'pending_info',
+  op_processed: 'assigned',
+  inv_dashboard: 'inv_inbox',
+  inv_pending: 'pending_info',
+};
 
 /**
  * === AMÉLIORATION AJOUTÉE (Réorganisation navigation — Proposition B) ===
@@ -91,11 +103,21 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
   useEffect(() => storage.subscribe(() => setAllAlerts(storage.getAlerts())), []);
   const visibleForUnread = useVisibleAlerts(allAlerts, activeUser);
   const unread = useUnreadMessages(visibleForUnread, activeUser);
+  const badgeCount = (key: string): number => {
+    const mode = UNREAD_BADGE_MODES[key];
+    if (!mode) return UNREAD_BADGE_KEYS.has(key) ? unread.total : 0;
+    let n = 0;
+    for (const a of visibleForUnread) if (MODE_CONFIG[mode].predicate(a)) n += unread.byAlert.get(a.id) ?? 0;
+    return n;
+  };
   const [toast, setToast] = useState<{ alertId: string; trackingNumber: string; preview: string } | null>(null);
   const previousUnread = useRef<Map<string, number> | null>(null);
   useEffect(() => {
     const prev = previousUnread.current;
     previousUnread.current = unread.byAlert;
+    // === AMÉLIORATION AJOUTÉE === la notification se ferme d'elle-même une
+    // fois la conversation de ce dossier lue.
+    setToast((cur) => (cur && !unread.byAlert.get(cur.alertId) ? null : cur));
     if (!prev) return;
     for (const [alertId, n] of unread.byAlert) {
       if (n > (prev.get(alertId) ?? 0)) {
@@ -202,8 +224,8 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
           {item.icon}
           <span>{item.label}</span>
           {/* === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) === */}
-          {UNREAD_BADGE_KEYS.has(item.key) && unread.total > 0 && (
-            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">{unread.total}</span>
+          {badgeCount(item.key) > 0 && (
+            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">{badgeCount(item.key)}</span>
           )}
         </button>
       );
@@ -241,12 +263,12 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
           <span className="truncate">{item.label}</span>
         </span>
         {/* === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) === */}
-        {UNREAD_BADGE_KEYS.has(item.key) && unread.total > 0 && (
+        {badgeCount(item.key) > 0 && (
           <span
             className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow-sm shadow-rose-600/30 motion-safe:animate-pulse"
-            title={(t.chat_unread_badge || '{n} message(s) non lu(s)').replace('{n}', String(unread.total))}
+            title={(t.chat_unread_badge || '{n} message(s) non lu(s)').replace('{n}', String(badgeCount(item.key)))}
           >
-            {unread.total}
+            {badgeCount(item.key)}
           </span>
         )}
         {active && <ChevronRight className="activa-enter-x w-3.5 h-3.5 text-blue-500 shrink-0" />}
