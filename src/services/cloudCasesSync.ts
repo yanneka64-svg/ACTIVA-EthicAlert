@@ -103,7 +103,8 @@ async function run(activeUser: UserProfile): Promise<number | null> {
     // Dossiers créés dans ce navigateur et déjà liés : la copie locale reste la référence.
     const localAlerts = storage.getAlerts();
     const ownedLocally = new Set(localAlerts.filter((a) => !a.cloudImported && a.mirroredCaseId).map((a) => a.mirroredCaseId as string));
-    const toLoad = caseIds.filter((id) => !ownedLocally.has(id));
+    // === AMÉLIORATION AJOUTÉE (correctif — pagination sans fin) === sans doublon.
+    const toLoad = Array.from(new Set(caseIds)).filter((id) => !ownedLocally.has(id));
 
     const { httpsCallable } = await import('firebase/functions');
     const getCaseDetails = httpsCallable<{ caseIds: string[] }, { details: CaseDetail[] }>(await getPhase4Functions(), 'getCaseDetails');

@@ -125,6 +125,20 @@ describe('FirestoreCaseRepository — listCases', () => {
     expect(mockGetDoc).not.toHaveBeenCalled();
     expect(result).toEqual(page);
   });
+
+  // === AMÉLIORATION AJOUTÉE (correctif — pagination sans fin) ===
+  it('traite un nextOffset `null` (encodage des fonctions appelables) comme la dernière page', async () => {
+    mockCallableResolves({ items: [fakeCase()], total: 1, nextOffset: null });
+    const result = await new FirestoreCaseRepository().listCases({}, user(), 100, 0);
+    expect(result.nextOffset).toBeUndefined();
+  });
+
+  it('conserve un nextOffset numérique qui avance, refuse un retour en arrière', async () => {
+    mockCallableResolves({ items: [], total: 250, nextOffset: 200 });
+    expect((await new FirestoreCaseRepository().listCases({}, user(), 100, 100)).nextOffset).toBe(200);
+    mockCallableResolves({ items: [], total: 250, nextOffset: 0 });
+    expect((await new FirestoreCaseRepository().listCases({}, user(), 100, 100)).nextOffset).toBeUndefined();
+  });
 });
 
 describe('FirestoreCaseRepository — changeCaseStatus', () => {
