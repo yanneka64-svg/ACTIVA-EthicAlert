@@ -1005,6 +1005,12 @@ export const fr: Record<string, string> = {
   // === AMÉLIORATION AJOUTÉE (messages de connexion précis) ===
   login_error_policy_signin: 'Votre mot de passe ne respecte plus la politique de sécurité. Demandez à un administrateur de le réinitialiser depuis Administration → Utilisateurs.',
   login_error_too_many_firebase: 'Trop de tentatives de connexion. Patientez quelques minutes avant de réessayer, ou demandez à un administrateur de réinitialiser votre mot de passe.',
+  // === AMÉLIORATION AJOUTÉE (règles du mot de passe visibles) ===
+  login_rule_length: '8 caractères minimum',
+  login_rule_uppercase: 'Une lettre majuscule (A-Z)',
+  login_rule_lowercase: 'Une lettre minuscule (a-z)',
+  login_rule_digit: 'Un chiffre (0-9)',
+  login_rule_special: 'Un caractère spécial (ex. ! @ # % & * ?)',
   login_change_submit: 'Définir ce mot de passe',
   login_change_pending: 'Mise à jour…',
   // === AMÉLIORATION AJOUTÉE : rôles, navigation, accueil, QR code (FR/EN/PT) ===

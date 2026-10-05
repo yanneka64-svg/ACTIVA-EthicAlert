@@ -819,6 +819,12 @@ export const en: Record<string, string> = {
   // === AMÉLIORATION AJOUTÉE (messages de connexion précis) ===
   login_error_policy_signin: 'Your password no longer meets the security policy. Ask an administrator to reset it from Administration → Users.',
   login_error_too_many_firebase: 'Too many sign-in attempts. Wait a few minutes before trying again, or ask an administrator to reset your password.',
+  // === AMÉLIORATION AJOUTÉE (règles du mot de passe visibles) ===
+  login_rule_length: 'At least 8 characters',
+  login_rule_uppercase: 'One uppercase letter (A-Z)',
+  login_rule_lowercase: 'One lowercase letter (a-z)',
+  login_rule_digit: 'One digit (0-9)',
+  login_rule_special: 'One special character (e.g. ! @ # % & * ?)',
   login_change_submit: 'Set this password',
   login_change_pending: 'Updating…',
   // === AMÉLIORATION AJOUTÉE : rôles, navigation, accueil, QR code (FR/EN/PT) ===
