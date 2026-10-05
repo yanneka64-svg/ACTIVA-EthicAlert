@@ -42,7 +42,9 @@ import {
   staffScopeFor,
   validateStaffNewPassword,
 } from '../../src/domain/staffAccounts';
-import { generateAccessPassword } from '../../src/services/crypto';
+// === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) === mots de
+// passe temporaires conformes (majuscule, minuscule, chiffre, caractère spécial).
+import { generatePolicyCompliantPassword } from '../../src/services/crypto';
 
 const DATABASE_ID = process.env.FIRESTORE_DATABASE_ID || 'default';
 const STAFF_USERS = 'staff_users';
@@ -182,7 +184,7 @@ export const createStaffAccount = onCall(async (request) => {
   };
 
   const usernameRef = await reserveUsername(input.username, caller.uid);
-  const tempPassword = generateAccessPassword(TEMP_PASSWORD_LENGTH);
+  const tempPassword = generatePolicyCompliantPassword(TEMP_PASSWORD_LENGTH);
   let uid: string;
   try {
     const created = await getAuth().createUser({
@@ -288,7 +290,7 @@ export const deleteStaffAccount = onCall(async (request) => {
 export const resetStaffAccountPassword = onCall(async (request) => {
   const caller = requireUserManager(request);
   const current = await loadProfile((request.data as { id?: unknown } | undefined)?.id);
-  const tempPassword = generateAccessPassword(TEMP_PASSWORD_LENGTH);
+  const tempPassword = generatePolicyCompliantPassword(TEMP_PASSWORD_LENGTH);
   await getAuth().updateUser(current.id, { password: tempPassword }).catch((e: unknown) => {
     throw authError(e);
   });

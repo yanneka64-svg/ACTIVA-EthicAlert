@@ -810,10 +810,12 @@ export const en: Record<string, string> = {
   login_change_title: 'Change your password',
   login_change_intro: 'First sign-in for {name}: a new password is required before accessing your workspace.',
   login_new_password: 'New password',
-  login_new_password_hint: 'At least 8 characters',
+  login_new_password_hint: 'At least 8 characters, with uppercase, lowercase, digit and special character',
   login_confirm_password: 'Confirm the new password',
   login_error_too_short: 'The password must contain at least 8 characters.',
   login_error_mismatch: 'The two passwords do not match.',
+  // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) ===
+  login_error_policy: 'The password must contain at least one uppercase letter, one lowercase letter, one digit and one special character (e.g. ! @ # % & * ?).',
   login_change_submit: 'Set this password',
   login_change_pending: 'Updating…',
   // === AMÉLIORATION AJOUTÉE : rôles, navigation, accueil, QR code (FR/EN/PT) ===

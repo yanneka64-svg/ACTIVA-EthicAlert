@@ -104,6 +104,37 @@ export async function hashPasswordLegacy(password: string, salt: string): Promis
 // exactement comme avant, rien n'est modifié côté stockage/vérification) ===
 const ACCESS_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 
+// === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) ===
+// Mot de passe temporaire du personnel conforme à la politique Firebase du
+// projet : au moins une majuscule, une minuscule, un chiffre et un caractère
+// spécial (reconnu par Firebase), sans caractères ambigus (I/l/1, O/0).
+// Tirage CSPRNG par rejet (aucun biais de modulo), positions mélangées.
+const POLICY_UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+const POLICY_LOWER = 'abcdefghijkmnpqrstuvwxyz';
+const POLICY_DIGITS = '23456789';
+const POLICY_SPECIAL = '!@#%&*?-_+=';
+
+function randomIndex(max: number): number {
+  const limit = 256 - (256 % max);
+  const byte = new Uint8Array(1);
+  do {
+    crypto.getRandomValues(byte);
+  } while (byte[0] >= limit);
+  return byte[0] % max;
+}
+
+export function generatePolicyCompliantPassword(length = 12): string {
+  const size = Math.max(8, length);
+  const all = POLICY_UPPER + POLICY_LOWER + POLICY_DIGITS + POLICY_SPECIAL;
+  const chars = [POLICY_UPPER, POLICY_LOWER, POLICY_DIGITS, POLICY_SPECIAL].map((set) => set[randomIndex(set.length)]);
+  while (chars.length < size) chars.push(all[randomIndex(all.length)]);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
+}
+
 /** Generates a random, unambiguous 8-character access password (client-side, CSPRNG). */
 export function generateAccessPassword(length = 8): string {
   const bytes = crypto.getRandomValues(new Uint8Array(length));
