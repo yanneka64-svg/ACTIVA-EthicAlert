@@ -18,6 +18,10 @@ import sys
 from playwright.sync_api import sync_playwright
 
 SITE = os.environ.get("SITE_URL", "https://activa-ethicalert-47246.web.app")
+# === AMÉLIORATION AJOUTÉE === REAL=1 : l'appel part vraiment vers le serveur
+# (crée un dossier de test « à classer sans suite ») et sa réponse est
+# affichée. Par défaut, l'appel est intercepté et rien n'est créé.
+REAL = os.environ.get("REAL") == "1"
 ACCESS_CODE_RE = re.compile(r"^[A-Za-z0-9]{8,64}$")
 EXTERNAL_REF_RE = re.compile(r"^[A-Z0-9][A-Z0-9-]{2,39}$")
 LIMITS = {"category": 150, "subcategory": 150, "country": 100, "entity": 150, "description": 20000}
@@ -61,7 +65,27 @@ def main():
             route.fulfill(status=200, content_type="application/json",
                           body=json.dumps({"result": {"caseId": "diagnostic", "caseNumber": "DIAGNOSTIC"}}))
 
-        page.route(re.compile(r".*createCaseAsReporter.*"), intercept)
+        responses = []
+
+        def on_response(res):
+            if "createCaseAsReporter" in res.url:
+                try:
+                    body = res.text()
+                except Exception as e:  # noqa: BLE001
+                    body = f"(corps illisible : {e})"
+                responses.append(f"HTTP {res.status} {body[:600]}")
+
+        page.on("response", on_response)
+        if REAL:
+            captured_ref = captured
+
+            def observe(route, request):
+                captured_ref.append({"url": request.url, "body": request.post_data})
+                route.continue_()
+
+            page.route(re.compile(r".*createCaseAsReporter.*"), observe)
+        else:
+            page.route(re.compile(r".*createCaseAsReporter.*"), intercept)
 
         page.goto(SITE, wait_until="networkidle")
         page.click("#hero-btn-new-alert")
@@ -73,7 +97,12 @@ def main():
         page.wait_for_timeout(400)
         page.fill("#input-incident-dates", "Octobre 2026")
         page.fill("#input-incident-location", "Diagnostic automatique")
-        page.fill("#input-detailed-description", "[TEST AUTOMATIQUE DIAGNOSTIC - intercepté, jamais envoyé]")
+        page.fill(
+            "#input-detailed-description",
+            "[TEST AUTOMATIQUE] Vérification technique du dépôt — à classer sans suite"
+            if REAL
+            else "[TEST AUTOMATIQUE DIAGNOSTIC - intercepté, jamais envoyé]",
+        )
         page.click("#btn-step3-next")
         page.click("#btn-step4-next")
         page.wait_for_timeout(400)
@@ -94,6 +123,11 @@ def main():
         print("Contenu :", json.dumps(shown, ensure_ascii=False))
         problems = validate(data)
         print("Validation serveur :", "OK" if not problems else "REFUS -> " + " ; ".join(problems))
+
+    if REAL:
+        print("\n=== Réponse du serveur à createCaseAsReporter ===")
+        for r in responses or ["(aucune réponse reçue)"]:
+            print(r)
 
     print("\n=== Console et erreurs du navigateur ===")
     for line in logs[-40:]:
