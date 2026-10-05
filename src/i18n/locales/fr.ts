@@ -311,6 +311,17 @@ export const fr: Record<string, string> = {
   space_home_admin_desc: 'Configuration, gestion des utilisateurs et suivi global de la plateforme.',
   space_home_general_title: 'Espace Consultant',
   space_home_general_desc: 'Accès aux dossiers partagés et appui technique.',
+  // === AMÉLIORATION AJOUTÉE (Organisation du Groupe) ===
+  org_title: 'Organisation du Groupe',
+  org_subtitle: '{c} pays · {n} entités · sélectionnez un pays pour voir et gérer ses entités',
+  org_search_ph: 'Rechercher un pays, une entité, un code…',
+  org_countries: 'Pays',
+  org_edit_country: 'Modifier le pays',
+  org_stat_entities: 'Entités',
+  org_stat_accounts: 'Comptes rattachés',
+  org_stat_code: 'Code pays',
+  org_example: 'exemple :',
+  org_add_entity_in: 'Ajouter une entité ({country})',
   // === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
   adm_filter_all: 'Tous',
   adm_no_result: 'Aucun résultat pour cette recherche.',

@@ -257,6 +257,17 @@ export const en: Record<string, string> = {
   space_home_admin_desc: 'Configuration, user management and platform oversight.',
   space_home_general_title: 'Consultant Space',
   space_home_general_desc: 'Access to shared cases and technical support.',
+  // === AMÉLIORATION AJOUTÉE (Organisation du Groupe) ===
+  org_title: 'Group organisation',
+  org_subtitle: '{c} countries · {n} entities · select a country to view and manage its entities',
+  org_search_ph: 'Search a country, an entity, a code…',
+  org_countries: 'Countries',
+  org_edit_country: 'Edit country',
+  org_stat_entities: 'Entities',
+  org_stat_accounts: 'Linked accounts',
+  org_stat_code: 'Country code',
+  org_example: 'e.g.',
+  org_add_entity_in: 'Add an entity ({country})',
   // === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
   adm_filter_all: 'All',
   adm_no_result: 'No result for this search.',

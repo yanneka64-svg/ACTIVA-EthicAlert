@@ -258,6 +258,17 @@ export const pt: Record<string, string> = {
   space_home_admin_desc: 'Configuração, gestão de utilizadores e supervisão da plataforma.',
   space_home_general_title: 'Espaço Consultor',
   space_home_general_desc: 'Acesso aos casos partilhados e apoio técnico.',
+  // === AMÉLIORATION AJOUTÉE (Organisation du Groupe) ===
+  org_title: 'Organização do Grupo',
+  org_subtitle: '{c} países · {n} entidades · selecione um país para ver e gerir as suas entidades',
+  org_search_ph: 'Pesquisar país, entidade, código…',
+  org_countries: 'Países',
+  org_edit_country: 'Editar país',
+  org_stat_entities: 'Entidades',
+  org_stat_accounts: 'Contas associadas',
+  org_stat_code: 'Código do país',
+  org_example: 'ex.:',
+  org_add_entity_in: 'Adicionar uma entidade ({country})',
   // === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
   adm_filter_all: 'Todos',
   adm_no_result: 'Nenhum resultado para esta pesquisa.',

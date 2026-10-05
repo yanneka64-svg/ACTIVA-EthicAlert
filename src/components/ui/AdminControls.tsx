@@ -288,7 +288,8 @@ export const SearchField: React.FC<{ id: string; value: string; onChange: (v: st
     </svg>
     <input
       id={id}
-      type="search"
+      type="text"
+      role="searchbox"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
