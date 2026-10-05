@@ -13,6 +13,8 @@
 import { useState } from 'react';
 import { evaluateEscalationCriteria } from '../../../domain/escalationCriteria';
 import { notifyEscalationRecipient } from '../../../services/emailNotify';
+// === AMÉLIORATION AJOUTÉE (un seul envoi d'e-mail à l'escalade) ===
+const ESCALATION_EMAIL_FROM_BROWSER = false;
 import { storage } from '../../../services/storage';
 import { AlertRecord, UserProfile } from '../../../types';
 
@@ -33,7 +35,13 @@ export function useEscalateForm(selectedAlert: AlertRecord | null, activeUser: U
     const criteriaMatched = evaluateEscalationCriteria(selectedAlert).map((c) => c.label);
     const result = storage.escalateAlert(selectedAlert.id, escalateReason.trim(), criteriaMatched, escalateOwnerId, activeUser);
     if (result.allowed) {
-      if (result.recipient) {
+      // === AMÉLIORATION AJOUTÉE (un seul envoi d'e-mail à l'escalade) ===
+      // L'escalade est désormais notifiée par le serveur (applyPortalUpdate →
+      // e-mails « Dossier escaladé » selon Administration → Notifications
+      // e-mail). L'ancien envoi depuis le navigateur vers le registre
+      // Gouvernance est coupé pour éviter les e-mails en double ; il reste
+      // réactivable par ESCALATION_EMAIL_FROM_BROWSER.
+      if (result.recipient && ESCALATION_EMAIL_FROM_BROWSER) {
         notifyEscalationRecipient(result.recipient, selectedAlert, activeUser, 'Dossier escaladé');
       }
       setShowEscalateModal(false);

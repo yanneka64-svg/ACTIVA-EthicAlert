@@ -16,6 +16,17 @@ on:
         required: true
         default: false
         type: boolean
+      # === AMÉLIORATION AJOUTÉE (purge des dossiers de test saisis à la main) ===
+      allow_unmarked:
+        description: "Accepter des dossiers de recette SANS le marqueur [TEST AUTOMATIQUE]"
+        required: false
+        default: false
+        type: boolean
+      confirm_refs:
+        description: "Si dossiers sans marqueur : retaper ici les mêmes numéros (double saisie)"
+        required: false
+        default: ""
+        type: string
 
 concurrency:
   group: firebase-delete-test-cases
@@ -63,4 +74,6 @@ jobs:
           FIRESTORE_DATABASE_ID: default
           TEST_REFS: ${{ inputs.refs }}
           DRY_RUN: ${{ inputs.confirm && '0' || '1' }}
+          ALLOW_UNMARKED: ${{ inputs.allow_unmarked && '1' || '0' }}
+          CONFIRM_REFS: ${{ inputs.confirm_refs }}
         run: npx tsx scripts/deleteTestCases.ts
