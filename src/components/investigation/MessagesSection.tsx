@@ -22,6 +22,7 @@ import { currentT } from '../../i18n/currentLang';
 import { useLiveConversation } from '../../hooks/useLiveConversation';
 import { TypingIndicator } from '../ui/TypingIndicator';
 import { MessageAttachments } from '../ui/MessageAttachments';
+import { useAutoScrollToBottom } from '../../hooks/useAutoScrollToBottom';
 
 interface MessagesSectionProps {
   selectedAlert: AlertRecord;
@@ -41,6 +42,7 @@ export const MessagesSection: React.FC<MessagesSectionProps> = ({
   // === AMÉLIORATION AJOUTÉE (échanges instantanés) === rafraîchissement 3 s,
   // « le déclarant est en train d'écrire », signal de frappe (anonyme).
   const { otherTyping, notifyTyping, live } = useLiveConversation(selectedAlert);
+  const scrollRef = useAutoScrollToBottom<HTMLDivElement>(`${selectedAlert.messages.length}-${otherTyping ? 1 : 0}`);
   return (
     <div className="p-6 flex flex-col h-[560px] text-xs">
       <div className="border-b border-slate-100 pb-3 mb-4">
@@ -60,7 +62,7 @@ export const MessagesSection: React.FC<MessagesSectionProps> = ({
       </div>
 
       {/* Messages list */}
-      <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2 mb-4">
         {selectedAlert.messages.map((m) => {
           const isWb = m.sender === 'whistleblower';
           return (

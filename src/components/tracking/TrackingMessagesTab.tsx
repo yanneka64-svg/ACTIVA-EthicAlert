@@ -16,6 +16,7 @@ import { AlertRecord } from '../../types';
 import { TypingIndicator } from '../ui/TypingIndicator';
 import { MessageAttachments } from '../ui/MessageAttachments';
 import type { SendFileResult } from '../../services/reporterCloudAccess';
+import { useAutoScrollToBottom } from '../../hooks/useAutoScrollToBottom';
 
 interface TrackingMessagesTabProps {
   t: Record<string, string>;
@@ -63,6 +64,8 @@ export const TrackingMessagesTab: React.FC<TrackingMessagesTabProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [sendingFile, setSendingFile] = useState(false);
+  // === AMÉLIORATION AJOUTÉE (échanges instantanés) === dernier message toujours visible.
+  const scrollRef = useAutoScrollToBottom<HTMLDivElement>(`${activeAlert.messages.length}-${teamTyping ? 1 : 0}`);
   const onSubmit = (e: React.FormEvent) => {
     if (pendingFile && onSendFile) {
       e.preventDefault();
@@ -99,7 +102,7 @@ export const TrackingMessagesTab: React.FC<TrackingMessagesTabProps> = ({
         </div>
 
         {/* Messages scroll box */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
           {activeAlert.messages.length === 0 ? (
             <div className="text-center py-12 text-slate-400 text-xs">
               {t.track_no_messages}
