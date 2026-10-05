@@ -80,30 +80,32 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
   // connexion (StaffLoginView.tsx).
   const SPACE_CONTENT: Record<SpaceKey, { icon: React.ReactNode; title: string; desc: string; stat?: string; tone: string }> = {
     operator: {
-      icon: <Users className="w-4 h-4" />,
+      icon: <Users className="w-4 h-4" strokeWidth={1.75} />,
       title: t.space_home_operator_title,
       desc: t.space_home_operator_desc,
       stat: newAlertsCount > 0 ? t.space_home_operator_stat.replace('{n}', String(newAlertsCount)) : undefined,
-      tone: 'bg-blue-600 text-white',
+      // === AMÉLIORATION AJOUTÉE (espace du personnel — design modernisé) ===
+      // tuiles d'icône en dégradé / teinte douce avec contour fin.
+      tone: 'bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-md shadow-blue-600/30',
     },
     investigator: {
-      icon: <Search className="w-4 h-4" />,
+      icon: <Search className="w-4 h-4" strokeWidth={1.75} />,
       title: t.space_home_investigator_title,
       desc: t.space_home_investigator_desc,
       stat: myNewCasesCount > 0 ? t.space_home_investigator_stat.replace('{n}', String(myNewCasesCount)) : undefined,
-      tone: 'bg-indigo-100 text-indigo-600',
+      tone: 'bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600 ring-1 ring-inset ring-indigo-200/70',
     },
     admin: {
-      icon: <Settings className="w-4 h-4" />,
+      icon: <Settings className="w-4 h-4" strokeWidth={1.75} />,
       title: t.space_home_admin_title,
       desc: t.space_home_admin_desc,
-      tone: 'bg-emerald-100 text-emerald-600',
+      tone: 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 ring-1 ring-inset ring-emerald-200/70',
     },
     general: {
-      icon: <Briefcase className="w-4 h-4" />,
+      icon: <Briefcase className="w-4 h-4" strokeWidth={1.75} />,
       title: t.space_home_general_title,
       desc: t.space_home_general_desc,
-      tone: 'bg-amber-100 text-amber-600',
+      tone: 'bg-gradient-to-br from-amber-50 to-amber-100 text-amber-600 ring-1 ring-inset ring-amber-200/70',
     },
   };
 
@@ -125,7 +127,12 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
         demande explicite de l'utilisateur. */}
     <div className="min-h-[70vh] flex items-center justify-center py-8 px-4 sm:px-6">
     <div className="w-full max-w-3xl mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
+      {/* === AMÉLIORATION AJOUTÉE (espace du personnel — design modernisé)
+          === carte qui apparaît en douceur (mêmes dimensions), photo qui se
+          pose, salutation et choix d'espaces en cascade, tuiles d'icône en
+          dégradé, flèche qui avance au survol, fenêtre « accès restreint »
+          animée. Animations coupées si l'utilisateur limite les animations. */}
+      <div className="activa-modal-in grid grid-cols-1 lg:grid-cols-2 rounded-3xl overflow-hidden border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)]">
         {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
             l'utilisateur) === Remplace la photo du siège par une photo de
             bureau avec vue sur skyline (heure dorée), servie depuis
@@ -150,6 +157,9 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
               photo, pour un rendu plus ambiant/discret derrière le texte.
               `scale-105` évite de révéler un bord net/transparent que le
               flou ferait apparaître sur les contours de l'image. */}
+          {/* Le léger dézoom à l'ouverture est porté par un conteneur : le
+              `scale-105` de l'image (bords du flou) reste intact. */}
+          <div className="activa-kenburns absolute inset-0">
           <img
             src="/brand/space-home-bg.jpg"
             alt={t.space_img_alt}
@@ -157,6 +167,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
             decoding="async"
             className="absolute inset-0 w-full h-full object-cover object-left blur-[2px] scale-105"
           />
+          </div>
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/95 via-[#0B2545]/70 to-[#0B2545]/35" />
           {/* === AMÉLIORATION AJOUTÉE (retrait du label et de la rangée de
               valeurs, nom sur sa propre ligne) === sur demande explicite de
@@ -173,10 +184,10 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
               resserrement des lettres manquait. */}
           <div className="relative z-10 space-y-3">
             <div className="space-y-1.5">
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight tracking-tight">
+              <h2 className="activa-enter text-2xl sm:text-3xl font-extrabold text-white leading-tight tracking-tight" style={{ '--d': '250ms' } as React.CSSProperties}>
                 Bonjour<br />M. {greetingName}
               </h2>
-              <p className="text-lg font-semibold text-blue-200">
+              <p className="activa-enter text-lg font-semibold text-blue-200" style={{ '--d': '380ms' } as React.CSSProperties}>
                 {t.space_welcome}
               </p>
             </div>
@@ -195,14 +206,14 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
             resserrés (`text-sm`→`text-xs`, `text-[11px]`→`text-[10px]`) —
             sur demandes explicites successives de l'utilisateur. */}
         <div id="staff-space-home-panel" className="bg-white p-6 sm:p-8 flex flex-col justify-center">
-          <div className="mb-3">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-[#0B2545]">{t.space_home_title_plural}</h1>
+          <div className="activa-enter mb-3" style={{ '--d': '150ms' } as React.CSSProperties}>
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#0B2545]">{t.space_home_title_plural}</h1>
             {/* === AMÉLIORATION AJOUTÉE (justification du texte) === */}
             <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-sm">{t.space_home_subtitle_plural}</p>
           </div>
 
           <div className="space-y-1.5">
-            {spaces.map((space) => {
+            {spaces.map((space, i) => {
               const content = SPACE_CONTENT[space];
               // Mis en avant visuellement seulement si le compte y a
               // réellement accès (`computeAvailableSpaces`) — jamais pour
@@ -218,24 +229,26 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
                   key={space}
                   id={`space-home-choice-${space}`}
                   onClick={() => (highlighted ? setCurrentTab(targetTabFor(space)) : setDeniedSpace(space))}
-                  className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-300 text-left hover:shadow-md hover:-translate-y-0.5 ${
+                  className={`activa-enter group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-300 text-left hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
                     highlighted
-                      ? 'border-blue-300 bg-blue-50 hover:bg-blue-100'
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                      ? 'border-blue-200 bg-gradient-to-r from-blue-50 to-white hover:border-blue-300 hover:shadow-[0_14px_28px_-16px_rgb(37_99_235/0.45)]'
+                      : 'border-slate-200 bg-white hover:bg-slate-50 hover:shadow-md'
                   }`}
+                  style={{ '--d': `${250 + i * 70}ms` } as React.CSSProperties}
                 >
-                  <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 ${content.tone}`}>
+                  <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 ${content.tone}`}>
                     {content.icon}
                   </span>
                   <span className="flex-1 min-w-0">
                     <span className="block text-xs font-bold text-[#0B2545]">{content.title}</span>
                     {content.stat && (
-                      <span className="inline-block mt-1.5 px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[10.5px] font-bold">
+                      <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10.5px] font-bold">
+                        <span aria-hidden="true" className="activa-pulse-dot w-1.5 h-1.5 rounded-full bg-blue-600" />
                         {content.stat}
                       </span>
                     )}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 transition-all duration-300 group-hover:translate-x-1 group-hover:text-blue-600" strokeWidth={2} />
                 </button>
               );
             })}
@@ -248,11 +261,11 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
     {/* === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) === */}
     {deniedSpace && (
       <div
-        className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+        className="activa-fade-in fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
         onClick={() => setDeniedSpace(null)}
       >
         <div
-          className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 text-center"
+          className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-3xl shadow-2xl shadow-slate-900/40 p-6 text-center"
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -263,8 +276,8 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
           >
             <X className="w-4 h-4" />
           </button>
-          <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto mb-4 text-rose-600">
-            <ShieldOff className="w-7 h-7" />
+          <div className="activa-pop w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg shadow-rose-500/30 flex items-center justify-center mx-auto mb-4 text-white">
+            <ShieldOff className="w-7 h-7" strokeWidth={1.75} />
           </div>
           <h2 className="text-lg font-bold text-slate-900">{t.space_home_denied_title}</h2>
           <p className="text-xs text-slate-600 mt-2">
@@ -273,7 +286,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
           <button
             type="button"
             onClick={() => setDeniedSpace(null)}
-            className="mt-5 w-full px-4 py-2.5 rounded-xl bg-[#0B2545] text-white text-xs font-bold hover:bg-[#0B2545]/90 transition"
+            className="activa-shine mt-5 w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0B2545] to-[#134074] text-white text-xs font-bold shadow-lg shadow-[#0B2545]/25 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
           >
             {t.space_home_denied_close}
           </button>
