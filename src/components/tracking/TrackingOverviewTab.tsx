@@ -297,7 +297,16 @@ export const TrackingOverviewTab: React.FC<TrackingOverviewTabProps> = ({
               never asked for its removal. */}
           <button
             type="button"
-            onClick={() => window.print()}
+            // === AMÉLIORATION AJOUTÉE (accusé de réception en vrai fichier PDF) ===
+            // fichier PDF téléchargé directement (sans mot de passe, inconnu ici) ; impression en repli.
+            onClick={() => {
+              void import('../../services/receiptPdf')
+                .then(({ downloadReceiptPdf }) => downloadReceiptPdf(t, activeAlert))
+                .then((ok) => {
+                  if (!ok) window.print();
+                })
+                .catch(() => window.print());
+            }}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition"
           >
             <Download className="w-3.5 h-3.5" />
