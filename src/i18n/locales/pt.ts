@@ -1223,6 +1223,10 @@ export const pt: Record<string, string> = {
   perm_security_manage: 'Gerir a segurança (autenticação, MFA, sessões)',
   roles_matrix_title: 'Matriz de funções e permissões',
   roles_save: 'Guardar as permissões',
+  // === AMÉLIORATION AJOUTÉE (écran aéré) ===
+  roles_view_by_role: 'Por função',
+  roles_view_compare: 'Vista comparativa',
+  roles_protected_short: 'Protegido',
   gov_add_recipient: 'Adicionar um destinatário',
   gov_none: 'Nenhum destinatário configurado.',
   gov_col_name: 'Nome',

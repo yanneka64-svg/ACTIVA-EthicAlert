@@ -1223,6 +1223,10 @@ export const en: Record<string, string> = {
   perm_security_manage: 'Manage security (authentication, MFA, sessions)',
   roles_matrix_title: 'Roles & permissions matrix',
   roles_save: 'Save permissions',
+  // === AMÉLIORATION AJOUTÉE (écran aéré) ===
+  roles_view_by_role: 'By role',
+  roles_view_compare: 'Comparison',
+  roles_protected_short: 'Protected',
   gov_add_recipient: 'Add a recipient',
   gov_none: 'No recipient configured.',
   gov_col_name: 'Name',

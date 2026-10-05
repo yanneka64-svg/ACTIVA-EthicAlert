@@ -1409,6 +1409,10 @@ export const fr: Record<string, string> = {
   perm_security_manage: 'Gérer la sécurité (authentification, MFA, sessions)',
   roles_matrix_title: 'Matrice des rôles & permissions',
   roles_save: 'Enregistrer les permissions',
+  // === AMÉLIORATION AJOUTÉE (écran aéré) ===
+  roles_view_by_role: 'Par rôle',
+  roles_view_compare: 'Vue comparative',
+  roles_protected_short: 'Protégé',
   gov_add_recipient: 'Ajouter un destinataire',
   gov_none: 'Aucun destinataire configuré.',
   gov_col_name: 'Nom',
