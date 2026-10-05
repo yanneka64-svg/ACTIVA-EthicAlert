@@ -1,0 +1,25 @@
+# === AMÉLIORATION AJOUTÉE (diagnostic du dépôt public, sans écriture) ===
+# Lancement manuel : rejoue un dépôt de signalement sur le site EN LIGNE dans
+# un vrai navigateur et intercepte l'appel au serveur (aucun dossier créé).
+# Voir scripts/e2e_public_submission.py.
+name: E2E public submission (diagnostic)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        with:
+          persist-credentials: false
+      - name: Install Playwright (Chromium)
+        run: |
+          python3 -m pip install --quiet playwright==1.55.0
+          python3 -m playwright install --with-deps chromium
+      - name: Replay a public submission (intercepted)
+        run: python3 scripts/e2e_public_submission.py
