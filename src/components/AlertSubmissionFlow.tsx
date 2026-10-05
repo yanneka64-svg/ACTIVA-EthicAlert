@@ -623,7 +623,18 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
   // Formal Acknowledgment Print/Download Simulation
   const handlePrintReceipt = () => {
-    window.print();
+    // === AMÉLIORATION AJOUTÉE (accusé de réception en vrai fichier PDF) ===
+    // fichier PDF généré et téléchargé directement ; impression en repli.
+    if (!submittedAlert) {
+      window.print();
+      return;
+    }
+    void import('../services/receiptPdf')
+      .then(({ downloadReceiptPdf }) => downloadReceiptPdf(t, submittedAlert, password))
+      .then((ok) => {
+        if (!ok) window.print();
+      })
+      .catch(() => window.print());
   };
 
   const copyToClipboard = (text: string) => {
