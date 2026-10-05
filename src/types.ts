@@ -65,6 +65,13 @@ export interface UserProfile {
   passwordSalt?: string;
   mustChangePassword?: boolean;
   passwordSetAt?: string;
+  // === AMÉLIORATION AJOUTÉE (comptes du personnel créés depuis le portail
+  // et enregistrés dans Firebase) === `firebase` : compte dont la référence
+  // est Firebase (Auth + profil Firestore `staff_users`), copié ici par
+  // l'annuaire (services/staffAccountsClient.ts). Il ne se connecte jamais
+  // par la vérification locale (storage.ts `verifyStaffLogin`). Absent =
+  // compte local, comportement inchangé.
+  authSource?: 'firebase';
 }
 
 export type AlertStatus = 

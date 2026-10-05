@@ -1167,6 +1167,32 @@ class StorageService {
     return true;
   }
 
+  /**
+   * === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
+   * Remplace la copie locale de l'annuaire Firebase (comptes
+   * `authSource: 'firebase'`) par `accounts`, sans toucher aux comptes
+   * locaux. Toute empreinte de mot de passe éventuellement reçue est
+   * retirée : ces comptes ne se connectent que par Firebase Auth. La
+   * session active est mise à jour si son compte figure dans l'annuaire.
+   * Synchronisation technique : pas d'entrée d'audit.
+   */
+  public replaceFirebaseDirectory(accounts: UserProfile[]): void {
+    const firebaseAccounts = accounts.map((a) => {
+      const { passwordHash: _h, passwordSalt: _s, ...rest } = a;
+      return { ...rest, authSource: 'firebase' as const };
+    });
+    const ids = new Set(firebaseAccounts.map((a) => a.id));
+    const local = this.users.filter((u) => u.authSource !== 'firebase' && !ids.has(u.id));
+    this.users = [...local, ...firebaseAccounts];
+    this.persistUsers();
+    const refreshedActive = firebaseAccounts.find((a) => a.id === this.activeUser?.id);
+    if (refreshedActive) {
+      this.setActiveUser({ ...this.activeUser, ...refreshedActive });
+      return;
+    }
+    this.notify();
+  }
+
   // === AMÉLIORATION AJOUTÉE (création de comptes par l'admin — mot de
   // passe temporaire, expiration 4h) ===
   // Durée de validité d'un mot de passe temporaire (tant qu'il n'a pas été
@@ -1192,6 +1218,11 @@ class StorageService {
     // juste ne correspondre à aucune saisie.
     const user = this.users.find((u) => u.username?.toLowerCase() === username.trim().toLowerCase());
     if (!user) return { ok: false, reason: 'not_found' };
+    // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) === un
+    // compte copié depuis l'annuaire Firebase n'a pas d'empreinte locale :
+    // sans ce garde-fou, le repli "demo" ci-dessous l'ouvrirait. Il se
+    // connecte uniquement par Firebase Auth (StaffLoginView.tsx).
+    if (user.authSource === 'firebase') return { ok: false, reason: 'not_found' };
 
     if (!user.passwordHash || !user.passwordSalt) {
       return password === 'demo' ? { ok: true, user, mustChangePassword: false } : { ok: false, reason: 'wrong_password' };

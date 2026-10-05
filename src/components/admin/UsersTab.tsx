@@ -18,8 +18,8 @@
  * avec les onglets Entités/Gouvernance/Catégories, est passé en prop plutôt
  * que dupliqué.
  */
-import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, KeyRound, Copy, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Plus, Pencil, Trash2, KeyRound, Copy, CheckCircle2, Cloud, HardDrive } from 'lucide-react';
 import { Language, UserProfile, UserRole } from '../../types';
 // === AMÉLIORATION AJOUTÉE : onglet traduit (FR/EN/PT) ===
 import { TRANSLATIONS } from '../../i18n/translations';
@@ -28,6 +28,21 @@ import { storage } from '../../services/storage';
 // === AMÉLIORATION AJOUTÉE (création de comptes — mot de passe temporaire) ===
 // Même module que le code d'accès du lanceur d'alerte (AlertSubmissionFlow.tsx).
 import { generateAccessPassword, generateSalt, hashPassword } from '../../services/crypto';
+// === AMÉLIORATION AJOUTÉE (comptes du personnel créés depuis le portail et
+// enregistrés dans Firebase) === quand l'administrateur connecté est un
+// compte Firebase ayant `users.manage`, les comptes sont créés et gérés dans
+// Firebase (Auth + Firestore) via les Cloud Functions ; sinon, comportement
+// local inchangé.
+import {
+  canManageFirebaseStaffAccounts,
+  createFirebaseStaffAccount,
+  deleteFirebaseStaffAccount,
+  isStaffAuthConfigured,
+  resetFirebaseStaffAccountPassword,
+  staffErrorCode,
+  syncStaffDirectory,
+  updateFirebaseStaffAccount,
+} from '../../services/staffAccountsClient';
 
 interface UsersTabProps {
   users: UserProfile[];
@@ -76,6 +91,41 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
   const [resetPasswordConfirmId, setResetPasswordConfirmId] = useState<string | null>(null);
   const [isSavingUser, setIsSavingUser] = useState(false);
 
+  // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
+  // `cloudMode` : vrai si Firebase est configuré ET que l'administrateur est
+  // connecté à Firebase avec la permission `users.manage`. `null` pendant la
+  // vérification. L'annuaire Firebase est rechargé à l'ouverture de l'onglet.
+  const firebaseConfigured = isStaffAuthConfigured();
+  const [cloudMode, setCloudMode] = useState<boolean | null>(firebaseConfigured ? null : false);
+  useEffect(() => {
+    if (!firebaseConfigured) return;
+    let cancelled = false;
+    canManageFirebaseStaffAccounts().then((ok) => {
+      if (cancelled) return;
+      setCloudMode(ok);
+      if (ok) syncStaffDirectory().catch(() => {});
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [firebaseConfigured]);
+
+  // La liste suit les changements de storage.ts (annuaire Firebase rechargé
+  // en arrière-plan) : sans cela, elle ne s'actualiserait qu'au prochain
+  // rendu du parent. Avant tout changement, c'est la prop `users`, inchangée.
+  const [directoryTick, setDirectoryTick] = useState(0);
+  useEffect(() => storage.subscribe(() => setDirectoryTick((n) => n + 1)), []);
+  const listedUsers = directoryTick === 0 ? users : storage.getUsers();
+
+  // Message d'erreur lisible pour une Cloud Function de gestion des comptes.
+  const cloudErrorMessage = (e: unknown, username: string): string => {
+    const code = staffErrorCode(e);
+    if (code === 'functions/already-exists') return t.users_username_taken.replace('{username}', username);
+    if (code === 'functions/failed-precondition') return t.users_cloud_precondition;
+    if (code === 'functions/permission-denied') return t.users_cloud_admin_required;
+    return t.users_cloud_error;
+  };
+
   // --- Users handlers ---
   const resetUserForm = () => {
     setEditingUserId(null);
@@ -123,6 +173,45 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
       return;
     }
     setIsSavingUser(true);
+    // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
+    const editingUser = editingUserId ? storage.getUsers().find((u) => u.id === editingUserId) : undefined;
+    const editingFirebaseUser = editingUser?.authSource === 'firebase';
+    if (editingFirebaseUser || (!editingUserId && cloudMode)) {
+      if (editingFirebaseUser && !cloudMode) {
+        alert(t.users_cloud_admin_required);
+        setIsSavingUser(false);
+        return;
+      }
+      const account = {
+        name: userName.trim(),
+        email: userEmail.trim(),
+        username: normalizedUsername,
+        role: userRole,
+        roleTitle: userRoleTitle.trim(),
+        entity: userEntity.trim(),
+        country: userCountry.trim(),
+      };
+      try {
+        if (editingUserId) {
+          await updateFirebaseStaffAccount(editingUserId, account);
+          await syncStaffDirectory();
+          storage.logAudit('CONFIG_UPDATED', `Profil utilisateur "${account.name}" mis à jour dans Firebase par ${activeUser.name}.`, undefined, activeUser);
+          onSaved(t.users_updated.replace('{name}', account.name));
+          setShowUserModal(false);
+        } else {
+          const { tempPassword } = await createFirebaseStaffAccount(account);
+          await syncStaffDirectory();
+          storage.logAudit('CONFIG_UPDATED', `Compte utilisateur "${account.name}" (${account.role}) créé dans Firebase par ${activeUser.name}.`, undefined, activeUser);
+          onSaved(t.users_created.replace('{name}', account.name));
+          setShowUserModal(false);
+          setGeneratedCredentials({ name: account.name, username: normalizedUsername, password: tempPassword });
+        }
+      } catch (err) {
+        alert(cloudErrorMessage(err, normalizedUsername));
+      }
+      setIsSavingUser(false);
+      return;
+    }
     if (editingUserId) {
       storage.updateUser(
         editingUserId,
@@ -180,6 +269,22 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
         return;
       }
     }
+    // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
+    if (u.authSource === 'firebase') {
+      setDeleteUserConfirmId(null);
+      if (!cloudMode) {
+        alert(t.users_cloud_admin_required);
+        return;
+      }
+      deleteFirebaseStaffAccount(u.id)
+        .then(() => syncStaffDirectory())
+        .then(() => {
+          storage.logAudit('CONFIG_UPDATED', `Compte utilisateur "${u.name}" (${u.email}) supprimé de Firebase par ${activeUser.name}.`, undefined, activeUser);
+          onSaved(t.users_deleted.replace('{name}', u.name));
+        })
+        .catch((err) => alert(cloudErrorMessage(err, u.username)));
+      return;
+    }
     storage.deleteUser(u.id, activeUser);
     setDeleteUserConfirmId(null);
     onSaved(t.users_deleted.replace('{name}', u.name));
@@ -190,6 +295,23 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
   // storage.ts) avant que l'utilisateur ne se soit connecté — sans cette
   // action, un tel compte resterait bloqué sans recours.
   const handleResetPassword = async (u: UserProfile) => {
+    // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
+    if (u.authSource === 'firebase') {
+      setResetPasswordConfirmId(null);
+      if (!cloudMode) {
+        alert(t.users_cloud_admin_required);
+        return;
+      }
+      try {
+        const tempPassword = await resetFirebaseStaffAccountPassword(u.id);
+        await syncStaffDirectory();
+        storage.logAudit('CONFIG_UPDATED', `Mot de passe temporaire régénéré dans Firebase pour "${u.name}" par ${activeUser.name}.`, undefined, activeUser);
+        setGeneratedCredentials({ name: u.name, username: u.username, password: tempPassword });
+      } catch (err) {
+        alert(cloudErrorMessage(err, u.username));
+      }
+      return;
+    }
     const newPassword = await storage.resetUserPassword(u.id, activeUser);
     setResetPasswordConfirmId(null);
     setGeneratedCredentials({ name: u.name, username: u.username, password: newPassword });
@@ -212,11 +334,37 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
           </button>
         </div>
 
+        {/* === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
+            Indique où les comptes créés ici sont enregistrés. */}
+        {firebaseConfigured && cloudMode !== null && (
+          <p
+            id="users-storage-notice"
+            className={`flex items-start gap-2 rounded-lg border p-2.5 leading-relaxed ${
+              cloudMode ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'
+            }`}
+          >
+            {cloudMode ? <Cloud className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : <HardDrive className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
+            {cloudMode ? t.users_cloud_enabled : t.users_cloud_local_only}
+          </p>
+        )}
+
         <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
-          {users.map((u) => (
+          {listedUsers.map((u) => (
             <div key={u.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50">
               <div className="min-w-0">
-                <div className="font-bold text-slate-900 truncate">{u.name}</div>
+                <div className="font-bold text-slate-900 truncate">
+                  {u.name}
+                  {/* === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) === */}
+                  {firebaseConfigured && (
+                    <span
+                      className={`ml-2 align-middle px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                        u.authSource === 'firebase' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {u.authSource === 'firebase' ? t.users_badge_firebase : t.users_badge_local}
+                    </span>
+                  )}
+                </div>
                 <div className="text-[11px] text-slate-500 truncate">
                   <span className="font-mono">{u.username}</span> • {u.email} • {u.entity} ({formatCountryLabel(countries, u.country)})
                 </div>

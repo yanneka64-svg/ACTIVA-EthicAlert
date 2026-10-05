@@ -98,6 +98,18 @@ import {
 } from '../../src/domain/notifyEmailGuard';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P1 : fiabilité et coût) ===
 import { setGlobalOptions } from 'firebase-functions/v2';
+// === AMÉLIORATION AJOUTÉE (comptes du personnel créés depuis le portail et
+// enregistrés dans Firebase) === voir functions/src/staffAccounts.ts.
+import { staffUidByContactEmail } from './staffAccounts';
+export {
+  changeMyStaffPassword,
+  createStaffAccount,
+  deleteStaffAccount,
+  getMyStaffProfile,
+  listStaffDirectory,
+  resetStaffAccountPassword,
+  updateStaffAccount,
+} from './staffAccounts';
 
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P1 : fiabilité et coût) ===
 // Options communes à TOUTES les fonctions, appliquées avant leur
@@ -117,7 +129,12 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 setGlobalOptions({ region: 'us-central1', maxInstances: 10, minInstances: 0 });
 
 initializeApp();
-const db = getFirestore();
+// === AMÉLIORATION AJOUTÉE (correctif — base Firestore nommée) ===
+// La base du projet est la base NOMMÉE `default` (firebase.json,
+// docs/FIREBASE-SETUP.md), pas la base spéciale `(default)` que vise
+// `getFirestore()` sans argument : tout accès Firestore échouait avec
+// NOT_FOUND. Même valeur que le client (firebaseClient.ts) et les scripts.
+const db = getFirestore(process.env.FIRESTORE_DATABASE_ID || 'default');
 
 // === AMÉLIORATION AJOUTÉE ===
 // Verified directly against the real project: this bucket does not exist
@@ -137,6 +154,12 @@ function requireAppUser(request: CallableRequest): AppUser {
   const token = request.auth.token as { role?: RoleId; countries?: string[]; entities?: string[] };
   if (!token.role) {
     throw new HttpsError('permission-denied', 'This account has no ACTIVA Hotline role assigned.');
+  }
+  // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) === un
+  // compte dont le mot de passe temporaire n'a pas encore été changé n'a
+  // accès à aucune fonction métier (functions/src/staffAccounts.ts).
+  if ((request.auth.token as { pwdTemp?: unknown }).pwdTemp === true) {
+    throw new HttpsError('failed-precondition', 'Password change required.');
   }
   return {
     userId: request.auth.uid,
@@ -225,6 +248,11 @@ async function resolveStaffUid(idOrEmail: string): Promise<string> {
   if (value.includes('@')) {
     const byEmail = await getAuth().getUserByEmail(value.toLowerCase()).catch(() => null);
     if (byEmail) return byEmail.uid;
+    // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) === les
+    // comptes créés depuis le portail ont une adresse Auth technique ;
+    // leur e-mail de contact est dans leur profil Firestore.
+    const byContact = await staffUidByContactEmail(value).catch(() => null);
+    if (byContact?.active) return byContact.uid;
   }
   throw new HttpsError('invalid-argument', `${value} is not a known staff account.`);
 }
@@ -1441,7 +1469,14 @@ async function verifiedNotifyCaller(headers: HeaderBag): Promise<'staff' | 'app'
 // personnel existant (Firebase Auth, claim `role`).
 async function isStaffRecipient(email: string): Promise<boolean> {
   const user = await getAuth().getUserByEmail(email).catch(() => null);
-  return isStaffClaims((user?.customClaims ?? null) as Record<string, unknown> | null);
+  if (isStaffClaims((user?.customClaims ?? null) as Record<string, unknown> | null)) return true;
+  // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) === e-mail
+  // de contact d'un compte créé depuis le portail (profil Firestore), dont
+  // le compte Auth existe toujours avec un rôle.
+  const contact = await staffUidByContactEmail(email).catch(() => null);
+  if (!contact?.active) return false;
+  const owner = await getAuth().getUser(contact.uid).catch(() => null);
+  return isStaffClaims((owner?.customClaims ?? null) as Record<string, unknown> | null);
 }
 
 export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 2 }, async (req, res) => {

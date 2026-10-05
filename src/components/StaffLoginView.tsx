@@ -41,6 +41,16 @@ import { getLockStatus, recordFailedAttempt, clearAttempts, formatRemaining } fr
 // staffAuthSync.ts pour le détail : tentative best-effort, plafonnée à une
 // fois par compte et par navigateur, jamais bloquante pour le login local.
 import { syncStaffAuthSession } from '../services/staffAuthSync';
+// === AMÉLIORATION AJOUTÉE (comptes du personnel créés depuis le portail et
+// enregistrés dans Firebase) === connexion par identifiant contre Firebase
+// Auth en premier, vérification locale en repli (comptes locaux, compte de
+// secours) — voir services/staffAccountsClient.ts.
+import {
+  changeOwnStaffPassword,
+  isStaffAuthConfigured,
+  signInStaffWithUsername,
+  syncStaffDirectory,
+} from '../services/staffAccountsClient';
 
 interface StaffLoginViewProps {
   onLogin: (user: UserProfile) => void;
@@ -107,6 +117,29 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
     // un mot de passe erroné. `try/finally` garantit désormais qu'on sorte
     // toujours de l'état "en cours", quoi qu'il arrive.
     try {
+      // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
+      // Compte Firebase d'abord. Identifiant inconnu de Firebase, mauvais
+      // mot de passe ou service indisponible : on poursuit avec la
+      // vérification locale ci-dessous, inchangée (un seul compteur
+      // d'échecs, celui de cette vérification locale).
+      if (isStaffAuthConfigured()) {
+        const remote = await signInStaffWithUsername(trimmedUsername, password);
+        if (remote.ok === true) {
+          clearAttempts(rateLimitKey);
+          if (remote.mustChangePassword) {
+            setPendingUser(remote.user);
+            return;
+          }
+          onLogin(remote.user);
+          syncStaffDirectory().catch(() => {});
+          return;
+        }
+        if (remote.reason === 'expired') {
+          setLoginError(t.login_error_expired);
+          return;
+        }
+      }
+
       const result = await storage.verifyStaffLogin(trimmedUsername, password);
 
       // === AMÉLIORATION AJOUTÉE ===
@@ -125,9 +158,13 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
         // Le compte peut ne pas exister (identifiant inconnu saisi) : logAudit
         // retombe alors sur son acteur système par défaut (4e argument omis).
         const attemptedUser = storage.getUsers().find((u) => u.username?.toLowerCase() === trimmedUsername.toLowerCase());
+        // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) === un
+        // compte Firebase connu de l'annuaire, refusé par Firebase Auth, est
+        // un mot de passe incorrect (la vérification locale l'ignore toujours).
+        const unknownUsername = result.reason === 'not_found' && attemptedUser?.authSource !== 'firebase';
         storage.logAudit(
           'ACCESS_DENIED',
-          `Tentative de connexion refusée (${result.reason === 'not_found' ? 'identifiant inconnu' : 'mot de passe incorrect'}) pour ${trimmedUsername}. Tentatives restantes : ${status.attemptsRemaining}.`,
+          `Tentative de connexion refusée (${unknownUsername ? 'identifiant inconnu' : 'mot de passe incorrect'}) pour ${trimmedUsername}. Tentatives restantes : ${status.attemptsRemaining}.`,
           undefined,
           attemptedUser
         );
@@ -171,6 +208,22 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
       return;
     }
     setIsChangingPassword(true);
+    // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) === le
+    // mot de passe d'un compte Firebase est changé côté serveur
+    // (changeMyStaffPassword), jamais dans le navigateur.
+    if (pendingUser.authSource === 'firebase') {
+      try {
+        await changeOwnStaffPassword(pendingUser.username, newPassword);
+      } catch {
+        setIsChangingPassword(false);
+        setChangeError(t.login_error_unexpected);
+        return;
+      }
+      setIsChangingPassword(false);
+      onLogin({ ...pendingUser, mustChangePassword: false });
+      syncStaffDirectory().catch(() => {});
+      return;
+    }
     await storage.changePassword(pendingUser.id, newPassword, pendingUser);
     setIsChangingPassword(false);
     // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 6) === même

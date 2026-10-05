@@ -274,6 +274,71 @@ Ce qu'il a fallu en plus des prérequis ci-dessus :
   politique. Le workflow la pose aussitôt après : 1 jour, comportement
   attendu.
 
+### 3.9 Comptes du personnel dans Firebase
+=== AMÉLIORATION AJOUTÉE (comptes du personnel créés depuis le portail et enregistrés dans Firebase) ===
+
+Les comptes du personnel se créent depuis le portail (Administration →
+Utilisateurs) et sont enregistrés dans Firebase :
+- dans **Firebase Auth**, avec leur rôle, leurs pays et leurs entités en
+  custom claims ;
+- dans **Firestore** (`staff_users/{uid}`), pour leur profil : nom, e-mail
+  de contact, identifiant, poste.
+
+Ils se connectent donc **depuis n'importe quel poste**, toujours avec leur
+identifiant. Le compte Auth porte une adresse technique dérivée de
+l'identifiant (`<identifiant>@staff.activa-ethicalert-47246.firebaseapp.com`,
+qui ne reçoit aucun courrier). L'e-mail réel reste dans le profil pour les
+notifications.
+
+Fonctionnement (code : `src/domain/staffAccounts.ts`,
+`functions/src/staffAccounts.ts`, `src/services/staffAccountsClient.ts`) :
+- **Création et réinitialisation.** Un mot de passe temporaire de 12
+  caractères est généré côté serveur et affiché une seule fois à
+  l'administrateur. Il doit être changé à la première connexion, sous 4 h.
+  Tant qu'il ne l'est pas, le claim `pwdTemp` interdit toute fonction métier.
+- **Changement de rôle ou de portée.** Les sessions de la personne sont
+  révoquées : ses nouveaux droits s'appliquent à sa reconnexion.
+- **Garde-fous.** Il reste toujours au moins un administrateur système actif,
+  et personne ne peut supprimer son propre compte. Chaque action est
+  journalisée dans `audit_logs`.
+- **Connexion.** Elle passe d'abord par Firebase. La vérification locale
+  reste en repli, pour les comptes locaux existants et le compte de secours.
+  Un compte Firebase ne peut jamais se connecter par la vérification locale.
+- **Annuaire.** Après connexion, et à l'ouverture de l'onglet Utilisateurs,
+  l'annuaire est recopié dans le portail. Il alimente l'attribution et les
+  destinataires des notifications.
+
+**Mise en route (une fois) :**
+
+1. **Droits du compte de déploiement**, dans Cloud Shell :
+   ```bash
+   SA=serviceAccount:github-hosting-deploy@activa-ethicalert-47246.iam.gserviceaccount.com
+   for ROLE in roles/firebaseauth.admin roles/datastore.user; do
+     gcloud projects add-iam-policy-binding activa-ethicalert-47246 --member "$SA" \
+       --role "$ROLE" --condition=None --quiet > /dev/null && echo "OK  $ROLE"
+   done
+   ```
+2. **Déployer les fonctions** (§3.8, `mode = deploy`, toutes les fonctions).
+   Le site se déploie seul après fusion dans `main`.
+3. **Secret GitHub `STAFF_BOOTSTRAP_PASSWORD`**, de 12 caractères minimum.
+   C'est le mot de passe initial du premier administrateur, à changer à sa
+   première connexion.
+4. **Workflow *Bootstrap staff admin*** (Actions → Run workflow) : saisir le
+   nom, l'e-mail et l'identifiant du premier administrateur système.
+5. **Première connexion au portail** avec cet identifiant et ce mot de passe,
+   sous 4 h. Choisir le nouveau mot de passe.
+6. **Recréer les comptes** dans Administration → Utilisateurs. L'écran
+   indique « Les comptes sont enregistrés dans Firebase » et chaque compte
+   porte le badge *Firebase*.
+
+Mot de passe administrateur perdu ou expiré : relancer *Bootstrap staff
+admin* avec le **même identifiant**. Son mot de passe est remplacé par
+`STAFF_BOOTSTRAP_PASSWORD`, à changer à la connexion.
+
+Limite connue : l'outil interne *Suivre un dossier* (`CaseLookup.tsx`) se
+connecte par adresse Auth. Pour un compte créé depuis le portail, c'est
+l'adresse technique ci-dessus.
+
 ## 4. Correctifs P2
 
 === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) ===
