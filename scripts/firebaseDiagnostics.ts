@@ -98,7 +98,69 @@ async function main() {
   }
 }
 
-main().then(
+// === AMÉLIORATION AJOUTÉE (diagnostic App Check) ===
+// Vérifie, sans rien modifier, chaque réglage dont dépend l'échange du jeton
+// reCAPTCHA contre un jeton App Check (erreur 403 vue dans le navigateur).
+// N'affiche jamais la clé API ; la clé de site reCAPTCHA est publique (elle
+// figure dans le code du site).
+async function appCheckDiagnostics() {
+  console.log(`\n=== App Check ===`);
+  const appId = process.env.FIREBASE_APP_ID || '';
+  const apiKey = process.env.FIREBASE_API_KEY || '';
+  const siteKey = (process.env.APPCHECK_SITE_KEY || '').trim();
+  console.log(`Clé de site utilisée par le site : ${siteKey || '(aucune)'}`);
+  let token = '';
+  try {
+    token = (await applicationDefault().getAccessToken()).access_token;
+  } catch (e) {
+    console.log(`Jeton Google indisponible : ${e instanceof Error ? e.message : e}`);
+  }
+  const get = async (label: string, url: string) => {
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, 'x-goog-user-project': projectId } });
+      const body = await res.text();
+      // La clé de site est un secret GitHub : le journal la masquerait.
+      // On indique donc explicitement si elle figure dans la réponse.
+      const mentionsSiteKey = siteKey ? body.includes(siteKey) : false;
+      console.log(`${label} : HTTP ${res.status}${siteKey ? ` [clé de site du site ${mentionsSiteKey ? 'PRÉSENTE' : 'absente'}]` : ''} ${body.replace(/\s+/g, ' ').slice(0, 900)}`);
+    } catch (e) {
+      console.log(`${label} : erreur ${e instanceof Error ? e.message : e}`);
+    }
+  };
+  await get('API App Check activée ?', `https://serviceusage.googleapis.com/v1/projects/${projectId}/services/firebaseappcheck.googleapis.com`);
+  await get('API reCAPTCHA Enterprise activée ?', `https://serviceusage.googleapis.com/v1/projects/${projectId}/services/recaptchaenterprise.googleapis.com`);
+  if (appId) {
+    await get('App Check → reCAPTCHA Enterprise', `https://firebaseappcheck.googleapis.com/v1/projects/${projectId}/apps/${appId}/recaptchaEnterpriseConfig`);
+    await get('App Check → reCAPTCHA v3', `https://firebaseappcheck.googleapis.com/v1/projects/${projectId}/apps/${appId}/recaptchaV3Config`);
+  } else {
+    console.log('FIREBASE_APP_ID absent : configuration App Check non lue.');
+  }
+  await get('Clés reCAPTCHA Enterprise du projet', `https://recaptchaenterprise.googleapis.com/v1/projects/${projectId}/keys`);
+  await get('Clés API du projet (restrictions)', `https://apikeys.googleapis.com/v2/projects/${projectId}/locations/global/keys`);
+  if (apiKey && appId) {
+    // Échange avec un faux jeton reCAPTCHA, comme le ferait le navigateur :
+    // « invalid token » = tout est bien câblé ; « API key / service blocked /
+    // disabled / not configured » = réglage à corriger.
+    try {
+      const res = await fetch(
+        `https://firebaseappcheck.googleapis.com/v1/projects/${projectId}/apps/${appId}:exchangeRecaptchaEnterpriseToken?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Referer: `https://${projectId}.web.app/` },
+          body: JSON.stringify({ recaptchaEnterpriseToken: 'diagnostic-invalid-token' }),
+        }
+      );
+      const body = (await res.text()).split(apiKey).join('***');
+      console.log(`Échange de jeton (faux jeton, comme le navigateur) : HTTP ${res.status} ${body.replace(/\s+/g, ' ').slice(0, 700)}`);
+    } catch (e) {
+      console.log(`Échange de jeton : erreur ${e instanceof Error ? e.message : e}`);
+    }
+  }
+}
+
+main()
+  .then(() => appCheckDiagnostics())
+  .then(
   () => process.exit(0),
   (e) => {
     console.error('Diagnostic impossible :', e instanceof Error ? e.message : e);
