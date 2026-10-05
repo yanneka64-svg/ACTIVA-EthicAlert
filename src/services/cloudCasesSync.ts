@@ -26,7 +26,7 @@
  * session Firebase ne correspond au compte connecté, ou en cas d'erreur
  * (la copie locale est alors laissée telle quelle).
  */
-import { AlertRecord, UserProfile } from '../types';
+import { AlertRecord, CaseMessage, UserProfile } from '../types';
 import { AppUser, Case } from '../domain/caseTypes';
 import { CaseDetail, caseDetailToAlertRecord } from '../domain/caseDetailToAlert';
 import { caseSummaryId } from '../domain/caseToAlertSummary';
@@ -124,6 +124,20 @@ function writeFingerprints(map: Record<string, string>): void {
   }
 }
 
+/** Plus récente des deux dates d'un dossier Firebase (un message ne change que `lastActivityAt`). */
+export function latestCloudStamp(kase: { updatedAt?: string; lastActivityAt?: string }): string | undefined {
+  const a = kase.updatedAt ?? '';
+  const b = kase.lastActivityAt ?? '';
+  return (a > b ? a : b) || undefined;
+}
+
+/** Messages du déclarant présents dans le détail Firebase, au format du portail. */
+export function reporterMessagesFromDetail(d: CaseDetail): CaseMessage[] {
+  return d.communications
+    .filter((c) => c.sender === 'reporter')
+    .map((c) => ({ id: c.messageId, sender: 'whistleblower' as const, senderDisplayName: c.senderDisplayName, content: c.content, createdAt: c.createdAt }));
+}
+
 let inFlight: Promise<number | null> | null = null;
 
 /** Synchronise les dossiers Firebase visibles par `activeUser`. Renvoie le nombre de dossiers chargés, ou `null`. */
@@ -171,11 +185,17 @@ async function run(activeUser: UserProfile): Promise<number | null> {
       casesNeedingDetails(listedToLoad, fingerprints, (id) => localById.get(caseSummaryId(id))?.cloudImported === true, forceAll)
     );
     const unchanged = toLoad.filter((id) => !stale.has(id));
+    // === AMÉLIORATION AJOUTÉE (messagerie déclarant → équipe) === dossiers
+    // créés dans CE navigateur : copie locale toujours la référence, mais
+    // leurs nouvelles réponses du déclarant (enregistrées sur le serveur)
+    // doivent y apparaître. Rechargés seulement s'ils ont changé.
+    const listedOwned = listed.filter((c) => ownedLocally.has(c.caseId));
+    const ownedStale = casesNeedingDetails(listedOwned, fingerprints, () => true, forceAll);
 
     const { httpsCallable } = await import('firebase/functions');
     const getCaseDetails = httpsCallable<{ caseIds: string[] }, { details: CaseDetail[] }>(await getPhase4Functions(), 'getCaseDetails');
     const details: CaseDetail[] = [];
-    const staleIds = toLoad.filter((id) => stale.has(id));
+    const staleIds = [...toLoad.filter((id) => stale.has(id)), ...ownedStale];
     for (let i = 0; i < staleIds.length; i += DETAILS_BATCH) {
       const res = await getCaseDetails({ caseIds: staleIds.slice(i, i + DETAILS_BATCH) });
       details.push(...res.data.details);
@@ -188,12 +208,31 @@ async function run(activeUser: UserProfile): Promise<number | null> {
     const nameOf = (id: string) => users.find((u) => u.id === id)?.name;
     const existingById = new Map<string, AlertRecord>(localAlerts.map((a) => [a.id, a]));
     const now = Date.now();
-    const records = details.map((d) => {
+    // === AMÉLIORATION AJOUTÉE (messagerie déclarant → équipe) === dossiers
+    // créés dans ce navigateur : on y ajoute seulement les messages du
+    // déclarant venus du serveur (jamais de doublon des messages de l'équipe).
+    const ownedSet = new Set(ownedStale);
+    const ownedByCaseId = new Map(localAlerts.filter((a) => !a.cloudImported && a.mirroredCaseId).map((a) => [a.mirroredCaseId as string, a]));
+    for (const d of details.filter((x) => ownedSet.has(x.case.caseId))) {
+      const local = ownedByCaseId.get(d.case.caseId);
+      if (local) storage.mergeReporterMessagesFromCloud(local.id, reporterMessagesFromDetail(d));
+    }
+    // Dossiers dont la copie locale a été gardée (modification locale toute
+    // récente) : leur empreinte n'est PAS enregistrée, pour qu'ils soient
+    // rechargés au passage suivant (sinon une réponse arrivée entre-temps
+    // n'apparaissait qu'au rechargement complet, 10 minutes plus tard).
+    const keptLocal = new Set<string>();
+    const records = details.filter((d) => !ownedSet.has(d.case.caseId)).map((d) => {
       const existing = existingById.get(caseSummaryId(d.case.caseId));
       // Modification locale toute récente, pas encore visible côté Firebase
       // (miroir en cours) : on garde la copie locale jusqu'au prochain passage
       // plutôt que de faire réapparaître l'ancien état quelques secondes.
-      if (existing && isFreshLocalEdit(existing.updatedAt, d.case.updatedAt, now)) return existing;
+      // === AMÉLIORATION AJOUTÉE (messagerie) === comparée à la DERNIÈRE
+      // activité du dossier (un message ne change pas `updatedAt`).
+      if (existing && isFreshLocalEdit(existing.updatedAt, latestCloudStamp(d.case), now)) {
+        keptLocal.add(d.case.caseId);
+        return existing;
+      }
       return caseDetailToAlertRecord(d, existing, nameOf);
     });
     // === AMÉLIORATION AJOUTÉE (chargement rapide du portail) === dossiers
@@ -208,7 +247,13 @@ async function run(activeUser: UserProfile): Promise<number | null> {
     storage.replaceCloudImportedAlerts(allRecords);
     const nextFingerprints: Record<string, string> = {};
     for (const c of listedToLoad) {
+      if (keptLocal.has(c.caseId)) continue;
       if (fresh.has(caseSummaryId(c.caseId)) || unchanged.includes(c.caseId)) nextFingerprints[c.caseId] = caseFingerprint(c);
+    }
+    // === AMÉLIORATION AJOUTÉE (messagerie déclarant → équipe) ===
+    const loadedOwned = new Set(details.map((d) => d.case.caseId));
+    for (const c of listedOwned) {
+      if (loadedOwned.has(c.caseId) || !ownedSet.has(c.caseId)) nextFingerprints[c.caseId] = caseFingerprint(c);
     }
     writeFingerprints(nextFingerprints);
     if (forceAll) lastFullRefresh = now0;

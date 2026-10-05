@@ -52,3 +52,33 @@ describe('casesNeedingDetails', () => {
     expect(caseFingerprint({ updatedAt: 'x', lastActivityAt: 'y' })).not.toBe(caseFingerprint({ updatedAt: 'x', lastActivityAt: 'z' }));
   });
 });
+
+// === AMÉLIORATION AJOUTÉE (messagerie déclarant → équipe) ===
+import { latestCloudStamp, reporterMessagesFromDetail } from './cloudCasesSync';
+import type { CaseDetail } from '../domain/caseDetailToAlert';
+
+describe('messagerie déclarant → équipe', () => {
+  it('prend la plus récente des deux dates (un message ne change que lastActivityAt)', () => {
+    expect(latestCloudStamp({ updatedAt: '2026-10-05T11:15:57Z', lastActivityAt: '2026-10-05T11:52:43Z' })).toBe('2026-10-05T11:52:43Z');
+    expect(latestCloudStamp({ updatedAt: '2026-10-05T11:15:57Z' })).toBe('2026-10-05T11:15:57Z');
+    expect(latestCloudStamp({})).toBeUndefined();
+  });
+
+  it("une modification locale antérieure à la réponse du déclarant ne masque plus la version du serveur", () => {
+    const now = Date.parse('2026-10-05T11:52:45Z');
+    const cloud = latestCloudStamp({ updatedAt: '2026-10-05T11:15:57Z', lastActivityAt: '2026-10-05T11:52:43Z' });
+    expect(isFreshLocalEdit('2026-10-05T11:52:19Z', cloud, now)).toBe(false);
+  });
+
+  it('extrait seulement les messages du déclarant', () => {
+    const d = {
+      communications: [
+        { messageId: 'm1', sender: 'investigator', senderDisplayName: 'DARC', content: 'Bonjour', createdAt: '2026-10-05T11:52:22Z' },
+        { messageId: 'm2', sender: 'reporter', senderDisplayName: 'Lanceur d’alerte', content: 'Merci', createdAt: '2026-10-05T11:52:43Z' },
+      ],
+    } as unknown as CaseDetail;
+    expect(reporterMessagesFromDetail(d)).toEqual([
+      { id: 'm2', sender: 'whistleblower', senderDisplayName: 'Lanceur d’alerte', content: 'Merci', createdAt: '2026-10-05T11:52:43Z' },
+    ]);
+  });
+});
