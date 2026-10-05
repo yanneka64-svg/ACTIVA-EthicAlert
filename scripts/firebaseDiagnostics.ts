@@ -318,9 +318,159 @@ async function functionLogs() {
   }
 }
 
+// === AMÉLIORATION AJOUTÉE (inventaire avant mise en production) ===
+/**
+ * Points de préparation à la production, en lecture seule : sauvegardes
+ * Firestore, réglages d'envoi des e-mails (domaine d'expédition, jamais la
+ * clé), notifications configurées (nombre d'adresses, jamais les adresses),
+ * résultats d'envoi récents, supervision, double authentification, budget
+ * des fonctions. Chaque contrôle indique « impossible » sans bloquer les
+ * autres si le compte du workflow n'a pas le droit de lire l'information.
+ */
+async function readinessDiagnostics() {
+  console.log(`\n=== Préparation à la production ===`);
+  let token = '';
+  try {
+    token = (await applicationDefault().getAccessToken()).access_token ?? '';
+  } catch (e) {
+    console.log(`jeton indisponible : ${e instanceof Error ? e.message : e}`);
+  }
+  const getJson = async (url: string): Promise<{ status: number; body: any }> => {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, 'x-goog-user-project': projectId } });
+    let body: any = {};
+    try {
+      body = await res.json();
+    } catch {
+      body = {};
+    }
+    return { status: res.status, body };
+  };
+  const line = (label: string, value: string) => console.log(`${label} : ${value}`);
+  const dbId = process.env.FIRESTORE_DATABASE_ID || 'default';
+
+  // 1. Sauvegardes Firestore
+  try {
+    const d = await getJson(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}`);
+    if (d.status === 200) {
+      line('Restauration à la seconde (PITR)', d.body.pointInTimeRecoveryEnablement ?? '?');
+      line('Protection contre la suppression de la base', d.body.deleteProtectionState ?? '?');
+      line('Emplacement de la base', d.body.locationId ?? '?');
+    } else line('Configuration de la base', `impossible (HTTP ${d.status} ${d.body?.error?.message?.slice(0, 160) ?? ''})`);
+    const b = await getJson(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/backupSchedules`);
+    if (b.status === 200) {
+      const list = (b.body.backupSchedules ?? []) as any[];
+      line('Sauvegardes programmées', list.length ? list.map((x) => `${x.dailyRecurrence ? 'quotidienne' : x.weeklyRecurrence ? 'hebdomadaire' : '?'} (conservée ${x.retention})`).join(', ') : 'AUCUNE');
+    } else line('Sauvegardes programmées', `impossible (HTTP ${b.status} ${b.body?.error?.message?.slice(0, 160) ?? ''})`);
+  } catch (e) {
+    line('Sauvegardes', `erreur ${e instanceof Error ? e.message : e}`);
+  }
+
+  // 2. Réglages des fonctions (variables non secrètes)
+  try {
+    const r = await getJson(`https://run.googleapis.com/v2/projects/${projectId}/locations/us-central1/services/applyportalupdate`);
+    if (r.status === 200) {
+      const env = ((r.body.template?.containers ?? [])[0]?.env ?? []) as { name: string; value?: string; valueSource?: unknown }[];
+      const val = (n: string) => env.find((x) => x.name === n);
+      const from = val('NOTIFY_FROM_EMAIL')?.value ?? '';
+      const fromDomain = from.match(/@([^>\s]+)/)?.[1] ?? '';
+      line("Adresse d'expédition des e-mails", from ? `définie (domaine ${fromDomain || '?'})` : 'NON définie → expéditeur de test onboarding@resend.dev');
+      line('Domaines de destinataires autorisés', val('NOTIFY_ALLOWED_RECIPIENT_DOMAINS')?.value || '(défaut group-activa.com)');
+      line('Clé Resend', val('RESEND_API_KEY') ? 'présente (secret)' : 'ABSENTE');
+      line('App Check imposé', val('ENFORCE_APP_CHECK')?.value || 'non');
+      line('Lien du portail dans les e-mails', val('NOTIFY_APP_URL')?.value || '(défaut)');
+      const scaling = r.body.template?.scaling ?? {};
+      line('Instances (min / max) de applyPortalUpdate', `${scaling.minInstanceCount ?? 0} / ${scaling.maxInstanceCount ?? '?'}`);
+    } else line('Réglages des fonctions', `impossible (HTTP ${r.status} ${r.body?.error?.message?.slice(0, 160) ?? ''})`);
+  } catch (e) {
+    line('Réglages des fonctions', `erreur ${e instanceof Error ? e.message : e}`);
+  }
+
+  // 3. Notifications configurées (comptes et nombre d'adresses, jamais les adresses)
+  try {
+    const cfg = await db.collection('config').doc('portal').get();
+    const raw = (cfg.data() ?? {}).sections?.emailNotifications;
+    let value: any = null;
+    try {
+      value = typeof raw === 'string' ? JSON.parse(raw) : null;
+    } catch {
+      value = null;
+    }
+    const sections = Object.keys((cfg.data() ?? {}).sections ?? {});
+    line('Sections de configuration partagées', sections.length ? sections.join(', ') : 'AUCUNE (chaque poste garde sa configuration locale)');
+    if (!value?.groups) line('Notifications e-mail', 'réglages par défaut (jamais enregistrés depuis l’administration)');
+    else {
+      for (const g of value.groups as any[]) {
+        line(`Notifications — ${g.id}`, `${g.enabled === false ? 'DÉSACTIVÉ' : 'activé'}, ${(g.roles ?? []).length} rôle(s), ${(g.extraEmails ?? []).length} adresse(s) saisie(s)`);
+      }
+    }
+    const staff = await db.collection('staff_users').get();
+    const withEmail = staff.docs.filter((d) => /@/.test(String(d.data().email ?? '')) && d.data().active !== false);
+    line('Comptes actifs avec une adresse e-mail réelle', `${withEmail.length} / ${staff.size}`);
+  } catch (e) {
+    line('Notifications e-mail', `erreur ${e instanceof Error ? e.message : e}`);
+  }
+
+  // 4. Résultats d'envoi des 30 derniers jours
+  try {
+    const since = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
+    for (const action of ['EMAIL_NOTIFICATION_SENT', 'EMAIL_NOTIFICATION_FAILED', 'EMAIL_TEST_SENT']) {
+      const q = await db.collection('audit_logs').where('action', '==', action).get();
+      const recent = q.docs.filter((d) => String(d.data().timestamp ?? d.data().createdAt ?? '') >= since);
+      line(`Audit ${action} (30 j)`, String(recent.length));
+      if (action === 'EMAIL_NOTIFICATION_FAILED' && recent.length) {
+        const last = recent.map((d) => d.data()).sort((a, b) => String(b.timestamp ?? b.createdAt).localeCompare(String(a.timestamp ?? a.createdAt)))[0];
+        const reason = JSON.stringify(last.newValue ?? last.details ?? '').replace(/[\w.+-]+@[\w.-]+/g, '<adresse>').slice(0, 300);
+        line('  dernier échec', reason);
+      }
+      if (action === 'EMAIL_TEST_SENT' && recent.length) {
+        const results = recent.flatMap((d) => (Array.isArray(d.data().newValue) ? d.data().newValue : [])) as { ok?: boolean }[];
+        line('  essais réussis / total', `${results.filter((x) => x.ok).length} / ${results.length}`);
+      }
+    }
+  } catch (e) {
+    line('Résultats d’envoi', `erreur ${e instanceof Error ? e.message : e}`);
+  }
+
+  // 5. Supervision et alertes
+  try {
+    const a = await getJson(`https://monitoring.googleapis.com/v3/projects/${projectId}/alertPolicies`);
+    line('Règles d’alerte (Cloud Monitoring)', a.status === 200 ? String((a.body.alertPolicies ?? []).length) : `impossible (HTTP ${a.status})`);
+    const u = await getJson(`https://monitoring.googleapis.com/v3/projects/${projectId}/uptimeCheckConfigs`);
+    line('Tests de disponibilité', u.status === 200 ? String((u.body.uptimeCheckConfigs ?? []).length) : `impossible (HTTP ${u.status})`);
+  } catch (e) {
+    line('Supervision', `erreur ${e instanceof Error ? e.message : e}`);
+  }
+
+  // 6. Authentification du personnel
+  try {
+    const c = await getJson(`https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config`);
+    if (c.status === 200) {
+      line('Double authentification (MFA)', c.body.mfa?.state ?? 'DISABLED');
+      line('Politique de mots de passe', c.body.passwordPolicyConfig?.passwordPolicyEnforcementState ?? 'non configurée');
+      line('Inscription publique de comptes', c.body.signIn?.email?.enabled ? 'connexion e-mail active' : 'connexion e-mail inactive');
+      line('Identity Platform (requis pour la MFA)', c.body.subtype ?? '?');
+    } else line('Authentification', `impossible (HTTP ${c.status} ${c.body?.error?.message?.slice(0, 160) ?? ''})`);
+  } catch (e) {
+    line('Authentification', `erreur ${e instanceof Error ? e.message : e}`);
+  }
+
+  // 7. Domaines du site
+  try {
+    const h = await getJson(`https://firebasehosting.googleapis.com/v1beta1/projects/${projectId}/sites/${projectId}/customDomains`);
+    if (h.status === 200) {
+      const doms = (h.body.customDomains ?? []) as any[];
+      line('Domaines personnalisés', doms.length ? doms.map((d) => `${d.name?.split('/').pop()} (${d.hostState ?? '?'} / ${d.ownershipState ?? '?'} / certificat ${d.cert?.state ?? '?'})`).join(', ') : 'aucun (site sur *.web.app)');
+    } else line('Domaines personnalisés', `impossible (HTTP ${h.status})`);
+  } catch (e) {
+    line('Domaines', `erreur ${e instanceof Error ? e.message : e}`);
+  }
+}
+
 main()
   .then(() => functionLogs().catch((e) => console.log(`journaux : ${e instanceof Error ? e.message : e}`)))
   .then(() => appCheckDiagnostics())
+  // === AMÉLIORATION AJOUTÉE (inventaire avant mise en production) ===
+  .then(() => readinessDiagnostics().catch((e) => console.log(`préparation : ${e instanceof Error ? e.message : e}`)))
   .then(
   () => process.exit(0),
   (e) => {
