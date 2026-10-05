@@ -18,6 +18,10 @@ import React from 'react';
 import { Send } from 'lucide-react';
 import { AlertRecord } from '../../types';
 import { currentT } from '../../i18n/currentLang';
+// === AMÉLIORATION AJOUTÉE (échanges instantanés, documents du déclarant) ===
+import { useLiveConversation } from '../../hooks/useLiveConversation';
+import { TypingIndicator } from '../ui/TypingIndicator';
+import { MessageAttachments } from '../ui/MessageAttachments';
 
 interface MessagesSectionProps {
   selectedAlert: AlertRecord;
@@ -34,11 +38,21 @@ export const MessagesSection: React.FC<MessagesSectionProps> = ({
 }) => {
   // === AMÉLIORATION AJOUTÉE : libellés traduits (FR/EN/PT) ===
   const t = currentT();
+  // === AMÉLIORATION AJOUTÉE (échanges instantanés) === rafraîchissement 3 s,
+  // « le déclarant est en train d'écrire », signal de frappe (anonyme).
+  const { otherTyping, notifyTyping, live } = useLiveConversation(selectedAlert);
   return (
     <div className="p-6 flex flex-col h-[560px] text-xs">
       <div className="border-b border-slate-100 pb-3 mb-4">
-        <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+        <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-2">
           {t.inv_msg_title}
+          {/* === AMÉLIORATION AJOUTÉE (échanges instantanés) === */}
+          {live && (
+            <span className="inline-flex items-center gap-1 normal-case tracking-normal text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
+              {t.chat_live}
+            </span>
+          )}
         </h4>
         <p className="text-slate-500 text-[11px]">
           {t.inv_msg_hint}
@@ -62,10 +76,16 @@ export const MessagesSection: React.FC<MessagesSectionProps> = ({
                   : 'bg-blue-600 text-white rounded-tr-none'
               }`}>
                 {m.content}
+                {/* === AMÉLIORATION AJOUTÉE (documents du déclarant) === */}
+                {m.attachments && m.attachments.length > 0 && (
+                  <MessageAttachments files={m.attachments} t={t} allowCloudDownload tone={isWb ? 'light' : 'dark'} />
+                )}
               </div>
             </div>
           );
         })}
+        {/* === AMÉLIORATION AJOUTÉE (échanges instantanés) === */}
+        {otherTyping && <TypingIndicator label={t.chat_reporter_typing} />}
       </div>
 
       {/* Message input */}
@@ -73,7 +93,11 @@ export const MessagesSection: React.FC<MessagesSectionProps> = ({
         <input
           type="text"
           value={investigatorMsgText}
-          onChange={(e) => setInvestigatorMsgText(e.target.value)}
+          onChange={(e) => {
+            setInvestigatorMsgText(e.target.value);
+            // === AMÉLIORATION AJOUTÉE (échanges instantanés) === signal de frappe.
+            notifyTyping(e.target.value);
+          }}
           placeholder={t.inv_msg_ph}
           className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />

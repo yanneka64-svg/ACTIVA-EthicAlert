@@ -150,6 +150,9 @@ export interface EvidenceFile {
   // d'alerte, qui reste anonyme y compris ici.
   description?: string;
   uploadedBy?: string;
+  // === AMÉLIORATION AJOUTÉE (documents du déclarant) === dossier Firebase
+  // qui contient le fichier (téléchargé à la demande, accès audité).
+  cloudCaseId?: string;
 }
 
 export interface InternalNote {

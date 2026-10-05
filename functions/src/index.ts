@@ -70,6 +70,16 @@ import { caseQueryEqualities, normalizePagination } from '../../src/domain/caseQ
 import { formatTrackingNumber, parseReporterCaseInput } from '../../src/domain/reporterCaseInput';
 // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
 import type { ReporterCaseDetails } from '../../src/domain/reporterCaseDetails';
+// === AMÉLIORATION AJOUTÉE (échanges instantanés, anonymat, documents du déclarant) ===
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import {
+  MessageAttachment,
+  REPORTER_FILE_MAX_BYTES,
+  REPORTER_FILE_MAX_PER_CASE,
+  TEAM_DISPLAY_NAME,
+  safeFileName,
+  sanitizeCommunicationsForReporter,
+} from '../../src/domain/conversation';
 // === AMÉLIORATION AJOUTÉE : réutilise le HASH/SALT existant, jamais réimplémenté ===
 // Same salted, iterated-SHA256 verification already used by the legacy
 // client-side AlertTrackingView (src/components/AlertTrackingView.tsx) —
@@ -893,11 +903,16 @@ export const addCommunication = onCall(async (request) => {
   // token's own name, never taken from `request.data`. A reporter-side
   // equivalent (through getCaseForReporter's credential model) is still on
   // the backlog below.
-  const message: Communication = {
-    messageId, caseId, sender: 'investigator', senderDisplayName: user.name, content,
+  // === AMÉLIORATION AJOUTÉE (anonymat de l'équipe) === nom affiché neutre ;
+  // le nom réel n'est conservé qu'en interne (`authorName`, jamais renvoyé au
+  // déclarant — voir sanitizeCommunicationsForReporter).
+  const message: Communication & { authorName: string } = {
+    messageId, caseId, sender: 'investigator', senderDisplayName: TEAM_DISPLAY_NAME, authorName: user.name, content,
     createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId,
   };
   await db.collection('cases').doc(caseId).collection('communications').doc(messageId).set(message);
+  // === AMÉLIORATION AJOUTÉE (échanges instantanés) === l'enquêteur a fini d'écrire.
+  await db.collection('cases').doc(caseId).collection('presence').doc('state').set({ teamTypingAt: null }, { merge: true });
   await appendTimeline(caseId, 'MESSAGE_SENT', user.userId);
 
   return { messageId };
@@ -1131,7 +1146,13 @@ export const getCaseForReporter = onCall(async (request) => {
   const { ref: caseRef, kase } = await verifyReporterAccess(caseNumber, accessCode);
 
   const commsSnap = await caseRef.collection('communications').orderBy('createdAt', 'asc').get();
-  const communications = commsSnap.docs.map((d) => d.data() as Communication);
+  // === AMÉLIORATION AJOUTÉE (anonymat de l'équipe) === jamais le nom ni
+  // l'identifiant d'un membre du personnel côté déclarant.
+  const communications = sanitizeCommunicationsForReporter(commsSnap.docs.map((d) => d.data() as Communication));
+  // === AMÉLIORATION AJOUTÉE (échanges instantanés) === session courte pour
+  // la conversation en direct (sans revérifier le mot de passe à chaque fois).
+  const sessionToken = await issueReporterSession(caseRef.id);
+  const presence = await caseRef.collection('presence').doc('state').get();
 
   await appendAudit({ actorId: 'reporter', action: 'CASE_ACCESSED_BY_REPORTER', caseId: caseRef.id });
 
@@ -1146,6 +1167,8 @@ export const getCaseForReporter = onCall(async (request) => {
     receivedAt: kase.receivedAt,
     description: kase.description,
     communications,
+    sessionToken,
+    teamTypingAt: (presence.data()?.teamTypingAt as string | undefined) ?? null,
     // === AMÉLIORATION AJOUTÉE (suivi du déclarant depuis n'importe quel
     // appareil) === uniquement ce que le déclarant a lui-même renseigné au
     // dépôt (numéro de suivi remis, catégorie, entité, pays, mode), plus les
@@ -1183,11 +1206,16 @@ export const getCaseForReporter = onCall(async (request) => {
 // ---------------------------------------------------------------------------
 
 export const addCommunicationAsReporter = onCall(async (request) => {
-  const { caseNumber, accessCode, content } = request.data as { caseNumber?: string; accessCode?: string; content?: string };
-  if (!caseNumber || !accessCode || !content) {
+  const { caseNumber, accessCode, content, sessionToken } = request.data as { caseNumber?: string; accessCode?: string; content?: string; sessionToken?: string };
+  // === AMÉLIORATION AJOUTÉE (échanges instantanés) === session du déclarant
+  // acceptée à la place du couple numéro + code (même dossier, déjà prouvé).
+  if (!content || (!sessionToken && (!caseNumber || !accessCode))) {
     throw new HttpsError('invalid-argument', 'caseNumber, accessCode and content are required.');
   }
-  const { ref: caseRef } = await verifyReporterAccess(caseNumber, accessCode);
+  if (typeof content !== 'string' || content.length > 10000) throw new HttpsError('invalid-argument', 'Message too long.');
+  const { ref: caseRef } = sessionToken
+    ? await verifyReporterSession(sessionToken)
+    : await verifyReporterAccess(caseNumber as string, accessCode as string);
 
   const messageId = newId('msg');
   const nowIso = new Date().toISOString();
@@ -1203,9 +1231,188 @@ export const addCommunicationAsReporter = onCall(async (request) => {
     updatedBy: 'reporter',
   };
   await caseRef.collection('communications').doc(messageId).set(message);
+  // === AMÉLIORATION AJOUTÉE (échanges instantanés) === le déclarant a fini d'écrire.
+  await caseRef.collection('presence').doc('state').set({ reporterTypingAt: null }, { merge: true });
   await appendTimeline(caseRef.id, 'MESSAGE_SENT', 'reporter');
 
   return { messageId };
+});
+
+// ---------------------------------------------------------------------------
+// === AMÉLIORATION AJOUTÉE (échanges instantanés, « est en train d'écrire »,
+// documents du déclarant) ===
+// ---------------------------------------------------------------------------
+
+// Session du déclarant : jeton signé (HMAC-SHA256) portant l'identifiant du
+// dossier et une expiration (2 h), remis par getCaseForReporter après
+// vérification du mot de passe. Évite de recalculer l'empreinte PBKDF2 (et
+// de solliciter le limiteur de tentatives) à chaque rafraîchissement de la
+// conversation. Secret aléatoire créé une fois dans `system/reporter_session`
+// (collection fermée aux clients : aucune règle Firestore ne l'ouvre).
+const REPORTER_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+let reporterSessionSecretCache: Buffer | null = null;
+
+async function reporterSessionSecret(): Promise<Buffer> {
+  if (reporterSessionSecretCache) return reporterSessionSecretCache;
+  const ref = db.collection('system').doc('reporter_session');
+  const hex = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const existing = snap.exists ? (snap.data() as { secret?: string }).secret : undefined;
+    if (existing) return existing;
+    const created = randomBytes(32).toString('hex');
+    tx.set(ref, { secret: created, createdAt: new Date().toISOString() });
+    return created;
+  });
+  reporterSessionSecretCache = Buffer.from(hex, 'hex');
+  return reporterSessionSecretCache;
+}
+
+async function issueReporterSession(caseId: string): Promise<string> {
+  const payload = Buffer.from(JSON.stringify({ c: caseId, e: Date.now() + REPORTER_SESSION_TTL_MS })).toString('base64url');
+  const sig = createHmac('sha256', await reporterSessionSecret()).update(payload).digest('base64url');
+  return `${payload}.${sig}`;
+}
+
+async function verifyReporterSession(token: string): Promise<{ ref: FirebaseFirestore.DocumentReference; kase: Case; expiresAt: number }> {
+  const expired = () => new HttpsError('unauthenticated', 'Reporter session expired. Sign in again.');
+  if (typeof token !== 'string' || token.length > 500 || !token.includes('.')) throw expired();
+  const [payload, sig] = token.split('.');
+  const expected = createHmac('sha256', await reporterSessionSecret()).update(payload).digest();
+  const given = Buffer.from(sig ?? '', 'base64url');
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) throw expired();
+  let data: { c?: string; e?: number };
+  try {
+    data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+  } catch {
+    throw expired();
+  }
+  if (!data.c || !data.e || data.e < Date.now()) throw expired();
+  const ref = db.collection('cases').doc(data.c);
+  const snap = await ref.get();
+  if (!snap.exists) throw expired();
+  return { ref, kase: snap.data() as Case, expiresAt: data.e };
+}
+
+/**
+ * Conversation du déclarant, rafraîchie toutes les quelques secondes tant
+ * qu'elle est ouverte : messages (vue anonymisée), « l'équipe est en train
+ * d'écrire », statut. `typing` (facultatif) signale que le déclarant écrit
+ * (true) ou a arrêté (false). Renouvelle la session avant son expiration.
+ */
+export const reporterConversation = onCall(async (request) => {
+  const { sessionToken, typing } = (request.data ?? {}) as { sessionToken?: string; typing?: boolean };
+  const { ref, kase, expiresAt } = await verifyReporterSession(sessionToken ?? '');
+  const presenceRef = ref.collection('presence').doc('state');
+  if (typing === true || typing === false) {
+    await presenceRef.set({ reporterTypingAt: typing ? new Date().toISOString() : null }, { merge: true });
+  }
+  const [commsSnap, presence] = await Promise.all([ref.collection('communications').orderBy('createdAt', 'asc').get(), presenceRef.get()]);
+  return {
+    status: kase.status,
+    communications: sanitizeCommunicationsForReporter(commsSnap.docs.map((d) => d.data() as Communication)),
+    teamTypingAt: (presence.data()?.teamTypingAt as string | undefined) ?? null,
+    ...(expiresAt - Date.now() < 30 * 60 * 1000 ? { sessionToken: await issueReporterSession(ref.id) } : {}),
+  };
+});
+
+/**
+ * Conversation d'un dossier pour l'équipe (même accès que la lecture des
+ * messages) : messages complets et « le déclarant est en train d'écrire ».
+ * `typing` signale que l'enquêteur écrit (affiché au déclarant SANS nom).
+ */
+export const staffConversation = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId, typing } = (request.data ?? {}) as { caseId?: string; typing?: boolean };
+  if (!caseId) throw new HttpsError('invalid-argument', 'caseId is required.');
+  const { ref } = await requireCaseAccess(caseId, user, 'communications.read');
+  const presenceRef = ref.collection('presence').doc('state');
+  if (typing === true || typing === false) {
+    await presenceRef.set({ teamTypingAt: typing ? new Date().toISOString() : null }, { merge: true });
+  }
+  const [commsSnap, presence] = await Promise.all([ref.collection('communications').orderBy('createdAt', 'asc').get(), presenceRef.get()]);
+  return {
+    communications: commsSnap.docs.map((d) => d.data() as Communication),
+    reporterTypingAt: (presence.data()?.reporterTypingAt as string | undefined) ?? null,
+  };
+});
+
+// Documents du déclarant : contenu stocké dans Firestore par morceaux
+// (Cloud Storage n'est pas activé sur ce projet), lisible seulement par
+// l'équipe habilitée via getEvidenceFileForStaff (accès audité).
+const EVIDENCE_CHUNK_BYTES = 900 * 1024;
+
+export const addEvidenceAsReporter = onCall(async (request) => {
+  const { sessionToken, fileName, fileType, dataBase64, message } = (request.data ?? {}) as {
+    sessionToken?: string;
+    fileName?: string;
+    fileType?: string;
+    dataBase64?: string;
+    message?: string;
+  };
+  const { ref } = await verifyReporterSession(sessionToken ?? '');
+  if (typeof dataBase64 !== 'string' || !dataBase64) throw new HttpsError('invalid-argument', 'File content is required.');
+  const bytes = Buffer.from(dataBase64, 'base64');
+  if (bytes.length === 0) throw new HttpsError('invalid-argument', 'Empty file.');
+  if (bytes.length > REPORTER_FILE_MAX_BYTES) throw new HttpsError('invalid-argument', 'File too large.');
+  const already = await ref.collection('evidence').where('createdBy', '==', 'reporter').count().get();
+  if (already.data().count >= REPORTER_FILE_MAX_PER_CASE) throw new HttpsError('resource-exhausted', 'Too many files for this case.');
+
+  const name = safeFileName(fileName ?? 'document');
+  const type = typeof fileType === 'string' && fileType.length <= 120 ? fileType : 'application/octet-stream';
+  const evidenceId = newId('ev');
+  const messageId = newId('msg');
+  const nowIso = new Date().toISOString();
+  const audit = { createdAt: nowIso, createdBy: 'reporter', updatedAt: nowIso, updatedBy: 'reporter' };
+  const sha256Hash = (await import('node:crypto')).createHash('sha256').update(bytes).digest('hex');
+  const attachment: MessageAttachment = { evidenceId, fileName: name, fileType: type, fileSize: bytes.length };
+
+  const batch = db.batch();
+  for (let i = 0, n = 0; i < bytes.length; i += EVIDENCE_CHUNK_BYTES, n++) {
+    batch.set(ref.collection('evidence_chunks').doc(`${evidenceId}_${String(n).padStart(3, '0')}`), {
+      evidenceId,
+      index: n,
+      data: bytes.subarray(i, i + EVIDENCE_CHUNK_BYTES),
+    });
+  }
+  const evidence: Evidence = {
+    evidenceId, caseId: ref.id, fileName: name, fileType: type, fileSize: bytes.length,
+    description: 'Document envoyé par le déclarant depuis la messagerie sécurisée.',
+    storagePath: `firestore:evidence_chunks/${evidenceId}`, sha256Hash,
+    version: 1, confidentiality: 'restricted', status: 'active', ...audit,
+  };
+  batch.set(ref.collection('evidence').doc(evidenceId), evidence);
+  const text = typeof message === 'string' && message.trim() ? message.trim().slice(0, 10000) : `Document joint : ${name}`;
+  batch.set(ref.collection('communications').doc(messageId), {
+    messageId, caseId: ref.id, sender: 'reporter', senderDisplayName: 'Lanceur d’alerte', content: text,
+    attachments: [evidenceId], attachmentFiles: [attachment], ...audit,
+  });
+  batch.set(ref.collection('presence').doc('state'), { reporterTypingAt: null }, { merge: true });
+  await batch.commit();
+  await appendTimeline(ref.id, 'EVIDENCE_ADDED_BY_REPORTER', 'reporter', name);
+  await appendAudit({ actorId: 'reporter', action: 'EVIDENCE_ADDED_BY_REPORTER', caseId: ref.id, objectType: 'evidence', objectId: evidenceId });
+
+  return { messageId, evidenceId };
+});
+
+/** Contenu d'un document du déclarant, pour l'équipe habilitée (accès audité). */
+export const getEvidenceFileForStaff = onCall(async (request) => {
+  const user = requireAppUser(request);
+  const { caseId, evidenceId } = (request.data ?? {}) as { caseId?: string; evidenceId?: string };
+  if (!caseId || !evidenceId) throw new HttpsError('invalid-argument', 'caseId and evidenceId are required.');
+  const { ref } = await requireCaseAccess(caseId, user, 'evidence.read');
+  const evSnap = await ref.collection('evidence').doc(evidenceId).get();
+  if (!evSnap.exists) throw new HttpsError('not-found', 'Evidence not found.');
+  const evidence = evSnap.data() as Evidence;
+  if (evidence.status === 'deleted' || !evidence.storagePath?.startsWith('firestore:')) {
+    throw new HttpsError('failed-precondition', 'This file is not available for download here.');
+  }
+  const chunks = await ref.collection('evidence_chunks').where('evidenceId', '==', evidenceId).get();
+  const parts = chunks.docs
+    .map((d) => d.data() as { index: number; data: Buffer | Uint8Array })
+    .sort((a, b) => a.index - b.index)
+    .map((c) => Buffer.from(c.data));
+  await appendAudit({ actorId: user.userId, action: 'EVIDENCE_DOWNLOADED', caseId, objectType: 'evidence', objectId: evidenceId });
+  return { fileName: evidence.fileName, fileType: evidence.fileType, dataBase64: Buffer.concat(parts).toString('base64') };
 });
 
 // ---------------------------------------------------------------------------

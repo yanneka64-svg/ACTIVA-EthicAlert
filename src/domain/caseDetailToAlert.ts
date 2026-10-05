@@ -232,9 +232,24 @@ export function caseDetailToAlertRecord(
   const messages: CaseMessage[] = detail.communications.map((c) => ({
     id: c.messageId,
     sender: SENDER_TO_LOCAL[c.sender] ?? 'admin',
-    senderDisplayName: c.senderDisplayName,
+    // === AMÉLIORATION AJOUTÉE (anonymat) === côté équipe, l'auteur réel
+    // reste visible en interne (le déclarant ne voit que « Équipe d'investigation »).
+    senderDisplayName: c.authorName ? `DARC (${c.authorName})` : c.senderDisplayName,
     content: c.content,
     createdAt: c.createdAt,
+    // === AMÉLIORATION AJOUTÉE (documents du déclarant) ===
+    ...(c.attachmentFiles?.length
+      ? {
+          attachments: c.attachmentFiles.map((a) => ({
+            id: a.evidenceId,
+            name: a.fileName,
+            size: a.fileSize,
+            type: a.fileType,
+            uploadedAt: c.createdAt,
+            cloudCaseId: kase.caseId,
+          })),
+        }
+      : {}),
   }));
 
   const conflictDeclarations: ConflictDeclaration[] = detail.coiDeclarations.map((d) => ({
@@ -254,6 +269,8 @@ export function caseDetailToAlertRecord(
     uploadedAt: e.createdAt,
     ...(e.description ? { description: e.description } : {}),
     uploadedBy: displayName(e.createdBy),
+    // === AMÉLIORATION AJOUTÉE (documents du déclarant) === téléchargeable à la demande.
+    ...(e.storagePath?.startsWith('firestore:') ? { cloudCaseId: kase.caseId } : {}),
   }));
 
   const assigned = base.assignedInvestigators;
