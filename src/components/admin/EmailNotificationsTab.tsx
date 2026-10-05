@@ -14,8 +14,18 @@ import { CheckCircle2, Loader2, Mail, Save, Send, XCircle } from 'lucide-react';
 import type { UserProfile } from '../../types';
 import { storage } from '../../services/storage';
 import {
+  DEFAULT_INVESTIGATOR_KEYWORDS,
+  DEFAULT_ROUTING,
   GROUP_LABEL,
   isValidEmail,
+  parseContact,
+  RECIPIENT_GROUP_IDS,
+  resolveNotificationRecipients,
+  routingPlan,
+  ROUTING_CASES,
+  type CaseNotificationFacts,
+  type RoutingCase,
+  type StaffRecipientCandidate,
   NOTIFIABLE_ROLES,
   NOTIFICATION_CONDITIONS,
   NOTIFICATION_EVENTS,
@@ -24,7 +34,23 @@ import {
   type NotificationEvent,
   type RecipientGroup,
 } from '../../domain/emailNotificationRules';
-import type { RoleId } from '../../domain/caseTypes';
+import type { CasePriority, RoleId } from '../../domain/caseTypes';
+
+// === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) ===
+const ROUTING_LABEL: Record<RoutingCase, string> = {
+  none: 'Personne du dispositif n’est mise en cause',
+  investigators: 'Un enquêteur est mis en cause',
+  supervisors: 'Un superviseur est mis en cause',
+  darc: 'La DARC est mise en cause',
+  dga: 'Le DGA est mis en cause',
+  drh: 'Le DRH est mis en cause',
+};
+const SHORT_GROUP: Record<string, string> = { supervisors: 'Superviseurs', darc: 'DARC', dga: 'DGA', drh: 'DRH' };
+const splitList = (v: string) =>
+  v
+    .split(/[,;\n]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
 
 const EVENT_LABEL: Record<NotificationEvent, string> = {
   new_report: 'Nouveau signalement',
@@ -63,6 +89,17 @@ export const EmailNotificationsTab: React.FC<{ activeUser: UserProfile }> = ({ a
   );
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  // === AMÉLIORATION AJOUTÉE (acheminement) === simulation d'une alerte
+  const [simPersons, setSimPersons] = useState([{ name: '', position: '' }]);
+  const [simCategory, setSimCategory] = useState('');
+  const [simPriority, setSimPriority] = useState<CasePriority>('high');
+  const [keywordText, setKeywordText] = useState<Record<string, string>>(() => {
+    const st = storage.getEmailNotificationSettings();
+    return {
+      investigators: (st.investigatorKeywords ?? DEFAULT_INVESTIGATOR_KEYWORDS).join(', '),
+      ...Object.fromEntries(st.groups.map((g) => [g.id, (g.functionKeywords ?? []).join(', ')])),
+    };
+  });
   const [tests, setTests] = useState<Record<string, TestResult[] | string>>({});
   const categories = useMemo(() => storage.getCategories().map((c) => c.name), []);
   const staff = useMemo(() => storage.getUsers(), []);
@@ -76,19 +113,54 @@ export const EmailNotificationsTab: React.FC<{ activeUser: UserProfile }> = ({ a
     updateGroup(g.id, (x) => ({ ...x, events: { ...x.events, [ev]: next } }));
   };
 
-  /** Réglages courants (adresses saisies comprises). */
+  /** Réglages courants (adresses et fonctions saisies comprises). */
   const current = (): EmailNotificationSettings => ({
     ...settings,
+    investigatorKeywords: splitList(keywordText.investigators ?? ''),
     groups: settings.groups.map((g) => ({
       ...g,
+      // une ligne par destinataire : « adresse » ou « Prénom Nom <adresse> »
       extraEmails: (extraText[g.id] ?? '')
-        .split(/[\s,;]+/)
-        .map((e) => e.trim().toLowerCase())
+        .split(/\n|;/)
+        .map((e) => e.trim())
         .filter(Boolean),
+      functionKeywords: splitList(keywordText[g.id] ?? ''),
     })),
   });
 
-  const invalidAddresses = current().groups.flatMap((g) => g.extraEmails.filter((e) => !isValidEmail(e)));
+  const invalidAddresses = current().groups.flatMap((g) => g.extraEmails.map((e) => parseContact(e).email).filter((e) => !isValidEmail(e)));
+
+  // === AMÉLIORATION AJOUTÉE (acheminement) ===
+  const routing = { ...DEFAULT_ROUTING, ...(settings.routing ?? {}) };
+  const toggleRoute = (c: RoutingCase, g: RecipientGroup['id']) =>
+    setSettings((s) => {
+      const r = { ...DEFAULT_ROUTING, ...(s.routing ?? {}) };
+      const list = r[c] ?? [];
+      return { ...s, routing: { ...r, [c]: list.includes(g) ? list.filter((x) => x !== g) : [...list, g] } };
+    });
+  const staffCandidates: StaffRecipientCandidate[] = staff
+    .filter((u) => u.email)
+    .map((u) => ({
+      uid: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role as RoleId,
+      active: u.active !== false,
+      countries: u.countries ?? [],
+      entities: u.entities ?? [],
+    }));
+  const simFacts: CaseNotificationFacts = {
+    reference: 'SIMULATION',
+    category: simCategory || categories[0] || '',
+    entity: '',
+    country: '',
+    priority: simPriority,
+    implicatedLevels: [],
+    implicatedPersons: simPersons.filter((p) => p.name.trim() || p.position.trim()),
+  };
+  const simSettings = current();
+  const simPlan = routingPlan(simSettings, simFacts, staffCandidates);
+  const simRecipients = resolveNotificationRecipients({ event: 'new_report', facts: simFacts, settings: simSettings, staff: staffCandidates });
 
   const save = () => {
     try {
@@ -158,6 +230,136 @@ export const EmailNotificationsTab: React.FC<{ activeUser: UserProfile }> = ({ a
         </div>
       )}
 
+      {/* === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) === */}
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3" id="notif-routing">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">Acheminement automatique des alertes</h3>
+          <p className="text-slate-500 mt-0.5 max-w-3xl">
+            Chaque nouvelle alerte est envoyée automatiquement selon la personne mise en cause. Si plusieurs niveaux sont mis en
+            cause, la règle du niveau le plus élevé s’applique. Un niveau mis en cause n’est jamais prévenu, et un compte du
+            portail nommé dans l’alerte est automatiquement écarté du dossier.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse min-w-[520px]">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wider text-slate-500">
+                <th className="text-left font-semibold py-2 pr-3">Situation</th>
+                {RECIPIENT_GROUP_IDS.map((g) => (
+                  <th key={g} className="font-semibold py-2 px-2 text-center">{SHORT_GROUP[g]}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ROUTING_CASES.map((c) => (
+                <tr key={c} className={`border-t border-slate-100 ${c === 'none' ? 'bg-blue-50/40' : ''}`}>
+                  <td className="py-2 pr-3 font-medium text-slate-700">{ROUTING_LABEL[c]}</td>
+                  {RECIPIENT_GROUP_IDS.map((g) => (
+                    <td key={g} className="text-center py-2 px-2">
+                      {g === c ? (
+                        <span className="text-[10px] text-slate-400" title="Un niveau mis en cause n’est jamais prévenu">—</span>
+                      ) : (
+                        <input
+                          type="checkbox"
+                          id={`route-${c}-${g}`}
+                          aria-label={`${ROUTING_LABEL[c]} → ${SHORT_GROUP[g]}`}
+                          checked={(routing[c] ?? []).includes(g)}
+                          onChange={() => toggleRoute(c, g)}
+                          className="w-4 h-4 accent-blue-600"
+                        />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+          <label className="block">
+            <span className="block font-semibold text-slate-700 mb-1">Fonctions qui désignent un enquêteur</span>
+            <input
+              id="notif-kw-investigators"
+              value={keywordText.investigators ?? ''}
+              onChange={(e) => setKeywordText((k) => ({ ...k, investigators: e.target.value }))}
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg"
+            />
+          </label>
+          <p className="text-slate-500 self-end">
+            Un niveau est considéré mis en cause si l’alerte nomme l’un de ses membres (prénom et nom), ou cite l’une de ses
+            fonctions (réglées dans chaque groupe ci-dessous).
+          </p>
+        </div>
+      </section>
+
+      <section className="bg-slate-900 text-slate-100 rounded-2xl p-5 space-y-3" id="notif-simulation">
+        <div>
+          <h3 className="text-sm font-bold text-white">Simulation : à qui partirait une alerte ?</h3>
+          <p className="text-slate-400 mt-0.5">Essayez les réglages ci-dessus avant de les enregistrer — aucun e-mail n’est envoyé.</p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            {simPersons.map((p, i) => (
+              <div key={i} className="grid grid-cols-2 gap-2">
+                <input
+                  id={`sim-name-${i}`}
+                  placeholder="Personne mise en cause (prénom nom)"
+                  value={p.name}
+                  onChange={(e) => setSimPersons((l) => l.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500"
+                />
+                <input
+                  id={`sim-position-${i}`}
+                  placeholder="Fonction (ex. Superviseur, DARC…)"
+                  value={p.position}
+                  onChange={(e) => setSimPersons((l) => l.map((x, j) => (j === i ? { ...x, position: e.target.value } : x)))}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500"
+                />
+              </div>
+            ))}
+            {simPersons.length < 4 && (
+              <button type="button" onClick={() => setSimPersons((l) => [...l, { name: '', position: '' }])} className="text-blue-300 hover:text-blue-200 font-semibold">
+                + Ajouter une personne mise en cause
+              </button>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <select id="sim-category" value={simCategory} onChange={(e) => setSimCategory(e.target.value)} className="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white">
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select id="sim-priority" value={simPriority} onChange={(e) => setSimPriority(e.target.value as CasePriority)} className="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white">
+                <option value="low">Priorité faible</option>
+                <option value="high">Priorité élevée</option>
+                <option value="very_high">Priorité très élevée</option>
+                <option value="critical">Priorité critique</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-2" id="sim-result">
+            <div className="text-slate-300">
+              Règle appliquée : <span className="font-bold text-white">{ROUTING_LABEL[simPlan.routingCase]}</span>
+              {simPlan.implicated.length > 0 && (
+                <span className="text-amber-300"> — écarté(s) : {simPlan.implicated.map((g) => (g === 'investigators' ? 'Enquêteurs' : SHORT_GROUP[g])).join(', ')}</span>
+              )}
+            </div>
+            {simRecipients.length ? (
+              <ul className="space-y-1">
+                {simRecipients.map((r) => (
+                  <li key={r.email} className="flex flex-wrap items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200 text-[10px] font-bold">{SHORT_GROUP[r.group]}</span>
+                    <span className="font-mono">{r.email}</span>
+                    {r.reason !== 'always' && <span className="text-slate-400">({r.reason === 'escalation' ? 'escalade' : r.reason === 'hr' ? 'dossier RH' : r.reason === 'critical' ? 'dossier critique' : 'Direction mise en cause'})</span>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-amber-300">Aucun destinataire : renseignez des adresses ou des comptes dans les groupes concernés.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {settings.groups.map((g) => {
           const accounts = staff.filter((u) => u.active !== false && g.roles.includes(u.role as RoleId) && u.email);
@@ -212,15 +414,29 @@ export const EmailNotificationsTab: React.FC<{ activeUser: UserProfile }> = ({ a
 
               <div>
                 <label htmlFor={`notif-emails-${g.id}`} className="block font-semibold text-slate-700 mb-1">
-                  Adresses supplémentaires <span className="font-normal text-slate-500">(une par ligne)</span>
+                  Adresses supplémentaires{' '}
+                  <span className="font-normal text-slate-500">(une par ligne : « Prénom Nom &lt;adresse&gt; » ou « adresse »)</span>
                 </label>
                 <textarea
                   id={`notif-emails-${g.id}`}
                   rows={2}
                   value={extraText[g.id] ?? ''}
                   onChange={(e) => setExtraText((t) => ({ ...t, [g.id]: e.target.value }))}
-                  placeholder={g.id === 'dga' ? 'dga@group-activa.com' : g.id === 'drh' ? 'drh@group-activa.com' : g.id === 'darc' ? 'darc@group-activa.com' : ''}
+                  placeholder={g.id === 'dga' ? 'Prénom Nom <dga@group-activa.com>' : g.id === 'drh' ? 'Prénom Nom <drh@group-activa.com>' : g.id === 'darc' ? 'darc@group-activa.com' : ''}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono"
+                />
+              </div>
+
+              {/* === AMÉLIORATION AJOUTÉE (acheminement) === */}
+              <div>
+                <label htmlFor={`notif-kw-${g.id}`} className="block font-semibold text-slate-700 mb-1">
+                  Fonctions qui désignent ce niveau <span className="font-normal text-slate-500">(séparées par des virgules)</span>
+                </label>
+                <input
+                  id={`notif-kw-${g.id}`}
+                  value={keywordText[g.id] ?? ''}
+                  onChange={(e) => setKeywordText((k) => ({ ...k, [g.id]: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg"
                 />
               </div>
 

@@ -80,3 +80,58 @@ describe('sanitizeEmailNotificationSettings', () => {
     expect(() => sanitizeEmailNotificationSettings({ groups: [{ id: 'drh', extraEmails: ['pas-une-adresse'] }] })).toThrow();
   });
 });
+
+// === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) ===
+import { namesMatch, parseContact, routingPlan } from './emailNotificationRules';
+describe('acheminement selon la personne mise en cause', () => {
+  const s2: EmailNotificationSettings = {
+    ...settings,
+    groups: settings.groups.map((g) => (g.id === 'darc' ? { ...g, extraEmails: ['Awa Ndiaye <awa.ndiaye@group-activa.com>'] } : g)),
+  };
+  const staffNamed = staff.map((x) => ({
+    ...x,
+    name: x.uid === 'sup-cm' ? 'Paul Mbarga' : x.uid === 'darc' ? 'Marie Ekane' : x.uid === 'inv' ? 'Luc Fotso' : x.uid,
+  }));
+  const groups = (f: CaseNotificationFacts) =>
+    [...new Set(resolveNotificationRecipients({ event: 'new_report', facts: f, settings: s2, staff: staffNamed }).map((x) => x.group))].sort();
+
+  it('personne du dispositif mise en cause : Superviseur et DARC', () => {
+    expect(groups(facts())).toEqual(['darc', 'supervisors']);
+  });
+  it('enquêteur mis en cause (par son nom) : directement la DARC', () => {
+    expect(groups(facts({ implicatedPersons: [{ name: 'FOTSO Luc' }] }))).toEqual(['darc']);
+  });
+  it('enquêteur mis en cause (par sa fonction) : directement la DARC', () => {
+    expect(groups(facts({ implicatedPersons: [{ name: 'X Y', position: 'Enquêteur interne' }] }))).toEqual(['darc']);
+  });
+  it('superviseur mis en cause : la DARC', () => {
+    expect(groups(facts({ implicatedPersons: [{ name: 'Paul Mbarga' }] }))).toEqual(['darc']);
+  });
+  it('DARC mise en cause : DGA et DRH, avec le motif « escalade »', () => {
+    const f = facts({ implicatedPersons: [{ name: 'Inconnu', position: 'Responsable DARC Cameroun' }] });
+    expect(groups(f)).toEqual(['dga', 'drh']);
+    const r = resolveNotificationRecipients({ event: 'new_report', facts: f, settings: s2, staff: staffNamed });
+    expect(r.every((x) => x.reason === 'escalation')).toBe(true);
+  });
+  it('enquêteur et DARC mis en cause : la règle du niveau le plus élevé (DGA et DRH)', () => {
+    const f = facts({ implicatedPersons: [{ name: 'Luc Fotso' }, { name: 'Awa NDIAYE' }] });
+    expect(routingPlan(s2, f, staffNamed).routingCase).toBe('darc');
+    expect(groups(f)).toEqual(['dga', 'drh']);
+  });
+  it('la clôture suit le même acheminement (DARC mise en cause → DGA et DRH, pas la DARC)', () => {
+    const f = facts({ implicatedPersons: [{ name: 'Marie Ekane' }] });
+    const r = resolveNotificationRecipients({ event: 'closed', facts: f, settings: s2, staff: staffNamed });
+    expect([...new Set(r.map((x) => x.group))].sort()).toEqual(['dga', 'drh']);
+  });
+  it('la personne mise en cause n’est jamais prévenue', () => {
+    const r = resolveNotificationRecipients({ event: 'new_report', facts: facts({ implicatedPersons: [{ name: 'Paul Mbarga' }] }), settings: s2, staff: staffNamed });
+    expect(r.some((x) => x.email === 'sup.cm@group-activa.com')).toBe(false);
+  });
+  it('rapprochement des noms', () => {
+    expect(namesMatch('Jean Dupont', 'DUPONT Jean')).toBe(true);
+    expect(namesMatch('Jean-Marc Dupont', 'Dupont Jean')).toBe(true);
+    expect(namesMatch('Dupont', 'Jean Dupont')).toBe(false);
+    expect(namesMatch('Jean Dupont', 'Jean Durand')).toBe(false);
+    expect(parseContact('Awa Ndiaye <AWA@x.com>')).toEqual({ name: 'Awa Ndiaye', email: 'awa@x.com' });
+  });
+});
