@@ -466,11 +466,46 @@ async function readinessDiagnostics() {
   }
 }
 
+// === AMÉLIORATION AJOUTÉE (domaine personnalisé vu de l'extérieur) ===
+// Signalé par l'utilisateur : « Non sécurisé » sur activa-alertes.com alors que
+// Firebase indique un certificat actif. Test depuis Internet (machine GitHub) :
+// adresses DNS, certificat présenté (émetteur, noms couverts, validité) et
+// réponse HTTP, pour distinguer un problème du site d'un problème du poste
+// ou du réseau de l'utilisateur. Lecture seule.
+async function publicSiteDiagnostics() {
+  const dns = await import('node:dns/promises');
+  const tls = await import('node:tls');
+  const line = (label: string, value: string) => console.log(`${label} : ${value}`);
+  console.log('\n=== Site public (vu d\'Internet) ===');
+  for (const host of ['activa-alertes.com', 'www.activa-alertes.com', 'activa-ethicalert-47246.web.app']) {
+    const a = await dns.resolve4(host).catch((e) => [`(${e.code ?? e.message})`]);
+    const aaaa = await dns.resolve6(host).catch((e) => [`(${e.code ?? e.message})`]);
+    const cname = await dns.resolveCname(host).catch(() => [] as string[]);
+    line(`${host} — DNS`, `A ${a.join(', ')} · AAAA ${aaaa.join(', ')}${cname.length ? ` · CNAME ${cname.join(', ')}` : ''}`);
+    const cert = await new Promise<string>((resolve) => {
+      const sock = tls.connect({ host, port: 443, servername: host, timeout: 10000 }, () => {
+        const c = sock.getPeerCertificate();
+        const ok = sock.authorized ? 'VALIDE' : `INVALIDE (${sock.authorizationError})`;
+        resolve(`${ok} · émis par ${c.issuer?.O ?? '?'} · noms ${c.subjectaltname ?? '?'} · jusqu'au ${c.valid_to ?? '?'}`);
+        sock.end();
+      });
+      sock.on('error', (e) => resolve(`erreur ${e.message}`));
+      sock.on('timeout', () => { resolve('délai dépassé'); sock.destroy(); });
+    });
+    line(`${host} — certificat`, cert);
+    const http = await fetch(`https://${host}/`, { redirect: 'manual' })
+      .then((r) => `HTTP ${r.status}${r.headers.get('location') ? ` → ${r.headers.get('location')}` : ''}`)
+      .catch((e) => `erreur ${e instanceof Error ? (e.cause as Error)?.message ?? e.message : e}`);
+    line(`${host} — réponse`, http);
+  }
+}
+
 main()
   .then(() => functionLogs().catch((e) => console.log(`journaux : ${e instanceof Error ? e.message : e}`)))
   .then(() => appCheckDiagnostics())
   // === AMÉLIORATION AJOUTÉE (inventaire avant mise en production) ===
   .then(() => readinessDiagnostics().catch((e) => console.log(`préparation : ${e instanceof Error ? e.message : e}`)))
+  .then(() => publicSiteDiagnostics().catch((e) => console.log(`site public : ${e instanceof Error ? e.message : e}`)))
   .then(
   () => process.exit(0),
   (e) => {
