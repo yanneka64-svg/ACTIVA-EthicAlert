@@ -176,6 +176,14 @@ async function main() {
     'assignCase',
     'getMyStaffProfile',
     'listStaffDirectory',
+    // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur) ===
+    'applyPortalUpdate',
+    'addSubmissionEvidenceAsReporter',
+    'addEvidenceAsStaff',
+    'getPortalConfig',
+    'savePortalConfig',
+    'recordPortalAudit',
+    'listAuditLogs',
   ];
   for (const name of names) {
     try {
