@@ -249,6 +249,38 @@ jobs:
             fi
           fi
 
+      # === AMÉLIORATION AJOUTÉE (fonctions appelables depuis le navigateur) ===
+      # Toutes nos fonctions sont des « callables » (ou l'API e-mail) appelées
+      # directement par le navigateur : Cloud Run doit donc autoriser
+      # l'invocation publique (`allUsers` → roles/run.invoker), la sécurité
+      # reposant sur le code de chaque fonction (jeton Firebase, mot de passe
+      # du déclarant, limites de tentatives). La CLI Firebase pose ce droit à
+      # la création, mais les fonctions créées pendant le premier déploiement
+      # (échoué sur setIamPolicy) en étaient restées privées : un signalement
+      # public n'atteignait jamais `createCaseAsReporter`. Cette étape
+      # vérifie et rétablit le droit à chaque déploiement (idempotent).
+      - name: Ensure functions are invokable from the browser
+        if: env.MODE == 'deploy'
+        run: |
+          services=$(gcloud run services list --region "$REGION" --project "$PROJECT_ID" \
+            --filter="metadata.labels.goog-managed-by=cloudfunctions" --format="value(metadata.name)")
+          if [ -z "$services" ]; then
+            echo "::warning::Aucun service Cloud Run de fonction trouvé dans $REGION."
+            exit 0
+          fi
+          fixed=0
+          for svc in $services; do
+            if gcloud run services get-iam-policy "$svc" --region "$REGION" --project "$PROJECT_ID" --format=json \
+              | grep -q '"allUsers"'; then
+              continue
+            fi
+            gcloud run services add-iam-policy-binding "$svc" --region "$REGION" --project "$PROJECT_ID" \
+              --member=allUsers --role=roles/run.invoker --quiet > /dev/null
+            echo "Invocation publique rétablie : $svc"
+            fixed=$((fixed + 1))
+          done
+          echo "Fonctions vérifiées : $(echo "$services" | wc -w), corrigées : $fixed."
+
       - name: Summary
         if: always()
         run: |
