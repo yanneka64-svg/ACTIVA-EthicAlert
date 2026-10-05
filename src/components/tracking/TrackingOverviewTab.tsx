@@ -26,6 +26,10 @@ interface TrackingOverviewTabProps {
   activeAlert: AlertRecord;
   setShowSupplementModal: React.Dispatch<React.SetStateAction<boolean>>;
   deleteConfirm: boolean;
+  // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) === faux
+  // pour un dossier ouvert depuis Firebase : le serveur ne permet pas au
+  // déclarant de supprimer un dossier déjà transmis à l'équipe.
+  canDelete?: boolean;
   setDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;
   handleDeleteAlert: () => void;
   trackSteps: string[];
@@ -38,6 +42,7 @@ export const TrackingOverviewTab: React.FC<TrackingOverviewTabProps> = ({
   activeAlert,
   setShowSupplementModal,
   deleteConfirm,
+  canDelete = true,
   setDeleteConfirm,
   handleDeleteAlert,
   trackSteps,
@@ -236,7 +241,7 @@ export const TrackingOverviewTab: React.FC<TrackingOverviewTabProps> = ({
           </div>
 
           {/* Option to delete declaration if brand new and not yet reviewed */}
-          {activeAlert.status === 'new' && (
+          {canDelete && activeAlert.status === 'new' && (
             <div className="pt-3 border-t border-slate-100">
               {!deleteConfirm ? (
                 <button

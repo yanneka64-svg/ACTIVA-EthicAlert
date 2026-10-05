@@ -871,6 +871,9 @@ export const en: Record<string, string> = {
   track_delete_confirm: 'Confirm permanent deletion?',
   track_delete_yes: 'Yes, delete',
   track_download_receipt: 'Download the receipt',
+  // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
+  track_cloud_send_error: 'The message could not be sent. Check your connection and try again.',
+  track_cloud_docs_note: 'From this device you can view your case and exchange with the team. For now, attachments can be added from the device used to submit the report, or by describing the document in the messages.',
   // === AMÉLIORATION AJOUTÉE (accusé de réception imprimable) ===
   receipt_print_title: 'Acknowledgment of receipt',
   receipt_print_intro: 'Your report has been recorded on the ACTIVA Group activa-whistleblowing platform. It will be handled confidentially, only by authorised persons.',

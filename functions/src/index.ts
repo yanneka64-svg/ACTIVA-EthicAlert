@@ -1122,6 +1122,22 @@ export const getCaseForReporter = onCall(async (request) => {
     receivedAt: kase.receivedAt,
     description: kase.description,
     communications,
+    // === AMÉLIORATION AJOUTÉE (suivi du déclarant depuis n'importe quel
+    // appareil) === uniquement ce que le déclarant a lui-même renseigné au
+    // dépôt (numéro de suivi remis, catégorie, entité, pays, mode), plus les
+    // dates de mise à jour/clôture : jamais l'attribution, les notes
+    // internes, les personnes citées ni l'évaluation du risque.
+    reporterCase: {
+      externalReference: kase.externalReference ?? null,
+      category: kase.category,
+      subcategory: kase.subcategory,
+      country: kase.country,
+      entity: kase.entity,
+      reportingMode: kase.reportingMode,
+      incidentDate: kase.incidentDate ?? null,
+      updatedAt: kase.updatedAt,
+      closedAt: kase.closedAt ?? null,
+    },
   };
 });
 

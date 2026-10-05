@@ -21,6 +21,9 @@ interface TrackingMessagesTabProps {
   setActiveTrackTab: React.Dispatch<React.SetStateAction<'overview' | 'messages' | 'documents' | 'updates'>>;
   handleSendMessage: (e: React.FormEvent) => void;
   formatDateTime: (iso: string) => string;
+  // === AMÉLIORATION AJOUTÉE (suivi depuis n'importe quel appareil) ===
+  // message affiché si l'envoi vers l'équipe a échoué.
+  sendError?: string;
 }
 
 export const TrackingMessagesTab: React.FC<TrackingMessagesTabProps> = ({
@@ -31,6 +34,7 @@ export const TrackingMessagesTab: React.FC<TrackingMessagesTabProps> = ({
   setActiveTrackTab,
   handleSendMessage,
   formatDateTime,
+  sendError,
 }) => {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
@@ -116,6 +120,7 @@ export const TrackingMessagesTab: React.FC<TrackingMessagesTabProps> = ({
               <Send className="w-4 h-4" />
             </button>
           </div>
+          {sendError && <p className="text-[11px] font-semibold text-rose-700">{sendError}</p>}
           <p className="text-[10px] text-slate-400">{t.track_message_input_helper}</p>
         </form>
       </div>

@@ -58,6 +58,12 @@ const STATUS_FROM_CASE: Record<CaseStatus, AlertStatus> = {
   out_of_scope: 'archived',
 };
 
+// === AMÉLIORATION AJOUTÉE (suivi du déclarant depuis n'importe quel
+// appareil) === même correspondance, exposée pour reporterCaseToAlert.ts.
+export function alertStatusFromCaseStatus(status: CaseStatus): AlertStatus {
+  return STATUS_FROM_CASE[status] ?? 'new';
+}
+
 const PRIORITY_FROM_CASE: Record<CasePriority, PriorityLevel> = {
   low: 'faible',
   high: 'elevee',
