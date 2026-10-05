@@ -1,0 +1,66 @@
+# === AMÉLIORATION AJOUTÉE (suppression des dossiers de TEST automatiques) ===
+# Lancement manuel depuis main. Ne supprime QUE des dossiers dont la
+# description commence par « [TEST AUTOMATIQUE] » et dont le numéro de suivi
+# est listé. Essai à blanc par défaut. Voir scripts/deleteTestCases.ts.
+name: Firebase delete test cases
+
+on:
+  workflow_dispatch:
+    inputs:
+      refs:
+        description: "Numéros de suivi des dossiers de TEST à supprimer (séparés par des virgules)"
+        required: true
+        type: string
+      confirm:
+        description: "Supprimer réellement (sinon essai à blanc)"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: firebase-delete-test-cases
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      HAS_WIF: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' }}
+    steps:
+      - name: Check prerequisites
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::À lancer depuis main uniquement (branche demandée : ${GITHUB_REF})."
+            exit 1
+          fi
+          if [ "$HAS_WIF" != "true" ]; then
+            echo "::error::Fédération d'identité non configurée (variables GCP_WORKLOAD_IDENTITY_PROVIDER / GCP_DEPLOY_SERVICE_ACCOUNT)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2 (v2.2.0)
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3 (v3.0.0)
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Delete test cases
+        env:
+          GCLOUD_PROJECT: activa-ethicalert-47246
+          FIRESTORE_DATABASE_ID: default
+          TEST_REFS: ${{ inputs.refs }}
+          DRY_RUN: ${{ inputs.confirm && '0' || '1' }}
+        run: npx tsx scripts/deleteTestCases.ts
