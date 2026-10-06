@@ -150,18 +150,45 @@ interface TrustItem {
 }
 
 function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel: string }) {
-  const [index, setIndex] = React.useState(0);
+  // === AMÉLIORATION AJOUTÉE (carrousel horizontal, droite → gauche) === sur
+  // demande explicite : les garanties défilent latéralement. La carte active
+  // est au centre, la suivante arrive par la droite, la précédente sort par
+  // la gauche. Boucle infinie : la liste est rendue deux fois et l'on revient
+  // sans transition à la première après la dernière.
+  const n = items.length;
+  const [pos, setPos] = React.useState(0);
+  const [animate, setAnimate] = React.useState(true);
   const [paused, setPaused] = React.useState(false);
   const reduced = React.useMemo(
     () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     []
   );
   const STEP_MS = 3800;
+  const CARD = 300;
+  const GAP = 16;
   React.useEffect(() => {
     if (reduced || paused) return;
-    const id = window.setTimeout(() => setIndex((i) => (i + 1) % items.length), STEP_MS);
+    const id = window.setTimeout(() => {
+      setAnimate(true);
+      setPos((p) => p + 1);
+    }, STEP_MS);
     return () => window.clearTimeout(id);
-  }, [index, paused, reduced, items.length]);
+  }, [pos, paused, reduced]);
+  // Retour invisible au début une fois la copie de la première carte atteinte.
+  React.useEffect(() => {
+    if (pos < n) return;
+    const id = window.setTimeout(() => {
+      setAnimate(false);
+      setPos(0);
+    }, 820);
+    return () => window.clearTimeout(id);
+  }, [pos, n]);
+  React.useEffect(() => {
+    if (!animate) {
+      const id = window.requestAnimationFrame(() => setAnimate(true));
+      return () => window.cancelAnimationFrame(id);
+    }
+  }, [animate]);
 
   if (reduced) {
     return (
@@ -176,67 +203,108 @@ function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel
     );
   }
 
-  const current = items[index];
-  const CurrentIcon = current.Icon;
+  const index = pos % n;
+  const CurrentIcon = items[index].Icon;
+  const track = [...items, ...items];
   return (
     <div
-      className="relative flex flex-col items-center"
+      className="relative w-full min-w-0 flex flex-col items-center"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       aria-live="polite"
     >
       {/* Emblème : ondes lumineuses + orbite + icône de la garantie en cours */}
-      <div className="relative w-56 h-56 flex items-center justify-center" aria-hidden="true">
-        <span className="activa-ripple absolute inset-6 rounded-full border-2 border-white/40" />
-        <span className="activa-ripple absolute inset-6 rounded-full border-2 border-white/40" style={{ animationDelay: '1.2s' }} />
-        <span className="activa-ripple absolute inset-6 rounded-full border-2 border-white/40" style={{ animationDelay: '2.4s' }} />
+      <div className="relative w-44 h-44 flex items-center justify-center" aria-hidden="true">
+        <span className="activa-ripple absolute inset-5 rounded-full border-2 border-white/40" />
+        <span className="activa-ripple absolute inset-5 rounded-full border-2 border-white/40" style={{ animationDelay: '1.2s' }} />
+        <span className="activa-ripple absolute inset-5 rounded-full border-2 border-white/40" style={{ animationDelay: '2.4s' }} />
         <span className="activa-orbit absolute inset-0 rounded-full border border-dashed border-white/30">
           <span className="absolute -top-1.5 left-1/2 -ml-1.5 w-3 h-3 rounded-full bg-[#7FBC0A] shadow-[0_0_14px_4px_rgb(127_188_10/0.6)]" />
           <span className="absolute top-1/2 -right-1 -mt-1 w-2 h-2 rounded-full bg-white/80" />
         </span>
-        <span className="relative w-32 h-32 rounded-[2rem] bg-gradient-to-br from-white/25 to-white/5 backdrop-blur-md ring-1 ring-inset ring-white/40 shadow-[0_30px_60px_-20px_rgb(0_0_0/0.55)] flex items-center justify-center">
-          <span key={index} className="activa-trust-pop w-20 h-20 rounded-2xl bg-white text-[#1449B0] flex items-center justify-center shadow-[0_14px_30px_-10px_rgb(0_0_0/0.45)]">
-            <CurrentIcon className="w-10 h-10" strokeWidth={1.8} />
+        <span className="relative w-24 h-24 rounded-[1.75rem] bg-gradient-to-br from-white/25 to-white/5 backdrop-blur-md ring-1 ring-inset ring-white/40 shadow-[0_30px_60px_-20px_rgb(0_0_0/0.55)] flex items-center justify-center">
+          <span key={index} className="activa-trust-pop w-16 h-16 rounded-2xl bg-white text-[#1449B0] flex items-center justify-center shadow-[0_14px_30px_-10px_rgb(0_0_0/0.45)]">
+            <CurrentIcon className="w-8 h-8" strokeWidth={1.8} />
           </span>
         </span>
       </div>
 
-      {/* Carte de la garantie en cours */}
-      <div className="relative mt-6 w-full max-w-[420px] min-h-[132px]">
-        <div key={index} className="activa-trust-in rounded-2xl bg-white p-5 pr-6 shadow-[0_30px_60px_-28px_rgb(0_0_0/0.6)]">
-          <div className="flex items-start gap-4">
-            <span className="w-11 h-11 rounded-xl bg-[#1449B0] text-white flex items-center justify-center shrink-0 shadow-[0_8px_18px_-8px_rgb(20_73_176/0.9)]">
-              <CurrentIcon className="w-5 h-5" strokeWidth={1.9} />
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-extrabold tracking-tight text-[#0B2545]">{current.title}</span>
-                {current.live && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
-                    <span className="activa-live-dot w-2 h-2 rounded-full bg-emerald-500" />
-                    {liveLabel}
-                  </span>
-                )}
+      {/* Carrousel : bulles qui glissent de droite à gauche */}
+      <div className="relative mt-6 w-full overflow-hidden py-4 [mask-image:linear-gradient(90deg,transparent,#000_7%,#000_93%,transparent)]">
+        <div
+          className="flex"
+          style={{
+            gap: `${GAP}px`,
+            paddingLeft: `calc(50% - ${CARD / 2}px)`,
+            transform: `translateX(-${pos * (CARD + GAP)}px)`,
+            transition: animate ? 'transform 800ms cubic-bezier(0.65, 0, 0.35, 1)' : 'none',
+          }}
+        >
+          {track.map((it, i) => {
+            const active = i === pos;
+            const ItemIcon = it.Icon;
+            return (
+              <div
+                key={`${it.title}-${i}`}
+                className="relative shrink-0"
+                style={{ width: `${CARD}px` }}
+                aria-hidden={!active}
+              >
+                <div
+                  className={`activa-bubble relative overflow-hidden rounded-[22px] bg-white p-5 transition-all duration-700 ${
+                    active ? 'opacity-100 scale-100 shadow-[0_30px_60px_-28px_rgb(0_0_0/0.65)]' : 'opacity-55 scale-[0.9] shadow-none'
+                  }`}
+                >
+                  {/* motif : trame de points dans l'angle */}
+                  <span aria-hidden="true" className="absolute -right-4 -top-4 w-28 h-28 opacity-60 [background-image:radial-gradient(rgb(20_73_176/0.18)_1.2px,transparent_1.3px)] [background-size:10px_10px] [mask-image:radial-gradient(circle_at_top_right,#000,transparent_70%)]" />
+                  <div className="relative flex items-center justify-between">
+                    <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)] ring-1 ring-inset ring-white/20">
+                      <ItemIcon className="w-6 h-6" strokeWidth={1.8} />
+                    </span>
+                    <span className="font-mono text-[11px] font-bold tracking-[0.18em] text-[#1449B0]/60">
+                      {String((i % n) + 1).padStart(2, '0')} / {String(n).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="relative mt-3 flex items-center gap-2 flex-wrap">
+                    <span className="text-[16px] font-extrabold tracking-tight text-[#0B2545]">{it.title}</span>
+                    {it.live && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                        <span className="activa-live-dot w-2 h-2 rounded-full bg-emerald-500" />
+                        {liveLabel}
+                      </span>
+                    )}
+                  </div>
+                  <p className="relative mt-1 text-[13.5px] leading-relaxed text-slate-600">{it.desc}</p>
+                  <div className="relative mt-4 h-1 rounded-full bg-slate-100 overflow-hidden">
+                    {active && (
+                      <span
+                        className="activa-trust-progress block h-full rounded-full bg-gradient-to-r from-[#1449B0] to-[#5A86DD]"
+                        style={{ animationDuration: `${STEP_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+                      />
+                    )}
+                  </div>
+                </div>
+                {/* queue de bulle (prise de parole) */}
+                <span
+                  aria-hidden="true"
+                  className={`absolute left-9 -bottom-2 w-5 h-5 rotate-45 rounded-[4px] bg-white transition-all duration-700 ${active ? 'opacity-100' : 'opacity-0'}`}
+                />
               </div>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-slate-600">{current.desc}</p>
-            </div>
-          </div>
-          <div className="mt-4 h-1 rounded-full bg-slate-100 overflow-hidden">
-            <span
-              className="activa-trust-progress block h-full rounded-full bg-gradient-to-r from-[#1449B0] to-[#5A86DD]"
-              style={{ animationDuration: `${STEP_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
-            />
-          </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Points de navigation */}
-      <div className="mt-5 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-2">
         {items.map((it, i) => (
           <button
             key={it.title}
             type="button"
-            onClick={() => setIndex(i)}
+            onClick={() => {
+              setAnimate(true);
+              setPos(i);
+            }}
             aria-label={it.title}
             aria-current={i === index}
             className={`h-2 rounded-full transition-all duration-500 ${i === index ? 'w-8 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'}`}
@@ -331,9 +399,21 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             de la vitrine (tremblantes puis apaisées) et respirent lentement.
             Remplacent les grands cercles décoratifs (conservés ci-dessous,
             masqués). */}
+        {/* === AMÉLIORATION AJOUTÉE (motifs revus) === sur demande explicite :
+            trame de points fine qui s'éclaire côté droit, deux halos de lumière
+            qui dérivent lentement (bleu clair et vert ACTIVA) et une grande
+            courbe fine. Les ondes « Résonance abritée » restent ci-dessous,
+            masquées. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgb(255_255_255/0.22)_1px,transparent_1.2px)] [background-size:22px_22px] [mask-image:linear-gradient(100deg,transparent_25%,rgb(0_0_0/0.5)_55%,#000_85%)]" />
+        <div aria-hidden="true" className="activa-aurora pointer-events-none absolute -right-40 -top-40 w-[720px] h-[720px] rounded-full bg-[radial-gradient(closest-side,rgb(90_134_221/0.55),transparent)] blur-2xl" />
+        <div aria-hidden="true" className="activa-aurora-2 pointer-events-none absolute right-[18%] bottom-[-220px] w-[520px] h-[520px] rounded-full bg-[radial-gradient(closest-side,rgb(127_188_10/0.16),transparent)] blur-2xl" />
+        <svg aria-hidden="true" className="pointer-events-none absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 1440 640">
+          <path d="M -40 560 C 380 470, 760 640, 1480 300" fill="none" stroke="rgb(255 255 255 / 0.10)" strokeWidth="1.5" />
+          <path d="M -40 600 C 420 520, 820 680, 1480 360" fill="none" stroke="rgb(255 255 255 / 0.06)" strokeWidth="1" />
+        </svg>
         <div
           aria-hidden="true"
-          className="activa-ondes pointer-events-none absolute inset-0 bg-no-repeat bg-cover opacity-[0.22] lg:opacity-50 [mask-image:linear-gradient(90deg,transparent_0%,rgb(0_0_0/0.25)_35%,#000_60%)]"
+          className="hidden activa-ondes pointer-events-none absolute inset-0 bg-no-repeat bg-cover opacity-[0.22] lg:opacity-50 [mask-image:linear-gradient(90deg,transparent_0%,rgb(0_0_0/0.25)_35%,#000_60%)]"
           style={{ backgroundImage: "url('/brand/resonance-ondes.webp')", backgroundPosition: '66% 34%' }}
         />
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden">
@@ -390,7 +470,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             </p>
           </div>
 
-          <div className="activa-enter hidden lg:block" style={{ '--d': '500ms' } as React.CSSProperties}>
+          <div className="activa-enter hidden lg:block min-w-0" style={{ '--d': '500ms' } as React.CSSProperties}>
             <HeroTrustShowcase
               liveLabel={t.hero_trust_live}
               items={[
@@ -444,29 +524,33 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           sous le bloc. Mêmes textes, même chevauchement de la photo, même
           réaction au survol (soulèvement, teinte pleine qui se fond). */}
       <div
-        className="activa-enter relative z-20 -mt-[4.5rem] grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 rounded-2xl bg-white ring-1 ring-slate-900/5 shadow-[0_24px_60px_-26px_rgb(15_23_42/0.45)]"
+        className="activa-enter relative z-20 -mt-[4.5rem] grid grid-cols-1 sm:grid-cols-3 gap-4"
         style={{ '--d': '820ms' } as React.CSSProperties}
       >
         {[
-          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc, tile: 'bg-[#1449B0] text-white ring-[#1449B0] shadow-[0_8px_18px_-10px_rgb(20_73_176/0.9)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
-          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc, tile: 'bg-[#1449B0] text-white ring-[#1449B0] shadow-[0_8px_18px_-10px_rgb(20_73_176/0.9)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
-          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc, tile: 'bg-[#1449B0] text-white ring-[#1449B0] shadow-[0_8px_18px_-10px_rgb(20_73_176/0.9)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
+          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc, tile: 'bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white ring-white/20 shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
+          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc, tile: 'bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white ring-white/20 shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
+          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc, tile: 'bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white ring-white/20 shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
         ].map(({ Icon, title, desc, tile, solid, bar }, i) => (
           <div
             key={title}
             data-reveal
             style={{ '--rd': `${i * 110}ms` } as React.CSSProperties}
-            className="group relative z-0 hover:z-10 p-5 sm:p-6 flex items-start gap-4 rounded-2xl transition-all duration-300 ease-out hover:bg-white hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/5"
+            className="group relative overflow-hidden p-5 sm:p-6 flex items-start gap-4 rounded-[22px] bg-white ring-1 ring-slate-900/5 shadow-[0_24px_50px_-28px_rgb(15_23_42/0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_30px_60px_-26px_rgb(20_73_176/0.45)]"
           >
+            {/* === AMÉLIORATION AJOUTÉE (bulles revues) === bulles séparées,
+                trame de points dans l'angle, filet dégradé en tête. */}
+            <span aria-hidden="true" className="absolute -right-4 -top-4 w-28 h-28 opacity-70 [background-image:radial-gradient(rgb(20_73_176/0.16)_1.2px,transparent_1.3px)] [background-size:10px_10px] [mask-image:radial-gradient(circle_at_top_right,#000,transparent_70%)]" />
+            <span aria-hidden="true" className="absolute inset-x-6 top-0 h-[3px] rounded-b-full bg-gradient-to-r from-[#1449B0] to-[#5A86DD]" />
             <span className={`relative overflow-hidden w-11 h-11 rounded-xl ring-1 ring-inset flex items-center justify-center shrink-0 transition-all duration-500 ease-out group-hover:text-white group-hover:scale-105 group-hover:shadow-lg ${tile}`}>
               <span aria-hidden="true" className={`absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${solid}`} />
               <Icon className="relative w-5 h-5" strokeWidth={1.75} />
             </span>
-            <div>
+            <div className="relative">
               <div className="font-bold text-[#12305F] text-sm sm:text-[15px] tracking-tight">{title}</div>
               <div className="mt-0.5 text-xs sm:text-[13px] text-slate-500 leading-relaxed">{desc}</div>
             </div>
-            <span aria-hidden="true" className={`absolute left-6 right-6 bottom-0 h-[3px] rounded-t-full ${bar}`} />
+            <span aria-hidden="true" className={`hidden absolute left-6 right-6 bottom-0 h-[3px] rounded-t-full ${bar}`} />
           </div>
         ))}
       </div>
