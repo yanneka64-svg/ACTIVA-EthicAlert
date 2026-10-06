@@ -1621,7 +1621,7 @@ export const en: Record<string, string> = {
   helpline_hours_value: "24/7",
   helpline_languages_label: "Languages",
   helpline_steps_label: "How does the call work?",
-  helpline_steps_heading: "A report in 4 steps",
+  helpline_steps_heading: "Make your report in 4 steps",
   helpline_step1_title: "You call",
   helpline_step1_desc: "Dial +237 687 45 45 45 from a landline or mobile phone.",
   helpline_step2_title: "Welcome message",
@@ -1648,4 +1648,6 @@ export const en: Record<string, string> = {
   helpline_email_label: "Or email us",
   helpline_email_btn: "Send an email",
   helpline_home_email_title: "Email",
+  hero_channel_whatsapp_title: "WhatsApp Business",
+  hero_channel_whatsapp_desc: "Message us on +237 687 45 45 45, 24/7.",
 };

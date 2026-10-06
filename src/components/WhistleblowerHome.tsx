@@ -25,7 +25,7 @@ import { useScrollMotion } from '../hooks/useScrollMotion';
 // === AMÉLIORATION AJOUTÉE (vitrine de confiance animée) ===
 import { UserCheck, Clock3 } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (ligne d'assistance — trois canaux) ===
-import { Phone as PhoneIcon, Mail as MailIcon, Send as SendIcon } from 'lucide-react';
+import { Phone as PhoneIcon, Mail as MailIcon, Send as SendIcon, MessageCircle as WhatsAppIcon } from 'lucide-react';
 
 // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip 3D)
 // === Sur demande explicite : chaque carte pivote à 180° au clic/tap pour
@@ -149,9 +149,12 @@ interface TrustItem {
   title: string;
   desc: string;
   live?: boolean;
+  // === AMÉLIORATION AJOUTÉE (canaux dans le carrousel) === bulle cliquable.
+  href?: string;
+  onClick?: () => void;
 }
 
-function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel: string }) {
+function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel: string; trustItemsKept?: TrustItem[] }) {
   // === AMÉLIORATION AJOUTÉE (carrousel horizontal, droite → gauche) === sur
   // demande explicite : les garanties défilent latéralement. La carte active
   // est au centre, la suivante arrive par la droite, la précédente sort par
@@ -264,6 +267,14 @@ function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel
                       : 'bg-white/10 ring-1 ring-white/25 opacity-70 scale-[0.88] shadow-none'
                   }`}
                 >
+                  {/* === AMÉLIORATION AJOUTÉE (canaux cliquables) === la bulle
+                      active ouvre le canal (formulaire, WhatsApp, e-mail). */}
+                  {active && it.href && (
+                    <a href={it.href} target={it.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" aria-label={it.title} className="absolute inset-0 z-10 rounded-[30px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60" />
+                  )}
+                  {active && !it.href && it.onClick && (
+                    <button type="button" onClick={it.onClick} aria-label={it.title} className="absolute inset-0 z-10 rounded-[30px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60" />
+                  )}
                   {/* reflet doux en haut de la bulle */}
                   <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${active ? 'from-[#EEF3FC]' : 'from-white/10'} to-transparent`} />
                   <span
@@ -284,7 +295,7 @@ function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel
                       </span>
                     )}
                   </div>
-                  <p className={`relative mt-2 text-[14px] leading-relaxed ${active ? 'text-slate-600' : 'text-white/80'}`}>{it.desc}</p>
+                  <p className={`relative mt-2 text-[14px] leading-relaxed break-words ${active ? 'text-slate-600' : 'text-white/80'}`}>{it.desc}</p>
                   <div className="relative mt-auto pt-5 flex items-center gap-3">
                     <span className={`text-[12px] font-bold tabular-nums ${active ? 'text-[#1449B0]' : 'text-white/70'}`}>
                       {String((i % n) + 1).padStart(2, '0')}
@@ -366,6 +377,12 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   onGoToHelpline,
 }) => {
   const t = TRANSLATIONS[lang];
+  // === AMÉLIORATION AJOUTÉE (trois canaux qui défilent dans le haut de page) ===
+  const channelItems: TrustItem[] = [
+    { Icon: SendIcon, title: t.helpline_other_online_title, desc: t.helpline_other_online_desc, onClick: onStartNewAlert },
+    { Icon: WhatsAppIcon, title: t.hero_channel_whatsapp_title, desc: t.hero_channel_whatsapp_desc, href: 'https://wa.me/237687454545' },
+    { Icon: MailIcon, title: t.helpline_home_email_title, desc: 'activa.whistleblowing@group-activa.com', href: 'mailto:activa.whistleblowing@group-activa.com' },
+  ];
   // === AMÉLIORATION AJOUTÉE (effet « ralenti » au défilement) === voir useScrollMotion.ts
   const motionRootRef = React.useRef<HTMLDivElement>(null);
   useScrollMotion(motionRootRef);
@@ -504,10 +521,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             </p>
           </div>
 
-          <div className="activa-enter hidden lg:block min-w-0" style={{ '--d': '500ms' } as React.CSSProperties}>
+          <div className="activa-enter min-w-0" style={{ '--d': '500ms' } as React.CSSProperties}>
             <HeroTrustShowcase
               liveLabel={t.hero_trust_live}
-              items={[
+              // === AMÉLIORATION AJOUTÉE (trois canaux qui défilent) === sur demande
+              // explicite : les bulles présentent les trois canaux (en ligne,
+              // WhatsApp Business, e-mail) ; les 5 garanties restent ci-dessous,
+              // non affichées (`items` remplacé par `channelItems`).
+              items={channelItems}
+              trustItemsKept={[
                 { Icon: ShieldCheck, title: t.hero_trust_1_title, desc: t.hero_trust_1_desc },
                 { Icon: EyeOff, title: t.hero_trust_2_title, desc: t.hero_trust_2_desc },
                 { Icon: UserCheck, title: t.hero_trust_3_title, desc: t.hero_trust_3_desc },
@@ -592,7 +614,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
       {/* === AMÉLIORATION AJOUTÉE (ligne d'assistance — trois canaux) ===
           sur le modèle NAVEX : en ligne, par téléphone, par WhatsApp. Au
           survol, la bulle se soulève et l'icône s'anime. */}
-      <div id="home-channels" className="space-y-5 pt-4">
+      <div id="home-channels" className="hidden space-y-5 pt-4">
         <div data-reveal className="space-y-1">
           <span className="text-xs uppercase font-bold tracking-[0.16em] text-[#1449B0]">{t.helpline_home_label}</span>
           <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{t.helpline_home_heading}</h3>

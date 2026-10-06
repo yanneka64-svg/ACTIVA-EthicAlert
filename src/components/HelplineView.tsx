@@ -13,7 +13,7 @@
  * - Autres canaux : en ligne, e-mail, suivi d'un dossier.
  */
 import React from 'react';
-import { Phone, Copy, Check, Send, MessageCircle, MessageSquareText, Search, Mail, ArrowRight, Globe2, PenLine, KeyRound, Clock3, Languages } from 'lucide-react';
+import { Phone, Copy, Check, Send, MessageCircle, MessageSquareText, Search, Mail, ArrowRight, Globe2, PenLine, KeyRound, Clock3, Languages, ChevronRight, Lock } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { BrandBlueBackdrop } from './ui/BrandBlue';
@@ -106,8 +106,49 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
       {/* Bandeau bleu : titre + carte d'appel */}
       <div className="relative overflow-hidden">
         <BrandBlueBackdrop />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 sm:pt-14 sm:pb-20 grid grid-cols-1 lg:grid-cols-[1fr_1.05fr] gap-10 items-center">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 sm:pt-14 sm:pb-20 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          {/* === AMÉLIORATION AJOUTÉE (message de l'accueil repris) === sur
+              demande explicite : même message que le haut de l'accueil
+              (« Signalez en toute confiance », boutons, mention d'anonymat).
+              L'ancien texte de la ligne d'assistance reste ci-dessous, masqué. */}
           <div>
+            <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-[#C9DAF8]" style={{ '--d': '100ms' } as React.CSSProperties}>
+              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-white mr-2.5 -mt-0.5" />
+              {t.hero_eyebrow}
+            </p>
+            <h1 className="mt-5 text-[40px] sm:text-6xl lg:text-[54px] font-extrabold tracking-[-0.035em] leading-[1.04] text-white">
+              <span className="activa-enter block" style={{ '--d': '200ms' } as React.CSSProperties}>{t.hero_headline_line1}</span>
+              <span className="activa-enter block pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
+            </h1>
+            <p className="activa-enter mt-5 text-lg sm:text-xl text-[#DCE7FA] leading-relaxed max-w-xl" style={{ '--d': '520ms' } as React.CSSProperties}>
+              {t.hero_desc_line1}{' '}{t.hero_desc_line2}{' '}
+              <span className="font-bold text-white">{t.hero_desc_cta}</span>
+            </p>
+            <div className="activa-enter mt-8 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3" style={{ '--d': '620ms' } as React.CSSProperties}>
+              <button
+                type="button"
+                onClick={onStartNewAlert}
+                className="activa-shine group flex items-center justify-center gap-2 px-5 py-4 rounded-xl bg-[#0F3C93] hover:bg-[#0C3176] ring-1 ring-inset ring-white/15 text-white font-bold text-[14.5px] shadow-[0_14px_28px_-14px_rgb(0_0_0/0.7)] hover:-translate-y-0.5 transition-all duration-700 ease-out whitespace-nowrap"
+              >
+                <Send className="w-4 h-4" strokeWidth={1.75} />
+                <span>{t.btn_new_alert}</span>
+                <ChevronRight className="w-4 h-4 transition-transform duration-700 group-hover:translate-x-1" strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                onClick={onGoToTrack}
+                className="flex items-center justify-center gap-2 px-5 py-4 rounded-xl bg-white hover:bg-[#F1F5FD] text-[#1449B0] font-bold text-[14.5px] shadow-[0_14px_28px_-16px_rgb(0_0_0/0.55)] hover:-translate-y-0.5 transition-all duration-700 ease-out whitespace-nowrap"
+              >
+                <Search className="w-4 h-4" strokeWidth={1.75} />
+                <span>{t.btn_track_existing}</span>
+              </button>
+            </div>
+            <p className="activa-enter mt-6 text-sm sm:text-base font-medium text-white" style={{ '--d': '720ms' } as React.CSSProperties}>
+              <Lock className="inline-block align-[-3px] w-4 h-4 mr-2 text-white" strokeWidth={2} />
+              {t.hero_anonymous_note}
+            </p>
+          </div>
+          <div hidden>
             <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-white/80" style={{ '--d': '60ms' } as React.CSSProperties}>
               {t.helpline_eyebrow}
             </p>
@@ -184,7 +225,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
 
             <div className="mt-6 rounded-[22px] bg-[#F3F6FC] p-5">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t.helpline_email_label}</p>
-              <p id="helpline-email" className="mt-2 text-[15px] sm:text-[17px] font-bold text-[#0B2545] break-all">{HELPLINE_EMAIL}</p>
+              <p id="helpline-email" className="mt-2 text-[15px] sm:text-[16px] font-bold text-[#0B2545] [overflow-wrap:anywhere]">{HELPLINE_EMAIL}</p>
               <div className="mt-3 flex flex-wrap gap-2.5">
                 <a href={`mailto:${HELPLINE_EMAIL}`} className={`group ${ghostBtn} py-2.5`}>
                   <Mail className="w-4 h-4 text-[#1449B0]" strokeWidth={1.9} />
