@@ -53,6 +53,8 @@ import { trData } from '../i18n/dataLabels';
 // étape) === chaque bloc de rendu de l'assistant vit désormais dans son
 // propre composant ; ce fichier garde tout l'état, le brouillon
 // auto-sauvegardé, les validations et la soumission.
+// === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
+import { BrandBlueBackdrop } from './ui/BrandBlue';
 import { ConfidentialityGate } from './submission/ConfidentialityGate';
 import { WizardSidebar } from './submission/WizardSidebar';
 import { AcknowledgmentStep } from './submission/AcknowledgmentStep';
@@ -704,7 +706,12 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     // === AMÉLIORATION AJOUTÉE (formulaire sur portable) === `formTopRef` :
     // ramène le haut du formulaire à l'écran à chaque changement d'étape ;
     // marge haute réduite sur mobile (la barre d'avancement prend le relais).
-    <div ref={formTopRef} className="activa-form max-w-6xl mx-auto pt-0 pb-8 lg:py-8 px-4 sm:px-6 lg:px-8 scroll-mt-2">
+    // === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) === bandeau
+    // bleu derrière le haut du formulaire ; les cartes blanches (contour
+    // neutre) le chevauchent.
+    <div className="relative">
+    <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[260px] lg:h-[320px]"><BrandBlueBackdrop /></div>
+    <div ref={formTopRef} className="relative activa-form max-w-6xl mx-auto pt-0 pb-8 lg:pt-12 lg:pb-8 px-4 sm:px-6 lg:px-8 scroll-mt-2">
       {/* === AMÉLIORATION AJOUTÉE (formulaire sur portable — évolution du
           remplissage) === barre d'avancement compacte et collante, à la
           place de la liste des étapes sous `lg`. */}
@@ -732,7 +739,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
           {/* === AMÉLIORATION AJOUTÉE (formulaire — design modernisé) ===
               carte à ombre douce et fine barre de progression en haut,
               qui avance à chaque étape (6 étapes au total). */}
-          <div className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-20px_rgb(15_23_42/0.18)] p-6 sm:p-8">
+          <div className="relative overflow-hidden bg-white rounded-[24px] border border-slate-200/90 shadow-[0_30px_60px_-34px_rgb(3_16_48/0.6)] p-6 sm:p-8">
             <div className="absolute inset-x-0 top-0 h-1 bg-slate-100" aria-hidden="true">
               <div
                 className="h-full rounded-r-full bg-gradient-to-r from-blue-600 to-sky-400 transition-[width] duration-700 ease-[cubic-bezier(0.2,0.7,0.2,1)]"
@@ -886,6 +893,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

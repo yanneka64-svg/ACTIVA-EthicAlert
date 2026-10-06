@@ -31,8 +31,8 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
   return (
     // === AMÉLIORATION AJOUTÉE (formulaire — design modernisé) === la fenêtre
     // apparaît en douceur ; bouton de confirmation en dégradé avec reflet.
-    <div className="activa-fade-in fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="activa-modal-in relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl shadow-slate-900/40 overflow-hidden grid grid-cols-1 md:grid-cols-[5fr_7fr]">
+    <div className="activa-fade-in fixed inset-0 z-50 bg-[#0B2A66]/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="activa-modal-in relative w-full max-w-4xl bg-white rounded-[28px] ring-1 ring-slate-200/90 shadow-[0_40px_80px_-30px_rgb(3_16_48/0.85)] overflow-hidden grid grid-cols-1 md:grid-cols-[5fr_7fr]">
         <button
           type="button"
           onClick={onCancel}

@@ -24,6 +24,8 @@ import { WhistleblowerHome } from './components/WhistleblowerHome';
 import { FaqView } from './components/FaqView';
 // === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) ===
 import { ContactView } from './components/ContactView';
+// === AMÉLIORATION AJOUTÉE (ligne d'assistance téléphonique) ===
+import { HelplineView } from './components/HelplineView';
 // === AMÉLIORATION AJOUTÉE (liens réels du pied de page) ===
 import { LegalNoticeView } from './components/LegalNoticeView';
 import { PrivacyPolicyView } from './components/PrivacyPolicyView';
@@ -541,6 +543,7 @@ function AppShell() {
             onGoToTrack={() => goToTab('track')}
             onOpenDesk={() => goToTab('portal')}
             onGoToFaq={() => goToTab('faq')}
+            onGoToHelpline={() => goToTab('helpline')}
           />
         )}
 
@@ -551,6 +554,11 @@ function AppShell() {
 
         {/* === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) === */}
         {currentTab === 'contact' && <ContactView lang={lang} />}
+
+        {/* === AMÉLIORATION AJOUTÉE (ligne d'assistance téléphonique) === */}
+        {currentTab === 'helpline' && (
+          <HelplineView lang={lang} onStartNewAlert={() => goToTab('new_alert')} onGoToTrack={() => goToTab('track')} />
+        )}
 
         {/* === AMÉLIORATION AJOUTÉE (liens réels du pied de page) === */}
         {currentTab === 'legal_notice' && <LegalNoticeView lang={lang} />}

@@ -32,6 +32,8 @@
  */
 import React, { useState } from 'react';
 import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft, Check, Circle } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
+import { BrandBlueBackdrop } from './ui/BrandBlue';
 import { Language, UserProfile } from '../types';
 // === AMÉLIORATION AJOUTÉE : page de connexion traduite (FR/EN/PT) ===
 import { TRANSLATIONS } from '../i18n/translations';
@@ -285,9 +287,11 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
   // === AMÉLIORATION AJOUTÉE : page « Mot de passe oublié ? » ===
   if (showForgot) {
     return (
-      <div className="activa-form min-h-full flex items-center justify-center px-4 pt-32">
-        <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-3xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)] p-6 sm:p-8">
-          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0B2545] via-blue-600 to-sky-400" />
+      <div className="activa-form relative overflow-hidden min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-16 sm:py-20">
+        {/* === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) === */}
+        <BrandBlueBackdrop />
+        <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
+          <span aria-hidden="true" className="hidden absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0B2545] via-blue-600 to-sky-400" />
           <div className="text-center">
             <span className="activa-enter inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30" style={{ '--d': '120ms' } as React.CSSProperties}>
               <KeyRound className="w-6 h-6" strokeWidth={1.75} />
@@ -313,9 +317,11 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
 
   if (pendingUser) {
     return (
-      <div className="activa-form min-h-full flex items-center justify-center px-4 pt-32">
-        <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-3xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)] p-6 sm:p-8">
-          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0B2545] via-blue-600 to-sky-400" />
+      <div className="activa-form relative overflow-hidden min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-16 sm:py-20">
+        {/* === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) === */}
+        <BrandBlueBackdrop />
+        <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
+          <span aria-hidden="true" className="hidden absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0B2545] via-blue-600 to-sky-400" />
           <div className="text-center mb-6">
             <span className="activa-enter inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/30" style={{ '--d': '120ms' } as React.CSSProperties}>
               <ShieldAlert className="w-6 h-6" strokeWidth={1.75} />
@@ -396,9 +402,11 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
   }
 
   return (
-    <div className="activa-form min-h-full flex items-center justify-center px-4 pt-32">
-      <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-3xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)] p-6 sm:p-8">
-          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0B2545] via-blue-600 to-sky-400" />
+    <div className="activa-form relative overflow-hidden min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-16 sm:py-20">
+        {/* === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) === */}
+        <BrandBlueBackdrop />
+      <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
+          <span aria-hidden="true" className="hidden absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0B2545] via-blue-600 to-sky-400" />
         <div className="text-center mb-6">
           {/* === AMÉLIORATION AJOUTÉE (connexion du personnel — design
               modernisé) === carte qui apparaît en douceur avec liseré de

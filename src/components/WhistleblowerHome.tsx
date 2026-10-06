@@ -22,6 +22,10 @@ import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (effet « ralenti » au défilement) ===
 import { useScrollMotion } from '../hooks/useScrollMotion';
+// === AMÉLIORATION AJOUTÉE (vitrine de confiance animée) ===
+import { UserCheck, Clock3 } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (ligne d'assistance — trois canaux) ===
+import { Phone as PhoneIcon, Mail as MailIcon, Send as SendIcon, MessageCircle as WhatsAppIcon } from 'lucide-react';
 
 // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip 3D)
 // === Sur demande explicite : chaque carte pivote à 180° au clic/tap pour
@@ -133,6 +137,226 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
   );
 }
 
+// === AMÉLIORATION AJOUTÉE (vitrine de confiance animée, côté droit du haut
+// de page) === Sur demande explicite : les garanties s'affichent l'une après
+// l'autre, en boucle. Un emblème bouclier (ondes lumineuses, orbite lente)
+// change d'icône à chaque étape ; dessous, une carte présente la garantie en
+// cours avec une barre de progression, et des points permettent d'en choisir
+// une. Pause au survol ; si l'utilisateur limite les animations, toutes les
+// garanties s'affichent en liste, sans défilement.
+interface TrustItem {
+  Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  title: string;
+  desc: string;
+  live?: boolean;
+  // === AMÉLIORATION AJOUTÉE (canaux dans le carrousel) === bulle cliquable.
+  href?: string;
+  onClick?: () => void;
+}
+
+function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel: string; trustItemsKept?: TrustItem[] }) {
+  // === AMÉLIORATION AJOUTÉE (carrousel horizontal, droite → gauche) === sur
+  // demande explicite : les garanties défilent latéralement. La carte active
+  // est au centre, la suivante arrive par la droite, la précédente sort par
+  // la gauche. Boucle infinie : la liste est rendue deux fois et l'on revient
+  // sans transition à la première après la dernière.
+  const n = items.length;
+  const [pos, setPos] = React.useState(0);
+  const [animate, setAnimate] = React.useState(true);
+  const [paused, setPaused] = React.useState(false);
+  const reduced = React.useMemo(
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    []
+  );
+  const STEP_MS = 3800;
+  const CARD = 280;
+  const GAP = 16;
+  React.useEffect(() => {
+    if (reduced || paused) return;
+    const id = window.setTimeout(() => {
+      setAnimate(true);
+      setPos((p) => p + 1);
+    }, STEP_MS);
+    return () => window.clearTimeout(id);
+  }, [pos, paused, reduced]);
+  // Retour invisible au début une fois la copie de la première carte atteinte.
+  React.useEffect(() => {
+    if (pos < n) return;
+    const id = window.setTimeout(() => {
+      setAnimate(false);
+      setPos(0);
+    }, 820);
+    return () => window.clearTimeout(id);
+  }, [pos, n]);
+  React.useEffect(() => {
+    if (!animate) {
+      const id = window.requestAnimationFrame(() => setAnimate(true));
+      return () => window.cancelAnimationFrame(id);
+    }
+  }, [animate]);
+
+  if (reduced) {
+    return (
+      <ul className="space-y-3">
+        {items.map(({ Icon, title, desc }) => (
+          <li key={title} className="flex items-start gap-3 rounded-2xl bg-white/95 p-4 shadow-lg">
+            <span className="w-10 h-10 rounded-xl bg-[#1449B0] text-white flex items-center justify-center shrink-0"><Icon className="w-5 h-5" strokeWidth={1.9} /></span>
+            <div><div className="text-sm font-bold text-[#0B2545]">{title}</div><div className="text-xs text-slate-600 mt-0.5">{desc}</div></div>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  const index = pos % n;
+  const CurrentIcon = items[index].Icon;
+  const track = [...items, ...items];
+  return (
+    <div
+      className="relative w-full min-w-0 flex flex-col items-center"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      aria-live="polite"
+    >
+      {/* Emblème : ondes lumineuses + orbite + icône de la garantie en cours */}
+      <div className="relative w-36 h-36 flex items-center justify-center" aria-hidden="true">
+        <span className="activa-ripple absolute inset-5 rounded-full border-2 border-white/40" />
+        <span className="activa-ripple absolute inset-5 rounded-full border-2 border-white/40" style={{ animationDelay: '1.2s' }} />
+        <span className="activa-ripple absolute inset-5 rounded-full border-2 border-white/40" style={{ animationDelay: '2.4s' }} />
+        <span className="activa-orbit absolute inset-0 rounded-full border border-white/15">
+          <span className="absolute -top-1.5 left-1/2 -ml-1.5 w-3 h-3 rounded-full bg-[#7FBC0A] shadow-[0_0_14px_4px_rgb(127_188_10/0.6)]" />
+          <span className="absolute top-1/2 -right-1 -mt-1 w-2 h-2 rounded-full bg-white/80" />
+        </span>
+        <span className="relative w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-white/25 to-white/5 backdrop-blur-md ring-1 ring-inset ring-white/40 shadow-[0_30px_60px_-20px_rgb(0_0_0/0.55)] flex items-center justify-center">
+          <span key={index} className="activa-trust-pop w-14 h-14 rounded-2xl bg-white text-[#1449B0] flex items-center justify-center shadow-[0_14px_30px_-10px_rgb(0_0_0/0.45)]">
+            <CurrentIcon className="w-8 h-8" strokeWidth={1.8} />
+          </span>
+        </span>
+      </div>
+
+      {/* Carrousel : bulles qui glissent de droite à gauche */}
+      <div className="relative mt-2 w-full overflow-hidden py-4 [mask-image:linear-gradient(90deg,transparent,#000_4%,#000_96%,transparent)]">
+        <div
+          className="flex"
+          style={{
+            gap: `${GAP}px`,
+            paddingLeft: `calc(50% - ${CARD / 2}px)`,
+            transform: `translateX(-${pos * (CARD + GAP)}px)`,
+            transition: animate ? 'transform 800ms cubic-bezier(0.65, 0, 0.35, 1)' : 'none',
+          }}
+        >
+          {track.map((it, i) => {
+            const active = i === pos;
+            const ItemIcon = it.Icon;
+            return (
+              <div
+                key={`${it.title}-${i}`}
+                className="relative shrink-0"
+                style={{ width: `${CARD}px` }}
+                aria-hidden={!active}
+              >
+                {/* === AMÉLIORATION AJOUTÉE (bulles v3 — taille, forme, contours) ===
+                    sur demande explicite : bulles plus hautes et plus arrondies
+                    (forme « tuile »), contour neutre, sans trame de points ni
+                    queue. La bulle active est blanche ; les voisines sont en
+                    verre dépoli, texte blanc. */}
+                <div
+                  className={`activa-bubble relative overflow-hidden rounded-[30px] p-6 min-h-[236px] flex flex-col backdrop-blur-xl transition-all duration-700 ${
+                    active
+                      ? 'bg-white ring-1 ring-slate-200/90 opacity-100 scale-100 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)]'
+                      : 'bg-white/10 ring-1 ring-white/25 opacity-70 scale-[0.88] shadow-none'
+                  }`}
+                >
+                  {/* === AMÉLIORATION AJOUTÉE (canaux cliquables) === la bulle
+                      active ouvre le canal (formulaire, WhatsApp, e-mail). */}
+                  {active && it.href && (
+                    <a href={it.href} target={it.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" aria-label={it.title} className="absolute inset-0 z-10 rounded-[30px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60" />
+                  )}
+                  {active && !it.href && it.onClick && (
+                    <button type="button" onClick={it.onClick} aria-label={it.title} className="absolute inset-0 z-10 rounded-[30px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60" />
+                  )}
+                  {/* reflet doux en haut de la bulle */}
+                  <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${active ? 'from-[#EEF3FC]' : 'from-white/10'} to-transparent`} />
+                  <span
+                    className={`relative w-14 h-14 rounded-[18px] flex items-center justify-center transition-colors duration-700 ${
+                      active
+                        ? 'bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white shadow-[0_14px_28px_-12px_rgb(20_73_176/0.95)]'
+                        : 'bg-white/15 text-white'
+                    }`}
+                  >
+                    <ItemIcon className="w-7 h-7" strokeWidth={1.7} />
+                  </span>
+                  <div className="relative mt-5 flex items-center gap-2 flex-wrap">
+                    <span className={`text-[19px] leading-tight font-extrabold tracking-tight ${active ? 'text-[#0B2545]' : 'text-white'}`}>{it.title}</span>
+                    {it.live && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                        <span className="activa-live-dot w-2 h-2 rounded-full bg-emerald-500" />
+                        {liveLabel}
+                      </span>
+                    )}
+                  </div>
+                  <p className={`relative mt-2 text-[14px] leading-relaxed break-words ${active ? 'text-slate-600' : 'text-white/80'}`}>{it.desc}</p>
+                  <div className="relative mt-auto pt-5 flex items-center gap-3">
+                    <span className={`text-[12px] font-bold tabular-nums ${active ? 'text-[#1449B0]' : 'text-white/70'}`}>
+                      {String((i % n) + 1).padStart(2, '0')}
+                      <span className={active ? 'text-slate-400' : 'text-white/50'}> / {String(n).padStart(2, '0')}</span>
+                    </span>
+                    <div className={`flex-1 h-[3px] rounded-full overflow-hidden ${active ? 'bg-slate-100' : 'bg-white/15'}`}>
+                      {active && (
+                        <span
+                          className="activa-trust-progress block h-full rounded-full bg-gradient-to-r from-[#1449B0] to-[#5A86DD]"
+                          style={{ animationDuration: `${STEP_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* Version précédente des bulles, conservée et masquée. */}
+                <div
+                  hidden
+                  className={`activa-bubble relative overflow-hidden rounded-[22px] bg-white p-5 transition-all duration-700 ${
+                    active ? 'opacity-100 scale-100 shadow-[0_30px_60px_-28px_rgb(0_0_0/0.65)]' : 'opacity-55 scale-[0.9] shadow-none'
+                  }`}
+                >
+                  <span aria-hidden="true" className="absolute -right-4 -top-4 w-28 h-28 opacity-60 [background-image:radial-gradient(rgb(20_73_176/0.18)_1.2px,transparent_1.3px)] [background-size:10px_10px] [mask-image:radial-gradient(circle_at_top_right,#000,transparent_70%)]" />
+                  <div className="relative flex items-center justify-between">
+                    <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center">
+                      <ItemIcon className="w-6 h-6" strokeWidth={1.8} />
+                    </span>
+                  </div>
+                  <p className="relative mt-1 text-[13.5px] leading-relaxed text-slate-600">{it.desc}</p>
+                </div>
+                {/* queue de bulle (prise de parole) — masquée */}
+                <span
+                  aria-hidden="true"
+                  className={`hidden absolute left-9 -bottom-2 w-5 h-5 rotate-45 rounded-[4px] bg-white transition-all duration-700 ${active ? 'opacity-100' : 'opacity-0'}`}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Points de navigation */}
+      <div className="mt-3 flex items-center gap-2">
+        {items.map((it, i) => (
+          <button
+            key={it.title}
+            type="button"
+            onClick={() => {
+              setAnimate(true);
+              setPos(i);
+            }}
+            aria-label={it.title}
+            aria-current={i === index}
+            className={`h-2 rounded-full transition-all duration-500 ${i === index ? 'w-8 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface WhistleblowerHomeProps {
   lang: Language;
   onStartNewAlert: () => void;
@@ -140,6 +364,8 @@ interface WhistleblowerHomeProps {
   onOpenDesk: () => void;
   // === AMÉLIORATION AJOUTÉE (Phase 18 — FAQ sortie de l'accueil) ===
   onGoToFaq: () => void;
+  // === AMÉLIORATION AJOUTÉE (ligne d'assistance téléphonique) ===
+  onGoToHelpline?: () => void;
 }
 
 export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
@@ -148,8 +374,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
   onGoToTrack,
   onOpenDesk,
   onGoToFaq,
+  onGoToHelpline,
 }) => {
   const t = TRANSLATIONS[lang];
+  // === AMÉLIORATION AJOUTÉE (trois canaux qui défilent dans le haut de page) ===
+  const channelItems: TrustItem[] = [
+    { Icon: SendIcon, title: t.helpline_other_online_title, desc: t.helpline_other_online_desc, onClick: onStartNewAlert },
+    { Icon: WhatsAppIcon, title: t.hero_channel_whatsapp_title, desc: t.hero_channel_whatsapp_desc, href: 'https://wa.me/237687454545' },
+    { Icon: MailIcon, title: t.helpline_home_email_title, desc: 'activa.whistleblowing@group-activa.com', href: 'mailto:activa.whistleblowing@group-activa.com' },
+  ];
   // === AMÉLIORATION AJOUTÉE (effet « ralenti » au défilement) === voir useScrollMotion.ts
   const motionRootRef = React.useRef<HTMLDivElement>(null);
   useScrollMotion(motionRootRef);
@@ -205,80 +438,67 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           toute la photo, texte blanc centré, libellé « Canal de gestion des
           alertes du Groupe ACTIVA » en surtitre. Les valeurs du Groupe ne
           sont plus affichées sur l'accueil (demande explicite). */}
-      <div className="relative overflow-hidden min-h-[540px] sm:min-h-[620px] lg:min-h-[680px] flex items-center justify-center bg-[#0B3A8C]">
-        {/* === AMÉLIORATION AJOUTÉE (parallaxe) === la photo glisse plus lentement que la page. */}
-        <div className="activa-parallax-img absolute inset-0">
-        <img
-          // === AMÉLIORATION AJOUTÉE (photo plus nette) === version agrandie x2
-          // (rééchantillonnage Lanczos + léger renforcement de netteté) de
-          // activa-hq-hero.jpg, conservée à côté.
-          src="/brand/activa-hq-hero-hd.jpg"
-          alt={t.home_hero_img_alt}
-          fetchPriority="high"
-          decoding="async"
-          className="activa-kenburns absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"
+      {/* === AMÉLIORATION AJOUTÉE (haut de page sans photo — proposition 2
+          retenue) === Sur demande explicite : fond bleu ACTIVA net sur tous
+          les écrans (dégradé + grands cercles décoratifs), texte aligné à
+          gauche, et à droite la vitrine de confiance animée (garanties en
+          boucle). La photo du siège n'est plus affichée ici ; les images
+          restent dans public/brand. Boutons, `id` et actions inchangés. */}
+      <div className="relative overflow-hidden bg-[radial-gradient(1200px_700px_at_85%_10%,#2B63D6_0%,#1449B0_45%,#0D357F_100%)]">
+        {/* === AMÉLIORATION AJOUTÉE (« Résonance abritée ») === ondes issues de la
+            planche docs/design/resonance-abritee : elles partent de l'emblème
+            de la vitrine (tremblantes puis apaisées) et respirent lentement.
+            Remplacent les grands cercles décoratifs (conservés ci-dessous,
+            masqués). */}
+        {/* === AMÉLIORATION AJOUTÉE (motifs revus) === sur demande explicite :
+            trame de points fine qui s'éclaire côté droit, deux halos de lumière
+            qui dérivent lentement (bleu clair et vert ACTIVA) et une grande
+            courbe fine. Les ondes « Résonance abritée » restent ci-dessous,
+            masquées. */}
+        <div aria-hidden="true" className="hidden pointer-events-none absolute inset-0 [background-image:radial-gradient(rgb(255_255_255/0.22)_1px,transparent_1.2px)] [background-size:22px_22px] [mask-image:linear-gradient(100deg,transparent_25%,rgb(0_0_0/0.5)_55%,#000_85%)]" />
+        <div aria-hidden="true" className="activa-aurora pointer-events-none absolute -right-40 -top-40 w-[720px] h-[720px] rounded-full bg-[radial-gradient(closest-side,rgb(90_134_221/0.55),transparent)] blur-2xl" />
+        <div aria-hidden="true" className="activa-aurora-2 pointer-events-none absolute right-[18%] bottom-[-220px] w-[520px] h-[520px] rounded-full bg-[radial-gradient(closest-side,rgb(127_188_10/0.16),transparent)] blur-2xl" />
+        <svg aria-hidden="true" className="pointer-events-none absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 1440 640">
+          <path d="M -40 560 C 380 470, 760 640, 1480 300" fill="none" stroke="rgb(255 255 255 / 0.10)" strokeWidth="1.5" />
+          <path d="M -40 600 C 420 520, 820 680, 1480 360" fill="none" stroke="rgb(255 255 255 / 0.06)" strokeWidth="1" />
+        </svg>
+        <div
+          aria-hidden="true"
+          className="hidden activa-ondes pointer-events-none absolute inset-0 bg-no-repeat bg-cover opacity-[0.22] lg:opacity-50 [mask-image:linear-gradient(90deg,transparent_0%,rgb(0_0_0/0.25)_35%,#000_60%)]"
+          style={{ backgroundImage: "url('/brand/resonance-ondes.webp')", backgroundPosition: '66% 34%' }}
         />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden">
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className="absolute rounded-full border-2"
+              style={{ right: `${-260 + i * 85}px`, top: `${-120 + i * 85}px`, width: `${900 - i * 170}px`, height: `${900 - i * 170}px`, borderColor: `rgb(255 255 255 / ${0.08 + i * 0.03})` }}
+            />
+          ))}
         </div>
-        {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
-        {/* === AMÉLIORATION AJOUTÉE (plus éclatant, « joyeux mais professionnel »)
-            === bandeau plus haut, titre et boutons plus grands, photo plus
-            vive (voile neutre allégé), pastilles d'icônes pleines bleu ACTIVA.
-            === AMÉLIORATION AJOUTÉE (visuel fourni par l'utilisateur) === voile
-            neutre (plus de teinte bleue) sur une photo plus saturée et plus
-            contrastée, titre entièrement blanc, boutons pleins plus nets.
-            === AMÉLIORATION AJOUTÉE (photo plus claire) === voile allégé pour
-            laisser voir la photo ; une ombre douce sur le texte garde la
-            lisibilité. Les contours des pastilles d'icônes sont neutres.
-            === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === voile dans le bleu
-            du logo ACTIVA (#1449B0), plus profond en bas (#12305F).
-            === AMÉLIORATION AJOUTÉE (version B) === voile marine uniforme
-            (remplace le voile blanc à gauche et le voile sombre à droite) :
-            lisibilité du texte blanc centré sur toute la largeur. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#06142B]/15 via-transparent to-[#06142B]/40 pointer-events-none" />
-        {/* === AMÉLIORATION AJOUTÉE (photo plus claire) === halo sombre discret
-            uniquement derrière le texte centré : la photo reste claire sur
-            les côtés, le texte reste lisible même sur la façade blanche. */}
-        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_55%_52%_at_50%_46%,rgb(6_20_43/0.6),transparent_80%)] pointer-events-none" />
-        {/* === AMÉLIORATION AJOUTÉE (lisibilité sur téléphone) === sur petit
-            écran le cadrage tombe sur la façade blanche : voile plus soutenu. */}
-        <div aria-hidden="true" className="absolute inset-0 bg-[#06142B]/40 sm:hidden pointer-events-none" />
 
-        {/* === AMÉLIORATION AJOUTÉE (version B — valeurs du Groupe retirées)
-            === Sur demande explicite : le bandeau de valeurs du Groupe (côté
-            droit) et son voile sombre ne sont plus affichés sur l'accueil.
-            Les textes (`hero_value_*`, `hero_values_caption`) restent dans les
-            traductions. */}
-
-        {/* === AMÉLIORATION AJOUTÉE (version B — texte blanc centré) ===
-            Surtitre « Canal de gestion des alertes du Groupe ACTIVA »
-            (`hero_eyebrow`), titre blanc avec « toute confiance » en dégradé
-            bleu clair, accroche, boutons et mention d'anonymat centrés. Mêmes
-            textes, mêmes boutons (`id` et actions inchangés), même entrée
-            animée et même parallaxe qu'avant. */}
-        <div className="relative z-10 w-full px-5 pt-14 pb-36 sm:px-12 sm:pt-16 sm:pb-40 flex justify-center text-center">
-          <div className="activa-parallax-text max-w-5xl flex flex-col items-center [text-shadow:0_1px_14px_rgb(8_20_45/0.35)]">
-            <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-white/90 [text-wrap:balance]" style={{ '--d': '100ms' } as React.CSSProperties}>
-              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-[#93B4EE] mr-2.5 -mt-0.5" />
+        <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-10 lg:px-14 pt-14 pb-36 sm:pt-20 sm:pb-40 lg:pt-20 lg:pb-44 grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-12 items-center">
+          <div className="activa-parallax-text max-w-2xl">
+            <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-[#C9DAF8]" style={{ '--d': '100ms' } as React.CSSProperties}>
+              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-white mr-2.5 -mt-0.5" />
               {t.hero_eyebrow}
             </p>
 
-            <h1 className="mt-5 text-[40px] sm:text-6xl lg:text-[64px] xl:text-[72px] font-extrabold tracking-[-0.03em] leading-[1.06] text-white [text-wrap:balance]">
-              <span className="activa-enter inline-block" style={{ '--d': '200ms' } as React.CSSProperties}>{t.hero_headline_line1}</span>{' '}
-              <span className="activa-enter inline-block text-white pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
+            <h1 className="mt-5 text-[40px] sm:text-6xl lg:text-[64px] xl:text-[72px] font-extrabold tracking-[-0.035em] leading-[1.04] text-white">
+              <span className="activa-enter block" style={{ '--d': '200ms' } as React.CSSProperties}>{t.hero_headline_line1}</span>
+              <span className="activa-enter block pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
             </h1>
 
-            <p className="activa-enter mt-5 text-lg sm:text-xl text-white leading-relaxed max-w-xl" style={{ '--d': '520ms' } as React.CSSProperties}>
-              {t.hero_desc_line1}
-              <br className="hidden sm:inline" />{' '}
-              {t.hero_desc_line2}{' '}
-              <span className="whitespace-nowrap font-semibold text-white">{t.hero_desc_cta}</span>
+            <p className="activa-enter mt-5 text-lg sm:text-xl text-[#DCE7FA] leading-relaxed max-w-xl" style={{ '--d': '520ms' } as React.CSSProperties}>
+              {t.hero_desc_line1}{' '}{t.hero_desc_line2}{' '}
+              <span className="font-bold text-white">{t.hero_desc_cta}</span>
             </p>
 
-            <div className="activa-enter mt-7 flex flex-col sm:flex-row sm:items-center justify-center gap-3 w-full sm:w-auto" style={{ '--d': '620ms' } as React.CSSProperties}>
+            <div className="activa-enter mt-8 flex flex-col sm:flex-row sm:items-center gap-3" style={{ '--d': '620ms' } as React.CSSProperties}>
               <button
                 id="hero-btn-new-alert"
                 onClick={onStartNewAlert}
-                className="activa-shine group flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#1449B0] hover:bg-[#0F3C93] text-white font-bold text-[15px] sm:text-base shadow-[0_14px_28px_-14px_rgb(20_73_176/0.9)] hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                className="activa-shine group flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#0F3C93] hover:bg-[#0C3176] ring-1 ring-inset ring-white/15 text-white font-bold text-[15px] sm:text-base shadow-[0_14px_28px_-14px_rgb(0_0_0/0.7)] hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
               >
                 <Send className="w-4 h-4" strokeWidth={1.75} />
                 <span>{t.btn_new_alert}</span>
@@ -295,10 +515,28 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               </button>
             </div>
 
-            <p className="activa-enter mt-6 text-sm sm:text-base font-medium text-white [text-wrap:balance]" style={{ '--d': '720ms' } as React.CSSProperties}>
+            <p className="activa-enter mt-6 text-sm sm:text-base font-medium text-white" style={{ '--d': '720ms' } as React.CSSProperties}>
               <Lock className="inline-block align-[-3px] w-4 h-4 mr-2 text-white" strokeWidth={2} />
               {t.hero_anonymous_note}
             </p>
+          </div>
+
+          <div className="activa-enter min-w-0" style={{ '--d': '500ms' } as React.CSSProperties}>
+            <HeroTrustShowcase
+              liveLabel={t.hero_trust_live}
+              // === AMÉLIORATION AJOUTÉE (trois canaux qui défilent) === sur demande
+              // explicite : les bulles présentent les trois canaux (en ligne,
+              // WhatsApp Business, e-mail) ; les 5 garanties restent ci-dessous,
+              // non affichées (`items` remplacé par `channelItems`).
+              items={channelItems}
+              trustItemsKept={[
+                { Icon: ShieldCheck, title: t.hero_trust_1_title, desc: t.hero_trust_1_desc },
+                { Icon: EyeOff, title: t.hero_trust_2_title, desc: t.hero_trust_2_desc },
+                { Icon: UserCheck, title: t.hero_trust_3_title, desc: t.hero_trust_3_desc },
+                { Icon: KeyRound, title: t.hero_trust_4_title, desc: t.hero_trust_4_desc },
+                { Icon: Clock3, title: t.hero_trust_5_title, desc: t.hero_trust_5_desc, live: true },
+              ]}
+            />
           </div>
         </div>
       </div>
@@ -342,31 +580,75 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           sous le bloc. Mêmes textes, même chevauchement de la photo, même
           réaction au survol (soulèvement, teinte pleine qui se fond). */}
       <div
-        className="activa-enter relative z-20 -mt-[4.5rem] grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 rounded-2xl bg-white ring-1 ring-slate-900/5 shadow-[0_24px_60px_-26px_rgb(15_23_42/0.45)]"
+        className="activa-enter relative z-20 -mt-[4.5rem] grid grid-cols-1 sm:grid-cols-3 gap-4"
         style={{ '--d': '820ms' } as React.CSSProperties}
       >
         {[
-          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc, tile: 'bg-[#1449B0] text-white ring-[#1449B0] shadow-[0_8px_18px_-10px_rgb(20_73_176/0.9)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
-          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc, tile: 'bg-[#1449B0] text-white ring-[#1449B0] shadow-[0_8px_18px_-10px_rgb(20_73_176/0.9)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
-          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc, tile: 'bg-[#1449B0] text-white ring-[#1449B0] shadow-[0_8px_18px_-10px_rgb(20_73_176/0.9)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
+          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc, tile: 'bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white ring-white/20 shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
+          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc, tile: 'bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white ring-white/20 shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
+          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc, tile: 'bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white ring-white/20 shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]', solid: 'from-[#2B5FC8] to-[#0F3C93]', bar: 'bg-[#1449B0]' },
         ].map(({ Icon, title, desc, tile, solid, bar }, i) => (
           <div
             key={title}
             data-reveal
             style={{ '--rd': `${i * 110}ms` } as React.CSSProperties}
-            className="group relative z-0 hover:z-10 p-5 sm:p-6 flex items-start gap-4 rounded-2xl transition-all duration-300 ease-out hover:bg-white hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/5"
+            className="group relative overflow-hidden p-5 sm:p-6 flex items-start gap-4 rounded-[28px] bg-white ring-1 ring-slate-200/90 shadow-[0_24px_50px_-28px_rgb(15_23_42/0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_30px_60px_-26px_rgb(20_73_176/0.45)]"
           >
+            {/* === AMÉLIORATION AJOUTÉE (bulles revues) === bulles séparées,
+                trame de points dans l'angle, filet dégradé en tête. */}
+            <span aria-hidden="true" className="hidden absolute -right-4 -top-4 w-28 h-28 opacity-70 [background-image:radial-gradient(rgb(20_73_176/0.16)_1.2px,transparent_1.3px)] [background-size:10px_10px] [mask-image:radial-gradient(circle_at_top_right,#000,transparent_70%)]" />
+            <span aria-hidden="true" className="hidden absolute inset-x-6 top-0 h-[3px] rounded-b-full bg-gradient-to-r from-[#1449B0] to-[#5A86DD]" />
             <span className={`relative overflow-hidden w-11 h-11 rounded-xl ring-1 ring-inset flex items-center justify-center shrink-0 transition-all duration-500 ease-out group-hover:text-white group-hover:scale-105 group-hover:shadow-lg ${tile}`}>
               <span aria-hidden="true" className={`absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${solid}`} />
               <Icon className="relative w-5 h-5" strokeWidth={1.75} />
             </span>
-            <div>
+            <div className="relative">
               <div className="font-bold text-[#12305F] text-sm sm:text-[15px] tracking-tight">{title}</div>
               <div className="mt-0.5 text-xs sm:text-[13px] text-slate-500 leading-relaxed">{desc}</div>
             </div>
-            <span aria-hidden="true" className={`absolute left-6 right-6 bottom-0 h-[3px] rounded-t-full ${bar}`} />
+            <span aria-hidden="true" className={`hidden absolute left-6 right-6 bottom-0 h-[3px] rounded-t-full ${bar}`} />
           </div>
         ))}
+      </div>
+
+      {/* === AMÉLIORATION AJOUTÉE (ligne d'assistance — trois canaux) ===
+          sur le modèle NAVEX : en ligne, par téléphone, par WhatsApp. Au
+          survol, la bulle se soulève et l'icône s'anime. */}
+      <div id="home-channels" className="hidden space-y-5 pt-4">
+        <div data-reveal className="space-y-1">
+          <span className="text-xs uppercase font-bold tracking-[0.16em] text-[#1449B0]">{t.helpline_home_label}</span>
+          <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{t.helpline_home_heading}</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { id: 'online', Icon: SendIcon, title: t.helpline_other_online_title, desc: t.helpline_other_online_desc, onClick: onStartNewAlert, anim: 'group-hover:-translate-y-0.5 group-hover:translate-x-0.5' },
+            { id: 'phone', Icon: PhoneIcon, title: t.helpline_home_phone_title, desc: t.helpline_home_phone_desc, onClick: onGoToHelpline, anim: 'activa-ring-hover', isNew: true },
+            { id: 'email', Icon: MailIcon, title: t.helpline_home_email_title, desc: 'activa.whistleblowing@group-activa.com', href: 'mailto:activa.whistleblowing@group-activa.com', anim: 'group-hover:-rotate-6 group-hover:scale-110' },
+          ].map(({ id, Icon, title, desc, onClick, href, anim, isNew }, i) => {
+            const body = (
+              <>
+                <span className="relative w-14 h-14 rounded-[18px] bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shrink-0 shadow-[0_12px_26px_-12px_rgb(20_73_176/0.95)]">
+                  {id === 'phone' && <span aria-hidden="true" className="activa-ripple absolute inset-0 rounded-[18px] border-2 border-[#1449B0]/35" />}
+                  <Icon className={`relative w-6 h-6 transition-transform duration-300 ${anim}`} strokeWidth={1.8} />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="flex items-center gap-2">
+                    <span className="font-bold text-[#0B2545] text-[16px] tracking-tight">{title}</span>
+                    {isNew && <span className="px-2 py-0.5 rounded-full bg-[#EEF7E0] text-[#4E7A00] text-[10.5px] font-bold uppercase tracking-wide">{t.helpline_home_new}</span>}
+                  </span>
+                  <span className="block mt-1 text-[13px] text-slate-500 leading-relaxed break-words">{desc}</span>
+                </span>
+                <ArrowRight className="w-4 h-4 mt-1 shrink-0 text-[#1449B0] transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
+              </>
+            );
+            const cls = 'group text-left w-full flex items-start gap-4 p-5 sm:p-6 rounded-[28px] bg-white ring-1 ring-slate-200/90 shadow-[0_24px_50px_-30px_rgb(15_23_42/0.5)] hover:-translate-y-1 hover:shadow-[0_30px_60px_-28px_rgb(15_23_42/0.55)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1449B0]/25';
+            return href ? (
+              <a key={id} id={`home-channel-${id}`} data-reveal style={{ '--rd': `${i * 110}ms` } as React.CSSProperties} href={href} className={cls}>{body}</a>
+            ) : (
+              <button key={id} id={`home-channel-${id}`} data-reveal style={{ '--rd': `${i * 110}ms` } as React.CSSProperties} type="button" onClick={onClick} className={cls}>{body}</button>
+            );
+          })}
+        </div>
       </div>
 
       {/* "Comment ça marche ?" — cartes à coins nets, libellé de l'étape 4

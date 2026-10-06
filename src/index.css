@@ -658,7 +658,9 @@ body {
 /* === AMÉLIORATION AJOUTÉE (visuel fourni par l'utilisateur) === photo du
    siège plus profonde : ciel bleu franc, vitres saturées, façade contrastée. */
 .activa-parallax-img img {
-  filter: saturate(1.85) contrast(1.24) brightness(0.95);
+  /* === AMÉLIORATION AJOUTÉE (photo améliorée par IA) === l'image est déjà
+     retouchée : filtre allégé pour garder des couleurs naturelles. */
+  filter: saturate(1.4) contrast(1.1) brightness(0.97);
 }
 /* === AMÉLIORATION AJOUTÉE (un seul bleu sur toutes les pages) === sur
    demande explicite : les nuances « blue » de Tailwind utilisées dans toute
@@ -741,3 +743,75 @@ body {
     transition: none !important;
   }
 }
+
+/* === AMÉLIORATION AJOUTÉE (vitrine de confiance animée — accueil) ===
+   Ondes lumineuses autour de l'emblème, orbite lente, icône qui « pop » à
+   chaque garantie, carte qui monte en fondu, barre de progression, point
+   « en ligne » qui pulse. Tout est coupé si l'utilisateur limite les
+   animations (la vitrine passe alors en liste fixe, voir WhistleblowerHome). */
+@keyframes activa-ripple {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+.activa-ripple { animation: activa-ripple 3.6s cubic-bezier(0.2, 0.7, 0.2, 1) infinite; }
+@keyframes activa-orbit { to { transform: rotate(360deg); } }
+.activa-orbit { animation: activa-orbit 22s linear infinite; }
+@keyframes activa-trust-pop {
+  0% { transform: scale(0.6) rotate(-8deg); opacity: 0; }
+  60% { transform: scale(1.08) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.activa-trust-pop { animation: activa-trust-pop 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes activa-trust-in {
+  0% { transform: translateY(18px) scale(0.98); opacity: 0; filter: blur(4px); }
+  100% { transform: none; opacity: 1; filter: none; }
+}
+.activa-trust-in { animation: activa-trust-in 0.65s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes activa-trust-progress { from { width: 0; } to { width: 100%; } }
+.activa-trust-progress { width: 0; animation-name: activa-trust-progress; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes activa-live-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0.55); }
+  50% { box-shadow: 0 0 0 6px rgb(16 185 129 / 0); }
+}
+.activa-live-dot { animation: activa-live-dot 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .activa-ripple, .activa-orbit, .activa-trust-pop, .activa-trust-in, .activa-live-dot { animation: none !important; }
+  .activa-trust-progress { animation: none !important; width: 100%; }
+}
+
+/* === AMÉLIORATION AJOUTÉE (« Résonance abritée ») === les ondes du haut de
+   l'accueil respirent lentement (légère pulsation d'opacité et d'échelle,
+   centrée sur l'emblème). Coupé si l'utilisateur limite les animations. */
+@keyframes activa-ondes {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+}
+.activa-ondes { transform-origin: 66% 34%; animation: activa-ondes 9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .activa-ondes { animation: none !important; } }
+
+/* === AMÉLIORATION AJOUTÉE (motifs revus — halos lumineux) === deux halos qui
+   dérivent lentement dans le haut de l'accueil. */
+@keyframes activa-aurora { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-60px,40px) scale(1.08); } }
+@keyframes activa-aurora-2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(70px,-30px); } }
+.activa-aurora { animation: activa-aurora 16s ease-in-out infinite; }
+.activa-aurora-2 { animation: activa-aurora-2 20s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .activa-aurora, .activa-aurora-2 { animation: none !important; } }
+
+/* === AMÉLIORATION AJOUTÉE (ligne d'assistance) === combiné qui « sonne » :
+   petite vibration toutes les 2,4 s ; au survol des boutons d'appel. */
+@keyframes activa-ring {
+  0%, 60%, 100% { transform: rotate(0); }
+  64% { transform: rotate(-14deg); } 68% { transform: rotate(12deg); }
+  72% { transform: rotate(-10deg); } 76% { transform: rotate(8deg); }
+  80% { transform: rotate(-4deg); } 84% { transform: rotate(0); }
+}
+.activa-ring { animation: activa-ring 2.4s ease-in-out infinite; transform-origin: 50% 50%; }
+.group:hover .activa-ring-hover { animation: activa-ring 1.2s ease-in-out infinite; transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) { .activa-ring, .group:hover .activa-ring-hover { animation: none !important; } }
+
+/* === AMÉLIORATION AJOUTÉE (ligne d'assistance — ralenti) === sur demande :
+   animations de la page en « slow motion » (sonnerie et ondes plus lentes). */
+.activa-helpline .activa-ring { animation-duration: 4s; }
+.activa-helpline .activa-ripple { animation-duration: 6s; }
+.activa-helpline .activa-enter { animation-duration: 1.4s; }
+.activa-helpline .activa-modal-in { animation-duration: 1.4s; }

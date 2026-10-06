@@ -13,6 +13,8 @@ import React from 'react';
 import { Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (page de suivi — version B) ===
 import { FileText, KeyRound, Activity, HelpCircle, MessagesSquare } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
+import { BrandBlueBackdrop } from '../ui/BrandBlue';
 
 interface TrackingLoginProps {
   t: Record<string, string>;
@@ -68,24 +70,28 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
   // droite le formulaire dans une carte « Accéder à mon dossier ». Sur
   // téléphone : titre, formulaire, puis la liste. Formulaire, identifiants
   // des champs et actions strictement inchangés.
+  // === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) === même
+  // fond bleu que l'accueil ; textes en blanc, carte du formulaire blanche à
+  // contour neutre.
   return (
-    <div className="activa-form px-4 sm:px-6 py-10 sm:py-14 lg:py-16 lg:min-h-[74vh] lg:flex lg:items-center">
-      <div className="w-full mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-8 items-center">
+    <div className="activa-form relative overflow-hidden px-4 sm:px-6 py-12 sm:py-16 lg:py-20 lg:min-h-[calc(100vh-8rem)] lg:flex lg:items-center">
+      <BrandBlueBackdrop />
+      <div className="relative w-full mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-8 items-center">
         <div className="lg:col-start-1 lg:row-start-1 self-end">
-          <p className="activa-enter flex items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#1449B0]" style={{ '--d': '100ms' } as React.CSSProperties}>
+          <p className="activa-enter flex items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-white/80" style={{ '--d': '100ms' } as React.CSSProperties}>
             <ShieldCheck className="w-4 h-4 shrink-0" strokeWidth={2} />
             {t.track_eyebrow}
           </p>
-          <h1 className="activa-enter mt-3 text-3xl sm:text-4xl lg:text-[44px] font-extrabold tracking-[-0.03em] leading-[1.1] text-[#12305F] [text-wrap:balance]" style={{ '--d': '200ms' } as React.CSSProperties}>
+          <h1 className="activa-enter mt-3 text-3xl sm:text-4xl lg:text-[44px] font-extrabold tracking-[-0.03em] leading-[1.1] text-white [text-wrap:balance]" style={{ '--d': '200ms' } as React.CSSProperties}>
             {t.track_title_part1}{' '}{t.track_title_part2}
           </h1>
-          <p className="activa-enter mt-4 max-w-xl text-sm sm:text-base text-slate-600 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]" style={{ '--d': '300ms' } as React.CSSProperties}>
+          <p className="activa-enter mt-4 max-w-xl text-sm sm:text-base text-white/85 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]" style={{ '--d': '300ms' } as React.CSSProperties}>
             {t.track_subtitle}
           </p>
         </div>
 
         <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
-          <div className="activa-modal-in w-full max-w-[520px] lg:ml-auto bg-white rounded-2xl border border-slate-200 shadow-[0_30px_60px_-32px_rgb(15_23_42/0.4)] p-6 sm:p-9">
+          <div className="activa-modal-in w-full max-w-[520px] lg:ml-auto bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-9">
             <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-[#12305F] mb-5">{t.track_card_title}</h2>
             {loginError && (
               <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
@@ -162,19 +168,19 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
           </div>
         </div>
 
-        <ul className="lg:col-start-1 lg:row-start-2 self-start divide-y divide-slate-200 border-t border-slate-200">
+        <ul className="lg:col-start-1 lg:row-start-2 self-start divide-y divide-white/15 border-t border-white/15">
           {CAN_DO.map(({ Icon, title, desc }, i) => (
             <li
               key={title}
               className="activa-enter flex items-start gap-4 py-4"
               style={{ '--d': `${400 + i * 100}ms` } as React.CSSProperties}
             >
-              <span className="w-10 h-10 rounded-xl bg-white ring-1 ring-inset ring-slate-200 text-[#1449B0] flex items-center justify-center shrink-0 shadow-sm">
+              <span className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md ring-1 ring-inset ring-white/25 text-white flex items-center justify-center shrink-0">
                 <Icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
               </span>
               <div>
-                <div className="text-sm sm:text-[15px] font-bold text-[#12305F]">{title}</div>
-                <div className="mt-0.5 text-xs sm:text-[13px] text-slate-600 leading-relaxed">{desc}</div>
+                <div className="text-sm sm:text-[15px] font-bold text-white">{title}</div>
+                <div className="mt-0.5 text-xs sm:text-[13px] text-white/75 leading-relaxed">{desc}</div>
               </div>
             </li>
           ))}

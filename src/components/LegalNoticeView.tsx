@@ -2,6 +2,8 @@ import React from 'react';
 import { Building2, Server, Copyright, Scale, Mail } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
+// === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
+import { BrandPageHero } from './ui/BrandBlue';
 
 interface LegalNoticeViewProps {
   lang: Language;
@@ -35,9 +37,14 @@ export const LegalNoticeView: React.FC<LegalNoticeViewProps> = ({ lang }) => {
     { icon: Scale, heading: t.legal_liability_heading, body: t.legal_liability_body },
   ];
 
+  // === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) === bandeau
+  // bleu avec titre blanc ; les cartes (contour neutre) chevauchent le bas du
+  // bandeau. L'ancien titre reste dans le code, masqué.
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
-      <div className="space-y-1.5">
+    <>
+    <BrandPageHero Icon={Scale} title={t.legal_title} subtitle={t.legal_subtitle} maxWidth="max-w-4xl" />
+    <div className="relative z-10 -mt-14 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 space-y-5">
+      <div className="hidden space-y-1.5">
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t.legal_title}</h1>
         <p className="text-sm text-slate-600">{t.legal_subtitle}</p>
       </div>
@@ -45,7 +52,7 @@ export const LegalNoticeView: React.FC<LegalNoticeViewProps> = ({ lang }) => {
       {sections.map((section, idx) => {
         const Icon = section.icon;
         return (
-          <div key={idx} className="flex items-start gap-4 p-6 rounded-2xl border border-slate-200 bg-white">
+          <div key={idx} className="flex items-start gap-4 p-6 rounded-[24px] border border-slate-200/90 bg-white shadow-[0_24px_48px_-34px_rgb(15_23_42/0.45)]">
             <span className="w-11 h-11 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
               <Icon className="w-5 h-5" />
             </span>
@@ -57,7 +64,7 @@ export const LegalNoticeView: React.FC<LegalNoticeViewProps> = ({ lang }) => {
         );
       })}
 
-      <div className="flex items-start gap-4 p-6 rounded-2xl border border-blue-200 bg-blue-50/40">
+      <div className="flex items-start gap-4 p-6 rounded-[24px] border border-slate-200/90 bg-white shadow-[0_24px_48px_-34px_rgb(15_23_42/0.45)]">
         <span className="w-11 h-11 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
           <Mail className="w-5 h-5" />
         </span>
@@ -70,5 +77,6 @@ export const LegalNoticeView: React.FC<LegalNoticeViewProps> = ({ lang }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };
