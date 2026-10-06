@@ -224,7 +224,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
   };
 
   const STEPS = [
-    { Icon: Phone, title: t.helpline_step1_title, desc: t.helpline_step1_desc },
+    { Icon: MessageCircle, title: t.helpline_step1_title, desc: t.helpline_step1_desc },
     { Icon: MessageSquareText, title: t.helpline_step2_title, desc: t.helpline_step2_desc },
     { Icon: PenLine, title: t.helpline_step3_title, desc: t.helpline_step3_desc },
     { Icon: KeyRound, title: t.helpline_step4_title, desc: t.helpline_step4_desc },
@@ -346,17 +346,20 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                   <Globe2 className="w-4 h-4 text-slate-400" strokeWidth={1.9} />
                   {t.helpline_from_anywhere}
                 </p>
-                <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2.5">
+                {/* === AMÉLIORATION AJOUTÉE (bouton Appeler retiré) === sur demande
+                    explicite : numéro WhatsApp Business uniquement ; le bouton
+                    Appeler reste dans le code, masqué. */}
+                <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2.5">
                   <a
                     id="helpline-call"
                     href={HELPLINE_TEL}
-                    className="activa-shine group inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] text-white text-sm font-bold shadow-lg shadow-[#1449B0]/30 hover:-translate-y-0.5 transition-all duration-500"
+                    className="hidden activa-shine group items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] text-white text-sm font-bold shadow-lg shadow-[#1449B0]/30 hover:-translate-y-0.5 transition-all duration-500"
                   >
                     <Phone className="activa-ring-hover w-4 h-4" strokeWidth={2} />
                     {t.helpline_call}
                   </a>
-                  <a id="helpline-whatsapp" href={HELPLINE_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className={`group ${ghostBtn}`}>
-                    <MessageCircle className="w-4 h-4 text-[#1449B0] transition-transform duration-300 group-hover:scale-110" strokeWidth={1.9} />
+                  <a id="helpline-whatsapp" href={HELPLINE_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="activa-shine group inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] text-white text-sm font-bold shadow-lg shadow-[#1449B0]/30 hover:-translate-y-0.5 transition-all duration-500">
+                    <MessageCircle className="activa-ring-hover w-4 h-4" strokeWidth={2} />
                     {t.helpline_whatsapp_btn}
                   </a>
                   <button type="button" onClick={() => copy(HELPLINE_NUMBER.replace(/\s/g, ''), 'phone')} className={ghostBtn} aria-label={t.helpline_copy}>
