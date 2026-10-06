@@ -70,7 +70,7 @@ export const fr: Record<string, string> = {
   // dépendre du retour à la ligne naturel du navigateur (qui variait
   // selon la largeur d'écran).
   hero_desc_line1: 'Un comportement contraire à nos valeurs,',
-  hero_desc_line2: 'à l’éthique ou à la réglementation ?',
+  hero_desc_line2: 'à l’éthique ou à nos procédures ?',
   hero_desc_cta: 'Parlez-en. Nous vous écoutons.',
   // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
   hero_eyebrow: 'Canal de gestion des alertes du Groupe ACTIVA',
@@ -1007,13 +1007,13 @@ export const fr: Record<string, string> = {
   privacy_data_heading: 'Données collectées',
   privacy_data_body: 'Selon les informations que vous choisissez de transmettre : le contenu de votre signalement, les pièces jointes éventuelles, ainsi que vos coordonnées si vous ne souhaitez pas rester anonyme.',
   privacy_purpose_heading: 'Finalité du traitement',
-  privacy_purpose_body: 'Ces données sont collectées dans le seul but de recevoir, instruire et traiter les signalements relatifs à des faits contraires à l’éthique, à la réglementation ou au Code de conduite du Groupe ACTIVA.',
+  privacy_purpose_body: 'Ces données sont collectées dans le seul but de recevoir, instruire et traiter les signalements relatifs à des faits contraires à l’éthique, à nos procédures ou au Code de conduite du Groupe ACTIVA.',
   privacy_retention_heading: 'Durée de conservation',
   privacy_retention_body: 'Les données sont conservées pendant la durée nécessaire au traitement du signalement, puis archivées ou supprimées conformément aux obligations légales applicables.',
   privacy_recipients_heading: 'Destinataires des données',
   privacy_recipients_body: 'Seules les personnes habilitées (opérateurs, enquêteurs et administrateurs autorisés) ont accès aux données, selon des droits d’accès strictement limités à leur rôle. Vos données ne sont jamais transmises à des tiers non autorisés.',
   privacy_rights_heading: 'Vos droits',
-  privacy_rights_body: 'Conformément à la réglementation applicable en matière de protection des données, vous disposez d’un droit d’accès, de rectification, d’effacement et d’opposition concernant vos données personnelles. Vous pouvez exercer ces droits en nous contactant à l’adresse suivante :',
+  privacy_rights_body: 'Conformément à nos procédures en matière de protection des données, vous disposez d’un droit d’accès, de rectification, d’effacement et d’opposition concernant vos données personnelles. Vous pouvez exercer ces droits en nous contactant à l’adresse suivante :',
   privacy_security_heading: 'Sécurité',
   privacy_security_body: 'Le Groupe ACTIVA met en œuvre les mesures techniques et organisationnelles appropriées pour protéger la confidentialité et la sécurité des données transmises via cette plateforme.',
   // === AMÉLIORATION AJOUTÉE (Audit frontend — contact DPO dédié) ===
