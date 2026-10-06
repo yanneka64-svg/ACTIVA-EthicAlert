@@ -1776,4 +1776,16 @@ export const fr: Record<string, string> = {
   confidentiality_gate_eyebrow: 'Avant de commencer',
   track_card_title: 'Accéder à mon dossier',
   login_error_unreachable: "Connexion au serveur impossible. Vérifiez votre connexion Internet (ou essayez un autre réseau), puis réessayez.",
+  // === AMÉLIORATION AJOUTÉE (vitrine de confiance animée) ===
+  hero_trust_live: "En ligne",
+  hero_trust_1_title: "Signalement sécurisé",
+  hero_trust_1_desc: "Vos informations sont chiffrées et protégées.",
+  hero_trust_2_title: "Anonymat garanti",
+  hero_trust_2_desc: "Si vous le souhaitez, votre identité n’est jamais demandée.",
+  hero_trust_3_title: "Personnes habilitées",
+  hero_trust_3_desc: "Seules les personnes autorisées traitent votre signalement.",
+  hero_trust_4_title: "Suivi avec un code personnel",
+  hero_trust_4_desc: "Suivez votre dossier et échangez en toute discrétion.",
+  hero_trust_5_title: "Disponible 24 h/24",
+  hero_trust_5_desc: "Signalez à tout moment, 7 jours sur 7.",
 };

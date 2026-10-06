@@ -22,6 +22,8 @@ import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (effet « ralenti » au défilement) ===
 import { useScrollMotion } from '../hooks/useScrollMotion';
+// === AMÉLIORATION AJOUTÉE (vitrine de confiance animée) ===
+import { UserCheck, Clock3 } from 'lucide-react';
 
 // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip 3D)
 // === Sur demande explicite : chaque carte pivote à 180° au clic/tap pour
@@ -133,6 +135,118 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
   );
 }
 
+// === AMÉLIORATION AJOUTÉE (vitrine de confiance animée, côté droit du haut
+// de page) === Sur demande explicite : les garanties s'affichent l'une après
+// l'autre, en boucle. Un emblème bouclier (ondes lumineuses, orbite lente)
+// change d'icône à chaque étape ; dessous, une carte présente la garantie en
+// cours avec une barre de progression, et des points permettent d'en choisir
+// une. Pause au survol ; si l'utilisateur limite les animations, toutes les
+// garanties s'affichent en liste, sans défilement.
+interface TrustItem {
+  Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  title: string;
+  desc: string;
+  live?: boolean;
+}
+
+function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel: string }) {
+  const [index, setIndex] = React.useState(0);
+  const [paused, setPaused] = React.useState(false);
+  const reduced = React.useMemo(
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    []
+  );
+  const STEP_MS = 3800;
+  React.useEffect(() => {
+    if (reduced || paused) return;
+    const id = window.setTimeout(() => setIndex((i) => (i + 1) % items.length), STEP_MS);
+    return () => window.clearTimeout(id);
+  }, [index, paused, reduced, items.length]);
+
+  if (reduced) {
+    return (
+      <ul className="space-y-3">
+        {items.map(({ Icon, title, desc }) => (
+          <li key={title} className="flex items-start gap-3 rounded-2xl bg-white/95 p-4 shadow-lg">
+            <span className="w-10 h-10 rounded-xl bg-[#1449B0] text-white flex items-center justify-center shrink-0"><Icon className="w-5 h-5" strokeWidth={1.9} /></span>
+            <div><div className="text-sm font-bold text-[#0B2545]">{title}</div><div className="text-xs text-slate-600 mt-0.5">{desc}</div></div>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  const current = items[index];
+  const CurrentIcon = current.Icon;
+  return (
+    <div
+      className="relative flex flex-col items-center"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      aria-live="polite"
+    >
+      {/* Emblème : ondes lumineuses + orbite + icône de la garantie en cours */}
+      <div className="relative w-56 h-56 flex items-center justify-center" aria-hidden="true">
+        <span className="activa-ripple absolute inset-6 rounded-full border-2 border-white/40" />
+        <span className="activa-ripple absolute inset-6 rounded-full border-2 border-white/40" style={{ animationDelay: '1.2s' }} />
+        <span className="activa-ripple absolute inset-6 rounded-full border-2 border-white/40" style={{ animationDelay: '2.4s' }} />
+        <span className="activa-orbit absolute inset-0 rounded-full border border-dashed border-white/30">
+          <span className="absolute -top-1.5 left-1/2 -ml-1.5 w-3 h-3 rounded-full bg-[#7FBC0A] shadow-[0_0_14px_4px_rgb(127_188_10/0.6)]" />
+          <span className="absolute top-1/2 -right-1 -mt-1 w-2 h-2 rounded-full bg-white/80" />
+        </span>
+        <span className="relative w-32 h-32 rounded-[2rem] bg-gradient-to-br from-white/25 to-white/5 backdrop-blur-md ring-1 ring-inset ring-white/40 shadow-[0_30px_60px_-20px_rgb(0_0_0/0.55)] flex items-center justify-center">
+          <span key={index} className="activa-trust-pop w-20 h-20 rounded-2xl bg-white text-[#1449B0] flex items-center justify-center shadow-[0_14px_30px_-10px_rgb(0_0_0/0.45)]">
+            <CurrentIcon className="w-10 h-10" strokeWidth={1.8} />
+          </span>
+        </span>
+      </div>
+
+      {/* Carte de la garantie en cours */}
+      <div className="relative mt-6 w-full max-w-[420px] min-h-[132px]">
+        <div key={index} className="activa-trust-in rounded-2xl bg-white p-5 pr-6 shadow-[0_30px_60px_-28px_rgb(0_0_0/0.6)]">
+          <div className="flex items-start gap-4">
+            <span className="w-11 h-11 rounded-xl bg-[#1449B0] text-white flex items-center justify-center shrink-0 shadow-[0_8px_18px_-8px_rgb(20_73_176/0.9)]">
+              <CurrentIcon className="w-5 h-5" strokeWidth={1.9} />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-base font-extrabold tracking-tight text-[#0B2545]">{current.title}</span>
+                {current.live && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                    <span className="activa-live-dot w-2 h-2 rounded-full bg-emerald-500" />
+                    {liveLabel}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-[13.5px] leading-relaxed text-slate-600">{current.desc}</p>
+            </div>
+          </div>
+          <div className="mt-4 h-1 rounded-full bg-slate-100 overflow-hidden">
+            <span
+              className="activa-trust-progress block h-full rounded-full bg-gradient-to-r from-[#1449B0] to-[#5A86DD]"
+              style={{ animationDuration: `${STEP_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Points de navigation */}
+      <div className="mt-5 flex items-center gap-2">
+        {items.map((it, i) => (
+          <button
+            key={it.title}
+            type="button"
+            onClick={() => setIndex(i)}
+            aria-label={it.title}
+            aria-current={i === index}
+            className={`h-2 rounded-full transition-all duration-500 ${i === index ? 'w-8 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface WhistleblowerHomeProps {
   lang: Language;
   onStartNewAlert: () => void;
@@ -205,84 +319,45 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           toute la photo, texte blanc centré, libellé « Canal de gestion des
           alertes du Groupe ACTIVA » en surtitre. Les valeurs du Groupe ne
           sont plus affichées sur l'accueil (demande explicite). */}
-      <div className="relative overflow-hidden min-h-[540px] sm:min-h-[620px] lg:min-h-[680px] flex items-center justify-center bg-[#0B3A8C]">
-        {/* === AMÉLIORATION AJOUTÉE (parallaxe) === la photo glisse plus lentement que la page. */}
-        <div className="activa-parallax-img absolute inset-0">
-        <img
-          // === AMÉLIORATION AJOUTÉE (photo améliorée par IA) === version agrandie
-          // x2 par super-résolution EDSR (détails reconstruits), puis retouchée
-          // (contraste local, couleurs, netteté) : activa-hq-hero-ia.jpg.
-          // Les versions précédentes restent dans public/brand.
-          // === AMÉLIORATION AJOUTÉE (photo plus nette) === version agrandie x2
-          // (rééchantillonnage Lanczos + léger renforcement de netteté) de
-          // activa-hq-hero.jpg, conservée à côté.
-          src="/brand/activa-hq-hero-ia.jpg"
-          alt={t.home_hero_img_alt}
-          fetchPriority="high"
-          decoding="async"
-          className="activa-kenburns absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"
-        />
+      {/* === AMÉLIORATION AJOUTÉE (haut de page sans photo — proposition 2
+          retenue) === Sur demande explicite : fond bleu ACTIVA net sur tous
+          les écrans (dégradé + grands cercles décoratifs), texte aligné à
+          gauche, et à droite la vitrine de confiance animée (garanties en
+          boucle). La photo du siège n'est plus affichée ici ; les images
+          restent dans public/brand. Boutons, `id` et actions inchangés. */}
+      <div className="relative overflow-hidden bg-[radial-gradient(1200px_700px_at_85%_10%,#2B63D6_0%,#1449B0_45%,#0D357F_100%)]">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className="absolute rounded-full border-2"
+              style={{ right: `${-260 + i * 85}px`, top: `${-120 + i * 85}px`, width: `${900 - i * 170}px`, height: `${900 - i * 170}px`, borderColor: `rgb(255 255 255 / ${0.08 + i * 0.03})` }}
+            />
+          ))}
         </div>
-        {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
-        {/* === AMÉLIORATION AJOUTÉE (plus éclatant, « joyeux mais professionnel »)
-            === bandeau plus haut, titre et boutons plus grands, photo plus
-            vive (voile neutre allégé), pastilles d'icônes pleines bleu ACTIVA.
-            === AMÉLIORATION AJOUTÉE (visuel fourni par l'utilisateur) === voile
-            neutre (plus de teinte bleue) sur une photo plus saturée et plus
-            contrastée, titre entièrement blanc, boutons pleins plus nets.
-            === AMÉLIORATION AJOUTÉE (photo plus claire) === voile allégé pour
-            laisser voir la photo ; une ombre douce sur le texte garde la
-            lisibilité. Les contours des pastilles d'icônes sont neutres.
-            === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === voile dans le bleu
-            du logo ACTIVA (#1449B0), plus profond en bas (#12305F).
-            === AMÉLIORATION AJOUTÉE (version B) === voile marine uniforme
-            (remplace le voile blanc à gauche et le voile sombre à droite) :
-            lisibilité du texte blanc centré sur toute la largeur. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#06142B]/15 via-transparent to-[#06142B]/40 pointer-events-none" />
-        {/* === AMÉLIORATION AJOUTÉE (photo plus claire) === halo sombre discret
-            uniquement derrière le texte centré : la photo reste claire sur
-            les côtés, le texte reste lisible même sur la façade blanche. */}
-        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_55%_52%_at_50%_46%,rgb(6_20_43/0.6),transparent_80%)] pointer-events-none" />
-        {/* === AMÉLIORATION AJOUTÉE (lisibilité sur téléphone) === sur petit
-            écran le cadrage tombe sur la façade blanche : voile plus soutenu. */}
-        <div aria-hidden="true" className="absolute inset-0 bg-[#06142B]/40 sm:hidden pointer-events-none" />
 
-        {/* === AMÉLIORATION AJOUTÉE (version B — valeurs du Groupe retirées)
-            === Sur demande explicite : le bandeau de valeurs du Groupe (côté
-            droit) et son voile sombre ne sont plus affichés sur l'accueil.
-            Les textes (`hero_value_*`, `hero_values_caption`) restent dans les
-            traductions. */}
-
-        {/* === AMÉLIORATION AJOUTÉE (version B — texte blanc centré) ===
-            Surtitre « Canal de gestion des alertes du Groupe ACTIVA »
-            (`hero_eyebrow`), titre blanc avec « toute confiance » en dégradé
-            bleu clair, accroche, boutons et mention d'anonymat centrés. Mêmes
-            textes, mêmes boutons (`id` et actions inchangés), même entrée
-            animée et même parallaxe qu'avant. */}
-        <div className="relative z-10 w-full px-5 pt-14 pb-36 sm:px-12 sm:pt-16 sm:pb-40 flex justify-center text-center">
-          <div className="activa-parallax-text max-w-5xl flex flex-col items-center [text-shadow:0_1px_14px_rgb(8_20_45/0.35)]">
-            <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-white/90 [text-wrap:balance]" style={{ '--d': '100ms' } as React.CSSProperties}>
-              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-[#93B4EE] mr-2.5 -mt-0.5" />
+        <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-10 lg:px-14 pt-14 pb-36 sm:pt-20 sm:pb-40 lg:pt-20 lg:pb-44 grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-12 items-center">
+          <div className="activa-parallax-text max-w-2xl">
+            <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-[#C9DAF8]" style={{ '--d': '100ms' } as React.CSSProperties}>
+              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-white mr-2.5 -mt-0.5" />
               {t.hero_eyebrow}
             </p>
 
-            <h1 className="mt-5 text-[40px] sm:text-6xl lg:text-[64px] xl:text-[72px] font-extrabold tracking-[-0.03em] leading-[1.06] text-white [text-wrap:balance]">
-              <span className="activa-enter inline-block" style={{ '--d': '200ms' } as React.CSSProperties}>{t.hero_headline_line1}</span>{' '}
-              <span className="activa-enter inline-block text-white pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
+            <h1 className="mt-5 text-[40px] sm:text-6xl lg:text-[64px] xl:text-[72px] font-extrabold tracking-[-0.035em] leading-[1.04] text-white">
+              <span className="activa-enter block" style={{ '--d': '200ms' } as React.CSSProperties}>{t.hero_headline_line1}</span>
+              <span className="activa-enter block pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
             </h1>
 
-            <p className="activa-enter mt-5 text-lg sm:text-xl text-white leading-relaxed max-w-xl" style={{ '--d': '520ms' } as React.CSSProperties}>
-              {t.hero_desc_line1}
-              <br className="hidden sm:inline" />{' '}
-              {t.hero_desc_line2}{' '}
-              <span className="whitespace-nowrap font-semibold text-white">{t.hero_desc_cta}</span>
+            <p className="activa-enter mt-5 text-lg sm:text-xl text-[#DCE7FA] leading-relaxed max-w-xl" style={{ '--d': '520ms' } as React.CSSProperties}>
+              {t.hero_desc_line1}{' '}{t.hero_desc_line2}{' '}
+              <span className="font-bold text-white">{t.hero_desc_cta}</span>
             </p>
 
-            <div className="activa-enter mt-7 flex flex-col sm:flex-row sm:items-center justify-center gap-3 w-full sm:w-auto" style={{ '--d': '620ms' } as React.CSSProperties}>
+            <div className="activa-enter mt-8 flex flex-col sm:flex-row sm:items-center gap-3" style={{ '--d': '620ms' } as React.CSSProperties}>
               <button
                 id="hero-btn-new-alert"
                 onClick={onStartNewAlert}
-                className="activa-shine group flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#1449B0] hover:bg-[#0F3C93] text-white font-bold text-[15px] sm:text-base shadow-[0_14px_28px_-14px_rgb(20_73_176/0.9)] hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                className="activa-shine group flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#0F3C93] hover:bg-[#0C3176] ring-1 ring-inset ring-white/15 text-white font-bold text-[15px] sm:text-base shadow-[0_14px_28px_-14px_rgb(0_0_0/0.7)] hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
               >
                 <Send className="w-4 h-4" strokeWidth={1.75} />
                 <span>{t.btn_new_alert}</span>
@@ -299,10 +374,23 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               </button>
             </div>
 
-            <p className="activa-enter mt-6 text-sm sm:text-base font-medium text-white [text-wrap:balance]" style={{ '--d': '720ms' } as React.CSSProperties}>
+            <p className="activa-enter mt-6 text-sm sm:text-base font-medium text-white" style={{ '--d': '720ms' } as React.CSSProperties}>
               <Lock className="inline-block align-[-3px] w-4 h-4 mr-2 text-white" strokeWidth={2} />
               {t.hero_anonymous_note}
             </p>
+          </div>
+
+          <div className="activa-enter hidden lg:block" style={{ '--d': '500ms' } as React.CSSProperties}>
+            <HeroTrustShowcase
+              liveLabel={t.hero_trust_live}
+              items={[
+                { Icon: ShieldCheck, title: t.hero_trust_1_title, desc: t.hero_trust_1_desc },
+                { Icon: EyeOff, title: t.hero_trust_2_title, desc: t.hero_trust_2_desc },
+                { Icon: UserCheck, title: t.hero_trust_3_title, desc: t.hero_trust_3_desc },
+                { Icon: KeyRound, title: t.hero_trust_4_title, desc: t.hero_trust_4_desc },
+                { Icon: Clock3, title: t.hero_trust_5_title, desc: t.hero_trust_5_desc, live: true },
+              ]}
+            />
           </div>
         </div>
       </div>

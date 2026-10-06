@@ -1589,4 +1589,16 @@ export const pt: Record<string, string> = {
   confidentiality_gate_eyebrow: 'Antes de começar',
   track_card_title: 'Aceder ao meu processo',
   login_error_unreachable: "Não foi possível contactar o servidor. Verifique a sua ligação à Internet (ou experimente outra rede) e tente novamente.",
+  // === AMÉLIORATION AJOUTÉE (vitrine de confiance animée) ===
+  hero_trust_live: "Online",
+  hero_trust_1_title: "Denúncia segura",
+  hero_trust_1_desc: "As suas informações são encriptadas e protegidas.",
+  hero_trust_2_title: "Anonimato garantido",
+  hero_trust_2_desc: "Se desejar, a sua identidade nunca é pedida.",
+  hero_trust_3_title: "Pessoas habilitadas",
+  hero_trust_3_desc: "Apenas pessoas autorizadas tratam a sua denúncia.",
+  hero_trust_4_title: "Acompanhamento com código pessoal",
+  hero_trust_4_desc: "Acompanhe o seu processo e troque mensagens com discrição.",
+  hero_trust_5_title: "Disponível 24 h/24",
+  hero_trust_5_desc: "Denuncie a qualquer momento, 7 dias por semana.",
 };

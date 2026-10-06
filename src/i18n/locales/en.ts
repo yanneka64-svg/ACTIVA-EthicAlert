@@ -1589,4 +1589,16 @@ export const en: Record<string, string> = {
   confidentiality_gate_eyebrow: 'Before you start',
   track_card_title: 'Access my case',
   login_error_unreachable: "Unable to reach the server. Check your Internet connection (or try another network), then try again.",
+  // === AMÉLIORATION AJOUTÉE (vitrine de confiance animée) ===
+  hero_trust_live: "Online",
+  hero_trust_1_title: "Secure reporting",
+  hero_trust_1_desc: "Your information is encrypted and protected.",
+  hero_trust_2_title: "Guaranteed anonymity",
+  hero_trust_2_desc: "If you wish, your identity is never requested.",
+  hero_trust_3_title: "Authorised people only",
+  hero_trust_3_desc: "Only authorised staff handle your report.",
+  hero_trust_4_title: "Follow-up with a personal code",
+  hero_trust_4_desc: "Track your case and exchange discreetly.",
+  hero_trust_5_title: "Available 24/7",
+  hero_trust_5_desc: "Report at any time, 7 days a week.",
 };

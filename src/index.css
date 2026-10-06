@@ -743,3 +743,38 @@ body {
     transition: none !important;
   }
 }
+
+/* === AMÉLIORATION AJOUTÉE (vitrine de confiance animée — accueil) ===
+   Ondes lumineuses autour de l'emblème, orbite lente, icône qui « pop » à
+   chaque garantie, carte qui monte en fondu, barre de progression, point
+   « en ligne » qui pulse. Tout est coupé si l'utilisateur limite les
+   animations (la vitrine passe alors en liste fixe, voir WhistleblowerHome). */
+@keyframes activa-ripple {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+.activa-ripple { animation: activa-ripple 3.6s cubic-bezier(0.2, 0.7, 0.2, 1) infinite; }
+@keyframes activa-orbit { to { transform: rotate(360deg); } }
+.activa-orbit { animation: activa-orbit 22s linear infinite; }
+@keyframes activa-trust-pop {
+  0% { transform: scale(0.6) rotate(-8deg); opacity: 0; }
+  60% { transform: scale(1.08) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.activa-trust-pop { animation: activa-trust-pop 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes activa-trust-in {
+  0% { transform: translateY(18px) scale(0.98); opacity: 0; filter: blur(4px); }
+  100% { transform: none; opacity: 1; filter: none; }
+}
+.activa-trust-in { animation: activa-trust-in 0.65s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes activa-trust-progress { from { width: 0; } to { width: 100%; } }
+.activa-trust-progress { width: 0; animation-name: activa-trust-progress; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes activa-live-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0.55); }
+  50% { box-shadow: 0 0 0 6px rgb(16 185 129 / 0); }
+}
+.activa-live-dot { animation: activa-live-dot 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .activa-ripple, .activa-orbit, .activa-trust-pop, .activa-trust-in, .activa-live-dot { animation: none !important; }
+  .activa-trust-progress { animation: none !important; width: 100%; }
+}
