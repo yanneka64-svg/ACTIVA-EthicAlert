@@ -60,6 +60,116 @@ const RollingNumber: React.FC<{ value: string }> = ({ value }) => {
   );
 };
 
+/**
+ * === AMÉLIORATION AJOUTÉE (canaux séparés qui défilent) ===
+ * Carrousel horizontal, de la droite vers la gauche, en boucle : la carte
+ * suivante arrive par la droite. Ralenti (une carte toutes les 7 s,
+ * glissement de 1,4 s), pause au survol ou quand un bouton a le focus.
+ * Les cartes non visibles sont inertes (ni clic ni tabulation).
+ */
+const ChannelCarousel: React.FC<{ slides: React.ReactNode[]; labels: string[] }> = ({ slides, labels }) => {
+  const n = slides.length;
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const [width, setWidth] = React.useState(0);
+  const [pos, setPos] = React.useState(0);
+  const [animate, setAnimate] = React.useState(true);
+  const [paused, setPaused] = React.useState(false);
+  const reduced = usePrefersReducedMotion();
+  const GAP = 20;
+  const STEP_MS = 7000;
+  const SLIDE_MS = 1400;
+
+  React.useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  React.useEffect(() => {
+    if (reduced || paused) return;
+    const id = window.setTimeout(() => {
+      setAnimate(true);
+      setPos((p) => p + 1);
+    }, STEP_MS);
+    return () => window.clearTimeout(id);
+  }, [pos, paused, reduced]);
+  // Retour invisible au début une fois la copie de la première carte atteinte.
+  React.useEffect(() => {
+    if (pos < n) return;
+    const id = window.setTimeout(() => {
+      setAnimate(false);
+      setPos(0);
+    }, SLIDE_MS + 60);
+    return () => window.clearTimeout(id);
+  }, [pos, n]);
+  React.useEffect(() => {
+    if (animate) return;
+    const id = window.requestAnimationFrame(() => setAnimate(true));
+    return () => window.cancelAnimationFrame(id);
+  }, [animate]);
+
+  // Carte : 88 % de la largeur visible, la suivante dépasse à droite.
+  const card = Math.max(260, Math.round(width * 0.88));
+  const index = pos % n;
+  const track = [...slides, ...slides];
+  return (
+    <div
+      className="activa-modal-in min-w-0"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+    >
+      <div ref={viewportRef} className="relative overflow-hidden -my-8 py-8 [mask-image:linear-gradient(90deg,#000_0%,#000_88%,transparent)]">
+        <div
+          className="flex items-stretch"
+          style={{
+            gap: `${GAP}px`,
+            transform: `translateX(-${pos * (card + GAP)}px)`,
+            transition: animate ? `transform ${SLIDE_MS}ms cubic-bezier(0.65, 0, 0.35, 1)` : 'none',
+          }}
+        >
+          {track.map((slide, i) => {
+            const active = i === pos;
+            return (
+              <div
+                key={i}
+                className={`shrink-0 transition-[opacity,transform] duration-[1400ms] ${active ? 'opacity-100 scale-100' : 'opacity-60 scale-[0.96] pointer-events-none'}`}
+                style={{ width: `${card}px` }}
+                aria-hidden={!active}
+                inert={!active}
+              >
+                {slide}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="mt-5 flex items-center gap-2">
+        {labels.map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => {
+              setAnimate(true);
+              setPos(i);
+            }}
+            aria-current={i === index}
+            className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[12px] font-bold transition-all duration-700 ${
+              i === index ? 'bg-white text-[#1449B0] shadow-[0_8px_18px_-10px_rgb(0_0_0/0.5)]' : 'bg-white/10 text-white/80 ring-1 ring-inset ring-white/25 hover:bg-white/20'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 interface HelplineViewProps {
   lang: Language;
   onStartNewAlert: () => void;
@@ -85,6 +195,28 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
     return () => window.clearInterval(id);
   }, [reduced]);
 
+  // === AMÉLIORATION AJOUTÉE (titre animé) === déclenché à l'arrivée à l'écran.
+  const stepsHeadingRef = React.useRef<HTMLHeadingElement>(null);
+  const [headingSeen, setHeadingSeen] = React.useState(false);
+  React.useEffect(() => {
+    const el = stepsHeadingRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setHeadingSeen(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setHeadingSeen(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.4 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   const copy = (text: string, field: 'phone' | 'email') => {
     void navigator.clipboard?.writeText(text);
     setCopied(field);
@@ -107,11 +239,27 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
       <div className="relative overflow-hidden">
         <BrandBlueBackdrop />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 sm:pt-14 sm:pb-20 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-          {/* === AMÉLIORATION AJOUTÉE (message de l'accueil repris) === sur
-              demande explicite : même message que le haut de l'accueil
-              (« Signalez en toute confiance », boutons, mention d'anonymat).
-              L'ancien texte de la ligne d'assistance reste ci-dessous, masqué. */}
+          {/* === AMÉLIORATION AJOUTÉE (message propre à la ligne d'assistance) ===
+              sur demande explicite : message dédié, sans les boutons
+              « Signaler » et « Suivre ». Les versions précédentes restent
+              ci-dessous, masquées. */}
           <div>
+            <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-[#C9DAF8]" style={{ '--d': '100ms' } as React.CSSProperties}>
+              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-white mr-2.5 -mt-0.5" />
+              {t.helpline_eyebrow}
+            </p>
+            <h1 className="activa-enter mt-5 text-[38px] sm:text-5xl lg:text-[52px] font-extrabold tracking-[-0.035em] leading-[1.06] text-white [text-wrap:balance]" style={{ '--d': '200ms' } as React.CSSProperties}>
+              {t.helpline_title_v2}
+            </h1>
+            <p className="activa-enter mt-5 text-lg sm:text-xl text-[#DCE7FA] leading-relaxed max-w-xl" style={{ '--d': '420ms' } as React.CSSProperties}>
+              {t.helpline_subtitle_v2}
+            </p>
+            <p className="activa-enter mt-6 text-sm sm:text-base font-medium text-white" style={{ '--d': '600ms' } as React.CSSProperties}>
+              <Lock className="inline-block align-[-3px] w-4 h-4 mr-2 text-white" strokeWidth={2} />
+              {t.hero_anonymous_note}
+            </p>
+          </div>
+          <div hidden>
             <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-[#C9DAF8]" style={{ '--d': '100ms' } as React.CSSProperties}>
               <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-white mr-2.5 -mt-0.5" />
               {t.hero_eyebrow}
@@ -147,7 +295,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               <Lock className="inline-block align-[-3px] w-4 h-4 mr-2 text-white" strokeWidth={2} />
               {t.hero_anonymous_note}
             </p>
-          </div>
+                    </div>
           <div hidden>
             <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-white/80" style={{ '--d': '60ms' } as React.CSSProperties}>
               {t.helpline_eyebrow}
@@ -171,73 +319,108 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
             </div>
           </div>
 
-          {/* Carte : téléphone / WhatsApp puis e-mail */}
-          <div className="activa-modal-in relative bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t.helpline_your_number}</p>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                <span className="activa-live-dot w-2 h-2 rounded-full bg-emerald-500" />
-                {t.helpline_open}
-              </span>
-            </div>
-            <div id="helpline-number" className="mt-3 text-[32px] sm:text-[42px] font-extrabold tracking-tight text-[#0B2545] leading-none">
-              <RollingNumber value={HELPLINE_NUMBER} />
-            </div>
-            <p className="mt-2 flex items-center gap-1.5 text-[13px] text-slate-500">
-              <Globe2 className="w-4 h-4 text-slate-400" strokeWidth={1.9} />
-              {t.helpline_from_anywhere}
-            </p>
-            <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2.5">
-              <a
-                id="helpline-call"
-                href={HELPLINE_TEL}
-                className="activa-shine group inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] text-white text-sm font-bold shadow-lg shadow-[#1449B0]/30 hover:-translate-y-0.5 transition-all duration-300"
-              >
-                <Phone className="activa-ring-hover w-4 h-4" strokeWidth={2} />
-                {t.helpline_call}
-              </a>
-              <a id="helpline-whatsapp" href={HELPLINE_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className={`group ${ghostBtn}`}>
-                <MessageCircle className="w-4 h-4 text-[#1449B0] transition-transform duration-300 group-hover:scale-110" strokeWidth={1.9} />
-                {t.helpline_whatsapp_btn}
-              </a>
-              <button type="button" onClick={() => copy(HELPLINE_NUMBER.replace(/\s/g, ''), 'phone')} className={ghostBtn} aria-label={t.helpline_copy}>
-                {copied === 'phone' ? <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.2} /> : <Copy className="w-4 h-4" strokeWidth={1.9} />}
-                <span>{copied === 'phone' ? t.helpline_copied : t.helpline_copy}</span>
-              </button>
-            </div>
-
-            <dl className="mt-5 grid grid-cols-2 gap-3 text-[13px]">
-              <div className="flex items-start gap-2.5">
-                <Clock3 className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" strokeWidth={1.9} />
-                <div>
-                  <dt className="text-slate-500">{t.helpline_hours_label}</dt>
-                  <dd className="font-semibold text-slate-800">{t.helpline_hours_value}</dd>
+          {/* === AMÉLIORATION AJOUTÉE (canaux séparés qui défilent) === sur
+              demande explicite : WhatsApp Business et e-mail sont deux cartes
+              distinctes qui défilent de la droite vers la gauche (ralenti,
+              pause au survol). */}
+          <ChannelCarousel
+            labels={[t.contact_whatsapp_title, t.contact_email_title]}
+            slides={[
+              <div key="wa" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span className="inline-flex items-center gap-2.5">
+                    <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]">
+                      <MessageCircle className="w-5 h-5" strokeWidth={1.8} />
+                    </span>
+                    <span className="text-[15px] font-extrabold text-[#0B2545]">{t.contact_whatsapp_title}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                    <span className="activa-live-dot w-2 h-2 rounded-full bg-emerald-500" />
+                    {t.helpline_open}
+                  </span>
                 </div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <Languages className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" strokeWidth={1.9} />
-                <div>
-                  <dt className="text-slate-500">{t.helpline_languages_label}</dt>
-                  <dd className="font-semibold text-slate-800">Français · English · Português</dd>
+                <div id="helpline-number" className="mt-5 text-[30px] sm:text-[40px] font-extrabold tracking-tight text-[#0B2545] leading-none">
+                  <RollingNumber value={HELPLINE_NUMBER} />
                 </div>
-              </div>
-            </dl>
-
-            <div className="mt-6 rounded-[22px] bg-[#F3F6FC] p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t.helpline_email_label}</p>
-              <p id="helpline-email" className="mt-2 text-[15px] sm:text-[16px] font-bold text-[#0B2545] [overflow-wrap:anywhere]">{HELPLINE_EMAIL}</p>
-              <div className="mt-3 flex flex-wrap gap-2.5">
-                <a href={`mailto:${HELPLINE_EMAIL}`} className={`group ${ghostBtn} py-2.5`}>
-                  <Mail className="w-4 h-4 text-[#1449B0]" strokeWidth={1.9} />
-                  {t.helpline_email_btn}
-                </a>
-                <button type="button" onClick={() => copy(HELPLINE_EMAIL, 'email')} className={`${ghostBtn} py-2.5`}>
-                  {copied === 'email' ? <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.2} /> : <Copy className="w-4 h-4" strokeWidth={1.9} />}
-                  {copied === 'email' ? t.helpline_copied : t.helpline_copy}
-                </button>
-              </div>
-            </div>
-          </div>
+                <p className="mt-2 flex items-center gap-1.5 text-[13px] text-slate-500">
+                  <Globe2 className="w-4 h-4 text-slate-400" strokeWidth={1.9} />
+                  {t.helpline_from_anywhere}
+                </p>
+                <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2.5">
+                  <a
+                    id="helpline-call"
+                    href={HELPLINE_TEL}
+                    className="activa-shine group inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] text-white text-sm font-bold shadow-lg shadow-[#1449B0]/30 hover:-translate-y-0.5 transition-all duration-500"
+                  >
+                    <Phone className="activa-ring-hover w-4 h-4" strokeWidth={2} />
+                    {t.helpline_call}
+                  </a>
+                  <a id="helpline-whatsapp" href={HELPLINE_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className={`group ${ghostBtn}`}>
+                    <MessageCircle className="w-4 h-4 text-[#1449B0] transition-transform duration-300 group-hover:scale-110" strokeWidth={1.9} />
+                    {t.helpline_whatsapp_btn}
+                  </a>
+                  <button type="button" onClick={() => copy(HELPLINE_NUMBER.replace(/\s/g, ''), 'phone')} className={ghostBtn} aria-label={t.helpline_copy}>
+                    {copied === 'phone' ? <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.2} /> : <Copy className="w-4 h-4" strokeWidth={1.9} />}
+                    <span>{copied === 'phone' ? t.helpline_copied : t.helpline_copy}</span>
+                  </button>
+                </div>
+                <ul className="mt-5 space-y-2 text-[13.5px] text-slate-600">
+                  {[t.contact_whatsapp_tip1, t.contact_whatsapp_tip2, t.contact_whatsapp_tip3].map((line) => (
+                    <li key={line} className="flex items-start gap-2">
+                      <Check className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" strokeWidth={2.2} />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+                <dl className="mt-5 grid grid-cols-2 gap-3 text-[13px]">
+                  <div className="flex items-start gap-2.5">
+                    <Clock3 className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" strokeWidth={1.9} />
+                    <div>
+                      <dt className="text-slate-500">{t.helpline_hours_label}</dt>
+                      <dd className="font-semibold text-slate-800">{t.helpline_hours_value}</dd>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <Languages className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" strokeWidth={1.9} />
+                    <div>
+                      <dt className="text-slate-500">{t.helpline_languages_label}</dt>
+                      <dd className="font-semibold text-slate-800">Français · English · Português</dd>
+                    </div>
+                  </div>
+                </dl>
+              </div>,
+              <div key="mail" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8 flex flex-col">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span className="inline-flex items-center gap-2.5">
+                    <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]">
+                      <Mail className="w-5 h-5" strokeWidth={1.8} />
+                    </span>
+                    <span className="text-[15px] font-extrabold text-[#0B2545]">{t.contact_email_title}</span>
+                  </span>
+                  <span className="rounded-full bg-[#EEF3FC] px-2.5 py-1 text-[11px] font-bold text-[#1449B0]">{t.contact_email_recommended}</span>
+                </div>
+                <p id="helpline-email" className="mt-5 text-[19px] sm:text-[22px] font-extrabold tracking-tight text-[#0B2545] [overflow-wrap:anywhere]">{HELPLINE_EMAIL}</p>
+                <ul className="mt-4 space-y-2 text-[13.5px] text-slate-600">
+                  {[t.contact_email_info1, t.contact_email_info2, t.contact_email_info3].map((line) => (
+                    <li key={line} className="flex items-start gap-2">
+                      <Check className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" strokeWidth={2.2} />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto pt-5 flex flex-wrap gap-2.5">
+                  <a href={`mailto:${HELPLINE_EMAIL}`} className="activa-shine group inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] text-white text-sm font-bold shadow-lg shadow-[#1449B0]/30 hover:-translate-y-0.5 transition-all duration-500">
+                    <Mail className="w-4 h-4" strokeWidth={2} />
+                    {t.helpline_email_btn}
+                  </a>
+                  <button type="button" onClick={() => copy(HELPLINE_EMAIL, 'email')} className={ghostBtn}>
+                    {copied === 'email' ? <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.2} /> : <Copy className="w-4 h-4" strokeWidth={1.9} />}
+                    {copied === 'email' ? t.helpline_copied : t.helpline_copy}
+                  </button>
+                </div>
+              </div>,
+            ]}
+          />
         </div>
       </div>
 
@@ -245,7 +428,32 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 space-y-6">
         <div>
           <span className="text-xs uppercase font-bold tracking-[0.16em] text-[#1449B0]">{t.helpline_steps_label}</span>
-          <h2 className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0B2545]">{t.helpline_steps_heading}</h2>
+          {/* === AMÉLIORATION AJOUTÉE (titre animé) === sur demande explicite :
+              les mots apparaissent l'un après l'autre (ralenti) quand la
+              section arrive à l'écran, puis un trait sous le titre avance au
+              rythme des étapes. */}
+          <h2 ref={stepsHeadingRef} aria-label={t.helpline_steps_heading} className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0B2545]">
+            {t.helpline_steps_heading.split(' ').map((word, i) => (
+              <span key={i} aria-hidden="true" className="inline-block overflow-hidden align-bottom pb-1 mr-[0.28em]">
+                <span
+                  className="inline-block transition-[transform,opacity] duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
+                  style={{
+                    transform: headingSeen || reduced ? 'translateY(0)' : 'translateY(110%)',
+                    opacity: headingSeen || reduced ? 1 : 0,
+                    transitionDelay: `${i * 160}ms`,
+                  }}
+                >
+                  {/\d/.test(word) ? <span className="text-[#1449B0]">{word}</span> : word}
+                </span>
+              </span>
+            ))}
+          </h2>
+          <div aria-hidden="true" className="mt-3 h-[3px] w-40 rounded-full bg-slate-200 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#1449B0] to-[#7FBC0A] transition-[width] duration-[1600ms] ease-in-out"
+              style={{ width: headingSeen || reduced ? `${((reduced ? 3 : step) + 1) * 25}%` : '0%' }}
+            />
+          </div>
         </div>
         <div className="relative">
           {/* fil qui se remplit d'une étape à l'autre */}
