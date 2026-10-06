@@ -24,11 +24,12 @@ export const PublicNavLinks: React.FC<PublicNavLinksProps> = ({
   setCurrentTab,
 }) => {
   return (
+    // === AMÉLIORATION AJOUTÉE (ordre du menu) === Accueil, Ligne d'assistance, Nous contacter, FAQ — via `order-*`.
     <nav className="hidden lg:flex items-center gap-1 flex-1">
       <button
         id="nav-btn-home"
         onClick={() => setCurrentTab('home')}
-        className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
+        className={`order-1 px-3 py-2 text-xs font-semibold transition border-b-2 ${
           currentTab === 'home' || currentTab === 'new_alert' || currentTab === 'track'
             ? 'border-[#1449B0] text-[#1449B0]'
             : 'border-transparent text-slate-600 hover:text-[#1449B0]'
@@ -49,7 +50,7 @@ export const PublicNavLinks: React.FC<PublicNavLinksProps> = ({
       <button
         id="nav-btn-faq"
         onClick={() => setCurrentTab('faq')}
-        className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
+        className={`order-4 px-3 py-2 text-xs font-semibold transition border-b-2 ${
           currentTab === 'faq'
             ? 'border-[#1449B0] text-[#1449B0]'
             : 'border-transparent text-slate-600 hover:text-[#1449B0]'
@@ -62,7 +63,7 @@ export const PublicNavLinks: React.FC<PublicNavLinksProps> = ({
       <button
         id="nav-btn-helpline"
         onClick={() => setCurrentTab('helpline')}
-        className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
+        className={`order-2 px-3 py-2 text-xs font-semibold transition border-b-2 ${
           currentTab === 'helpline'
             ? 'border-[#1449B0] text-[#1449B0]'
             : 'border-transparent text-slate-600 hover:text-[#1449B0]'
@@ -78,7 +79,7 @@ export const PublicNavLinks: React.FC<PublicNavLinksProps> = ({
       <button
         id="nav-btn-contact"
         onClick={() => setCurrentTab('contact')}
-        className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
+        className={`order-3 px-3 py-2 text-xs font-semibold transition border-b-2 ${
           currentTab === 'contact'
             ? 'border-[#1449B0] text-[#1449B0]'
             : 'border-transparent text-slate-600 hover:text-[#1449B0]'

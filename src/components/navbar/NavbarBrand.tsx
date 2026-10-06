@@ -78,29 +78,29 @@ export const NavbarBrand: React.FC<NavbarBrandProps> = ({
       </div>
 
       {!isStaffContext && showMobileNavMenu && (
-        <div className="lg:hidden absolute left-0 top-full mt-1 w-48 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-xs">
+        <div className="lg:hidden absolute left-0 top-full mt-1 w-48 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-xs flex flex-col">
           <button
             onClick={() => { setCurrentTab('home'); setShowMobileNavMenu(false); }}
-            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'home' || currentTab === 'new_alert' || currentTab === 'track' ? 'text-[#1449B0]' : 'text-slate-700'}`}
+            className={`order-1 w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'home' || currentTab === 'new_alert' || currentTab === 'track' ? 'text-[#1449B0]' : 'text-slate-700'}`}
           >
             {t.nav_public_home}
           </button>
           <button
             onClick={() => { setCurrentTab('faq'); setShowMobileNavMenu(false); }}
-            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'faq' ? 'text-[#1449B0]' : 'text-slate-700'}`}
+            className={`order-4 w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'faq' ? 'text-[#1449B0]' : 'text-slate-700'}`}
           >
             {t.nav_public_faq}
           </button>
           {/* === AMÉLIORATION AJOUTÉE (ligne d'assistance téléphonique) === */}
           <button
             onClick={() => { setCurrentTab('helpline'); setShowMobileNavMenu(false); }}
-            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'helpline' ? 'text-[#1449B0]' : 'text-slate-700'}`}
+            className={`order-2 w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'helpline' ? 'text-[#1449B0]' : 'text-slate-700'}`}
           >
             {t.helpline_nav}
           </button>
           <button
             onClick={() => { setCurrentTab('contact'); setShowMobileNavMenu(false); }}
-            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'contact' ? 'text-[#1449B0]' : 'text-slate-700'}`}
+            className={`order-3 w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'contact' ? 'text-[#1449B0]' : 'text-slate-700'}`}
           >
             {t.nav_public_contact}
           </button>

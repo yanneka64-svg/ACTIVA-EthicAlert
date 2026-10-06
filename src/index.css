@@ -808,3 +808,10 @@ body {
 .activa-ring { animation: activa-ring 2.4s ease-in-out infinite; transform-origin: 50% 50%; }
 .group:hover .activa-ring-hover { animation: activa-ring 1.2s ease-in-out infinite; transform-origin: 50% 50%; }
 @media (prefers-reduced-motion: reduce) { .activa-ring, .group:hover .activa-ring-hover { animation: none !important; } }
+
+/* === AMÉLIORATION AJOUTÉE (ligne d'assistance — ralenti) === sur demande :
+   animations de la page en « slow motion » (sonnerie et ondes plus lentes). */
+.activa-helpline .activa-ring { animation-duration: 4s; }
+.activa-helpline .activa-ripple { animation-duration: 6s; }
+.activa-helpline .activa-enter { animation-duration: 1.4s; }
+.activa-helpline .activa-modal-in { animation-duration: 1.4s; }

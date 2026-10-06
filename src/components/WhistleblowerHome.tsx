@@ -25,7 +25,7 @@ import { useScrollMotion } from '../hooks/useScrollMotion';
 // === AMÉLIORATION AJOUTÉE (vitrine de confiance animée) ===
 import { UserCheck, Clock3 } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (ligne d'assistance — trois canaux) ===
-import { MessageCircle as WhatsAppIcon, Mail as MailIcon, Send as SendIcon } from 'lucide-react';
+import { Phone as PhoneIcon, Mail as MailIcon, Send as SendIcon } from 'lucide-react';
 
 // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip 3D)
 // === Sur demande explicite : chaque carte pivote à 180° au clic/tap pour
@@ -600,7 +600,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { id: 'online', Icon: SendIcon, title: t.helpline_other_online_title, desc: t.helpline_other_online_desc, onClick: onStartNewAlert, anim: 'group-hover:-translate-y-0.5 group-hover:translate-x-0.5' },
-            { id: 'phone', Icon: WhatsAppIcon, title: t.helpline_home_phone_title, desc: t.helpline_home_phone_desc, onClick: onGoToHelpline, anim: 'activa-ring-hover', isNew: true },
+            { id: 'phone', Icon: PhoneIcon, title: t.helpline_home_phone_title, desc: t.helpline_home_phone_desc, onClick: onGoToHelpline, anim: 'activa-ring-hover', isNew: true },
             { id: 'email', Icon: MailIcon, title: t.helpline_home_email_title, desc: 'activa.whistleblowing@group-activa.com', href: 'mailto:activa.whistleblowing@group-activa.com', anim: 'group-hover:-rotate-6 group-hover:scale-110' },
           ].map(({ id, Icon, title, desc, onClick, href, anim, isNew }, i) => {
             const body = (
