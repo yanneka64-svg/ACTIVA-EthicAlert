@@ -1587,4 +1587,5 @@ export const en: Record<string, string> = {
   track_no_alert_yet: 'No report yet?',
   track_new_alert_link: 'File a report',
   confidentiality_gate_eyebrow: 'Before you start',
+  track_card_title: 'Access my case',
 };

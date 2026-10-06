@@ -1587,4 +1587,5 @@ export const pt: Record<string, string> = {
   track_no_alert_yet: 'Ainda não fez uma denúncia?',
   track_new_alert_link: 'Fazer uma denúncia',
   confidentiality_gate_eyebrow: 'Antes de começar',
+  track_card_title: 'Aceder ao meu processo',
 };
