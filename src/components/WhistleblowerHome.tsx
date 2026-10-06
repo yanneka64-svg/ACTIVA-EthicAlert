@@ -25,7 +25,7 @@ import { useScrollMotion } from '../hooks/useScrollMotion';
 // === AMÉLIORATION AJOUTÉE (vitrine de confiance animée) ===
 import { UserCheck, Clock3 } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (ligne d'assistance — trois canaux) ===
-import { Phone as PhoneIcon, MessageCircle as WhatsAppIcon, Send as SendIcon } from 'lucide-react';
+import { MessageCircle as WhatsAppIcon, Mail as MailIcon, Send as SendIcon } from 'lucide-react';
 
 // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip 3D)
 // === Sur demande explicite : chaque carte pivote à 180° au clic/tap pour
@@ -600,8 +600,8 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { id: 'online', Icon: SendIcon, title: t.helpline_other_online_title, desc: t.helpline_other_online_desc, onClick: onStartNewAlert, anim: 'group-hover:-translate-y-0.5 group-hover:translate-x-0.5' },
-            { id: 'phone', Icon: PhoneIcon, title: t.helpline_home_phone_title, desc: t.helpline_home_phone_desc, onClick: onGoToHelpline, anim: 'activa-ring-hover', isNew: true },
-            { id: 'whatsapp', Icon: WhatsAppIcon, title: t.helpline_other_whatsapp_title, desc: `${t.helpline_other_whatsapp_desc} 00237 687 45 45 45`, href: 'https://wa.me/237687454545', anim: 'group-hover:scale-110' },
+            { id: 'phone', Icon: WhatsAppIcon, title: t.helpline_home_phone_title, desc: t.helpline_home_phone_desc, onClick: onGoToHelpline, anim: 'activa-ring-hover', isNew: true },
+            { id: 'email', Icon: MailIcon, title: t.helpline_home_email_title, desc: 'activa.whistleblowing@group-activa.com', href: 'mailto:activa.whistleblowing@group-activa.com', anim: 'group-hover:-rotate-6 group-hover:scale-110' },
           ].map(({ id, Icon, title, desc, onClick, href, anim, isNew }, i) => {
             const body = (
               <>
@@ -614,14 +614,14 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                     <span className="font-bold text-[#0B2545] text-[16px] tracking-tight">{title}</span>
                     {isNew && <span className="px-2 py-0.5 rounded-full bg-[#EEF7E0] text-[#4E7A00] text-[10.5px] font-bold uppercase tracking-wide">{t.helpline_home_new}</span>}
                   </span>
-                  <span className="block mt-1 text-[13px] text-slate-500 leading-relaxed">{desc}</span>
+                  <span className="block mt-1 text-[13px] text-slate-500 leading-relaxed break-words">{desc}</span>
                 </span>
                 <ArrowRight className="w-4 h-4 mt-1 shrink-0 text-[#1449B0] transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
               </>
             );
             const cls = 'group text-left w-full flex items-start gap-4 p-5 sm:p-6 rounded-[28px] bg-white ring-1 ring-slate-200/90 shadow-[0_24px_50px_-30px_rgb(15_23_42/0.5)] hover:-translate-y-1 hover:shadow-[0_30px_60px_-28px_rgb(15_23_42/0.55)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1449B0]/25';
             return href ? (
-              <a key={id} id={`home-channel-${id}`} data-reveal style={{ '--rd': `${i * 110}ms` } as React.CSSProperties} href={href} target="_blank" rel="noopener noreferrer" className={cls}>{body}</a>
+              <a key={id} id={`home-channel-${id}`} data-reveal style={{ '--rd': `${i * 110}ms` } as React.CSSProperties} href={href} className={cls}>{body}</a>
             ) : (
               <button key={id} id={`home-channel-${id}`} data-reveal style={{ '--rd': `${i * 110}ms` } as React.CSSProperties} type="button" onClick={onClick} className={cls}>{body}</button>
             );
