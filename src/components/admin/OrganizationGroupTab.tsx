@@ -223,7 +223,8 @@ export const OrganizationGroupTab: React.FC<OrganizationGroupTabProps> = ({ coun
                     }`}
                   >
                     <span className="w-8 shrink-0 text-center px-1 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono font-bold text-[10.5px]">{c.code}</span>
-                    <span className={`flex-1 min-w-0 truncate text-[13px] font-semibold ${active ? 'text-violet-900' : 'text-[#0B2545]'}`}>{c.name}</span>
+                    {/* === AMÉLIORATION AJOUTÉE (drapeaux visibles) === drapeau devant le nom. */}
+                    <span className={`flex-1 min-w-0 truncate text-[13px] font-semibold ${active ? 'text-violet-900' : 'text-[#0B2545]'}`}>{c.flag ? <span aria-hidden="true" className="mr-1.5">{c.flag}</span> : null}{c.name}</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${active ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{n}</span>
                     <ChevronRight className={`w-4 h-4 shrink-0 transition-transform duration-200 ${active ? 'text-violet-500 translate-x-0.5' : 'text-slate-300 group-hover:translate-x-0.5'}`} />
                   </button>
@@ -238,7 +239,7 @@ export const OrganizationGroupTab: React.FC<OrganizationGroupTabProps> = ({ coun
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-mono font-bold text-sm">{selected.code}</span>
                     <div className="min-w-0">
-                      <h4 className="text-xl font-extrabold tracking-tight text-[#0B2545] truncate">{selected.name}</h4>
+                      <h4 className="text-xl font-extrabold tracking-tight text-[#0B2545] truncate">{selected.flag ? <span aria-hidden="true" className="mr-2">{selected.flag}</span> : null}{selected.name}</h4>
                       <p className="text-xs text-slate-500">{t.ctry_entity_count.replace('{n}', String(entitiesOf(selected).length))}</p>
                     </div>
                   </div>

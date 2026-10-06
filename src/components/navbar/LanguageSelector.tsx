@@ -44,6 +44,8 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         }`}
         title={t.nav_change_language}
       >
+        {/* === AMÉLIORATION AJOUTÉE (drapeau sur le bouton de langue) === */}
+        <span aria-hidden="true" className="text-[15px] leading-none">{lang === 'en' ? '🇬🇧' : lang === 'pt' ? '🇵🇹' : '🇫🇷'}</span>
         <span className="font-bold uppercase">{lang}</span>
         <ChevronDown className="w-3 h-3 opacity-70" />
       </button>

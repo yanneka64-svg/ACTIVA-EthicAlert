@@ -408,8 +408,23 @@ input[type='password']::-ms-clear {
    Sélecteurs `:where()` (spécificité nulle) : toute classe Tailwind déjà
    posée sur un élément garde la priorité — rien de l'existant n'est écrasé.
    Tout mouvement est coupé si l'utilisateur limite les animations. */
+/* === AMÉLIORATION AJOUTÉE (drapeaux visibles partout) === sur demande
+   explicite : Windows n'affiche pas les drapeaux emoji (il montre « FR »,
+   « GB »…). Police « Twemoji Country Flags » hébergée sur le site
+   (public/fonts, licence CC-BY 4.0 Twemoji — voir
+   TwemojiCountryFlags-LICENSE.md), limitée aux seuls caractères de drapeaux
+   (`unicode-range`) : tout le reste du texte garde sa police habituelle. */
+@font-face {
+  font-family: 'Twemoji Country Flags';
+  unicode-range: U+1F1E6-1F1FF, U+1F3F4, U+E0062-E0063, U+E0065, U+E0067, U+E006C, U+E006E, U+E0073-E0074, U+E0077, U+E007F;
+  src: url('/fonts/TwemojiCountryFlags.woff2') format('woff2');
+  font-display: swap;
+}
 @theme {
-  --font-sans: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* === AMÉLIORATION AJOUTÉE (drapeaux visibles partout) === aussi dans les
+     textes en chasse fixe. */
+  --font-mono: 'Twemoji Country Flags', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-sans: 'Twemoji Country Flags', 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --ease-activa: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-activa-soft: cubic-bezier(0.25, 0.8, 0.25, 1);
 }
