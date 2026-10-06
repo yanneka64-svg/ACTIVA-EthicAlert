@@ -167,6 +167,11 @@ async function run(activeUser: UserProfile): Promise<number | null> {
       offset = result.nextOffset;
     }
 
+    // === AMÉLIORATION AJOUTÉE (suppression des dossiers fictifs) === liste
+    // complète reçue : les dossiers de ce navigateur supprimés du serveur
+    // (dossiers de test purgés) disparaissent aussi d'ici.
+    if (offset === undefined) storage.removeLocalCasesDeletedOnServer(new Set(caseIds));
+
     // Dossiers créés dans ce navigateur et déjà liés : la copie locale reste la référence.
     const localAlerts = storage.getAlerts();
     const ownedLocally = new Set(localAlerts.filter((a) => !a.cloudImported && a.mirroredCaseId).map((a) => a.mirroredCaseId as string));
