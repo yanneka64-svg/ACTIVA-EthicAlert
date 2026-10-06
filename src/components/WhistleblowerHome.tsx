@@ -96,7 +96,7 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
           </div>
           <div className="flex-1 flex flex-col gap-2 p-5 pt-4">
             <span className={`self-start px-2.5 py-1 rounded-full text-[11px] font-bold ${toneChipClass}`}>{stepLabel}</span>
-            <h4 className="font-bold text-[#0B2545] text-base tracking-tight">{title}</h4>
+            <h4 className="font-bold text-[#12305F] text-base tracking-tight">{title}</h4>
             <p className="text-[13px] text-slate-500 leading-relaxed flex-1">{desc}</p>
             {flipHint && (
               <span className={`inline-flex items-center gap-1.5 pt-1 text-xs font-semibold ${toneTextClass}`}>
@@ -205,7 +205,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           toute la photo, texte blanc centré, libellé « Canal de gestion des
           alertes du Groupe ACTIVA » en surtitre. Les valeurs du Groupe ne
           sont plus affichées sur l'accueil (demande explicite). */}
-      <div className="relative overflow-hidden min-h-[500px] sm:min-h-[560px] flex items-center justify-center bg-[#0B2545]">
+      <div className="relative overflow-hidden min-h-[500px] sm:min-h-[560px] flex items-center justify-center bg-[#12305F]">
         {/* === AMÉLIORATION AJOUTÉE (parallaxe) === la photo glisse plus lentement que la page. */}
         <div className="activa-parallax-img absolute inset-0">
         <img
@@ -217,10 +217,12 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         />
         </div>
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
-        {/* === AMÉLIORATION AJOUTÉE (version B) === voile marine uniforme
+        {/* === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === voile dans le bleu
+            du logo ACTIVA (#2452A0), plus profond en bas (#12305F).
+            === AMÉLIORATION AJOUTÉE (version B) === voile marine uniforme
             (remplace le voile blanc à gauche et le voile sombre à droite) :
             lisibilité du texte blanc centré sur toute la largeur. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0B2545]/55 to-[#0B2545]/[0.82] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#2452A0]/60 to-[#12305F]/[0.88] pointer-events-none" />
 
         {/* === AMÉLIORATION AJOUTÉE (version B — valeurs du Groupe retirées)
             === Sur demande explicite : le bandeau de valeurs du Groupe (côté
@@ -237,13 +239,13 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         <div className="relative z-10 w-full px-5 pt-14 pb-32 sm:px-12 sm:pt-16 sm:pb-36 flex justify-center text-center">
           <div className="activa-parallax-text max-w-3xl flex flex-col items-center">
             <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-blue-200 [text-wrap:balance]" style={{ '--d': '100ms' } as React.CSSProperties}>
-              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-sky-400 mr-2.5 -mt-0.5" />
+              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-[#7FBC0A] mr-2.5 -mt-0.5" />
               {t.hero_eyebrow}
             </p>
 
             <h1 className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.03em] leading-[1.06] text-white [text-wrap:balance]">
               <span className="activa-enter inline-block" style={{ '--d': '200ms' } as React.CSSProperties}>{t.hero_headline_line1}</span>{' '}
-              <span className="activa-enter inline-block bg-gradient-to-r from-blue-300 to-sky-300 bg-clip-text text-transparent pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
+              <span className="activa-enter inline-block bg-gradient-to-r from-[#A8DA3E] to-[#7FBC0A] bg-clip-text text-transparent pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
             </h1>
 
             <p className="activa-enter mt-4 text-base sm:text-lg text-blue-100 leading-relaxed max-w-xl" style={{ '--d': '520ms' } as React.CSSProperties}>
@@ -257,7 +259,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               <button
                 id="hero-btn-new-alert"
                 onClick={onStartNewAlert}
-                className="activa-shine group flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-700 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-900/40 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                className="activa-shine group flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#7FBC0A] hover:bg-[#8CCB12] text-[#12305F] font-extrabold text-xs sm:text-sm shadow-lg shadow-black/25 hover:shadow-xl hover:shadow-[#7FBC0A]/40 hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#C9E88F]"
               >
                 <Send className="w-4 h-4" strokeWidth={1.75} />
                 <span>{t.btn_new_alert}</span>
@@ -267,7 +269,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               <button
                 id="hero-btn-track"
                 onClick={onGoToTrack}
-                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white/95 hover:bg-white text-[#0B2545] font-bold text-xs sm:text-sm shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white/95 hover:bg-white text-[#2452A0] font-bold text-xs sm:text-sm shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
               >
                 <Search className="w-4 h-4" strokeWidth={1.75} />
                 <span>{t.btn_track_existing}</span>
@@ -275,7 +277,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             </div>
 
             <p className="activa-enter mt-5 text-xs sm:text-sm font-medium text-blue-100 [text-wrap:balance]" style={{ '--d': '720ms' } as React.CSSProperties}>
-              <Lock className="inline-block align-[-3px] w-4 h-4 mr-2 text-sky-300" strokeWidth={2} />
+              <Lock className="inline-block align-[-3px] w-4 h-4 mr-2 text-[#A8DA3E]" strokeWidth={2} />
               {t.hero_anonymous_note}
             </p>
           </div>
@@ -323,9 +325,9 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         style={{ '--d': '820ms' } as React.CSSProperties}
       >
         {[
-          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc, tile: 'bg-blue-50 text-blue-600 ring-blue-100', solid: 'from-blue-500 to-blue-700', bar: 'bg-blue-600' },
-          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc, tile: 'bg-violet-50 text-violet-600 ring-violet-100', solid: 'from-violet-500 to-purple-700', bar: 'bg-violet-600' },
-          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc, tile: 'bg-emerald-50 text-emerald-600 ring-emerald-100', solid: 'from-emerald-500 to-teal-600', bar: 'bg-emerald-600' },
+          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc, tile: 'bg-[#EAF0FA] text-[#2452A0] ring-[#D3E0F3]', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
+          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc, tile: 'bg-[#F1F8E3] text-[#5E9608] ring-[#DDEFBD]', solid: 'from-[#8CC919] to-[#6AA307]', bar: 'bg-[#7FBC0A]' },
+          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc, tile: 'bg-[#FDECEE] text-[#C70511] ring-[#F9D0D3]', solid: 'from-[#EE2A35] to-[#C70511]', bar: 'bg-[#E10613]' },
         ].map(({ Icon, title, desc, tile, solid, bar }, i) => (
           <div
             key={title}
@@ -338,7 +340,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               <Icon className="relative w-5 h-5" strokeWidth={1.75} />
             </span>
             <div>
-              <div className="font-bold text-[#0B2545] text-sm sm:text-[15px] tracking-tight">{title}</div>
+              <div className="font-bold text-[#12305F] text-sm sm:text-[15px] tracking-tight">{title}</div>
               <div className="mt-0.5 text-xs sm:text-[13px] text-slate-500 leading-relaxed">{desc}</div>
             </div>
             <span aria-hidden="true" className={`absolute left-6 right-6 bottom-0 h-[3px] rounded-t-full ${bar}`} />
@@ -352,7 +354,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         {/* === AMÉLIORATION AJOUTÉE (design modernisé) === apparition au
             défilement (navigateurs compatibles, sinon simplement visible). */}
         <div data-reveal className="space-y-1">
-          <span className="text-xs uppercase font-bold tracking-[0.16em] text-blue-600">
+          <span className="text-xs uppercase font-bold tracking-[0.16em] text-[#2452A0]">
             {t.process_label}
           </span>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -361,7 +363,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             </h3>
             <button
               onClick={onGoToFaq}
-              className="group flex items-center gap-1.5 px-3.5 py-2 -mx-1 rounded-full text-sm font-semibold text-blue-700 hover:bg-blue-50 transition-colors shrink-0"
+              className="group flex items-center gap-1.5 px-3.5 py-2 -mx-1 rounded-full text-sm font-semibold text-[#2452A0] hover:bg-[#EAF0FA] transition-colors shrink-0"
             >
               {t.process_view_faq}
               <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
@@ -413,8 +415,16 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               emerald: 'bg-gradient-to-br from-emerald-500 to-teal-600',
             };
             // === AMÉLIORATION AJOUTÉE (cartes colorées — proposition 2) ===
-            const toneText: Record<string, string> = { blue: 'text-blue-600', amber: 'text-amber-600', purple: 'text-violet-600', emerald: 'text-emerald-600' };
-            const toneChip: Record<string, string> = { blue: 'bg-blue-50 text-blue-700', amber: 'bg-amber-50 text-amber-700', purple: 'bg-violet-50 text-violet-700', emerald: 'bg-emerald-50 text-emerald-700' };
+            // === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === bleu et vert du
+            // logo ACTIVA en alternance (bleu, vert, bleu profond, vert profond).
+            const toneText: Record<string, string> = { blue: 'text-[#2452A0]', amber: 'text-[#4F7F05]', purple: 'text-[#173B7A]', emerald: 'text-[#4F7F05]' };
+            const toneChip: Record<string, string> = { blue: 'bg-[#EAF0FA] text-[#2452A0]', amber: 'bg-[#F1F8E3] text-[#4F7F05]', purple: 'bg-[#E6ECF6] text-[#173B7A]', emerald: 'bg-[#F1F8E3] text-[#4F7F05]' };
+            const activaBand: Record<string, string> = {
+              blue: 'bg-gradient-to-br from-[#2F63B8] to-[#1E4590]',
+              amber: 'bg-gradient-to-br from-[#8CC919] to-[#6AA307]',
+              purple: 'bg-gradient-to-br from-[#1E4590] to-[#12305F]',
+              emerald: 'bg-gradient-to-br from-[#6AA307] to-[#4F7F05]',
+            };
             return (
               <div key={idx} data-reveal className="h-full" style={{ '--rd': `${idx * 120}ms` } as React.CSSProperties}>
               <HowItWorksCard
@@ -428,7 +438,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 backDesc={step.backDesc}
                 backButtonLabel={t.process_back_button}
                 stepLabel={t.home_step_category.replace('{n}', String(idx + 1)).replace('{category}', step.category)}
-                toneSolidClass={toneSolid[step.tone]}
+                toneSolidClass={activaBand[step.tone]}
                 flipHint={t.process_flip_hint}
                 toneTextClass={toneText[step.tone]}
                 toneChipClass={toneChip[step.tone]}
