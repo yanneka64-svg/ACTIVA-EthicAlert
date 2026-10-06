@@ -51,9 +51,13 @@ interface HowItWorksCardProps {
   // signale que la carte se retourne.
   toneSolidClass?: string;
   flipHint?: string;
+  // === AMÉLIORATION AJOUTÉE (cartes colorées — proposition 2) === couleur
+  // du pictogramme (sur tuile blanche) et de l'étiquette d'étape.
+  toneTextClass?: string;
+  toneChipClass?: string;
 }
 
-function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle, backDesc, backButtonLabel, stepLabel = `Étape ${idx + 1} · ${category}`, toneSolidClass = 'bg-gradient-to-br from-blue-500 to-blue-700', flipHint }: HowItWorksCardProps) {
+function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle, backDesc, backButtonLabel, stepLabel = `Étape ${idx + 1} · ${category}`, toneSolidClass = 'bg-gradient-to-br from-blue-500 to-blue-700', flipHint, toneTextClass = 'text-blue-600', toneChipClass = 'bg-blue-50 text-blue-700' }: HowItWorksCardProps) {
   const [flipped, setFlipped] = React.useState(false);
 
   return (
@@ -75,29 +79,32 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
         style={{ transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
       >
         {/* Face avant
-            === AMÉLIORATION AJOUTÉE (design modernisé) === coins arrondis,
-            ombre douce en deux couches, tuile d'icône « squircle » dont la
-            teinte pleine se fond au survol, icône au trait fin (1,75),
-            numéro d'étape discret et mention « En savoir plus » (la carte
-            se retourne au clic). Comportement inchangé. */}
-        <div className="[grid-area:1/1] h-full [backface-visibility:hidden] bg-white p-6 rounded-2xl border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_10px_28px_-14px_rgb(15_23_42/0.14)] flex flex-col gap-3 transition-all duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] hover:-translate-y-1.5 hover:border-blue-200 hover:shadow-[0_2px_4px_rgb(15_23_42/0.04),0_26px_50px_-18px_rgb(37_99_235/0.32)]">
-          <div className="flex items-start justify-between">
-            <span className={`relative overflow-hidden w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-500 ease-out group-hover:-rotate-3 group-hover:scale-105 group-hover:text-white ${toneClass}`}>
-              <span aria-hidden="true" className={`absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${toneSolidClass}`} />
-              <Icon className="relative w-[22px] h-[22px]" strokeWidth={1.75} />
+            === AMÉLIORATION AJOUTÉE (cartes colorées — proposition 2) ===
+            Sur demande explicite (les bulles « manquaient quelque chose ») :
+            bandeau de couleur en tête avec le numéro d'étape en grand
+            filigrane et le pictogramme sur tuile blanche, puis l'étiquette
+            « Étape n · catégorie », le titre, le texte et « En savoir plus »
+            aligné en bas. Retournement au clic inchangé. */}
+        <div className="[grid-area:1/1] h-full [backface-visibility:hidden] bg-white rounded-2xl overflow-hidden border border-slate-200/70 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_14px_34px_-22px_rgb(15_23_42/0.4)] flex flex-col transition-all duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] hover:-translate-y-1.5 hover:shadow-[0_2px_4px_rgb(15_23_42/0.04),0_26px_50px_-18px_rgb(15_23_42/0.35)]">
+          <div className={`relative h-[104px] p-5 ${toneSolidClass}`}>
+            <span aria-hidden="true" className="absolute right-4 -top-2 text-[96px] font-extrabold leading-none tracking-[-0.05em] text-white/20 tabular-nums select-none transition-transform duration-500 group-hover:-translate-y-1">
+              {idx + 1}
             </span>
-            <span className="text-[11px] font-semibold tabular-nums tracking-[0.18em] text-slate-300 transition-colors duration-300 group-hover:text-slate-400">
-              {String(idx + 1).padStart(2, '0')}
+            <span className={`relative w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-[0_10px_20px_-12px_rgb(15_23_42/0.6)] transition-transform duration-500 ease-out group-hover:-rotate-3 group-hover:scale-105 ${toneTextClass}`}>
+              <Icon className="w-[22px] h-[22px]" strokeWidth={1.75} />
             </span>
           </div>
-          <h4 className="font-bold text-slate-900 text-[15px] tracking-tight pt-1">{title}</h4>
-          <p className="text-xs text-slate-600 leading-relaxed flex-1">{desc}</p>
-          {flipHint && (
-            <span className="inline-flex items-center gap-1.5 pt-1 text-[11px] font-semibold text-slate-400 transition-colors duration-300 group-hover:text-blue-600">
-              <RotateCw className="w-3.5 h-3.5 transition-transform duration-700 ease-out group-hover:rotate-180" strokeWidth={2} />
-              {flipHint}
-            </span>
-          )}
+          <div className="flex-1 flex flex-col gap-2 p-5 pt-4">
+            <span className={`self-start px-2.5 py-1 rounded-full text-[11px] font-bold ${toneChipClass}`}>{stepLabel}</span>
+            <h4 className="font-bold text-[#12305F] text-base tracking-tight">{title}</h4>
+            <p className="text-[13px] text-slate-500 leading-relaxed flex-1">{desc}</p>
+            {flipHint && (
+              <span className={`inline-flex items-center gap-1.5 pt-1 text-xs font-semibold ${toneTextClass}`}>
+                {flipHint}
+                <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Face arrière */}
@@ -193,7 +200,12 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           index.css, désactivées si l'utilisateur limite les animations).
           Marge basse agrandie : le bandeau de confiance vient désormais
           chevaucher le bas de la photo. */}
-      <div className="relative overflow-hidden min-h-[440px] sm:min-h-[520px] flex items-center bg-slate-100">
+      {/* === AMÉLIORATION AJOUTÉE (accueil — version « B » retenue) ===
+          Sur demande explicite (maquette B choisie) : voile bleu marine sur
+          toute la photo, texte blanc centré, libellé « Canal de gestion des
+          alertes du Groupe ACTIVA » en surtitre. Les valeurs du Groupe ne
+          sont plus affichées sur l'accueil (demande explicite). */}
+      <div className="relative overflow-hidden min-h-[500px] sm:min-h-[560px] flex items-center justify-center bg-[#12305F]">
         {/* === AMÉLIORATION AJOUTÉE (parallaxe) === la photo glisse plus lentement que la page. */}
         <div className="activa-parallax-img absolute inset-0">
         <img
@@ -205,126 +217,49 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         />
         </div>
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
-        <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/35 to-transparent pointer-events-none" />
+        {/* === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === voile dans le bleu
+            du logo ACTIVA (#2452A0), plus profond en bas (#12305F).
+            === AMÉLIORATION AJOUTÉE (version B) === voile marine uniforme
+            (remplace le voile blanc à gauche et le voile sombre à droite) :
+            lisibilité du texte blanc centré sur toute la largeur. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#2452A0]/60 to-[#12305F]/[0.88] pointer-events-none" />
 
-        {/* === AMÉLIORATION AJOUTÉE (voile sombre côté droit, bandeau de
-            valeurs) === Sur demande explicite : le bandeau de valeurs flotte
-            directement sur la photo (sans fond propre — essai avec carte à
-            fond flouté explicitement écarté), donc ce voile porte seul sa
-            lisibilité. N'affecte pas le voile blanc du texte principal à
-            gauche. Masqué sous `lg`, comme le panneau lui-même. */}
-        <div className="absolute inset-0 bg-gradient-to-l from-slate-900/55 via-slate-900/10 to-transparent pointer-events-none hidden lg:block" />
+        {/* === AMÉLIORATION AJOUTÉE (version B — valeurs du Groupe retirées)
+            === Sur demande explicite : le bandeau de valeurs du Groupe (côté
+            droit) et son voile sombre ne sont plus affichés sur l'accueil.
+            Les textes (`hero_value_*`, `hero_values_caption`) restent dans les
+            traductions. */}
 
-        {/* === AMÉLIORATION AJOUTÉE (bandeau de valeurs flottant, côté droit
-            du hero) === Sur demande explicite : texte fin (`font-light`, pas
-            gras) posé directement sur la photo, sans fond ni carte.
-            === AMÉLIORATION AJOUTÉE (effet flottant au survol) === Sur
-            demande explicite : chaque ligne de valeur flotte
-            individuellement au survol (léger soulèvement + ombre portée),
-            pas le bandeau entier — la transformation est posée directement
-            sur chaque `<li>`, donc seule la ligne survolée bouge (pas de
-            fond ajouté, juste une transition douce). */}
-        <div className="hidden lg:flex flex-col gap-3 absolute right-10 xl:right-20 top-1/2 -translate-y-1/2 z-10 text-white max-w-[220px]">
-          <ul className="space-y-2.5">
-            {[t.hero_value_1, t.hero_value_2, t.hero_value_3, t.hero_value_4, t.hero_value_5].map((value, i) => (
-              // === AMÉLIORATION AJOUTÉE (design modernisé) === entrée
-              // décalée sur le <li>, effet flottant au survol conservé sur
-              // le texte (une animation terminée bloquerait sinon le survol).
-              <li key={value} className="activa-enter-x" style={{ '--d': `${450 + i * 90}ms` } as React.CSSProperties}>
-                <span className="inline-block text-xs xl:text-sm font-light tracking-[0.2em] uppercase leading-snug transition-transform duration-300 ease-out hover:-translate-y-1 hover:drop-shadow-[0_8px_14px_rgba(0,0,0,0.35)]">
-                  {value}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="activa-draw-x w-10 h-0.5 rounded-full bg-blue-400" style={{ '--d': '950ms' } as React.CSSProperties} />
-          <p className="activa-enter-x text-xs font-light text-white/90 leading-snug" style={{ '--d': '1000ms' } as React.CSSProperties}>{t.hero_values_caption}</p>
-        </div>
-
-        {/* === AMÉLIORATION AJOUTÉE (Phase 36 — correction largeur du texte
-            du hero sur grand écran) === BUG PRÉEXISTANT CORRIGÉ : le padding
-            gauche de positionnement (`lg:pl-[calc((100vw-80rem)/2+2rem)]`,
-            qui grandit avec la largeur d'écran) vivait sur le même élément
-            que `max-w-xl`. Sur un écran large, ce padding pouvait à lui seul
-            dépasser la largeur max autorisée, ne laissant presque plus de
-            place au texte (ex. 186px de large à 1900px de large d'écran,
-            faisant passer chaque mot du titre sur sa propre ligne). Le
-            padding de positionnement vit désormais sur un conteneur SANS
-            max-width ; `max-w-xl` ne contraint plus que le contenu réel, à
-            l'intérieur. */}
-        <div className="relative z-10 px-8 pt-10 pb-24 sm:px-12 sm:pt-12 sm:pb-28 lg:pl-[calc((100vw-80rem)/2+2rem)]">
-          <div className="activa-parallax-text max-w-xl space-y-5">
-            {/* === AMÉLIORATION AJOUTÉE (ligne unique nom de produit + accroche) ===
-                Sur demande explicite, alignée sur la capture de référence
-                fournie : "activa-whistleblowing" + "Canal éthique du Groupe
-                ACTIVA" (mêmes textes, `hero_title`/`hero_eyebrow`) tiennent
-                sur une seule ligne, séparés par un point médian, dans leur
-                casse naturelle (un essai en minuscules a été tenté puis
-                abandonné au profit de cette capture de référence). Espace
-                resserré avant le titre via `-mt-1` sur le titre ci-dessous. */}
-            {/* === AMÉLIORATION AJOUTÉE (palette premium finale, sans halo)
-                === Sur demande explicite, palette : #082B52/Bold (nom de
-                marque), `blue-800` #1e40af/Medium (point médian),
-                `blue-900` #1e3a8a/Regular (accroche). Le halo blanc
-                (`text-shadow`) ajouté à une itération précédente pour
-                renforcer la lisibilité est entièrement retiré (nom de
-                marque compris) : il donnait une impression de "reflet"/
-                police changée signalée par l'utilisateur, plutôt que de
-                l'améliorer — la lisibilité repose désormais uniquement sur
-                des teintes suffisamment foncées. Identique sur mobile et
-                web (même composant, pas de variante distincte). */}
-            <p className="activa-enter text-base" style={{ '--d': '100ms' } as React.CSSProperties}>
-              {/* === AMÉLIORATION AJOUTÉE (design modernisé) === point
-                  pulsé : canal actif et sécurisé. */}
-              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-blue-600 mr-2.5 -mt-0.5" />
-              <span className="font-bold text-[#082B52]">{t.hero_title}</span>
-              <span className="font-medium text-blue-800">{' '}·{' '}</span>
-              <span className="font-normal text-blue-900">{t.hero_eyebrow}</span>
+        {/* === AMÉLIORATION AJOUTÉE (version B — texte blanc centré) ===
+            Surtitre « Canal de gestion des alertes du Groupe ACTIVA »
+            (`hero_eyebrow`), titre blanc avec « toute confiance » en dégradé
+            bleu clair, accroche, boutons et mention d'anonymat centrés. Mêmes
+            textes, mêmes boutons (`id` et actions inchangés), même entrée
+            animée et même parallaxe qu'avant. */}
+        <div className="relative z-10 w-full px-5 pt-14 pb-32 sm:px-12 sm:pt-16 sm:pb-36 flex justify-center text-center">
+          <div className="activa-parallax-text max-w-3xl flex flex-col items-center">
+            <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-blue-200 [text-wrap:balance]" style={{ '--d': '100ms' } as React.CSSProperties}>
+              <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-[#93B4EE] mr-2.5 -mt-0.5" />
+              {t.hero_eyebrow}
             </p>
 
-            {/* === AMÉLIORATION AJOUTÉE (Phase 23 — fidélité au modèle fourni) ===
-                Titre en deux lignes bicolores, comme sur la maquette de
-                référence, à la place du nom de produit utilisé jusqu'ici. */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.02em] leading-[1.05] -mt-1">
-              <span className="activa-enter block text-[#0B2545]" style={{ '--d': '200ms' } as React.CSSProperties}>{t.hero_headline_line1}</span>
-              <span className="activa-enter block bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 bg-clip-text text-transparent pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
+            <h1 className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.03em] leading-[1.06] text-white [text-wrap:balance]">
+              <span className="activa-enter inline-block" style={{ '--d': '200ms' } as React.CSSProperties}>{t.hero_headline_line1}</span>{' '}
+              <span className="activa-enter inline-block bg-gradient-to-r from-[#C9DAF8] to-[#93B4EE] bg-clip-text text-transparent pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
             </h1>
 
-            {/* === AMÉLIORATION AJOUTÉE (barre d'accent sous le titre) ===
-                Sur demande explicite, capture de référence à respecter. */}
-            <div className="activa-draw-x w-12 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400 -mt-2" style={{ '--d': '480ms' } as React.CSSProperties} />
-
-            {/* === AMÉLIORATION AJOUTÉE (garder "Parlez-en. Nous vous
-                écoutons." sur une seule ligne) === Sur demande explicite :
-                `whitespace-nowrap` sur l'appel à l'action final seul (la
-                question s'enroule normalement au-dessus) — un simple espace
-                insécable aurait laissé le navigateur couper au trait
-                d'union existant de "Parlez-en".
-                === AMÉLIORATION AJOUTÉE (retour à la ligne forcé avant "à
-                l'éthique") === Sur demande explicite : `<br />` entre les 2
-                lignes de la question, pour que "à l'éthique ou à la
-                réglementation ?" retombe toujours sur sa propre ligne. */}
-            <p className="activa-enter text-base sm:text-lg font-semibold text-slate-800 leading-snug max-w-md" style={{ '--d': '520ms' } as React.CSSProperties}>
+            <p className="activa-enter mt-4 text-base sm:text-lg text-blue-100 leading-relaxed max-w-xl" style={{ '--d': '520ms' } as React.CSSProperties}>
               {t.hero_desc_line1}
-              <br />
+              <br className="hidden sm:inline" />{' '}
               {t.hero_desc_line2}{' '}
-              <span className="whitespace-nowrap">{t.hero_desc_cta}</span>
+              <span className="whitespace-nowrap font-semibold text-white">{t.hero_desc_cta}</span>
             </p>
 
-            {/* === AMÉLIORATION AJOUTÉE (réaction plus marquée des boutons du
-                hero) === sur demande explicite de l'utilisateur : le simple
-                changement de couleur au survol passait inaperçu — ajout
-                d'un léger soulèvement (`hover:-translate-y-0.5`) et d'une
-                ombre plus prononcée, même logique que les bandes
-                Confidentialité/Anonymat/Pas de représailles ci-dessous. */}
-            {/* === AMÉLIORATION AJOUTÉE (design modernisé) === bouton
-                principal en dégradé avec reflet au survol et flèche qui
-                avance ; bouton secondaire en verre dépoli. */}
-            <div className="activa-enter flex flex-col sm:flex-row sm:items-center gap-3 pt-2" style={{ '--d': '620ms' } as React.CSSProperties}>
+            <div className="activa-enter mt-7 flex flex-col sm:flex-row sm:items-center justify-center gap-3 w-full sm:w-auto" style={{ '--d': '620ms' } as React.CSSProperties}>
               <button
                 id="hero-btn-new-alert"
                 onClick={onStartNewAlert}
-                className="activa-shine group flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/35 hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                className="activa-shine group flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#2F63B8] hover:bg-[#3A6FC4] text-white font-bold ring-1 ring-white/30 text-xs sm:text-sm shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#C9E88F]"
               >
                 <Send className="w-4 h-4" strokeWidth={1.75} />
                 <span>{t.btn_new_alert}</span>
@@ -334,20 +269,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               <button
                 id="hero-btn-track"
                 onClick={onGoToTrack}
-                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white/80 hover:bg-white backdrop-blur-md text-slate-800 font-semibold text-xs sm:text-sm border border-white/70 ring-1 ring-slate-900/10 hover:ring-slate-900/20 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white/95 hover:bg-white text-[#2452A0] font-bold text-xs sm:text-sm shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
               >
                 <Search className="w-4 h-4" strokeWidth={1.75} />
                 <span>{t.btn_track_existing}</span>
               </button>
             </div>
 
-            {/* === AMÉLIORATION AJOUTÉE (lisibilité de la mention anonymat) ===
-                Petit texte gris posé directement sur la photo du hero :
-                contraste insuffisant. Sans pastille (demande utilisateur),
-                option « 2 » retenue : bleu marine ACTIVA (#0B2545), très
-                gras, un peu plus grand, sans halo. */}
-            <p className="activa-enter flex items-center gap-2 pt-1 text-xs sm:text-sm font-extrabold text-[#0B2545]" style={{ '--d': '720ms' } as React.CSSProperties}>
-              <Lock className="w-4 h-4 text-blue-700 shrink-0 drop-shadow-[0_0_3px_#fff]" strokeWidth={2} />
+            <p className="activa-enter mt-5 text-xs sm:text-sm font-medium text-blue-100 [text-wrap:balance]" style={{ '--d': '720ms' } as React.CSSProperties}>
+              <Lock className="inline-block align-[-3px] w-4 h-4 mr-2 text-[#93B4EE]" strokeWidth={2} />
               {t.hero_anonymous_note}
             </p>
           </div>
@@ -385,29 +315,37 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           dont la teinte pleine se fond au survol ; icône Anonymat plus
           parlante (œil barré). Soulèvement + ombre au survol de chaque
           bande conservés. */}
+      {/* === AMÉLIORATION AJOUTÉE (couleurs ACTIVA — variante « tout bleu »)
+          === Les trois garanties prennent le bleu ACTIVA (#2452A0).
+          === AMÉLIORATION AJOUTÉE (bulles « cartes colorées » — proposition 2)
+          === Sur demande explicite : chaque garantie a sa propre couleur
+          (bleu, violet, vert) sur la tuile d'icône et un trait de couleur
+          sous le bloc. Mêmes textes, même chevauchement de la photo, même
+          réaction au survol (soulèvement, teinte pleine qui se fond). */}
       <div
-        className="activa-enter relative z-20 -mt-[5.5rem] grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200/70 rounded-2xl bg-white/85 backdrop-blur-xl ring-1 ring-slate-900/5 border border-white/70 shadow-[0_24px_60px_-24px_rgb(15_23_42/0.35)]"
+        className="activa-enter relative z-20 -mt-[4.5rem] grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 rounded-2xl bg-white ring-1 ring-slate-900/5 shadow-[0_24px_60px_-26px_rgb(15_23_42/0.45)]"
         style={{ '--d': '820ms' } as React.CSSProperties}
       >
         {[
-          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc },
-          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc },
-          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc },
-        ].map(({ Icon, title, desc }, i) => (
+          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc, tile: 'bg-[#EAF0FA] text-[#2452A0] ring-[#D3E0F3]', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
+          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc, tile: 'bg-[#EAF0FA] text-[#2452A0] ring-[#D3E0F3]', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
+          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc, tile: 'bg-[#EAF0FA] text-[#2452A0] ring-[#D3E0F3]', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
+        ].map(({ Icon, title, desc, tile, solid, bar }, i) => (
           <div
             key={title}
             data-reveal
             style={{ '--rd': `${i * 110}ms` } as React.CSSProperties}
-            className="group relative z-0 hover:z-10 p-5 sm:p-6 flex items-center gap-4 rounded-2xl transition-all duration-300 ease-out hover:bg-white hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/5"
+            className="group relative z-0 hover:z-10 p-5 sm:p-6 flex items-start gap-4 rounded-2xl transition-all duration-300 ease-out hover:bg-white hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/5"
           >
-            <span className="relative overflow-hidden w-11 h-11 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 ring-1 ring-inset ring-blue-200/70 flex items-center justify-center shrink-0 transition-all duration-500 ease-out group-hover:text-white group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-blue-600/30">
-              <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-700 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+            <span className={`relative overflow-hidden w-11 h-11 rounded-xl ring-1 ring-inset flex items-center justify-center shrink-0 transition-all duration-500 ease-out group-hover:text-white group-hover:scale-105 group-hover:shadow-lg ${tile}`}>
+              <span aria-hidden="true" className={`absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${solid}`} />
               <Icon className="relative w-5 h-5" strokeWidth={1.75} />
             </span>
             <div>
-              <div className="font-bold text-slate-900 text-sm tracking-tight">{title}</div>
-              <div className="text-xs text-slate-500 leading-relaxed">{desc}</div>
+              <div className="font-bold text-[#12305F] text-sm sm:text-[15px] tracking-tight">{title}</div>
+              <div className="mt-0.5 text-xs sm:text-[13px] text-slate-500 leading-relaxed">{desc}</div>
             </div>
+            <span aria-hidden="true" className={`absolute left-6 right-6 bottom-0 h-[3px] rounded-t-full ${bar}`} />
           </div>
         ))}
       </div>
@@ -418,7 +356,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         {/* === AMÉLIORATION AJOUTÉE (design modernisé) === apparition au
             défilement (navigateurs compatibles, sinon simplement visible). */}
         <div data-reveal className="space-y-1">
-          <span className="text-xs uppercase font-bold tracking-[0.16em] text-blue-600">
+          <span className="text-xs uppercase font-bold tracking-[0.16em] text-[#2452A0]">
             {t.process_label}
           </span>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -427,7 +365,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             </h3>
             <button
               onClick={onGoToFaq}
-              className="group flex items-center gap-1.5 px-3.5 py-2 -mx-1 rounded-full text-sm font-semibold text-blue-700 hover:bg-blue-50 transition-colors shrink-0"
+              className="group flex items-center gap-1.5 px-3.5 py-2 -mx-1 rounded-full text-sm font-semibold text-[#2452A0] hover:bg-[#EAF0FA] transition-colors shrink-0"
             >
               {t.process_view_faq}
               <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
@@ -478,6 +416,18 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               purple: 'bg-gradient-to-br from-violet-500 to-purple-700',
               emerald: 'bg-gradient-to-br from-emerald-500 to-teal-600',
             };
+            // === AMÉLIORATION AJOUTÉE (cartes colorées — proposition 2) ===
+            // === AMÉLIORATION AJOUTÉE (couleurs ACTIVA — variante « tout bleu »
+            // retenue) === nuances du bleu du logo ACTIVA (#2452A0), de la plus
+            // claire (étape 1) à la plus profonde (étape 4).
+            const toneText: Record<string, string> = { blue: 'text-[#2452A0]', amber: 'text-[#2452A0]', purple: 'text-[#2452A0]', emerald: 'text-[#2452A0]' };
+            const toneChip: Record<string, string> = { blue: 'bg-[#EAF0FA] text-[#2452A0]', amber: 'bg-[#EAF0FA] text-[#2452A0]', purple: 'bg-[#EAF0FA] text-[#2452A0]', emerald: 'bg-[#EAF0FA] text-[#2452A0]' };
+            const activaBand: Record<string, string> = {
+              blue: 'bg-gradient-to-br from-[#3A6FC4] to-[#2452A0]',
+              amber: 'bg-gradient-to-br from-[#2F63B8] to-[#1E4590]',
+              purple: 'bg-gradient-to-br from-[#2452A0] to-[#173B7A]',
+              emerald: 'bg-gradient-to-br from-[#1E4590] to-[#12305F]',
+            };
             return (
               <div key={idx} data-reveal className="h-full" style={{ '--rd': `${idx * 120}ms` } as React.CSSProperties}>
               <HowItWorksCard
@@ -491,8 +441,10 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 backDesc={step.backDesc}
                 backButtonLabel={t.process_back_button}
                 stepLabel={t.home_step_category.replace('{n}', String(idx + 1)).replace('{category}', step.category)}
-                toneSolidClass={toneSolid[step.tone]}
+                toneSolidClass={activaBand[step.tone]}
                 flipHint={t.process_flip_hint}
+                toneTextClass={toneText[step.tone]}
+                toneChipClass={toneChip[step.tone]}
               />
               </div>
             );
