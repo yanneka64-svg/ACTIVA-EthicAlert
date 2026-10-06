@@ -778,3 +778,13 @@ body {
   .activa-ripple, .activa-orbit, .activa-trust-pop, .activa-trust-in, .activa-live-dot { animation: none !important; }
   .activa-trust-progress { animation: none !important; width: 100%; }
 }
+
+/* === AMÉLIORATION AJOUTÉE (« Résonance abritée ») === les ondes du haut de
+   l'accueil respirent lentement (légère pulsation d'opacité et d'échelle,
+   centrée sur l'emblème). Coupé si l'utilisateur limite les animations. */
+@keyframes activa-ondes {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+}
+.activa-ondes { transform-origin: 66% 34%; animation: activa-ondes 9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .activa-ondes { animation: none !important; } }

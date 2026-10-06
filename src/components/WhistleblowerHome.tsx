@@ -326,7 +326,17 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           boucle). La photo du siège n'est plus affichée ici ; les images
           restent dans public/brand. Boutons, `id` et actions inchangés. */}
       <div className="relative overflow-hidden bg-[radial-gradient(1200px_700px_at_85%_10%,#2B63D6_0%,#1449B0_45%,#0D357F_100%)]">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        {/* === AMÉLIORATION AJOUTÉE (« Résonance abritée ») === ondes issues de la
+            planche docs/design/resonance-abritee : elles partent de l'emblème
+            de la vitrine (tremblantes puis apaisées) et respirent lentement.
+            Remplacent les grands cercles décoratifs (conservés ci-dessous,
+            masqués). */}
+        <div
+          aria-hidden="true"
+          className="activa-ondes pointer-events-none absolute inset-0 bg-no-repeat bg-cover opacity-[0.22] lg:opacity-50 [mask-image:linear-gradient(90deg,transparent_0%,rgb(0_0_0/0.25)_35%,#000_60%)]"
+          style={{ backgroundImage: "url('/brand/resonance-ondes.webp')", backgroundPosition: '66% 34%' }}
+        />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden">
           {[0, 1, 2, 3].map((i) => (
             <span
               key={i}
