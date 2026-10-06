@@ -209,10 +209,14 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         {/* === AMÉLIORATION AJOUTÉE (parallaxe) === la photo glisse plus lentement que la page. */}
         <div className="activa-parallax-img absolute inset-0">
         <img
+          // === AMÉLIORATION AJOUTÉE (photo améliorée par IA) === version agrandie
+          // x2 par super-résolution EDSR (détails reconstruits), puis retouchée
+          // (contraste local, couleurs, netteté) : activa-hq-hero-ia.jpg.
+          // Les versions précédentes restent dans public/brand.
           // === AMÉLIORATION AJOUTÉE (photo plus nette) === version agrandie x2
           // (rééchantillonnage Lanczos + léger renforcement de netteté) de
           // activa-hq-hero.jpg, conservée à côté.
-          src="/brand/activa-hq-hero-hd.jpg"
+          src="/brand/activa-hq-hero-ia.jpg"
           alt={t.home_hero_img_alt}
           fetchPriority="high"
           decoding="async"
