@@ -64,7 +64,7 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
             alt=""
             fetchPriority="high"
             decoding="async"
-            className="absolute inset-0 w-full h-full object-cover object-left"
+            className="activa-photo-vivid absolute inset-0 w-full h-full object-cover object-left"
           />
           {/* === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === voile bleu ACTIVA
               léger à la place de la simple baisse de luminosité. */}

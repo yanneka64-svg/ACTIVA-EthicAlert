@@ -646,6 +646,21 @@ body {
 .activa-parallax-img img {
   filter: saturate(1.22) contrast(1.05);
 }
+/* === AMÉLIORATION AJOUTÉE (couleurs plus vives sur tous les écrans) ===
+   Sur demande explicite (« les lumières trop pâles, y compris l'image ») :
+   photos plus saturées et plus contrastées, et gris de texte plus soutenus
+   dans toute l'application (slate 400 à 700 légèrement assombris : mêmes
+   classes, meilleure lisibilité, aspect moins délavé). */
+.activa-parallax-img img,
+.activa-photo-vivid {
+  filter: saturate(1.4) contrast(1.14) brightness(0.97);
+}
+@theme {
+  --color-slate-400: oklch(64% 0.045 257);
+  --color-slate-500: oklch(49% 0.05 257);
+  --color-slate-600: oklch(40% 0.048 257);
+  --color-slate-700: oklch(33% 0.048 257);
+}
 
 /* === AMÉLIORATION AJOUTÉE (accueil public — effet « ralenti » au défilement) ===
    Voir src/hooks/useScrollMotion.ts. Les éléments `[data-reveal]` arrivent

@@ -228,7 +228,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             === AMÉLIORATION AJOUTÉE (version B) === voile marine uniforme
             (remplace le voile blanc à gauche et le voile sombre à droite) :
             lisibilité du texte blanc centré sur toute la largeur. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#2452A0]/35 via-[#1E4590]/45 to-[#12305F]/75 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#12305F]/45 via-[#2452A0]/20 to-[#12305F]/80 pointer-events-none" />
         {/* === AMÉLIORATION AJOUTÉE (photo plus claire) === halo sombre discret
             uniquement derrière le texte centré : la photo reste claire sur
             les côtés, le texte reste lisible même sur la façade blanche. */}

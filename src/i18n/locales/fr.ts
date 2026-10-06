@@ -1774,4 +1774,5 @@ export const fr: Record<string, string> = {
   track_no_alert_yet: 'Pas encore de signalement ?',
   track_new_alert_link: 'Déposer un signalement',
   confidentiality_gate_eyebrow: 'Avant de commencer',
+  track_card_title: 'Accéder à mon dossier',
 };
