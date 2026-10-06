@@ -1652,4 +1652,6 @@ export const en: Record<string, string> = {
   hero_channel_whatsapp_desc: "Message us on +237 687 45 45 45, 24/7.",
   helpline_title_v2: "Here to listen, in complete confidence",
   helpline_subtitle_v2: "Message us on WhatsApp Business or by email, from any Group country. Your exchanges stay confidential and you can remain anonymous.",
+  helpline_wa_meta: "Every Group country · 24/7",
+  helpline_email_meta: "Automatic acknowledgement of receipt",
 };
