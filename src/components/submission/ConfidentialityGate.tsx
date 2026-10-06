@@ -12,7 +12,7 @@
 import React from 'react';
 import { X, ArrowRight } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (fenêtre de confidentialité — couleurs ACTIVA) ===
-import { Lock, EyeOff, FileCheck2, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { Language } from '../../types';
 
 interface ConfidentialityGateProps {
@@ -91,23 +91,20 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
             </h2>
             <div className="mt-3 w-10 h-1 rounded-full bg-[#2452A0]" />
           </div>
-          {/* === AMÉLIORATION AJOUTÉE (texte justifié) === colonne de texte
-              élargie (photo 5/12, texte 7/12) et pictogrammes plus compacts
-              sur téléphone : moins de blancs entre les mots justifiés. */}
-          <ul lang={lang} className="space-y-4">
-            {[
-              { Icon: Lock, text: <>{t.confidentiality_gate_body1_pre}<span>{t.confidentiality_gate_body1_bold}</span>{t.confidentiality_gate_body1_post}</> },
-              { Icon: EyeOff, text: <>{t.confidentiality_gate_body2_pre}<span>{t.confidentiality_gate_body2_bold}</span></> },
-              { Icon: FileCheck2, text: <>{t.confidentiality_gate_body2_post.trim()}</> },
-            ].map(({ Icon, text }, i) => (
-              <li key={i} className="flex items-start gap-2.5 sm:gap-3">
-                <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#EAF0FA] text-[#2452A0] flex items-center justify-center shrink-0">
-                  <Icon className="w-4 h-4 sm:w-[18px] sm:h-[18px]" strokeWidth={1.75} />
-                </span>
-                <p className="flex-1 pt-1.5 text-sm sm:text-[15px] text-slate-700 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]">{text}</p>
-              </li>
-            ))}
-          </ul>
+          {/* === AMÉLIORATION AJOUTÉE (texte en un bloc) === sur demande
+              explicite : les trois phrases (mêmes clés de traduction) forment
+              un seul paragraphe justifié, sans coupure de mots ; colonne de
+              texte élargie (photo 5/12, texte 7/12) pour limiter les blancs. */}
+          <p lang={lang} className="text-sm sm:text-[15px] text-slate-700 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]">
+            {t.confidentiality_gate_body1_pre}
+            <span>{t.confidentiality_gate_body1_bold}</span>
+            {t.confidentiality_gate_body1_post}
+            {' '}
+            {t.confidentiality_gate_body2_pre}
+            <span>{t.confidentiality_gate_body2_bold}</span>
+            {' '}
+            {t.confidentiality_gate_body2_post.trim()}
+          </p>
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
               type="button"
