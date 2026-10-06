@@ -17,6 +17,7 @@ interface PublicNavLinksProps {
   setCurrentTab: (tab: string) => void;
 }
 
+// === AMÉLIORATION AJOUTÉE (barre du haut au bleu ACTIVA) === même bleu que le corps de page (#2452A0).
 export const PublicNavLinks: React.FC<PublicNavLinksProps> = ({
   t,
   currentTab,
@@ -29,8 +30,8 @@ export const PublicNavLinks: React.FC<PublicNavLinksProps> = ({
         onClick={() => setCurrentTab('home')}
         className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
           currentTab === 'home' || currentTab === 'new_alert' || currentTab === 'track'
-            ? 'border-blue-600 text-blue-700'
-            : 'border-transparent text-slate-600 hover:text-blue-700'
+            ? 'border-[#2452A0] text-[#2452A0]'
+            : 'border-transparent text-slate-600 hover:text-[#2452A0]'
         }`}
       >
         {t.nav_public_home}
@@ -50,8 +51,8 @@ export const PublicNavLinks: React.FC<PublicNavLinksProps> = ({
         onClick={() => setCurrentTab('faq')}
         className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
           currentTab === 'faq'
-            ? 'border-blue-600 text-blue-700'
-            : 'border-transparent text-slate-600 hover:text-blue-700'
+            ? 'border-[#2452A0] text-[#2452A0]'
+            : 'border-transparent text-slate-600 hover:text-[#2452A0]'
         }`}
       >
         {t.nav_public_faq}
@@ -66,8 +67,8 @@ export const PublicNavLinks: React.FC<PublicNavLinksProps> = ({
         onClick={() => setCurrentTab('contact')}
         className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
           currentTab === 'contact'
-            ? 'border-blue-600 text-blue-700'
-            : 'border-transparent text-slate-600 hover:text-blue-700'
+            ? 'border-[#2452A0] text-[#2452A0]'
+            : 'border-transparent text-slate-600 hover:text-[#2452A0]'
         }`}
       >
         {t.nav_public_contact}

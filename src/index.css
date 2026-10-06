@@ -675,9 +675,12 @@ body {
   transform: none;
   filter: none;
 }
+/* === AMÉLIORATION AJOUTÉE (photo plus nette) === la photo du siège ne fait
+   que 408 px de haut : la marge de parallaxe passe de 25 % à 8 % (et le
+   glissement de 0,25 à 0,08) pour moins l'agrandir, donc moins la flouter. */
 .activa-parallax-img {
-  top: -25%;
-  transform: translate3d(0, calc(var(--sy, 0) * 0.25px), 0);
+  top: -8%;
+  transform: translate3d(0, calc(var(--sy, 0) * 0.08px), 0);
   transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
