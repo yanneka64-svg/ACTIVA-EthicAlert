@@ -56,7 +56,7 @@ jobs:
           echo "deploy=${HAS_SA}" >> "$GITHUB_OUTPUT"
           if [ "${HAS_SA}" != "true" ]; then echo "::notice::FIREBASE_SERVICE_ACCOUNT_ACTIVA non configuré — déploiement ignoré (voir docs/FIREBASE-HOSTING.md)."; fi
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4 (v4.4.0)
         if: env.HAS_SA == 'true'
         # === AMÉLIORATION AJOUTÉE (revue PR #139) === GITHUB_TOKEN non conservé
         # dans .git/config : les outils lancés ensuite ne peuvent pas le lire.
@@ -94,7 +94,7 @@ jobs:
 
       - name: Upload built site
         if: env.HAS_SA == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4 (v4.6.2)
         with:
           name: hosting-dist
           path: dist
@@ -115,13 +115,13 @@ jobs:
     steps:
       # Le dépôt n'est récupéré que pour firebase.json (en-têtes, réécritures) ;
       # aucune installation ni aucun script du projet n'est lancé ici.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4 (v4.4.0)
         # === AMÉLIORATION AJOUTÉE (revue PR #139) === idem : aucun jeton persisté.
         with:
           persist-credentials: false
 
       - name: Download built site
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4 (v4.3.0)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4 (v4.3.0)
         with:
           name: hosting-dist
           path: dist
