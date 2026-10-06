@@ -11,6 +11,8 @@
  */
 import React from 'react';
 import { Eye, EyeOff, ArrowRight, ShieldCheck, ChevronRight } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (page de suivi — version B) ===
+import { FileText, KeyRound, Activity, HelpCircle, MessagesSquare } from 'lucide-react';
 
 interface TrackingLoginProps {
   t: Record<string, string>;
@@ -39,101 +41,92 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
   handleLogin,
   onGoToNewAlert,
 }) => {
+  // === AMÉLIORATION AJOUTÉE (page de suivi — version B, choisie par
+  // l'utilisateur) === même habillage que l'accueil : bandeau photo du siège
+  // sous voile bleu ACTIVA avec le titre centré, formulaire dans une carte
+  // qui chevauche le bandeau, puis trois cartes qui expliquent ce que l'on
+  // peut faire une fois connecté. Formulaire, identifiants des champs et
+  // actions strictement inchangés. L'ancien panneau photo latéral
+  // (track-login-bg.jpg, `sidebar_confidentiality_title`,
+  // `track_login_photo_note`) n'est plus affiché ici.
+  // === AMÉLIORATION AJOUTÉE (alignement sur téléphone) === sur demande
+  // explicite : sur petit écran, le texte du bandeau et le lien « Pas encore
+  // de signalement ? » sont alignés à gauche, sur le même bord que le
+  // formulaire et les cartes ; centrés à partir de la tablette.
+  // === AMÉLIORATION AJOUTÉE (texte justifié) === sur demande explicite : les
+  // paragraphes (accroche, aide sous le mot de passe, cartes) sont justifiés,
+  // sans coupure de mots ; la dernière ligne garde l'alignement du bloc.
+  const CAN_DO = [
+    { Icon: Activity, title: t.track_can_1_title, desc: t.track_can_1_desc },
+    { Icon: HelpCircle, title: t.track_can_2_title, desc: t.track_can_2_desc },
+    { Icon: MessagesSquare, title: t.track_can_3_title, desc: t.track_can_3_desc },
+  ];
+
   return (
-    // === AMÉLIORATION AJOUTÉE (suivi — design modernisé) === carte qui
-    // apparaît en douceur, photo qui se pose, textes en cascade, champs et
-    // boutons animés (styles `activa-form` partagés avec le formulaire).
-    <div className="activa-form min-h-[70vh] flex items-center justify-center py-8 px-4 sm:px-6">
-    <div className="w-full max-w-3xl mx-auto">
-      <div className="activa-modal-in grid grid-cols-1 lg:grid-cols-2 rounded-3xl overflow-hidden border border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_30px_60px_-30px_rgb(15_23_42/0.35)]">
-        {/* === AMÉLIORATION AJOUTÉE (nouvelle photo de fond, fournie par
-            l'utilisateur) === Remplace la photo du siège par une photo de
-            bureau avec vue sur skyline, servie depuis
-            public/brand/track-login-bg.jpg. */}
-        {/* === AMÉLIORATION AJOUTÉE (photo de fond lente à l'affichage) ===
-            BUG PRÉEXISTANT CORRIGÉ, signalé par l'utilisateur : couleur de
-            repli (`bg-[#0B2545]`, même teinte que le voile ci-dessous) le
-            temps du chargement au lieu d'un flash blanc, + priorité de
-            chargement explicite sur l'image. */}
-        <div className="relative hidden lg:flex flex-col justify-end p-6 sm:p-8 min-h-[260px] text-white overflow-hidden bg-[#0B2545]">
-          <img
-            src="/brand/track-login-bg.jpg"
-            alt={t.space_img_alt}
-            fetchPriority="high"
-            decoding="async"
-            className="activa-kenburns absolute inset-0 w-full h-full object-cover object-left"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B2545]/90 via-[#0B2545]/55 to-[#0B2545]/15" />
-          <div className="relative z-10 space-y-5">
-            {/* === AMÉLIORATION AJOUTÉE (texte du bandeau photo) === Remplace
-                l'accroche générique par le même texte explicatif que le
-                formulaire ("Consultez l'avancement de votre dossier...",
-                `t.track_subtitle`), sur demande explicite de l'utilisateur.
-                `track_login_tagline` reste défini dans translations.ts
-                (non supprimé) mais n'est plus utilisé ici. */}
-            <p className="activa-enter text-2xl font-extrabold tracking-tight leading-snug max-w-xs" style={{ '--d': '250ms' } as React.CSSProperties}>{t.track_subtitle}</p>
-            <div className="activa-draw-x w-10 h-0.5 rounded-full bg-gradient-to-r from-sky-300 to-white/40" style={{ '--d': '450ms' } as React.CSSProperties} />
-            <div className="activa-enter flex items-start gap-3" style={{ '--d': '550ms' } as React.CSSProperties}>
-              <span className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-md ring-1 ring-inset ring-white/25 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-[18px] h-[18px] text-white" strokeWidth={1.75} />
-              </span>
-              <div>
-                <div className="text-sm font-bold">{t.sidebar_confidentiality_title}</div>
-                <div className="text-xs text-white/80">{t.track_login_photo_note}</div>
-              </div>
-            </div>
-          </div>
+    <div className="activa-form pb-8">
+      <div className="relative overflow-hidden bg-[#12305F] min-h-[300px] sm:min-h-[340px]">
+        <img
+          src="/brand/activa-hq-hero.jpg"
+          alt=""
+          aria-hidden="true"
+          fetchPriority="high"
+          decoding="async"
+          className="activa-kenburns absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#2452A0]/60 to-[#12305F]/[0.88]" />
+        <div className="relative z-10 px-6 pt-10 pb-28 sm:px-5 sm:pt-14 sm:pb-32 text-left sm:text-center text-white">
+          <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-blue-200" style={{ '--d': '100ms' } as React.CSSProperties}>
+            <ShieldCheck className="inline-block align-[-3px] w-4 h-4 mr-2 text-[#93B4EE]" strokeWidth={2} />
+            {t.track_eyebrow}
+          </p>
+          <h1 className="activa-enter mt-3 text-3xl sm:text-4xl lg:text-[44px] font-extrabold tracking-[-0.03em] leading-[1.1] [text-wrap:balance]" style={{ '--d': '200ms' } as React.CSSProperties}>
+            {t.track_title_part1}{' '}
+            <span className="text-[#A9C4F2]">{t.track_title_part2}</span>
+          </h1>
+          <p className="activa-enter mt-3 sm:mx-auto max-w-2xl text-sm sm:text-base text-blue-100 leading-relaxed text-justify [hyphens:manual] [text-align-last:left] sm:[text-align-last:center]" style={{ '--d': '300ms' } as React.CSSProperties}>
+            {t.track_subtitle}
+          </p>
         </div>
+      </div>
 
-        {/* Form panel */}
-        <div className="bg-white p-6 sm:p-8 flex flex-col justify-center">
-          {/* === AMÉLIORATION AJOUTÉE (alignement avec l'accueil des
-              espaces) === Cadenas retiré et titre aligné à gauche
-              (au lieu de centré) — même style que le titre "Espaces de
-              travail" de StaffSpaceHome.tsx, sur demande explicite. */}
-          {/* === AMÉLIORATION AJOUTÉE (retrait du doublon de texte) ===
-              Le sous-titre (`t.track_subtitle`) était répété ici alors
-              qu'il s'affiche désormais aussi sur le bandeau photo à
-              gauche — retiré ici sur demande explicite de l'utilisateur,
-              la clé de traduction reste inchangée et utilisée côté photo. */}
-          <div className="activa-enter mb-5" style={{ '--d': '150ms' } as React.CSSProperties}>
-            <h2 className="text-xl font-extrabold tracking-tight text-slate-900">{t.track_title}</h2>
-            <div className="mt-2 w-8 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400" />
-          </div>
-
+      <div className="relative z-20 -mt-20 sm:-mt-24 px-4">
+        <div className="activa-modal-in mx-auto w-full max-w-[480px] bg-white rounded-2xl border border-slate-200/70 shadow-[0_30px_60px_-28px_rgb(15_23_42/0.5)] p-6 sm:p-8">
           {loginError && (
-            <div className="activa-enter mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
               {loginError}
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="activa-enter activa-caret-blink space-y-4" style={{ '--d': '250ms' } as React.CSSProperties}>
+          <form onSubmit={handleLogin} className="activa-caret-blink space-y-4">
             <div>
-              <label htmlFor="input-tracking-number" className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="input-tracking-number" className="block text-xs font-bold text-slate-700 mb-1.5">
                 {t.track_label_case_number} *
               </label>
-              <input
-                type="text"
-                id="input-tracking-number"
-                value={trackingNumberInput}
-                onChange={(e) => setTrackingNumberInput(e.target.value)}
-                /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.track_placeholder_case_number}) */
-                className="w-full px-3.5 py-3 text-xs font-mono font-bold bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 uppercase tracking-wider"
-              />
+              <div className="relative">
+                <FileText aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" strokeWidth={1.75} />
+                <input
+                  type="text"
+                  id="input-tracking-number"
+                  value={trackingNumberInput}
+                  onChange={(e) => setTrackingNumberInput(e.target.value)}
+                  className="w-full pl-10 pr-3.5 py-3 text-sm font-mono font-bold bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-[#2452A0] focus:ring-4 focus:ring-[#2452A0]/15 uppercase tracking-wider"
+                />
+              </div>
             </div>
 
             <div>
-              <label htmlFor="input-tracking-password" className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="input-tracking-password" className="block text-xs font-bold text-slate-700 mb-1.5">
                 {t.track_label_password} *
               </label>
               <div className="relative">
+                <KeyRound aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" strokeWidth={1.75} />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="input-tracking-password"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder={t.track_placeholder_password}
-                  className="w-full px-3.5 py-3 pr-10 text-xs bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15"
+                  className="w-full pl-10 pr-10 py-3 text-sm bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-[#2452A0] focus:ring-4 focus:ring-[#2452A0]/15"
                 />
                 <button
                   type="button"
@@ -143,45 +136,52 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
                   {showPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
                 </button>
               </div>
-              {/* === AMÉLIORATION AJOUTÉE (Audit frontend — correction élevée) ===
-                  BUG PRÉEXISTANT CORRIGÉ : `track_login_help` existait déjà dans
-                  les traductions (avertissement sur la non-récupérabilité des
-                  accès) mais n'était affiché nulle part dans l'application. */}
-              <p className="mt-1.5 text-[11px] text-slate-500">{t.track_login_help}</p>
+              <p className="mt-1.5 text-[11px] text-slate-500 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]">{t.track_login_help}</p>
             </div>
 
             <button
               type="submit"
               id="btn-submit-tracking-login"
               disabled={isVerifying}
-              className="activa-shine group w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:opacity-60 text-white text-xs font-bold shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/35 enabled:hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+              className="activa-shine group w-full py-3.5 rounded-xl bg-gradient-to-r from-[#2F63B8] to-[#2452A0] hover:from-[#2452A0] hover:to-[#1E4590] disabled:opacity-60 text-white text-sm font-bold shadow-lg shadow-[#2452A0]/30 hover:shadow-xl enabled:hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#2452A0]/30"
             >
               <span>{isVerifying ? t.common_verifying : t.btn_login_tracking}</span>
               <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
             </button>
           </form>
 
-          <div className="activa-enter flex items-center gap-3 my-5" style={{ '--d': '350ms' } as React.CSSProperties}>
-            <div className="flex-1 h-px bg-slate-200" />
-            {/* === AMÉLIORATION AJOUTÉE (Audit frontend — Phase 3, contraste) ===
-                BUG PRÉEXISTANT CORRIGÉ, mesuré via axe-core : text-slate-400
-                sur fond blanc à cette taille ne passe pas le seuil WCAG AA
-                (2.63:1, minimum 4.5:1) — text-slate-500 y remédie. */}
-            <span className="text-[11px] text-slate-500 uppercase font-semibold">{t.track_divider_or}</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </div>
-
-          <button
-            onClick={onGoToNewAlert}
-            className="activa-enter group w-full flex items-center justify-between px-4 py-3 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50/70 to-white hover:from-blue-50 hover:border-blue-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-600/10 text-blue-700 text-xs font-semibold transition-all duration-300"
-            style={{ '--d': '420ms' } as React.CSSProperties}
-          >
-            <span>{t.track_switch_to_new_alert}</span>
-            <ChevronRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
-          </button>
+          <p className="mt-5 text-left sm:text-center text-xs sm:text-[13px] text-slate-500">
+            {t.track_no_alert_yet}{' '}
+            <button
+              type="button"
+              onClick={onGoToNewAlert}
+              aria-label={t.track_switch_to_new_alert}
+              className="group inline-flex items-center gap-1 font-bold text-[#2452A0] hover:underline underline-offset-2"
+            >
+              {t.track_new_alert_link}
+              <ChevronRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" strokeWidth={2.25} />
+            </button>
+          </p>
         </div>
       </div>
-    </div>
+
+      <div className="mt-8 mx-auto max-w-5xl px-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {CAN_DO.map(({ Icon, title, desc }, i) => (
+          <div
+            key={title}
+            className="activa-enter flex items-start gap-3 p-5 rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_2px_rgb(15_23_42/0.04)]"
+            style={{ '--d': `${450 + i * 100}ms` } as React.CSSProperties}
+          >
+            <span className="w-10 h-10 rounded-xl bg-[#EAF0FA] text-[#2452A0] flex items-center justify-center shrink-0">
+              <Icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
+            </span>
+            <div>
+              <div className="text-sm font-bold text-[#12305F]">{title}</div>
+              <div className="mt-0.5 text-xs text-slate-500 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]">{desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

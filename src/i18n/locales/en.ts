@@ -1574,4 +1574,17 @@ export const en: Record<string, string> = {
   persist_failure_quota: "This browser’s storage is full (attachments too large?). Reduce the size of the attachments and try again; if in doubt, contact the DARC team before closing this page.",
   persist_failure_generic: "The browser refused to save (private browsing or blocked storage?). Do not close this page and contact the DARC team.",
   persist_failure_dismiss: "Dismiss",
+  // === AMÉLIORATION AJOUTÉE (page de suivi — version B) ===
+  track_eyebrow: 'Secure tracking area',
+  track_title_part1: 'Confidential tracking of',
+  track_title_part2: 'your report',
+  track_can_1_title: 'Follow the progress',
+  track_can_1_desc: 'The status of your case at every stage.',
+  track_can_2_title: 'Answer questions',
+  track_can_2_desc: 'Provide the information requested by the team.',
+  track_can_3_title: 'Exchange confidentially',
+  track_can_3_desc: 'Secure messaging with the team in charge.',
+  track_no_alert_yet: 'No report yet?',
+  track_new_alert_link: 'File a report',
+  confidentiality_gate_eyebrow: 'Before you start',
 };
