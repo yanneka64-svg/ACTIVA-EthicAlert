@@ -68,7 +68,7 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
           />
           {/* === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === voile bleu ACTIVA
               léger à la place de la simple baisse de luminosité. */}
-          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#12305F]/70 via-[#2452A0]/25 to-[#2452A0]/10" />
+          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#12305F]/70 via-[#1449B0]/25 to-[#1449B0]/10" />
         </div>
 
         {/* === AMÉLIORATION AJOUTÉE (fenêtre de confidentialité revue) ===
@@ -82,14 +82,14 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
             gauche. */}
         <div className="p-6 sm:p-12 flex flex-col justify-center space-y-6">
           <div>
-            <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#2452A0]">
+            <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#1449B0]">
               <ShieldCheck className="w-4 h-4" strokeWidth={2} />
               {t.confidentiality_gate_eyebrow}
             </span>
             <h2 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-[#12305F] leading-tight [text-wrap:balance]">
               {t.confidentiality_gate_title}
             </h2>
-            <div className="mt-3 w-10 h-1 rounded-full bg-[#2452A0]" />
+            <div className="mt-3 w-10 h-1 rounded-full bg-[#1449B0]" />
           </div>
           {/* === AMÉLIORATION AJOUTÉE (texte en un bloc) === sur demande
               explicite : les trois phrases (mêmes clés de traduction) forment
@@ -117,7 +117,7 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
               type="button"
               id="confidentiality-gate-confirm"
               onClick={() => setConfidentialityConfirmed(true)}
-              className="activa-shine group flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-[#2F63B8] to-[#2452A0] hover:from-[#2452A0] hover:to-[#1E4590] text-white font-bold text-sm shadow-lg shadow-[#2452A0]/30 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#2452A0]/30"
+              className="activa-shine group flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] text-white font-bold text-sm shadow-lg shadow-[#1449B0]/30 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1449B0]/30"
             >
               {t.confidentiality_gate_confirm}
               <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />

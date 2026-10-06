@@ -18,7 +18,7 @@ interface PublicActionButtonsProps {
   setCurrentTab: (tab: string) => void;
 }
 
-// === AMÉLIORATION AJOUTÉE (barre du haut au bleu ACTIVA) === même bleu que le corps de page (#2452A0). Contour du bouton « Suivre » neutre.
+// === AMÉLIORATION AJOUTÉE (barre du haut au bleu ACTIVA) === même bleu que le corps de page (#1449B0). Contour du bouton « Suivre » neutre.
 export const PublicActionButtons: React.FC<PublicActionButtonsProps> = ({
   t,
   setCurrentTab,
@@ -35,7 +35,7 @@ export const PublicActionButtons: React.FC<PublicActionButtonsProps> = ({
       <button
         id="nav-btn-track"
         onClick={() => setCurrentTab('track')}
-        className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-[#2452A0] hover:bg-[#EAF0FA] text-xs font-bold transition whitespace-nowrap"
+        className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-[#1449B0] hover:bg-[#EAF0FA] text-xs font-bold transition whitespace-nowrap"
       >
         <Search className="w-4 h-4 shrink-0" />
         <span>{t.btn_track_existing}</span>
@@ -58,7 +58,7 @@ export const PublicActionButtons: React.FC<PublicActionButtonsProps> = ({
       <button
         id="nav-btn-new-alert"
         onClick={() => setCurrentTab('new_alert')}
-        className="order-3 lg:order-none flex items-center gap-1.5 px-2.5 xl:px-3.5 py-2 rounded-xl bg-[#2452A0] hover:bg-[#1E4590] text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
+        className="order-3 lg:order-none flex items-center gap-1.5 px-2.5 xl:px-3.5 py-2 rounded-xl bg-[#1449B0] hover:bg-[#0F3C93] text-white text-xs font-bold shadow-sm transition whitespace-nowrap"
         // === AMÉLIORATION AJOUTÉE (débordement en-tête 640–1279px) ===
         // Libellé affiché à partir de `xl` seulement : entre `sm` et
         // `xl`, le logo complet + « Suivre mon signalement » +

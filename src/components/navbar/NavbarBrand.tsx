@@ -53,7 +53,7 @@ export const NavbarBrand: React.FC<NavbarBrandProps> = ({
           <>
             <div className="hidden" />
             <div className="sr-only">
-              <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-[#2452A0] transition">
+              <h1 className="text-[15px] font-extrabold tracking-tight text-[#0B2545] group-hover:text-[#1449B0] transition">
                 {t.app_title}
               </h1>
               <p className="text-[11px] text-slate-500 max-w-[260px] truncate">
@@ -81,19 +81,19 @@ export const NavbarBrand: React.FC<NavbarBrandProps> = ({
         <div className="lg:hidden absolute left-0 top-full mt-1 w-48 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-200 py-1 z-50 text-xs">
           <button
             onClick={() => { setCurrentTab('home'); setShowMobileNavMenu(false); }}
-            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'home' || currentTab === 'new_alert' || currentTab === 'track' ? 'text-[#2452A0]' : 'text-slate-700'}`}
+            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'home' || currentTab === 'new_alert' || currentTab === 'track' ? 'text-[#1449B0]' : 'text-slate-700'}`}
           >
             {t.nav_public_home}
           </button>
           <button
             onClick={() => { setCurrentTab('faq'); setShowMobileNavMenu(false); }}
-            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'faq' ? 'text-[#2452A0]' : 'text-slate-700'}`}
+            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'faq' ? 'text-[#1449B0]' : 'text-slate-700'}`}
           >
             {t.nav_public_faq}
           </button>
           <button
             onClick={() => { setCurrentTab('contact'); setShowMobileNavMenu(false); }}
-            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'contact' ? 'text-[#2452A0]' : 'text-slate-700'}`}
+            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'contact' ? 'text-[#1449B0]' : 'text-slate-700'}`}
           >
             {t.nav_public_contact}
           </button>

@@ -72,7 +72,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
     <div className="activa-form px-4 sm:px-6 py-10 sm:py-14 lg:py-16 lg:min-h-[74vh] lg:flex lg:items-center">
       <div className="w-full mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-8 items-center">
         <div className="lg:col-start-1 lg:row-start-1 self-end">
-          <p className="activa-enter flex items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#2452A0]" style={{ '--d': '100ms' } as React.CSSProperties}>
+          <p className="activa-enter flex items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#1449B0]" style={{ '--d': '100ms' } as React.CSSProperties}>
             <ShieldCheck className="w-4 h-4 shrink-0" strokeWidth={2} />
             {t.track_eyebrow}
           </p>
@@ -105,7 +105,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
                     id="input-tracking-number"
                     value={trackingNumberInput}
                     onChange={(e) => setTrackingNumberInput(e.target.value)}
-                    className="w-full pl-10 pr-3.5 py-3 text-sm font-mono font-bold bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-[#2452A0] focus:ring-4 focus:ring-[#2452A0]/15 uppercase tracking-wider"
+                    className="w-full pl-10 pr-3.5 py-3 text-sm font-mono font-bold bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-[#1449B0] focus:ring-4 focus:ring-[#1449B0]/15 uppercase tracking-wider"
                   />
                 </div>
               </div>
@@ -122,7 +122,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
                     placeholder={t.track_placeholder_password}
-                    className="w-full pl-10 pr-10 py-3 text-sm bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-[#2452A0] focus:ring-4 focus:ring-[#2452A0]/15"
+                    className="w-full pl-10 pr-10 py-3 text-sm bg-slate-50/60 focus:bg-white border border-slate-300 rounded-xl outline-none focus:border-[#1449B0] focus:ring-4 focus:ring-[#1449B0]/15"
                   />
                   <button
                     type="button"
@@ -132,14 +132,15 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
                     {showPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
                   </button>
                 </div>
-                <p className="mt-1.5 text-[11px] text-slate-500 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]">{t.track_login_help}</p>
+                {/* === AMÉLIORATION AJOUTÉE === texte d'aide sous le mot de passe retiré
+                    (demande explicite) ; la clé `track_login_help` reste dans les traductions. */}
               </div>
 
               <button
                 type="submit"
                 id="btn-submit-tracking-login"
                 disabled={isVerifying}
-                className="activa-shine group w-full py-3.5 rounded-xl bg-gradient-to-r from-[#2F63B8] to-[#2452A0] hover:from-[#2452A0] hover:to-[#1E4590] disabled:opacity-60 text-white text-sm font-bold shadow-lg shadow-[#2452A0]/30 hover:shadow-xl enabled:hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#2452A0]/30"
+                className="activa-shine group w-full py-3.5 rounded-xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] disabled:opacity-60 text-white text-sm font-bold shadow-lg shadow-[#1449B0]/30 hover:shadow-xl enabled:hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1449B0]/30"
               >
                 <span>{isVerifying ? t.common_verifying : t.btn_login_tracking}</span>
                 <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />
@@ -152,7 +153,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
                 type="button"
                 onClick={onGoToNewAlert}
                 aria-label={t.track_switch_to_new_alert}
-                className="group inline-flex items-center gap-1 font-bold text-[#2452A0] hover:underline underline-offset-2"
+                className="group inline-flex items-center gap-1 font-bold text-[#1449B0] hover:underline underline-offset-2"
               >
                 {t.track_new_alert_link}
                 <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" strokeWidth={2.25} />
@@ -168,7 +169,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
               className="activa-enter flex items-start gap-4 py-4"
               style={{ '--d': `${400 + i * 100}ms` } as React.CSSProperties}
             >
-              <span className="w-10 h-10 rounded-xl bg-white ring-1 ring-inset ring-slate-200 text-[#2452A0] flex items-center justify-center shrink-0 shadow-sm">
+              <span className="w-10 h-10 rounded-xl bg-white ring-1 ring-inset ring-slate-200 text-[#1449B0] flex items-center justify-center shrink-0 shadow-sm">
                 <Icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
               </span>
               <div>
