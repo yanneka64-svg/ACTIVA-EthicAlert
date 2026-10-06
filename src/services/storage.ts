@@ -39,6 +39,22 @@ import { DEFAULT_EMAIL_NOTIFICATION_SETTINGS, sanitizeEmailNotificationSettings,
 const LEGACY_STATUS_MIRROR = false;
 import * as storageBackfill from './storageBackfill';
 
+
+// === AMÉLIORATION AJOUTÉE (suppression des dossiers fictifs) ===
+// Les dossiers de démonstration (INITIAL_ALERTS) ne servent plus qu'aux tests
+// automatiques : en production, aucun navigateur ne les crée, et ceux déjà
+// gardés en mémoire locale sont retirés au démarrage (DEMO_ALERT_IDS).
+const IS_TEST_ENV = (() => {
+  try {
+    return (import.meta as unknown as { env?: { MODE?: string } }).env?.MODE === 'test';
+  } catch {
+    return false;
+  }
+})();
+const SEED_ALERTS: AlertRecord[] = IS_TEST_ENV ? INITIAL_ALERTS : [];
+const DEMO_ALERT_IDS = new Set(INITIAL_ALERTS.map((a) => `${a.id}|${a.trackingNumber}`));
+const isDemoAlert = (a: AlertRecord) => DEMO_ALERT_IDS.has(`${a.id}|${a.trackingNumber}`);
+
 class StorageService {
   private alerts: AlertRecord[] = [];
   private auditLogs: AuditLogEntry[] = [];
@@ -198,8 +214,13 @@ class StorageService {
       const storedAlerts = localStorage.getItem(STORAGE_KEYS.ALERTS);
       if (storedAlerts) {
         this.alerts = JSON.parse(storedAlerts);
+        // === AMÉLIORATION AJOUTÉE (suppression des dossiers fictifs) ===
+        if (!IS_TEST_ENV && this.alerts.some(isDemoAlert)) {
+          this.alerts = this.alerts.filter((a) => !isDemoAlert(a));
+          this.persistAlerts();
+        }
       } else {
-        this.alerts = [...INITIAL_ALERTS];
+        this.alerts = [...SEED_ALERTS];
         this.persistAlerts();
       }
 
@@ -353,7 +374,7 @@ class StorageService {
       }
     } catch (err) {
       console.warn('Storage init failed or running in strict sandbox, using in-memory state', err);
-      this.alerts = [...INITIAL_ALERTS];
+      this.alerts = [...SEED_ALERTS];
       this.auditLogs = [...INITIAL_AUDIT_LOGS];
       // === AMÉLIORATION AJOUTÉE : retrait des personas fictifs de
       // démonstration === même repli que le chemin localStorage ci-dessus
@@ -812,6 +833,30 @@ class StorageService {
    * aussi de ce navigateur. Synchronisation technique : ni audit, ni
    * `updatedAt`, ni écriture cloud ; rien n'est réécrit si rien n'a changé.
    */
+  /**
+   * === AMÉLIORATION AJOUTÉE (suppression des dossiers fictifs) ===
+   * Retire les dossiers créés dans ce navigateur puis supprimés du serveur
+   * (dossiers de test purgés) : liés à un dossier serveur (`mirroredCaseId`)
+   * absent de la liste COMPLÈTE renvoyée par le serveur. Les dossiers de
+   * moins de 10 minutes sont gardés (création en cours de synchronisation).
+   */
+  public removeLocalCasesDeletedOnServer(serverCaseIds: Set<string>, now: number = Date.now()): number {
+    const before = this.alerts.length;
+    this.alerts = this.alerts.filter(
+      (a) =>
+        a.cloudImported ||
+        !a.mirroredCaseId ||
+        serverCaseIds.has(a.mirroredCaseId) ||
+        now - new Date(a.createdAt).getTime() < 10 * 60 * 1000
+    );
+    const removed = before - this.alerts.length;
+    if (removed > 0) {
+      this.persistAlerts();
+      this.notify();
+    }
+    return removed;
+  }
+
   public replaceCloudImportedAlerts(records: AlertRecord[]): void {
     const incoming = records.map((r) => ({ ...r, cloudImported: true as const }));
     const previous = this.alerts.filter((a) => a.cloudImported);
@@ -1952,7 +1997,7 @@ class StorageService {
     // === AMÉLIORATION AJOUTÉE (Phase 3) === remise à zéro LOCALE : la
     // configuration partagée du serveur n'est jamais écrasée par celle-ci.
     this.applyingSharedConfig = true;
-    this.alerts = [...INITIAL_ALERTS];
+    this.alerts = [...SEED_ALERTS];
     this.auditLogs = [...INITIAL_AUDIT_LOGS];
     this.users = INITIAL_USERS.length > 0 ? [...INITIAL_USERS] : this.emergencyAdminSeed();
     this.activeUser = this.users[0];
