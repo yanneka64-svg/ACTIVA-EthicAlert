@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { MessageCircle, Mail, CheckCircle2, Copy, ExternalLink, Info, ShieldCheck, Check } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
+// === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
+import { BrandPageHero } from './ui/BrandBlue';
 
 interface ContactViewProps {
   lang: Language;
@@ -49,13 +51,18 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
   // même comportement de copie. Animations coupées si l'utilisateur limite
   // les animations (index.css).
   const cardBase =
-    'activa-enter relative overflow-hidden grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-6 sm:gap-8 p-6 sm:p-8 rounded-2xl border bg-white transition-all duration-300 hover:-translate-y-0.5';
+    'activa-enter relative overflow-hidden grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-6 sm:gap-8 p-6 sm:p-8 rounded-[24px] border bg-white transition-all duration-300 hover:-translate-y-0.5';
   const copyBtn =
     'w-8 h-8 rounded-lg flex items-center justify-center ring-1 ring-inset transition-all duration-300';
 
+  // === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) === bandeau
+  // bleu avec titre blanc ; cartes à contour neutre qui chevauchent le bas du
+  // bandeau. L'ancien en-tête reste dans le code, masqué.
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
-      <div className="max-w-2xl space-y-3">
+    <>
+    <BrandPageHero Icon={MessageCircle} title={t.contact_title} subtitle={t.contact_subtitle} />
+    <div className="relative z-10 -mt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 space-y-5">
+      <div className="hidden max-w-2xl space-y-3">
         <h1 className="activa-enter text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight" style={{ '--d': '0ms' } as React.CSSProperties}>{t.contact_title}</h1>
         <div className="activa-draw-x w-12 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400" style={{ '--d': '150ms' } as React.CSSProperties} />
         <p className="activa-enter text-sm text-slate-600" style={{ '--d': '120ms' } as React.CSSProperties}>{t.contact_subtitle}</p>
@@ -63,7 +70,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
 
       {/* WhatsApp Business */}
       <div
-        className={`${cardBase} border-emerald-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-22px_rgb(5_150_105/0.35)] hover:shadow-[0_2px_4px_rgb(15_23_42/0.04),0_26px_50px_-22px_rgb(5_150_105/0.45)]`}
+        className={`${cardBase} border-slate-200/90 shadow-[0_24px_48px_-34px_rgb(15_23_42/0.45)] hover:shadow-[0_30px_60px_-32px_rgb(15_23_42/0.5)]`}
         style={{ '--d': '200ms' } as React.CSSProperties}
       >
         <span aria-hidden="true" className="pointer-events-none absolute -left-20 -top-24 w-72 h-72 rounded-full bg-emerald-300/20 blur-3xl" />
@@ -131,7 +138,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
 
       {/* Dedicated email */}
       <div
-        className={`${cardBase} border-blue-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-22px_rgb(37_99_235/0.35)] hover:shadow-[0_2px_4px_rgb(15_23_42/0.04),0_26px_50px_-22px_rgb(37_99_235/0.45)]`}
+        className={`${cardBase} border-slate-200/90 shadow-[0_24px_48px_-34px_rgb(15_23_42/0.45)] hover:shadow-[0_30px_60px_-32px_rgb(15_23_42/0.5)]`}
         style={{ '--d': '320ms' } as React.CSSProperties}
       >
         <span aria-hidden="true" className="pointer-events-none absolute -left-20 -top-24 w-72 h-72 rounded-full bg-sky-300/20 blur-3xl" />
@@ -193,7 +200,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
 
       {/* Confidentiality note — même motif que le formulaire de signalement */}
       <div
-        className="activa-enter flex items-center gap-4 p-5 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-sky-50/50"
+        className="activa-enter flex items-center gap-4 p-5 rounded-[24px] border border-slate-200/90 bg-white shadow-[0_24px_48px_-34px_rgb(15_23_42/0.45)]"
         style={{ '--d': '440ms' } as React.CSSProperties}
       >
         <span className="w-11 h-11 rounded-xl bg-white text-blue-700 ring-1 ring-inset ring-blue-200/70 shadow-sm flex items-center justify-center shrink-0">
@@ -205,5 +212,6 @@ export const ContactView: React.FC<ContactViewProps> = ({ lang }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };

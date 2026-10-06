@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { HelpCircle, ChevronDown, Send, ChevronRight } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
+// === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
+import { BrandPageHero } from './ui/BrandBlue';
 
 interface FaqViewProps {
   lang: Language;
@@ -38,9 +40,14 @@ export const FaqView: React.FC<FaqViewProps> = ({ lang, onStartNewAlert }) => {
   // marque. Même contenu, même comportement (une question ouverte à la fois,
   // la première par défaut). Animations coupées si l'utilisateur limite les
   // animations (index.css).
+  // === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) === bandeau
+  // bleu avec titre blanc ; les questions (contour neutre) chevauchent le bas
+  // du bandeau. L'ancien en-tête reste dans le code, masqué.
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      <div className="max-w-2xl space-y-3">
+    <>
+    <BrandPageHero Icon={HelpCircle} title={t.faq_title} subtitle={t.faq_subtitle} />
+    <div className="relative z-10 -mt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 space-y-8">
+      <div className="hidden max-w-2xl space-y-3">
         {/* === AMÉLIORATION AJOUTÉE === point d'interrogation noir sur fond
             blanc (variante « B » choisie par l'utilisateur) */}
         <div
@@ -63,10 +70,10 @@ export const FaqView: React.FC<FaqViewProps> = ({ lang, onStartNewAlert }) => {
           return (
             <div
               key={idx}
-              className={`activa-enter group rounded-2xl border bg-white transition-all duration-300 ${
+              className={`activa-enter group rounded-[22px] border bg-white transition-all duration-300 ${
                 open
-                  ? 'border-blue-200 shadow-[0_18px_40px_-22px_rgb(37_99_235/0.45)]'
-                  : 'border-slate-200/80 shadow-[0_1px_2px_rgb(15_23_42/0.04)] hover:border-slate-300 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgb(15_23_42/0.3)]'
+                  ? 'border-slate-200/90 shadow-[0_24px_48px_-28px_rgb(15_23_42/0.5)]'
+                  : 'border-slate-200/90 shadow-[0_18px_36px_-30px_rgb(15_23_42/0.45)] hover:border-slate-300 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgb(15_23_42/0.3)]'
               }`}
               style={{ '--d': `${250 + idx * 70}ms` } as React.CSSProperties}
             >
@@ -115,7 +122,7 @@ export const FaqView: React.FC<FaqViewProps> = ({ lang, onStartNewAlert }) => {
 
       {/* Même appel à l'action qu'ailleurs sur le site — jamais un cul-de-sac. */}
       <div
-        className="activa-enter relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#0B2545] via-[#0f3566] to-blue-700 p-6 sm:p-7 shadow-[0_24px_50px_-26px_rgb(11_37_69/0.7)]"
+        className="activa-enter relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-[24px] bg-[radial-gradient(900px_400px_at_85%_0%,#2B63D6_0%,#1449B0_50%,#0D357F_100%)] p-6 sm:p-7 shadow-[0_24px_50px_-26px_rgb(11_37_69/0.7)]"
         style={{ '--d': '700ms' } as React.CSSProperties}
       >
         <span aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 w-64 h-64 rounded-full bg-sky-400/20 blur-3xl" />
@@ -130,5 +137,6 @@ export const FaqView: React.FC<FaqViewProps> = ({ lang, onStartNewAlert }) => {
         </button>
       </div>
     </div>
+    </>
   );
 };

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Briefcase, Search, Settings, Users, ChevronRight, ShieldOff, X, ArrowRight, Lock, ShieldCheck, Clock3, UserRound } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
+import { BrandBlueBackdrop } from './ui/BrandBlue';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { storage } from '../services/storage';
@@ -145,19 +147,24 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
     archived: 'bg-slate-100 text-slate-600',
   };
 
+  // === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) === bandeau
+  // bleu derrière l'en-tête (textes en blanc) ; les cartes des espaces, à
+  // contour neutre, le chevauchent.
   return (
     <>
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+    <div className="relative">
+    <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[230px] sm:h-[250px]"><BrandBlueBackdrop /></div>
+    <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
       {/* En-tête : date, salutation, rappel de sécurité */}
       <div className="activa-enter mb-7" style={{ '--d': '60ms' } as React.CSSProperties}>
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{today}</p>
-        <h1 className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0B2545]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/70">{today}</p>
+        <h1 className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
           {(t.space_home_greeting || 'Bonjour, M. {name}').replace('{name}', greetingName)}
         </h1>
         <div className="mt-2 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <p className="text-sm text-slate-600">{t.space_home_choose || t.space_home_subtitle_plural}</p>
-          <div className="inline-flex items-center gap-2 self-start lg:self-auto lg:shrink-0 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-600 shadow-[0_1px_2px_rgb(15_23_42/0.04)]">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" strokeWidth={1.9} />
+          <p className="text-sm text-white/85">{t.space_home_choose || t.space_home_subtitle_plural}</p>
+          <div className="inline-flex items-center gap-2 self-start lg:self-auto lg:shrink-0 px-3.5 py-2 rounded-xl bg-white/15 backdrop-blur-md ring-1 ring-inset ring-white/25 text-xs text-white">
+            <ShieldCheck className="w-4 h-4 text-[#9BE15D] shrink-0" strokeWidth={1.9} />
             {t.space_home_secure_session}
           </div>
         </div>
@@ -177,14 +184,14 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
               id={`space-home-choice-${space}`}
               onClick={() => (highlighted ? setCurrentTab(targetTabFor(space)) : setDeniedSpace(space))}
               aria-disabled={!highlighted}
-              className={`activa-enter group relative overflow-hidden text-left flex flex-col sm:min-h-[232px] p-5 sm:p-6 rounded-2xl border transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
+              className={`activa-enter group relative overflow-hidden text-left flex flex-col sm:min-h-[232px] p-5 sm:p-6 rounded-[24px] border transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
                 highlighted
-                  ? 'bg-white border-slate-200 shadow-[0_1px_2px_rgb(15_23_42/0.04)] hover:-translate-y-1 hover:shadow-[0_22px_40px_-24px_rgb(15_23_42/0.45)] hover:border-slate-300'
-                  : 'bg-slate-50/70 border-slate-200/80 cursor-not-allowed'
+                  ? 'bg-white border-slate-200/90 shadow-[0_24px_48px_-32px_rgb(3_16_48/0.55)] hover:-translate-y-1 hover:shadow-[0_30px_56px_-28px_rgb(3_16_48/0.6)] hover:border-slate-300'
+                  : 'bg-slate-50 border-slate-200/90 shadow-[0_24px_48px_-36px_rgb(3_16_48/0.45)] cursor-not-allowed'
               }`}
               style={{ '--d': `${140 + i * 70}ms` } as React.CSSProperties}
             >
-              {highlighted && <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-[3px] ${accent.bar}`} />}
+              {highlighted && <span aria-hidden="true" className={`hidden absolute inset-x-0 top-0 h-[3px] ${accent.bar}`} />}
               <span
                 className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105 ${
                   highlighted ? accent.tile : 'bg-slate-100 text-slate-400'
@@ -226,7 +233,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
 
       {/* Derniers dossiers consultés + profil */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 mt-5">
-        <section className="activa-enter lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6" style={{ '--d': '440ms' } as React.CSSProperties}>
+        <section className="activa-enter lg:col-span-2 bg-white border border-slate-200/90 rounded-[24px] shadow-[0_24px_48px_-36px_rgb(3_16_48/0.45)] p-5 sm:p-6" style={{ '--d': '440ms' } as React.CSSProperties}>
           <h2 className="flex items-center gap-2 text-[13px] font-bold text-[#0B2545] mb-2">
             <Clock3 className="w-4 h-4 text-slate-400" strokeWidth={1.9} />
             {t.space_home_recent_title}
@@ -257,7 +264,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
             <p className="py-3 text-[13px] text-slate-400">{t.space_home_recent_empty}</p>
           )}
         </section>
-        <section className="activa-enter bg-white border border-slate-200 rounded-2xl p-5 sm:p-6" style={{ '--d': '510ms' } as React.CSSProperties}>
+        <section className="activa-enter bg-white border border-slate-200/90 rounded-[24px] shadow-[0_24px_48px_-36px_rgb(3_16_48/0.45)] p-5 sm:p-6" style={{ '--d': '510ms' } as React.CSSProperties}>
           <h2 className="flex items-center gap-2 text-[13px] font-bold text-[#0B2545] mb-2">
             <UserRound className="w-4 h-4 text-slate-400" strokeWidth={1.9} />
             {t.space_home_profile_title}
@@ -280,6 +287,7 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
           </dl>
         </section>
       </div>
+    </div>
     </div>
 
     {/* === AMÉLIORATION AJOUTÉE (fenêtre d'accès restreint au clic) === */}
