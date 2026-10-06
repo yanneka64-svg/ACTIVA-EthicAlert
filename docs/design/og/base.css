@@ -1,0 +1,5 @@
+@font-face{font-family:PJS;src:url('file:///home/user/ACTIVA-EthicAlert/node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2') format('woff2');font-weight:200 800}
+*{margin:0;box-sizing:border-box}
+html,body{width:1200px;height:630px;overflow:hidden;font-family:PJS,sans-serif}
+.blue{background:radial-gradient(1200px 700px at 85% 10%,#2B63D6 0%,#1449B0 45%,#0D357F 100%);position:relative}
+.halo{position:absolute;border-radius:50%;filter:blur(40px)}
