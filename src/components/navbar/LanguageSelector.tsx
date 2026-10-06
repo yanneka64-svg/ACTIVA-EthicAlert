@@ -55,21 +55,21 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         >
           <button
             onClick={() => setLang('fr')}
-            className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'fr' ? 'font-bold text-[#2452A0] bg-[#EAF0FA]' : ''}`}
+            className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'fr' ? 'font-bold text-[#1449B0] bg-[#EAF0FA]' : ''}`}
           >
             <span>🇫🇷 Français</span>
             {lang === 'fr' && <span>✓</span>}
           </button>
           <button
             onClick={() => setLang('en')}
-            className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'en' ? 'font-bold text-[#2452A0] bg-[#EAF0FA]' : ''}`}
+            className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'en' ? 'font-bold text-[#1449B0] bg-[#EAF0FA]' : ''}`}
           >
             <span>🇬🇧 English</span>
             {lang === 'en' && <span>✓</span>}
           </button>
           <button
             onClick={() => setLang('pt')}
-            className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'pt' ? 'font-bold text-[#2452A0] bg-[#EAF0FA]' : ''}`}
+            className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between ${lang === 'pt' ? 'font-bold text-[#1449B0] bg-[#EAF0FA]' : ''}`}
           >
             <span>🇵🇹 Português</span>
             {lang === 'pt' && <span>✓</span>}

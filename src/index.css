@@ -655,6 +655,27 @@ body {
 .activa-photo-vivid {
   filter: saturate(1.4) contrast(1.14) brightness(0.97);
 }
+/* === AMÉLIORATION AJOUTÉE (visuel fourni par l'utilisateur) === photo du
+   siège plus profonde : ciel bleu franc, vitres saturées, façade contrastée. */
+.activa-parallax-img img {
+  filter: saturate(1.65) contrast(1.22) brightness(0.9);
+}
+/* === AMÉLIORATION AJOUTÉE (un seul bleu sur toutes les pages) === sur
+   demande explicite : les nuances « blue » de Tailwind utilisées dans toute
+   l'application (boutons, liens, onglets, focus) sont alignées sur le bleu
+   ACTIVA retenu (#1449B0) ; les écrans du personnel et le site public
+   partagent ainsi exactement le même bleu, sans modifier les composants. */
+@theme {
+  --color-blue-500: #2b5fc8;
+  --color-blue-600: #1449b0;
+  --color-blue-700: #0f3c93;
+  --color-blue-800: #0c3176;
+  /* nuances claires (traits décoratifs, dégradés « vers sky ») alignées sur
+     le même bleu, pour éviter un second bleu cyan à côté du bleu ACTIVA. */
+  --color-sky-300: #8aaaea;
+  --color-sky-400: #5a86dd;
+  --color-sky-500: #3468cf;
+}
 @theme {
   --color-slate-400: oklch(64% 0.045 257);
   --color-slate-500: oklch(49% 0.05 257);
