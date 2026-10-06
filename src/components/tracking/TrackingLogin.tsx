@@ -66,16 +66,17 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
     <div className="activa-form pb-8">
       <div className="relative overflow-hidden bg-[#12305F] min-h-[300px] sm:min-h-[340px]">
         <img
-          src="/brand/activa-hq-hero.jpg"
+          src="/brand/activa-hq-hero-hd.jpg"
           alt=""
           aria-hidden="true"
           fetchPriority="high"
           decoding="async"
           className="activa-kenburns absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#2452A0]/60 to-[#12305F]/[0.88]" />
-        <div className="relative z-10 px-6 pt-10 pb-28 sm:px-5 sm:pt-14 sm:pb-32 text-left sm:text-center text-white">
-          <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-blue-200" style={{ '--d': '100ms' } as React.CSSProperties}>
+        <div className="absolute inset-0 bg-gradient-to-b from-[#2452A0]/35 via-[#1E4590]/45 to-[#12305F]/75" />
+        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_60%_65%_at_50%_35%,rgb(18_48_95/0.72),transparent_78%)]" />
+        <div className="relative z-10 px-6 pt-10 pb-28 sm:px-5 sm:pt-14 sm:pb-32 text-left sm:text-center text-white [text-shadow:0_1px_14px_rgb(8_20_45/0.35)]">
+          <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-white/90" style={{ '--d': '100ms' } as React.CSSProperties}>
             <ShieldCheck className="inline-block align-[-3px] w-4 h-4 mr-2 text-[#93B4EE]" strokeWidth={2} />
             {t.track_eyebrow}
           </p>
@@ -83,7 +84,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
             {t.track_title_part1}{' '}
             <span className="text-[#A9C4F2]">{t.track_title_part2}</span>
           </h1>
-          <p className="activa-enter mt-3 sm:mx-auto max-w-2xl text-sm sm:text-base text-blue-100 leading-relaxed text-justify [hyphens:manual] [text-align-last:left] sm:[text-align-last:center]" style={{ '--d': '300ms' } as React.CSSProperties}>
+          <p className="activa-enter mt-3 sm:mx-auto max-w-2xl text-sm sm:text-base text-blue-100 leading-relaxed text-justify [hyphens:manual] [text-align-last:left] sm:text-center" style={{ '--d': '300ms' } as React.CSSProperties}>
             {t.track_subtitle}
           </p>
         </div>
@@ -172,7 +173,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
             className="activa-enter flex items-start gap-3 p-5 rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_2px_rgb(15_23_42/0.04)]"
             style={{ '--d': `${450 + i * 100}ms` } as React.CSSProperties}
           >
-            <span className="w-10 h-10 rounded-xl bg-[#EAF0FA] text-[#2452A0] flex items-center justify-center shrink-0">
+            <span className="w-10 h-10 rounded-xl bg-slate-50 ring-1 ring-inset ring-slate-200 text-[#2452A0] flex items-center justify-center shrink-0">
               <Icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
             </span>
             <div>

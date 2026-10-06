@@ -209,7 +209,10 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         {/* === AMÉLIORATION AJOUTÉE (parallaxe) === la photo glisse plus lentement que la page. */}
         <div className="activa-parallax-img absolute inset-0">
         <img
-          src="/brand/activa-hq-hero.jpg"
+          // === AMÉLIORATION AJOUTÉE (photo plus nette) === version agrandie x2
+          // (rééchantillonnage Lanczos + léger renforcement de netteté) de
+          // activa-hq-hero.jpg, conservée à côté.
+          src="/brand/activa-hq-hero-hd.jpg"
           alt={t.home_hero_img_alt}
           fetchPriority="high"
           decoding="async"
@@ -217,12 +220,19 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         />
         </div>
         {/* Voile doux blanc pour garantir la parfaite lisibilité des textes tout en respectant les teintes de la photo */}
-        {/* === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === voile dans le bleu
+        {/* === AMÉLIORATION AJOUTÉE (photo plus claire) === voile allégé pour
+            laisser voir la photo ; une ombre douce sur le texte garde la
+            lisibilité. Les contours des pastilles d'icônes sont neutres.
+            === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === voile dans le bleu
             du logo ACTIVA (#2452A0), plus profond en bas (#12305F).
             === AMÉLIORATION AJOUTÉE (version B) === voile marine uniforme
             (remplace le voile blanc à gauche et le voile sombre à droite) :
             lisibilité du texte blanc centré sur toute la largeur. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#2452A0]/60 to-[#12305F]/[0.88] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#2452A0]/35 via-[#1E4590]/45 to-[#12305F]/75 pointer-events-none" />
+        {/* === AMÉLIORATION AJOUTÉE (photo plus claire) === halo sombre discret
+            uniquement derrière le texte centré : la photo reste claire sur
+            les côtés, le texte reste lisible même sur la façade blanche. */}
+        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_60%_55%_at_50%_45%,rgb(18_48_95/0.72),transparent_78%)] pointer-events-none" />
 
         {/* === AMÉLIORATION AJOUTÉE (version B — valeurs du Groupe retirées)
             === Sur demande explicite : le bandeau de valeurs du Groupe (côté
@@ -237,15 +247,15 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             textes, mêmes boutons (`id` et actions inchangés), même entrée
             animée et même parallaxe qu'avant. */}
         <div className="relative z-10 w-full px-5 pt-14 pb-32 sm:px-12 sm:pt-16 sm:pb-36 flex justify-center text-center">
-          <div className="activa-parallax-text max-w-3xl flex flex-col items-center">
-            <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-blue-200 [text-wrap:balance]" style={{ '--d': '100ms' } as React.CSSProperties}>
+          <div className="activa-parallax-text max-w-3xl flex flex-col items-center [text-shadow:0_1px_14px_rgb(8_20_45/0.35)]">
+            <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] leading-relaxed text-white/90 [text-wrap:balance]" style={{ '--d': '100ms' } as React.CSSProperties}>
               <span aria-hidden="true" className="activa-pulse-dot inline-block align-middle w-2 h-2 rounded-full bg-[#93B4EE] mr-2.5 -mt-0.5" />
               {t.hero_eyebrow}
             </p>
 
             <h1 className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.03em] leading-[1.06] text-white [text-wrap:balance]">
               <span className="activa-enter inline-block" style={{ '--d': '200ms' } as React.CSSProperties}>{t.hero_headline_line1}</span>{' '}
-              <span className="activa-enter inline-block bg-gradient-to-r from-[#C9DAF8] to-[#93B4EE] bg-clip-text text-transparent pb-1" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
+              <span className="activa-enter inline-block bg-gradient-to-r from-[#C9DAF8] to-[#93B4EE] bg-clip-text text-transparent pb-1 [text-shadow:none] drop-shadow-[0_1px_10px_rgb(8_20_45/0.35)]" style={{ '--d': '300ms' } as React.CSSProperties}>{t.hero_headline_line2}</span>
             </h1>
 
             <p className="activa-enter mt-4 text-base sm:text-lg text-blue-100 leading-relaxed max-w-xl" style={{ '--d': '520ms' } as React.CSSProperties}>
@@ -259,7 +269,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
               <button
                 id="hero-btn-new-alert"
                 onClick={onStartNewAlert}
-                className="activa-shine group flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#2F63B8] hover:bg-[#3A6FC4] text-white font-bold ring-1 ring-white/30 text-xs sm:text-sm shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#C9E88F]"
+                className="activa-shine group flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#2452A0] hover:bg-[#2F63B8] text-white font-bold text-xs sm:text-sm shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#C9E88F]"
               >
                 <Send className="w-4 h-4" strokeWidth={1.75} />
                 <span>{t.btn_new_alert}</span>
@@ -327,9 +337,9 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         style={{ '--d': '820ms' } as React.CSSProperties}
       >
         {[
-          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc, tile: 'bg-[#EAF0FA] text-[#2452A0] ring-[#D3E0F3]', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
-          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc, tile: 'bg-[#EAF0FA] text-[#2452A0] ring-[#D3E0F3]', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
-          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc, tile: 'bg-[#EAF0FA] text-[#2452A0] ring-[#D3E0F3]', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
+          { Icon: ShieldCheck, title: t.hero_feature_confidentiality_title, desc: t.hero_feature_confidentiality_desc, tile: 'bg-slate-50 text-[#2452A0] ring-slate-200', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
+          { Icon: EyeOff, title: t.hero_feature_anonymity_title, desc: t.hero_feature_anonymity_desc, tile: 'bg-slate-50 text-[#2452A0] ring-slate-200', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
+          { Icon: HeartHandshake, title: t.hero_feature_no_retaliation_title, desc: t.hero_feature_no_retaliation_desc, tile: 'bg-slate-50 text-[#2452A0] ring-slate-200', solid: 'from-[#2F63B8] to-[#1E4590]', bar: 'bg-[#2452A0]' },
         ].map(({ Icon, title, desc, tile, solid, bar }, i) => (
           <div
             key={title}
