@@ -53,6 +53,9 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
   // explicite : sur petit écran, le texte du bandeau et le lien « Pas encore
   // de signalement ? » sont alignés à gauche, sur le même bord que le
   // formulaire et les cartes ; centrés à partir de la tablette.
+  // === AMÉLIORATION AJOUTÉE (texte justifié) === sur demande explicite : les
+  // paragraphes (accroche, aide sous le mot de passe, cartes) sont justifiés,
+  // sans coupure de mots ; la dernière ligne garde l'alignement du bloc.
   const CAN_DO = [
     { Icon: Activity, title: t.track_can_1_title, desc: t.track_can_1_desc },
     { Icon: HelpCircle, title: t.track_can_2_title, desc: t.track_can_2_desc },
@@ -80,7 +83,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
             {t.track_title_part1}{' '}
             <span className="text-[#A9C4F2]">{t.track_title_part2}</span>
           </h1>
-          <p className="activa-enter mt-3 sm:mx-auto max-w-2xl text-sm sm:text-base text-blue-100 leading-relaxed" style={{ '--d': '300ms' } as React.CSSProperties}>
+          <p className="activa-enter mt-3 sm:mx-auto max-w-2xl text-sm sm:text-base text-blue-100 leading-relaxed text-justify [hyphens:manual] [text-align-last:left] sm:[text-align-last:center]" style={{ '--d': '300ms' } as React.CSSProperties}>
             {t.track_subtitle}
           </p>
         </div>
@@ -133,7 +136,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
                   {showPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
                 </button>
               </div>
-              <p className="mt-1.5 text-[11px] text-slate-500 leading-relaxed">{t.track_login_help}</p>
+              <p className="mt-1.5 text-[11px] text-slate-500 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]">{t.track_login_help}</p>
             </div>
 
             <button
@@ -174,7 +177,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
             </span>
             <div>
               <div className="text-sm font-bold text-[#12305F]">{title}</div>
-              <div className="mt-0.5 text-xs text-slate-500 leading-relaxed">{desc}</div>
+              <div className="mt-0.5 text-xs text-slate-500 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]">{desc}</div>
             </div>
           </div>
         ))}

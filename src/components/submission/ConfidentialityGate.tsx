@@ -32,7 +32,7 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
     // === AMÉLIORATION AJOUTÉE (formulaire — design modernisé) === la fenêtre
     // apparaît en douceur ; bouton de confirmation en dégradé avec reflet.
     <div className="activa-fade-in fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="activa-modal-in relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl shadow-slate-900/40 overflow-hidden grid grid-cols-1 md:grid-cols-2">
+      <div className="activa-modal-in relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl shadow-slate-900/40 overflow-hidden grid grid-cols-1 md:grid-cols-[5fr_7fr]">
         <button
           type="button"
           onClick={onCancel}
@@ -74,9 +74,13 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
         {/* === AMÉLIORATION AJOUTÉE (fenêtre de confidentialité revue) ===
             Sur demande explicite : le texte justifié coupait les mots en fin
             de ligne (« se-ront », « uni-quement »). Les mêmes phrases (mêmes
-            clés de traduction) sont présentées en trois points alignés à
-            gauche, sans coupure de mots, avec une icône chacun. */}
-        <div className="p-8 sm:p-12 flex flex-col justify-center space-y-6">
+            clés de traduction) sont présentées en trois points, sans coupure
+            de mots, avec une icône chacun.
+            === AMÉLIORATION AJOUTÉE (texte justifié) === sur demande
+            explicite : chaque point est justifié, toujours sans coupure de
+            mots (`hyphens: manual`) ; la dernière ligne reste alignée à
+            gauche. */}
+        <div className="p-6 sm:p-12 flex flex-col justify-center space-y-6">
           <div>
             <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#2452A0]">
               <ShieldCheck className="w-4 h-4" strokeWidth={2} />
@@ -87,17 +91,20 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
             </h2>
             <div className="mt-3 w-10 h-1 rounded-full bg-[#2452A0]" />
           </div>
+          {/* === AMÉLIORATION AJOUTÉE (texte justifié) === colonne de texte
+              élargie (photo 5/12, texte 7/12) et pictogrammes plus compacts
+              sur téléphone : moins de blancs entre les mots justifiés. */}
           <ul lang={lang} className="space-y-4">
             {[
               { Icon: Lock, text: <>{t.confidentiality_gate_body1_pre}<span>{t.confidentiality_gate_body1_bold}</span>{t.confidentiality_gate_body1_post}</> },
               { Icon: EyeOff, text: <>{t.confidentiality_gate_body2_pre}<span>{t.confidentiality_gate_body2_bold}</span></> },
               { Icon: FileCheck2, text: <>{t.confidentiality_gate_body2_post.trim()}</> },
             ].map(({ Icon, text }, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="w-9 h-9 rounded-xl bg-[#EAF0FA] text-[#2452A0] flex items-center justify-center shrink-0">
-                  <Icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
+              <li key={i} className="flex items-start gap-2.5 sm:gap-3">
+                <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#EAF0FA] text-[#2452A0] flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4 sm:w-[18px] sm:h-[18px]" strokeWidth={1.75} />
                 </span>
-                <p className="pt-1.5 text-sm sm:text-[15px] text-slate-700 leading-relaxed">{text}</p>
+                <p className="flex-1 pt-1.5 text-sm sm:text-[15px] text-slate-700 leading-relaxed text-justify [hyphens:manual] [text-align-last:left]">{text}</p>
               </li>
             ))}
           </ul>
