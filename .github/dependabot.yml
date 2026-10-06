@@ -24,6 +24,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # === AMÉLIORATION AJOUTÉE === TypeScript 6+ casse la compilation des
+    # fonctions (rootDir, moduleResolution « node » supprimé) : pas de montée
+    # de version majeure automatique, à faire volontairement avec adaptation
+    # de functions/tsconfig.json.
+    ignore:
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
     groups:
       functions-minor-patch:
         update-types: [minor, patch]
