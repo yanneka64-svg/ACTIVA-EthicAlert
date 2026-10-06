@@ -1761,4 +1761,16 @@ export const fr: Record<string, string> = {
   persist_failure_quota: "L’espace de stockage de ce navigateur est plein (pièces jointes trop volumineuses ?). Réduisez la taille des pièces jointes, puis réessayez ; en cas de doute, contactez l’équipe DARC avant de fermer cette page.",
   persist_failure_generic: "Le navigateur a refusé l’enregistrement (navigation privée ou stockage bloqué ?). Ne fermez pas cette page et contactez l’équipe DARC.",
   persist_failure_dismiss: "Fermer",
+  // === AMÉLIORATION AJOUTÉE (page de suivi — version B) ===
+  track_eyebrow: 'Espace de suivi sécurisé',
+  track_title_part1: 'Suivi confidentiel de',
+  track_title_part2: 'votre signalement',
+  track_can_1_title: 'Suivre l’avancement',
+  track_can_1_desc: 'Le statut de votre dossier à chaque étape.',
+  track_can_2_title: 'Répondre aux questions',
+  track_can_2_desc: 'Compléter les informations demandées par l’équipe.',
+  track_can_3_title: 'Échanger en toute confidentialité',
+  track_can_3_desc: 'Une messagerie sécurisée avec l’équipe en charge.',
+  track_no_alert_yet: 'Pas encore de signalement ?',
+  track_new_alert_link: 'Déposer un signalement',
 };

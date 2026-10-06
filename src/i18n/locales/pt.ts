@@ -1574,4 +1574,16 @@ export const pt: Record<string, string> = {
   persist_failure_quota: "O armazenamento deste navegador está cheio (anexos demasiado grandes?). Reduza o tamanho dos anexos e tente novamente; em caso de dúvida, contacte a equipa DARC antes de fechar esta página.",
   persist_failure_generic: "O navegador recusou guardar (navegação privada ou armazenamento bloqueado?). Não feche esta página e contacte a equipa DARC.",
   persist_failure_dismiss: "Fechar",
+  // === AMÉLIORATION AJOUTÉE (page de suivi — version B) ===
+  track_eyebrow: 'Área de acompanhamento segura',
+  track_title_part1: 'Acompanhamento confidencial da',
+  track_title_part2: 'sua denúncia',
+  track_can_1_title: 'Acompanhar o andamento',
+  track_can_1_desc: 'O estado do seu processo em cada etapa.',
+  track_can_2_title: 'Responder às perguntas',
+  track_can_2_desc: 'Completar as informações pedidas pela equipa.',
+  track_can_3_title: 'Trocar mensagens em confidencialidade',
+  track_can_3_desc: 'Mensagens seguras com a equipa responsável.',
+  track_no_alert_yet: 'Ainda não fez uma denúncia?',
+  track_new_alert_link: 'Fazer uma denúncia',
 };
