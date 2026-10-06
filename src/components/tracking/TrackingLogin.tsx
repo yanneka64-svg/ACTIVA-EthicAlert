@@ -49,6 +49,10 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
   // actions strictement inchangés. L'ancien panneau photo latéral
   // (track-login-bg.jpg, `sidebar_confidentiality_title`,
   // `track_login_photo_note`) n'est plus affiché ici.
+  // === AMÉLIORATION AJOUTÉE (alignement sur téléphone) === sur demande
+  // explicite : sur petit écran, le texte du bandeau et le lien « Pas encore
+  // de signalement ? » sont alignés à gauche, sur le même bord que le
+  // formulaire et les cartes ; centrés à partir de la tablette.
   const CAN_DO = [
     { Icon: Activity, title: t.track_can_1_title, desc: t.track_can_1_desc },
     { Icon: HelpCircle, title: t.track_can_2_title, desc: t.track_can_2_desc },
@@ -67,7 +71,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
           className="activa-kenburns absolute inset-0 w-full h-full object-cover object-right sm:object-[75%_45%]"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#2452A0]/60 to-[#12305F]/[0.88]" />
-        <div className="relative z-10 px-5 pt-12 pb-28 sm:pt-14 sm:pb-32 text-center text-white">
+        <div className="relative z-10 px-6 pt-10 pb-28 sm:px-5 sm:pt-14 sm:pb-32 text-left sm:text-center text-white">
           <p className="activa-enter text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-blue-200" style={{ '--d': '100ms' } as React.CSSProperties}>
             <ShieldCheck className="inline-block align-[-3px] w-4 h-4 mr-2 text-[#93B4EE]" strokeWidth={2} />
             {t.track_eyebrow}
@@ -76,7 +80,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
             {t.track_title_part1}{' '}
             <span className="text-[#A9C4F2]">{t.track_title_part2}</span>
           </h1>
-          <p className="activa-enter mt-3 mx-auto max-w-2xl text-sm sm:text-base text-blue-100 leading-relaxed" style={{ '--d': '300ms' } as React.CSSProperties}>
+          <p className="activa-enter mt-3 sm:mx-auto max-w-2xl text-sm sm:text-base text-blue-100 leading-relaxed" style={{ '--d': '300ms' } as React.CSSProperties}>
             {t.track_subtitle}
           </p>
         </div>
@@ -143,7 +147,7 @@ export const TrackingLogin: React.FC<TrackingLoginProps> = ({
             </button>
           </form>
 
-          <p className="mt-5 text-center text-xs sm:text-[13px] text-slate-500">
+          <p className="mt-5 text-left sm:text-center text-xs sm:text-[13px] text-slate-500">
             {t.track_no_alert_yet}{' '}
             <button
               type="button"

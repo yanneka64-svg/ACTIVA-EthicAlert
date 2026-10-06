@@ -11,6 +11,8 @@
  */
 import React from 'react';
 import { X, ArrowRight } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (fenêtre de confidentialité — couleurs ACTIVA) ===
+import { Lock, EyeOff, FileCheck2, ShieldCheck } from 'lucide-react';
 import { Language } from '../../types';
 
 interface ConfidentialityGateProps {
@@ -62,34 +64,43 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
             alt=""
             fetchPriority="high"
             decoding="async"
-            className="absolute inset-0 w-full h-full object-cover object-left brightness-75"
+            className="absolute inset-0 w-full h-full object-cover object-left"
           />
+          {/* === AMÉLIORATION AJOUTÉE (couleurs ACTIVA) === voile bleu ACTIVA
+              léger à la place de la simple baisse de luminosité. */}
+          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#12305F]/70 via-[#2452A0]/25 to-[#2452A0]/10" />
         </div>
 
-        <div className="p-8 sm:p-12 flex flex-col justify-center space-y-5">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545] leading-tight">
-            {t.confidentiality_gate_title}
-          </h2>
-          {/* === AMÉLIORATION AJOUTÉE : texte de confidentialité justifié (text-justify) === */}
-          {/* === AMÉLIORATION AJOUTÉE : espaces trop larges entre les mots corrigés ===
-              `hyphens-auto` + `lang` : le navigateur coupe les mots longs en fin de
-              ligne (dictionnaire de la langue affichée), ce qui évite les grands
-              blancs du texte justifié dans cette colonne étroite. Le gras a été
-              retiré (demande explicite) : les <span> restent, sans style. */}
-          <p lang={lang} className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify hyphens-auto">
-            {t.confidentiality_gate_body1_pre}
-            <span>{t.confidentiality_gate_body1_bold}</span>
-            {t.confidentiality_gate_body1_post}
-            {/* === AMÉLIORATION AJOUTÉE : « Vous pouvez choisir de rester
-                anonyme. » déplacé à la fin du premier paragraphe (mêmes
-                clés de traduction, simple réorganisation de l'affichage) === */}
-            {' '}
-            {t.confidentiality_gate_body2_pre}
-            <span>{t.confidentiality_gate_body2_bold}</span>
-          </p>
-          <p lang={lang} className="text-sm sm:text-base text-slate-700 leading-relaxed text-justify hyphens-auto">
-            {t.confidentiality_gate_body2_post.trim()}
-          </p>
+        {/* === AMÉLIORATION AJOUTÉE (fenêtre de confidentialité revue) ===
+            Sur demande explicite : le texte justifié coupait les mots en fin
+            de ligne (« se-ront », « uni-quement »). Les mêmes phrases (mêmes
+            clés de traduction) sont présentées en trois points alignés à
+            gauche, sans coupure de mots, avec une icône chacun. */}
+        <div className="p-8 sm:p-12 flex flex-col justify-center space-y-6">
+          <div>
+            <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#2452A0]">
+              <ShieldCheck className="w-4 h-4" strokeWidth={2} />
+              {t.confidentiality_gate_eyebrow}
+            </span>
+            <h2 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-[#12305F] leading-tight [text-wrap:balance]">
+              {t.confidentiality_gate_title}
+            </h2>
+            <div className="mt-3 w-10 h-1 rounded-full bg-[#2452A0]" />
+          </div>
+          <ul lang={lang} className="space-y-4">
+            {[
+              { Icon: Lock, text: <>{t.confidentiality_gate_body1_pre}<span>{t.confidentiality_gate_body1_bold}</span>{t.confidentiality_gate_body1_post}</> },
+              { Icon: EyeOff, text: <>{t.confidentiality_gate_body2_pre}<span>{t.confidentiality_gate_body2_bold}</span></> },
+              { Icon: FileCheck2, text: <>{t.confidentiality_gate_body2_post.trim()}</> },
+            ].map(({ Icon, text }, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="w-9 h-9 rounded-xl bg-[#EAF0FA] text-[#2452A0] flex items-center justify-center shrink-0">
+                  <Icon className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                </span>
+                <p className="pt-1.5 text-sm sm:text-[15px] text-slate-700 leading-relaxed">{text}</p>
+              </li>
+            ))}
+          </ul>
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
               type="button"
@@ -102,7 +113,7 @@ export const ConfidentialityGate: React.FC<ConfidentialityGateProps> = ({
               type="button"
               id="confidentiality-gate-confirm"
               onClick={() => setConfidentialityConfirmed(true)}
-              className="activa-shine group flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-sm shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/35 hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+              className="activa-shine group flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-[#2F63B8] to-[#2452A0] hover:from-[#2452A0] hover:to-[#1E4590] text-white font-bold text-sm shadow-lg shadow-[#2452A0]/30 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#2452A0]/30"
             >
               {t.confidentiality_gate_confirm}
               <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2} />

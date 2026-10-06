@@ -1586,4 +1586,5 @@ export const pt: Record<string, string> = {
   track_can_3_desc: 'Mensagens seguras com a equipa responsável.',
   track_no_alert_yet: 'Ainda não fez uma denúncia?',
   track_new_alert_link: 'Fazer uma denúncia',
+  confidentiality_gate_eyebrow: 'Antes de começar',
 };

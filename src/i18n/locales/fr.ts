@@ -1773,4 +1773,5 @@ export const fr: Record<string, string> = {
   track_can_3_desc: 'Une messagerie sécurisée avec l’équipe en charge.',
   track_no_alert_yet: 'Pas encore de signalement ?',
   track_new_alert_link: 'Déposer un signalement',
+  confidentiality_gate_eyebrow: 'Avant de commencer',
 };
