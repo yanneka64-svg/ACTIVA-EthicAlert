@@ -326,7 +326,11 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
           <ChannelCarousel
             labels={[t.contact_whatsapp_title, t.contact_email_title]}
             slides={[
-              <div key="wa" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
+              <div key="wa" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col">
+                {/* === AMÉLIORATION AJOUTÉE (cartes allégées) === sur demande
+                    explicite (« trop touffu ») : une seule ligne d'information
+                    par canal, plus d'espace ; les listes détaillées restent dans
+                    le code, masquées. */}
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="inline-flex items-center gap-2.5">
                     <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]">
@@ -339,17 +343,17 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                     {t.helpline_open}
                   </span>
                 </div>
-                <div id="helpline-number" className="mt-5 text-[30px] sm:text-[40px] font-extrabold tracking-tight text-[#0B2545] leading-none">
+                <div id="helpline-number" className="mt-8 text-[30px] sm:text-[40px] font-extrabold tracking-tight text-[#0B2545] leading-none">
                   <RollingNumber value={HELPLINE_NUMBER} />
                 </div>
-                <p className="mt-2 flex items-center gap-1.5 text-[13px] text-slate-500">
+                <p className="mt-3 flex items-center gap-1.5 text-[13.5px] text-slate-500">
                   <Globe2 className="w-4 h-4 text-slate-400" strokeWidth={1.9} />
-                  {t.helpline_from_anywhere}
+                  {t.helpline_wa_meta}
                 </p>
                 {/* === AMÉLIORATION AJOUTÉE (bouton Appeler retiré) === sur demande
                     explicite : numéro WhatsApp Business uniquement ; le bouton
                     Appeler reste dans le code, masqué. */}
-                <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2.5">
+                <div className="mt-auto pt-8 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2.5">
                   <a
                     id="helpline-call"
                     href={HELPLINE_TEL}
@@ -367,7 +371,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                     <span>{copied === 'phone' ? t.helpline_copied : t.helpline_copy}</span>
                   </button>
                 </div>
-                <ul className="mt-5 space-y-2 text-[13.5px] text-slate-600">
+                <ul className="hidden mt-5 space-y-2 text-[13.5px] text-slate-600">
                   {[t.contact_whatsapp_tip1, t.contact_whatsapp_tip2, t.contact_whatsapp_tip3].map((line) => (
                     <li key={line} className="flex items-start gap-2">
                       <Check className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" strokeWidth={2.2} />
@@ -375,7 +379,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                     </li>
                   ))}
                 </ul>
-                <dl className="mt-5 grid grid-cols-2 gap-3 text-[13px]">
+                <dl className="hidden mt-5 grid-cols-2 gap-3 text-[13px]">
                   <div className="flex items-start gap-2.5">
                     <Clock3 className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" strokeWidth={1.9} />
                     <div>
@@ -392,7 +396,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                   </div>
                 </dl>
               </div>,
-              <div key="mail" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8 flex flex-col">
+              <div key="mail" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="inline-flex items-center gap-2.5">
                     <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]">
@@ -400,10 +404,14 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                     </span>
                     <span className="text-[15px] font-extrabold text-[#0B2545]">{t.contact_email_title}</span>
                   </span>
-                  <span className="rounded-full bg-[#EEF3FC] px-2.5 py-1 text-[11px] font-bold text-[#1449B0]">{t.contact_email_recommended}</span>
+                  <span className="hidden rounded-full bg-[#EEF3FC] px-2.5 py-1 text-[11px] font-bold text-[#1449B0]">{t.contact_email_recommended}</span>
                 </div>
-                <p id="helpline-email" className="mt-5 text-[19px] sm:text-[22px] font-extrabold tracking-tight text-[#0B2545] [overflow-wrap:anywhere]">{HELPLINE_EMAIL}</p>
-                <ul className="mt-4 space-y-2 text-[13.5px] text-slate-600">
+                <p id="helpline-email" className="mt-8 text-[16px] sm:text-[17px] font-extrabold tracking-[-0.01em] text-[#0B2545] [overflow-wrap:anywhere]">{HELPLINE_EMAIL}</p>
+                <p className="mt-3 flex items-center gap-1.5 text-[13.5px] text-slate-500">
+                  <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.2} />
+                  {t.helpline_email_meta}
+                </p>
+                <ul className="hidden mt-4 space-y-2 text-[13.5px] text-slate-600">
                   {[t.contact_email_info1, t.contact_email_info2, t.contact_email_info3].map((line) => (
                     <li key={line} className="flex items-start gap-2">
                       <Check className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" strokeWidth={2.2} />
@@ -411,7 +419,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                     </li>
                   ))}
                 </ul>
-                <div className="mt-auto pt-5 flex flex-wrap gap-2.5">
+                <div className="mt-auto pt-8 flex flex-wrap gap-2.5">
                   <a href={`mailto:${HELPLINE_EMAIL}`} className="activa-shine group inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] text-white text-sm font-bold shadow-lg shadow-[#1449B0]/30 hover:-translate-y-0.5 transition-all duration-500">
                     <Mail className="w-4 h-4" strokeWidth={2} />
                     {t.helpline_email_btn}

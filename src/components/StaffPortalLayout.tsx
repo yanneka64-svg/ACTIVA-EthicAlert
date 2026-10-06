@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 // importé : les autres icônes vivent désormais dans ./staffPortal/navItems.tsx
 // et ./staffPortal/DesktopSidebar.tsx, qui les importent eux-mêmes.
 import { ChevronRight } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (bandeau bleu sur les écrans de travail) ===
+import { BrandBlueBackdrop } from './ui/BrandBlue';
 import { Language, UserProfile } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Phase 12.3 — remplacement du modèle de rôles) ===
@@ -188,6 +190,20 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     general: t.space_home_general_title,
   };
   const activeNavLabel = navItems.find((i) => i.key === currentTab)?.label ?? '';
+  // === AMÉLIORATION AJOUTÉE (bandeau bleu) === titre de la page : libellé du
+  // menu, sinon libellé connu pour les écrans hors menu, sinon l'espace.
+  const extraTitles: Record<string, string> = {
+    audit: t.nav_audit,
+    admin_audit: t.nav_audit,
+    admin_config: t.risk_matrix_title,
+  };
+  const portalTitle =
+    activeNavLabel ||
+    navItems.find((i) => /dashboard/.test(i.key) && /dashboard|control_panel/.test(currentTab))?.label ||
+    extraTitles[currentTab] ||
+    spaceTitles[selectedSpace];
+  // === AMÉLIORATION AJOUTÉE (bandeau bleu) === date du jour affichée à droite.
+  const portalToday = new Date().toLocaleDateString(lang === 'en' ? 'en-GB' : lang === 'pt' ? 'pt-PT' : 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   useEffect(() => {
     setStaffBreadcrumb({ section: spaceTitles[selectedSpace] ?? '', page: activeNavLabel });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -283,7 +299,20 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
     // `activa-form` + `activa-portal` : finitions communes à tous les écrans
     // de travail (champs, boutons, icônes au trait fin, ombres douces,
     // fenêtres animées — voir index.css), sans toucher chaque écran.
-    <div className="activa-form activa-portal max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
+    // === AMÉLIORATION AJOUTÉE (bandeau bleu sur les écrans de travail) === sur
+    // demande explicite : même fond bleu que le reste du site en haut de page,
+    // avec l'espace, la page et la date en blanc ; le menu et un panneau clair
+    // (contour neutre) qui contient l'écran viennent se poser dessus.
+    <div className="relative">
+    <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[200px] lg:h-[230px]"><BrandBlueBackdrop /></div>
+    <div className="relative max-w-[1600px] mx-auto px-4 lg:px-6 xl:px-8 pt-6 lg:pt-8 flex flex-wrap items-end justify-between gap-2 text-white">
+      <div className="min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/75">{spaceTitles[selectedSpace]}</p>
+        <h1 className="mt-1 text-2xl lg:text-[30px] font-extrabold tracking-tight leading-tight truncate">{portalTitle}</h1>
+      </div>
+      <p className="hidden sm:block text-xs font-semibold text-white/75 capitalize">{portalToday}</p>
+    </div>
+    <div className="relative activa-form activa-portal max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:items-start gap-0 lg:gap-6 px-0 lg:px-6 xl:px-8">
       {/* Sidebar (desktop) */}
       {/* === AMÉLIORATION AJOUTÉE (sidebar sous la topbar) === z-index
           explicite, strictement inférieur à celui de la topbar
@@ -321,7 +350,7 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
       </div>
 
       {/* Content canvas — sa propre largeur maximale centrée */}
-      <div ref={contentRef} className="flex-1 min-w-0 w-full max-w-[1600px] mx-auto lg:px-6 xl:px-8 lg:py-6">{children}</div>
+      <div ref={contentRef} className="flex-1 min-w-0 w-full max-w-[1600px] mx-auto mt-4 lg:mt-6 mb-6 bg-[#FAFBFE] rounded-t-[24px] lg:rounded-[28px] ring-1 ring-slate-200/90 shadow-[0_30px_60px_-40px_rgb(3_16_48/0.6)] lg:px-6 xl:px-8 lg:py-6">{children}</div>
       {/* === AMÉLIORATION AJOUTÉE (nouveaux messages visibles rapidement) === */}
       {toast && (
         <NewMessageToast
@@ -332,6 +361,7 @@ export const StaffPortalLayout: React.FC<StaffPortalLayoutProps> = ({
           onClose={() => setToast(null)}
         />
       )}
+    </div>
     </div>
   );
 };

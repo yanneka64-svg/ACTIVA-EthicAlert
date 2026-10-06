@@ -1651,5 +1651,7 @@ export const pt: Record<string, string> = {
   hero_channel_whatsapp_title: "WhatsApp Business",
   hero_channel_whatsapp_desc: "Escreva-nos para +237 687 45 45 45, 24 h/24.",
   helpline_title_v2: "À sua escuta, com total confidencialidade",
-  helpline_subtitle_v2: "Escreva-nos no WhatsApp Business ou por e-mail, a partir de qualquer país do Grupo. As suas conversas são confidenciais e pode permanecer anónimo.",
+  helpline_subtitle_v2: "Escreva-nos no WhatsApp ou por e-mail, onde quer que esteja.",
+  helpline_wa_meta: "Todos os países do Grupo · 24 h/24, 7 dias/7",
+  helpline_email_meta: "Aviso de receção automático",
 };
