@@ -52,7 +52,7 @@ export const pt: Record<string, string> = {
   hero_headline_line1: 'Denuncie com',
   hero_headline_line2: 'toda a confiança',
   hero_desc_line1: 'Um comportamento contrário aos nossos valores,',
-  hero_desc_line2: 'à ética ou à regulamentação?',
+  hero_desc_line2: 'à ética ou aos nossos procedimentos?',
   hero_desc_cta: 'Fale sobre isso. Estamos a ouvir.',
   // === AMÉLIORATION AJOUTÉE (Phase 17 — reorganização da página inicial) ===
   hero_eyebrow: 'Canal de gestão de alertas do Grupo ACTIVA',

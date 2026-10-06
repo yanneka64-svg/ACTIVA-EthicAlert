@@ -70,7 +70,7 @@ export const fr: Record<string, string> = {
   // dépendre du retour à la ligne naturel du navigateur (qui variait
   // selon la largeur d'écran).
   hero_desc_line1: 'Un comportement contraire à nos valeurs,',
-  hero_desc_line2: 'à l’éthique ou à la réglementation ?',
+  hero_desc_line2: 'à l’éthique ou à nos procédures ?',
   hero_desc_cta: 'Parlez-en. Nous vous écoutons.',
   // === AMÉLIORATION AJOUTÉE (Phase 17 — réorganisation de l'accueil) ===
   hero_eyebrow: 'Canal de gestion des alertes du Groupe ACTIVA',

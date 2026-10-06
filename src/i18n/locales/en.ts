@@ -52,7 +52,7 @@ export const en: Record<string, string> = {
   hero_headline_line1: 'Report with',
   hero_headline_line2: 'complete confidence',
   hero_desc_line1: 'Something contrary to our values,',
-  hero_desc_line2: 'ethics, or regulations?',
+  hero_desc_line2: 'ethics, or our procedures?',
   hero_desc_cta: 'Speak up. We’re listening.',
   // === AMÉLIORATION AJOUTÉE (Phase 17 — homepage reorganization) ===
   hero_eyebrow: 'ACTIVA Group alert management channel',
