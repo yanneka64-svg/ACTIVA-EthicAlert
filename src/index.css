@@ -796,3 +796,15 @@ body {
 .activa-aurora { animation: activa-aurora 16s ease-in-out infinite; }
 .activa-aurora-2 { animation: activa-aurora-2 20s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .activa-aurora, .activa-aurora-2 { animation: none !important; } }
+
+/* === AMÉLIORATION AJOUTÉE (ligne d'assistance) === combiné qui « sonne » :
+   petite vibration toutes les 2,4 s ; au survol des boutons d'appel. */
+@keyframes activa-ring {
+  0%, 60%, 100% { transform: rotate(0); }
+  64% { transform: rotate(-14deg); } 68% { transform: rotate(12deg); }
+  72% { transform: rotate(-10deg); } 76% { transform: rotate(8deg); }
+  80% { transform: rotate(-4deg); } 84% { transform: rotate(0); }
+}
+.activa-ring { animation: activa-ring 2.4s ease-in-out infinite; transform-origin: 50% 50%; }
+.group:hover .activa-ring-hover { animation: activa-ring 1.2s ease-in-out infinite; transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) { .activa-ring, .group:hover .activa-ring-hover { animation: none !important; } }

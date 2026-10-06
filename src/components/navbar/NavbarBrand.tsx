@@ -91,6 +91,13 @@ export const NavbarBrand: React.FC<NavbarBrandProps> = ({
           >
             {t.nav_public_faq}
           </button>
+          {/* === AMÉLIORATION AJOUTÉE (ligne d'assistance téléphonique) === */}
+          <button
+            onClick={() => { setCurrentTab('helpline'); setShowMobileNavMenu(false); }}
+            className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'helpline' ? 'text-[#1449B0]' : 'text-slate-700'}`}
+          >
+            {t.helpline_nav}
+          </button>
           <button
             onClick={() => { setCurrentTab('contact'); setShowMobileNavMenu(false); }}
             className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-semibold ${currentTab === 'contact' ? 'text-[#1449B0]' : 'text-slate-700'}`}

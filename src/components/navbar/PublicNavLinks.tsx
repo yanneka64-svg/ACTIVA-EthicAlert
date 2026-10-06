@@ -58,6 +58,19 @@ export const PublicNavLinks: React.FC<PublicNavLinksProps> = ({
         {t.nav_public_faq}
       </button>
 
+      {/* === AMÉLIORATION AJOUTÉE (ligne d'assistance téléphonique) === */}
+      <button
+        id="nav-btn-helpline"
+        onClick={() => setCurrentTab('helpline')}
+        className={`px-3 py-2 text-xs font-semibold transition border-b-2 ${
+          currentTab === 'helpline'
+            ? 'border-[#1449B0] text-[#1449B0]'
+            : 'border-transparent text-slate-600 hover:text-[#1449B0]'
+        }`}
+      >
+        {t.helpline_nav}
+      </button>
+
       {/* === AMÉLIORATION AJOUTÉE (Phase 27 — onglet Contact réel) ===
           Navigue désormais réellement vers `/contact` (ContactView.tsx,
           WhatsApp Business + e-mail dédié) au lieu de simplement

@@ -27,6 +27,8 @@ export const TAB_TO_PATH: Record<string, string> = {
   // Même logique que /faq juste au-dessus : vrai onglet avec sa propre URL,
   // voir ContactView.tsx.
   contact: '/contact',
+  // === AMÉLIORATION AJOUTÉE (ligne d'assistance téléphonique) === voir HelplineView.tsx.
+  helpline: '/helpline',
   // === AMÉLIORATION AJOUTÉE (liens réels du pied de page) === Même logique
   // que /faq et /contact ci-dessus — voir LegalNoticeView.tsx /
   // PrivacyPolicyView.tsx.
