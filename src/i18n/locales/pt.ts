@@ -1588,4 +1588,5 @@ export const pt: Record<string, string> = {
   track_new_alert_link: 'Fazer uma denúncia',
   confidentiality_gate_eyebrow: 'Antes de começar',
   track_card_title: 'Aceder ao meu processo',
+  login_error_unreachable: "Não foi possível contactar o servidor. Verifique a sua ligação à Internet (ou experimente outra rede) e tente novamente.",
 };

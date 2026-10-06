@@ -1775,4 +1775,5 @@ export const fr: Record<string, string> = {
   track_new_alert_link: 'Déposer un signalement',
   confidentiality_gate_eyebrow: 'Avant de commencer',
   track_card_title: 'Accéder à mon dossier',
+  login_error_unreachable: "Connexion au serveur impossible. Vérifiez votre connexion Internet (ou essayez un autre réseau), puis réessayez.",
 };

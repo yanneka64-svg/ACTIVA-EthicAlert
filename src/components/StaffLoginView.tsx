@@ -123,8 +123,12 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
       // mot de passe ou service indisponible : on poursuit avec la
       // vérification locale ci-dessous, inchangée (un seul compteur
       // d'échecs, celui de cette vérification locale).
+      // === AMÉLIORATION AJOUTÉE (connexion sur téléphone) === si le serveur
+      // n'a pas pu être joint, on le dit au lieu d'« identifiant incorrect ».
+      let remoteUnavailable = false;
       if (isStaffAuthConfigured()) {
         const remote = await signInStaffWithUsername(trimmedUsername, password);
+        if (remote.ok === false && remote.reason === 'unavailable') remoteUnavailable = true;
         if (remote.ok === true) {
           clearAttempts(rateLimitKey);
           if (remote.mustChangePassword) {
@@ -164,6 +168,11 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
       if (result.ok === false) {
         if (result.reason === 'expired') {
           setLoginError(t.login_error_expired);
+          return;
+        }
+        if (remoteUnavailable) {
+          // Serveur injoignable : ni tentative comptée, ni faux « mot de passe incorrect ».
+          setLoginError(t.login_error_unreachable);
           return;
         }
         const status = recordFailedAttempt(rateLimitKey);
@@ -416,6 +425,12 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
+                // === AMÉLIORATION AJOUTÉE (connexion sur téléphone) === le clavier
+                // mobile ne met plus de majuscule ni ne « corrige » l'identifiant.
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                inputMode="email"
                 className="w-full pl-10 pr-3 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white text-xs focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none"
               />
             </div>
@@ -443,6 +458,12 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                // === AMÉLIORATION AJOUTÉE (connexion sur téléphone) === pas de
+                // majuscule ni de correction automatique, même mot de passe affiché.
+                autoComplete="current-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 className="w-full pl-10 pr-11 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white text-xs focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none"
               />
               <button

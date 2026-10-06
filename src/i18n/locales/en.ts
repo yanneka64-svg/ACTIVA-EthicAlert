@@ -1588,4 +1588,5 @@ export const en: Record<string, string> = {
   track_new_alert_link: 'File a report',
   confidentiality_gate_eyebrow: 'Before you start',
   track_card_title: 'Access my case',
+  login_error_unreachable: "Unable to reach the server. Check your Internet connection (or try another network), then try again.",
 };
