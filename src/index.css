@@ -658,7 +658,7 @@ body {
 /* === AMÉLIORATION AJOUTÉE (visuel fourni par l'utilisateur) === photo du
    siège plus profonde : ciel bleu franc, vitres saturées, façade contrastée. */
 .activa-parallax-img img {
-  filter: saturate(1.65) contrast(1.22) brightness(0.9);
+  filter: saturate(1.85) contrast(1.24) brightness(0.95);
 }
 /* === AMÉLIORATION AJOUTÉE (un seul bleu sur toutes les pages) === sur
    demande explicite : les nuances « blue » de Tailwind utilisées dans toute

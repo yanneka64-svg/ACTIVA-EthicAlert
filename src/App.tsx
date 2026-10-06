@@ -487,7 +487,9 @@ function AppShell() {
     // (son parent ne défile plus).
     // === AMÉLIORATION AJOUTÉE (revue design) === `data-scrolled` : l'en-tête
     // prend une ombre douce dès que le contenu défile (index.css).
-    <div data-scrolled={scrolled ? 'true' : 'false'} className="h-screen overflow-hidden bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+    // === AMÉLIORATION AJOUTÉE (fond plus lumineux) === fond quasi blanc au lieu
+    // du gris clair (bg-slate-100/70), jugé terne sur tous les écrans.
+    <div data-scrolled={scrolled ? 'true' : 'false'} className="h-screen overflow-hidden bg-[#FAFBFE] text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       {/* Top Main Navigation */}
       <Navbar
         currentTab={currentTab}
