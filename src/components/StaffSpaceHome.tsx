@@ -163,7 +163,8 @@ export const StaffSpaceHome: React.FC<StaffSpaceHomeProps> = ({ lang, activeUser
         </h1>
         <div className="mt-2 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <p className="text-sm text-white/85">{t.space_home_choose || t.space_home_subtitle_plural}</p>
-          <div className="inline-flex items-center gap-2 self-start lg:self-auto lg:shrink-0 px-3.5 py-2 rounded-xl bg-white/15 backdrop-blur-md ring-1 ring-inset ring-white/25 text-xs text-white">
+          {/* === AMÉLIORATION AJOUTÉE (badge de session masqué) === sur demande explicite ; la déconnexion automatique reste active. */}
+          <div className="hidden items-center gap-2 self-start lg:self-auto lg:shrink-0 px-3.5 py-2 rounded-xl bg-white/15 backdrop-blur-md ring-1 ring-inset ring-white/25 text-xs text-white">
             <ShieldCheck className="w-4 h-4 text-[#9BE15D] shrink-0" strokeWidth={1.9} />
             {t.space_home_secure_session}
           </div>
