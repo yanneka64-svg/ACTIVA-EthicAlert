@@ -143,6 +143,11 @@ function caseDeepLink(alert: CaseRef): string | undefined {
 // plateforme — toujours suivi du même rappel de périmètre que le message
 // texte précédent.
 export function notifyAssignmentToInvestigators(newlyAssigned: UserProfile[], alert: CaseRef, actor: UserProfile): void {
+  // === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) === un dossier
+  // relié au serveur est notifié par le serveur lui-même (applyPortalUpdate →
+  // notifyNewlyAssignedInvestigators, e-mail au design du portail, tracé dans
+  // la piste d'audit) : pas de second envoi depuis le navigateur.
+  if (isPhase4Configured() && storage.getAlertById(alert.id)?.mirroredCaseId) return;
   const link = caseDeepLink(alert);
   newlyAssigned
     .filter((u) => !!u.email)

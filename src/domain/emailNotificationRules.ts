@@ -16,6 +16,8 @@
 import type { CasePriority, HierarchyLevel, RoleId } from './caseTypes';
 // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) ===
 import { renderBrandedEmailHtml } from './emailTemplate';
+// === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) ===
+import type { EmailTone } from './emailTemplate';
 
 export type NotificationEvent = 'new_report' | 'assigned' | 'escalated' | 'closed' | 'reopened';
 export type NotificationCondition = 'always' | 'critical' | 'hr' | 'senior_implicated';
@@ -382,6 +384,8 @@ const REASON_LABEL: Record<NotificationCondition | 'escalation', string> = {
   senior_implicated: 'personne de rang Direction mise en cause',
 };
 const PRIORITY_LABEL: Record<CasePriority, string> = { low: 'Faible', high: 'Élevée', very_high: 'Très élevée', critical: 'Critique' };
+// === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) === couleur de la pastille de priorité.
+const PRIORITY_TONE: Record<CasePriority, EmailTone> = { low: 'neutral', high: 'warning', very_high: 'high', critical: 'danger' };
 
 /** Sujet et corps de l'e-mail (texte brut, sans aucun détail sensible). */
 export function buildNotificationEmail(input: {
@@ -394,7 +398,9 @@ export function buildNotificationEmail(input: {
   const { event, facts, group, reason, appUrl } = input;
   const link = `${appUrl.replace(/\/+$/, '')}/cases/${encodeURIComponent(facts.reference)}`;
   const why = REASON_LABEL[reason] ? ` — motif : ${REASON_LABEL[reason]}` : '';
-  const subject = `[activa-whistleblowing] ${EVENT_TITLE[event]} — ${facts.reference}`;
+  // === AMÉLIORATION AJOUTÉE (message simplifié) === sujet court : le nom de
+  // l'expéditeur (« ACTIVA Whistleblowing ») porte déjà la marque.
+  const subject = `${EVENT_TITLE[event]} — ${facts.reference}`;
   const body = [
     'Bonjour,',
     '',
@@ -413,20 +419,79 @@ export function buildNotificationEmail(input: {
   ].join('\n');
   // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) === même contenu
   // en HTML : logo du site d'alerte, tableau du dossier, bouton vers la fiche.
+  // === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) === bandeau
+  // (événement, dossier, pastille de priorité), fiche en deux colonnes et
+  // ligne discrète « pourquoi je reçois cet e-mail ».
+  const priorityLabel = PRIORITY_LABEL[facts.priority] ?? facts.priority;
+  const priorityTone = PRIORITY_TONE[facts.priority] ?? 'neutral';
   const html = renderBrandedEmailHtml({
     appUrl,
     title: `${EVENT_TITLE[event]} — ${facts.reference}`,
     preheader: `${EVENT_SENTENCE[event]} : dossier ${facts.reference}.`,
-    paragraphs: ['Bonjour,', `${EVENT_SENTENCE[event]}.`],
+    eyebrow: EVENT_TITLE[event],
+    // === AMÉLIORATION AJOUTÉE (message simplifié) === le numéro seul en titre,
+    // la priorité dans le bandeau, deux informations dans la fiche.
+    headline: facts.reference,
+    badges: [{ label: `Priorité : ${priorityLabel}`, tone: priorityTone }],
+    paragraphs: [`Bonjour, ${EVENT_SENTENCE[event].charAt(0).toLowerCase()}${EVENT_SENTENCE[event].slice(1)}.`],
     facts: [
-      { label: 'Dossier', value: facts.reference },
       { label: 'Entité', value: `${facts.entity} (${facts.country})` },
       { label: 'Catégorie', value: facts.category },
-      { label: 'Priorité', value: PRIORITY_LABEL[facts.priority] ?? facts.priority },
-      { label: 'Destinataire', value: `${GROUP_LABEL[group]}${REASON_LABEL[reason] ? ` — ${REASON_LABEL[reason]}` : ''}` },
     ],
     cta: { label: 'Consulter le dossier', url: link },
-    note: 'Pour des raisons de confidentialité, aucun détail du signalement n’est transmis par e-mail. Connectez-vous au portail sécurisé pour le consulter.',
+    note: 'Le détail du signalement n’est consultable que sur le portail sécurisé.',
+    // === AMÉLIORATION AJOUTÉE (message épuré) === ligne « Vous recevez cet e-mail… » retirée de l'e-mail.
+  });
+  return { subject, body, html };
+}
+
+// === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
+/**
+ * E-mail envoyé à chaque enquêteur nouvellement attribué à un dossier. Même
+ * présentation que les autres notifications ; aucun détail sensible (ni faits,
+ * ni identité du déclarant, ni personne mise en cause).
+ */
+export function buildInvestigatorAssignmentEmail(input: {
+  facts: Pick<CaseNotificationFacts, 'reference' | 'entity' | 'country' | 'category' | 'priority'>;
+  investigatorName?: string;
+  appUrl: string;
+}): { subject: string; body: string; html: string } {
+  const { facts, appUrl } = input;
+  const link = `${appUrl.replace(/\/+$/, '')}/cases/${encodeURIComponent(facts.reference)}`;
+  const firstName = String(input.investigatorName ?? '').trim().split(/\s+/)[0] ?? '';
+  const hello = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+  const priorityLabel = PRIORITY_LABEL[facts.priority] ?? facts.priority;
+  const priorityTone = PRIORITY_TONE[facts.priority] ?? 'neutral';
+  const subject = `Dossier attribué — ${facts.reference}`;
+  const body = [
+    hello,
+    '',
+    `Le dossier ${facts.reference} vient de vous être attribué : vous en êtes l’enquêteur désigné.`,
+    '',
+    `Entité : ${facts.entity} (${facts.country})`,
+    `Catégorie : ${facts.category}`,
+    `Priorité : ${priorityLabel}`,
+    '',
+    `Ouvrir le dossier dans le portail sécurisé : ${link}`,
+    '',
+    'Le détail du signalement n’est consultable que sur le portail sécurisé.',
+    '— activa-whistleblowing (message automatique, ne pas répondre)',
+  ].join('\n');
+  const html = renderBrandedEmailHtml({
+    appUrl,
+    title: subject,
+    preheader: `Le dossier ${facts.reference} vient de vous être attribué.`,
+    eyebrow: 'Dossier attribué',
+    headline: facts.reference,
+    badges: [{ label: `Priorité : ${priorityLabel}`, tone: priorityTone }],
+    paragraphs: [`${hello} ce dossier vient de vous être attribué : vous en êtes l’enquêteur désigné.`],
+    facts: [
+      { label: 'Entité', value: `${facts.entity} (${facts.country})` },
+      { label: 'Catégorie', value: facts.category },
+    ],
+    cta: { label: 'Ouvrir le dossier', url: link },
+    note: 'Le détail du signalement n’est consultable que sur le portail sécurisé.',
+    // === AMÉLIORATION AJOUTÉE (message épuré) === ligne « Vous recevez cet e-mail… » retirée de l'e-mail.
   });
   return { subject, body, html };
 }

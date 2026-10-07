@@ -68,6 +68,8 @@ import { serializePortalConfigSection, type PortalConfigSection } from '../../sr
 import { sanitizePortalAuditBatch, type PortalAuditInput } from '../../src/domain/auditTrail';
 import {
   buildNotificationEmail,
+  // === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
+  buildInvestigatorAssignmentEmail,
   DEFAULT_EMAIL_NOTIFICATION_SETTINGS,
   GROUP_LABEL,
   isValidEmail,
@@ -84,6 +86,8 @@ import {
 } from '../../src/domain/emailNotificationRules';
 // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail : logo + lien) ===
 import { plainTextToBrandedHtml, renderBrandedEmailHtml } from '../../src/domain/emailTemplate';
+// === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) ===
+import { formatSender } from '../../src/domain/emailTemplate';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
 import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src/domain/caseVisibility';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
@@ -486,7 +490,8 @@ export const listCases = onCall(async (request) => {
 // assignCase
 // ---------------------------------------------------------------------------
 
-export const assignCase = onCall(async (request) => {
+// === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) === accès à la clé d'envoi.
+export const assignCase = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async (request) => {
   const user = requireAppUser(request);
   const { caseId, assignee: rawAssignee, additionalInvestigators: rawAdditional } = request.data as { caseId: string; assignee: string; additionalInvestigators?: string[] };
   if (!caseId || !rawAssignee) throw new HttpsError('invalid-argument', 'caseId and assignee are required.');
@@ -522,6 +527,15 @@ export const assignCase = onCall(async (request) => {
   });
   await appendTimeline(caseId, 'ASSIGNED', user.userId, `Assignee: ${assignee}`);
   await appendAudit({ actorId: user.userId, action: 'CASE_ASSIGNED', caseId, previousValue: previous, newValue: { assignee, additionalInvestigators } });
+  // === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
+  await notifyNewlyAssignedInvestigators({
+    caseId,
+    kase,
+    previousUids: [kase.assignee, ...(kase.additionalInvestigators ?? [])],
+    nextUids: [assignee, ...(additionalInvestigators ?? [])],
+    actorId: user.userId,
+    excludedUids: implicated,
+  });
 
   return { ok: true };
 });
@@ -2029,7 +2043,8 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 
     outgoing = newAlertNotification(trackingNumber);
   }
 
-  const fromAddress = process.env.NOTIFY_FROM_EMAIL || 'ACTIVA EthicAlert <onboarding@resend.dev>';
+  // === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) === « ACTIVA Whistleblowing <alertes@…> ».
+  const fromAddress = formatSender(process.env.NOTIFY_FROM_EMAIL, process.env.NOTIFY_FROM_NAME);
 
   try {
     const resendRes = await fetch('https://api.resend.com/emails', {
@@ -2364,6 +2379,17 @@ export const applyPortalUpdate = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async 
     const excludedUids = [user.userId, ...implicatedUserIdsFromPersons(persons)];
     for (const ev of events) await notifyCaseEvent(ev, { caseId, facts, excludedUids });
   }
+  // === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
+  if (assignment) {
+    await notifyNewlyAssignedInvestigators({
+      caseId,
+      kase,
+      previousUids: [kase.assignee, ...(kase.additionalInvestigators ?? [])],
+      nextUids: [assignment.assignee, ...assignment.additionalInvestigators],
+      actorId: user.userId,
+      excludedUids: implicatedUserIdsFromPersons(persons),
+    });
+  }
 
   return { ok: true, applied, rejected };
 });
@@ -2684,7 +2710,8 @@ async function sendNotificationEmail(to: string, subject: string, body: string, 
   if (allowed.length && !allowed.includes(to.split('@')[1]?.toLowerCase() ?? '')) {
     return { ok: false, error: `Domaine du destinataire non autorisé (${to.split('@')[1]}).` };
   }
-  const from = process.env.NOTIFY_FROM_EMAIL || 'ACTIVA EthicAlert <onboarding@resend.dev>';
+  // === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) === « ACTIVA Whistleblowing <alertes@…> ».
+  const from = formatSender(process.env.NOTIFY_FROM_EMAIL, process.env.NOTIFY_FROM_NAME);
   const endpoint = process.env.NOTIFY_RESEND_ENDPOINT || 'https://api.resend.com/emails';
   try {
     const controller = new AbortController();
@@ -2733,6 +2760,54 @@ async function notifyCaseEvent(
   }
 }
 
+// === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
+/**
+ * Prévient chaque enquêteur NOUVELLEMENT attribué à un dossier (jamais ceux
+ * déjà attribués avant, ni l'auteur de l'attribution, ni une personne mise en
+ * cause). Chaque envoi est tracé dans la piste d'audit. Ne lève jamais.
+ */
+async function notifyNewlyAssignedInvestigators(input: {
+  caseId: string;
+  kase: Case;
+  previousUids: (string | null | undefined)[];
+  nextUids: (string | null | undefined)[];
+  actorId: string;
+  excludedUids?: string[];
+}): Promise<void> {
+  try {
+    const before = new Set(input.previousUids.filter((u): u is string => !!u));
+    const excluded = new Set([input.actorId, ...(input.excludedUids ?? [])]);
+    const targets = Array.from(new Set(input.nextUids.filter((u): u is string => !!u))).filter((u) => !before.has(u) && !excluded.has(u));
+    if (!targets.length) return;
+    const staff = await loadStaffRecipientCandidates();
+    const appUrl = notifyAppUrl();
+    const facts = {
+      reference: input.kase.externalReference || input.kase.caseNumber,
+      entity: input.kase.entity,
+      country: input.kase.country,
+      category: input.kase.category,
+      priority: input.kase.priority,
+    };
+    for (const uid of targets) {
+      const member = staff.find((m) => m.uid === uid);
+      if (!member || !member.active || !isValidEmail(member.email)) continue;
+      const { subject, body, html } = buildInvestigatorAssignmentEmail({ facts, investigatorName: member.name, appUrl });
+      const res = await sendNotificationEmail(member.email, subject, body, html);
+      await appendAudit({
+        actorId: 'system-notifications',
+        action: res.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',
+        caseId: input.caseId,
+        objectType: 'email',
+        objectId: member.email,
+        newValue: { event: 'assigned', group: 'investigator' },
+        ...(res.error ? { reason: res.error } : {}),
+      });
+    }
+  } catch (e) {
+    console.error('notifyNewlyAssignedInvestigators failed', e);
+  }
+}
+
 /**
  * E-mail d'essai vers les destinataires d'un groupe (écran d'administration) :
  * vérifie le service d'envoi et les adresses. Renvoie le résultat par adresse.
@@ -2758,7 +2833,8 @@ export const sendTestNotificationEmail = onCall({ secrets: [NOTIFY_RESEND_KEY] }
     ]),
   ];
   if (!emails.length) return { results: [] };
-  const subject = `[activa-whistleblowing] E-mail d’essai — ${GROUP_LABEL[group.id]}`;
+  // === AMÉLIORATION AJOUTÉE (message simplifié) === le nom de l'expéditeur porte déjà la marque.
+  const subject = `E-mail d’essai — ${GROUP_LABEL[group.id]}`;
   const body = [
     'Bonjour,',
     '',
@@ -2773,6 +2849,10 @@ export const sendTestNotificationEmail = onCall({ secrets: [NOTIFY_RESEND_KEY] }
     appUrl: notifyAppUrl(),
     title: 'E-mail d’essai',
     preheader: `Notifications du groupe « ${GROUP_LABEL[group.id]} »`,
+    // === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) === bandeau d'en-tête.
+    eyebrow: 'Administration',
+    headline: 'E-mail d’essai',
+    subline: `Groupe de destinataires : ${GROUP_LABEL[group.id]}`,
     paragraphs: [
       'Bonjour,',
       `Ceci est un e-mail d’essai envoyé depuis l’administration du portail activa-whistleblowing par ${user.name}.`,

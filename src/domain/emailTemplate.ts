@@ -34,9 +34,32 @@ const LINE = '#E2E8F0';
 const SOFT = '#F1F5F9';
 const FONT = "'Segoe UI', Helvetica, Arial, sans-serif";
 
+// === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) ===
+// Palette alignée sur le portail (bleu ACTIVA du site, fonds légèrement bleutés).
+const BRAND = '#1449B0';
+const BRAND_DEEP = '#0D357F';
+const BRAND_LIGHT = '#2B63D6';
+const BRAND_TINT = '#EEF3FC';
+const PAGE_BG = '#EEF2F8';
+const CARD_LINE = '#E3E8F2';
+
+/** Tonalité d'une pastille (priorité, statut). */
+export type EmailTone = 'neutral' | 'info' | 'success' | 'warning' | 'high' | 'danger';
+
+const TONE: Record<EmailTone, { dot: string; text: string; bg: string; border: string }> = {
+  neutral: { dot: '#64748B', text: '#334155', bg: '#F1F5F9', border: '#E2E8F0' },
+  info: { dot: '#2B63D6', text: '#1449B0', bg: '#EEF3FC', border: '#D6E2F8' },
+  success: { dot: '#16A34A', text: '#166534', bg: '#ECFDF3', border: '#C8EFD6' },
+  warning: { dot: '#F59E0B', text: '#92400E', bg: '#FFFBEB', border: '#FDE9B8' },
+  high: { dot: '#F97316', text: '#9A3412', bg: '#FFF4ED', border: '#FED7BF' },
+  danger: { dot: '#EF4444', text: '#991B1B', bg: '#FEF2F2', border: '#FBD0D0' },
+};
+
 export interface BrandedEmailFact {
   label: string;
   value: string;
+  // === AMÉLIORATION AJOUTÉE (refonte esthétique) === valeur affichée en pastille colorée.
+  tone?: EmailTone;
 }
 
 export interface BrandedEmailInput {
@@ -54,6 +77,45 @@ export interface BrandedEmailInput {
   cta?: { label: string; url: string };
   /** Mention en petits caractères sous le bouton. */
   note?: string;
+  // === AMÉLIORATION AJOUTÉE (refonte esthétique) === bandeau bleu d'en-tête.
+  /** Petite étiquette au-dessus du grand titre (ex. « Nouveau signalement »). */
+  eyebrow?: string;
+  /** Grand titre du bandeau (par défaut : `title`). */
+  headline?: string;
+  /** Phrase sous le grand titre. */
+  subline?: string;
+  /** Pastilles affichées dans le bandeau (ex. priorité). */
+  badges?: { label: string; tone?: EmailTone }[];
+  /** Ligne discrète « pourquoi je reçois cet e-mail ». */
+  reason?: string;
+}
+
+// === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) ===
+/** Nom affiché comme expéditeur dans la boîte de réception. */
+export const DEFAULT_SENDER_NAME = 'ACTIVA Whistleblowing';
+/** Adresse d'expédition par défaut (domaine activa-alertes.com vérifié chez Resend). */
+export const DEFAULT_SENDER_ADDRESS = 'alertes@activa-alertes.com';
+// === AMÉLIORATION AJOUTÉE (adresse « no-reply ») ===
+/** Partie locale de l'adresse d'expédition, comme dans les e-mails automatiques des entreprises. */
+export const NO_REPLY_LOCAL_PART = 'no-reply';
+
+/**
+ * Expéditeur présenté proprement : « ACTIVA Whistleblowing <no-reply@activa-alertes.com> ».
+ * Garde le DOMAINE de l'adresse configurée (`NOTIFY_FROM_EMAIL`, avec ou sans
+ * nom ; domaine vérifié chez Resend) mais utilise toujours « no-reply » devant
+ * l'arobase, pour signaler qu'il ne faut pas répondre. Exception : l'expéditeur
+ * de test de Resend (resend.dev) reste tel quel, seul autorisé sur ce domaine.
+ * Le nom affiché est celui de l'application, sauf nom imposé (`NOTIFY_FROM_NAME`).
+ */
+export function formatSender(configured?: string, name?: string): string {
+  const raw = String(configured ?? '').trim();
+  const m = raw.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/);
+  const address = (m ? m[1] : raw).trim();
+  const valid = /^[^@\s<>"]+@[^@\s<>"]+\.[^@\s<>"]+$/.test(address);
+  const display = String(name ?? '').replace(/["<>\r\n]/g, '').trim() || DEFAULT_SENDER_NAME;
+  const domain = (valid ? address : DEFAULT_SENDER_ADDRESS).split('@')[1].toLowerCase();
+  const finalAddress = domain === 'resend.dev' ? address : `${NO_REPLY_LOCAL_PART}@${domain}`;
+  return `${display} <${finalAddress}>`;
 }
 
 /** Échappe le texte pour l'insérer dans du HTML. */
@@ -84,8 +146,164 @@ function textToHtml(text: string): string {
     .replace(/\n/g, '<br>');
 }
 
-/** Gabarit HTML complet (document autonome). */
+// === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) ===
+/** Pastille « point + libellé » compatible messageries (tableau, styles en ligne). */
+function pillHtml(label: string, tone: EmailTone = 'neutral', onDark = false): string {
+  const t = TONE[tone] ?? TONE.neutral;
+  const bg = onDark ? '#FFFFFF' : t.bg;
+  const border = onDark ? '#FFFFFF' : t.border;
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="display:inline-table;border-collapse:separate;"><tr><td bgcolor="${bg}" style="background:${bg};border:1px solid ${border};border-radius:999px;padding:5px 12px 5px 10px;font-family:${FONT};font-size:12.5px;line-height:1.2;font-weight:700;color:${t.text};white-space:nowrap;"><span style="color:${t.dot};font-size:13px;">&#9679;</span>&nbsp;${escapeHtml(label)}</td></tr></table>`;
+}
+
+/**
+ * Gabarit HTML complet (document autonome).
+ *
+ * === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) ===
+ * En-tête blanc avec le logo et la mention « Confidentiel », bandeau bleu
+ * ACTIVA (étiquette d'événement, grand titre, pastille de priorité), fiche du
+ * dossier en deux colonnes, bouton large, encadré de confidentialité bleuté,
+ * pied de page clair. L'ancien gabarit reste disponible :
+ * `renderBrandedEmailHtmlClassic`.
+ */
 export function renderBrandedEmailHtml(input: BrandedEmailInput): string {
+  // === AMÉLIORATION AJOUTÉE (espaces optimisés) === marges et retraits resserrés.
+  const base = normalizeAppUrl(input.appUrl);
+  const logoUrl = `${base}${EMAIL_LOGO_PATH}`;
+  const host = base.replace(/^https?:\/\//i, '');
+  const headline = input.headline ?? input.title;
+
+  const paragraphs = input.paragraphs
+    .filter((p) => p !== undefined && p !== null)
+    .map(
+      (p) =>
+        `<p style="margin:0 0 10px 0;font-family:${FONT};font-size:15px;line-height:1.55;color:${INK};">${textToHtml(p)}</p>`
+    )
+    .join('');
+
+  // Fiche du dossier : cases « libellé / valeur » deux par ligne (une seule sur téléphone).
+  const factCell = (f: BrandedEmailFact | undefined, side: 'l' | 'r') =>
+    f
+      ? `<td class="aw-col" width="50%" valign="top" style="width:50%;padding:${side === 'l' ? '10px 8px 10px 16px' : '10px 16px 10px 8px'};vertical-align:top;">
+<p style="margin:0 0 3px 0;font-family:${FONT};font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${MUTED};">${escapeHtml(f.label)}</p>
+${f.tone ? pillHtml(f.value, f.tone) : `<p style="margin:0;font-family:${FONT};font-size:15px;line-height:1.45;font-weight:600;color:${INK};">${escapeHtml(f.value)}</p>`}
+</td>`
+      : `<td class="aw-col" width="50%" style="width:50%;padding:0;">&nbsp;</td>`;
+  const factRows: string[] = [];
+  const list = input.facts ?? [];
+  for (let i = 0; i < list.length; i += 2) {
+    factRows.push(
+      `<tr>${factCell(list[i], 'l')}${factCell(list[i + 1], 'r')}</tr>${i + 2 < list.length ? `<tr><td colspan="2" style="padding:0 18px;"><div style="height:1px;line-height:1px;font-size:0;background:${CARD_LINE};">&nbsp;</div></td></tr>` : ''}`
+    );
+  }
+  const facts = list.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:#FFFFFF;border:1px solid ${CARD_LINE};border-radius:12px;margin:4px 0 16px 0;">
+${factRows.join('\n')}
+</table>`
+    : '';
+
+  const cta = input.cta
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="aw-btn" style="margin:0 0 8px 0;">
+<tr><td align="center" bgcolor="${BRAND}" style="border-radius:12px;background:${BRAND};">
+<a href="${escapeHtml(safeHref(input.cta.url))}" target="_blank" style="display:inline-block;padding:12px 26px;font-family:${FONT};font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px;">${escapeHtml(input.cta.label)}&nbsp;&nbsp;&rarr;</a>
+</td></tr>
+</table>
+<p style="margin:0 0 14px 0;font-family:${FONT};font-size:12px;line-height:1.5;color:${MUTED};">Lien direct : <a href="${escapeHtml(safeHref(input.cta.url))}" style="color:${BRAND};word-break:break-all;">${escapeHtml(input.cta.url.replace(/^https?:\/\//i, ''))}</a></p>`
+    : '';
+
+  const note = input.note
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:${BRAND_TINT};border-radius:12px;margin:0 0 4px 0;">
+<tr>
+<td width="44" valign="middle" style="width:40px;padding:9px 0 9px 12px;vertical-align:middle;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="26" height="26" align="center" valign="middle" bgcolor="#FFFFFF" style="width:26px;height:26px;border-radius:999px;background:#FFFFFF;font-size:13px;line-height:26px;">&#128274;</td></tr></table>
+</td>
+<td valign="middle" style="padding:9px 14px 9px 8px;vertical-align:middle;font-family:${FONT};font-size:13px;line-height:1.45;color:#1E3A6E;">${textToHtml(input.note)}</td>
+</tr>
+</table>`
+    : '';
+
+  const reason = input.reason
+    ? `<p style="margin:12px 0 0 0;font-family:${FONT};font-size:12px;line-height:1.5;color:${MUTED};">${textToHtml(input.reason)}</p>`
+    : '';
+
+  // === AMÉLIORATION AJOUTÉE (bandeau compact) === étiquette en petites
+  // capitales (sans pastille), priorité alignée à droite du grand titre.
+  const eyebrow = input.eyebrow
+    ? `<p style="margin:0 0 4px 0;font-family:${FONT};font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#BFD3FF;">${escapeHtml(input.eyebrow)}</p>`
+    : '';
+  const subline = input.subline
+    ? `<p style="margin:4px 0 0 0;font-family:${FONT};font-size:14px;line-height:1.5;color:#DCE6FB;">${escapeHtml(input.subline)}</p>`
+    : '';
+  const badges = input.badges?.length
+    ? input.badges.map((b) => pillHtml(b.label, b.tone, true)).join('&nbsp;')
+    : '';
+
+  const preheader = input.preheader
+    ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${PAGE_BG};">${escapeHtml(input.preheader)}</div>`
+    : '';
+
+  return `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>${escapeHtml(input.title)}</title>
+<style>
+@media only screen and (max-width:520px){
+  .aw-px{padding-left:16px !important;padding-right:16px !important;}
+  .aw-h1{font-size:19px !important;}
+  .aw-hero-l,.aw-hero-r{display:block !important;width:100% !important;text-align:left !important;padding-left:0 !important;}
+  .aw-hero-r{padding-top:10px !important;}
+  .aw-col{display:block !important;width:100% !important;box-sizing:border-box;padding:8px 14px !important;}
+  .aw-btn{width:100% !important;}
+  .aw-btn a{display:block !important;}
+  .aw-tag{display:none !important;}
+}
+</style>
+</head>
+<body style="margin:0;padding:0;background:${PAGE_BG};-webkit-text-size-adjust:100%;">
+${preheader}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PAGE_BG}" style="background:${PAGE_BG};">
+<tr><td align="center" style="padding:16px 8px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border:1px solid ${CARD_LINE};border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(13,53,127,.08);">
+<tr><td class="aw-px" style="padding:14px 28px;background:#FFFFFF;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td valign="middle" style="vertical-align:middle;"><a href="${escapeHtml(safeHref(base))}" target="_blank" style="text-decoration:none;"><img src="${escapeHtml(logoUrl)}" width="200" height="${Math.round((200 * 174) / 1200)}" alt="activa.whistleblowing" style="display:block;border:0;outline:none;width:200px;max-width:100%;height:auto;"></a></td>
+<td class="aw-tag" align="right" valign="middle" style="vertical-align:middle;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${MUTED};white-space:nowrap;">&#128274;&nbsp;Confidentiel</td>
+</tr></table>
+</td></tr>
+<tr><td class="aw-px" bgcolor="${BRAND}" style="padding:14px 28px;background:${BRAND};background-image:linear-gradient(135deg,${BRAND_LIGHT} 0%,${BRAND} 52%,${BRAND_DEEP} 100%);">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td class="aw-hero-l" valign="middle" style="vertical-align:middle;">
+${eyebrow}
+<h1 class="aw-h1" style="margin:0;font-family:${FONT};font-size:21px;line-height:1.25;font-weight:800;letter-spacing:-.01em;color:#FFFFFF;">${escapeHtml(headline)}</h1>
+${subline}
+</td>
+${badges ? `<td class="aw-hero-r" align="right" valign="middle" style="vertical-align:middle;padding-left:12px;white-space:nowrap;">${badges}</td>` : ''}
+</tr></table>
+</td></tr>
+<tr><td class="aw-px" style="padding:20px 28px 20px 28px;">
+${paragraphs}
+${facts}
+${cta}
+${note}
+${reason}
+</td></tr>
+${'' /* === AMÉLIORATION AJOUTÉE (message épuré) === pied de page retiré ; « ne pas répondre » est porté par l'adresse d'expédition no-reply@… */}
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+/**
+ * === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) ===
+ * Gabarit d'origine, conservé à l'identique (non utilisé) : permet de revenir
+ * en arrière en une ligne si besoin.
+ */
+export function renderBrandedEmailHtmlClassic(input: BrandedEmailInput): string {
   const base = normalizeAppUrl(input.appUrl);
   const logoUrl = `${base}${EMAIL_LOGO_PATH}`;
   const host = base.replace(/^https?:\/\//i, '');

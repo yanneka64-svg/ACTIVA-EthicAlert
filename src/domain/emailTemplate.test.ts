@@ -1,6 +1,8 @@
 // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) ===
 import { describe, expect, it } from 'vitest';
 import { escapeHtml, plainTextToBrandedHtml, renderBrandedEmailHtml } from './emailTemplate';
+// === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) ===
+import { formatSender } from './emailTemplate';
 import { buildNotificationEmail } from './emailNotificationRules';
 
 const APP = 'https://activa-alertes.com/';
@@ -10,7 +12,8 @@ describe('renderBrandedEmailHtml', () => {
     const html = renderBrandedEmailHtml({ appUrl: APP, title: 'Titre', paragraphs: ['Bonjour'] });
     expect(html).toContain('src="https://activa-alertes.com/brand/activa-whistleblowing-logo.png"');
     expect(html).toContain('href="https://activa-alertes.com"');
-    expect(html).toContain('>activa-alertes.com</a>');
+    // === AMÉLIORATION AJOUTÉE (message épuré) === plus de pied de page.
+    expect(html).not.toContain('merci de ne pas répondre');
   });
 
   it('échappe tout le contenu (aucun HTML injecté)', () => {
@@ -51,5 +54,44 @@ describe('buildNotificationEmail (version HTML)', () => {
     expect(html).toContain('href="https://activa-alertes.com/cases/AACMR-26-10-0005"');
     expect(html).toContain('Consulter le dossier');
     expect(html).toContain('Élevée');
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) ===
+describe('formatSender', () => {
+  it('affiche le nom de l’application et une adresse no-reply sur le domaine configuré', () => {
+    expect(formatSender('ACTIVA EthicAlert <alertes@activa-alertes.com>')).toBe('ACTIVA Whistleblowing <no-reply@activa-alertes.com>');
+    expect(formatSender('notifications@group-activa.com')).toBe('ACTIVA Whistleblowing <no-reply@group-activa.com>');
+  });
+  it('utilise le domaine par défaut si rien (ou rien de valide) n’est configuré', () => {
+    expect(formatSender(undefined)).toBe('ACTIVA Whistleblowing <no-reply@activa-alertes.com>');
+    expect(formatSender('pas-une-adresse')).toBe('ACTIVA Whistleblowing <no-reply@activa-alertes.com>');
+  });
+  it('garde l’expéditeur de test de Resend tel quel', () => {
+    expect(formatSender('ACTIVA <onboarding@resend.dev>')).toBe('ACTIVA Whistleblowing <onboarding@resend.dev>');
+  });
+  it('respecte un nom imposé, sans caractères dangereux', () => {
+    expect(formatSender('a@b.com', 'Alertes "ACTIVA"\r\n')).toBe('Alertes ACTIVA <no-reply@b.com>');
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
+import { buildInvestigatorAssignmentEmail } from './emailNotificationRules';
+describe('buildInvestigatorAssignmentEmail', () => {
+  const facts = { reference: 'AVGH-26-10-0002', entity: 'ACTIVA Vie Ghana', country: 'Ghana', category: 'Ressources humaines', priority: 'critical' } as never;
+  it('salue l’enquêteur, donne le lien vers la fiche et la priorité', () => {
+    const { subject, body, html } = buildInvestigatorAssignmentEmail({ facts, investigatorName: 'Awa Kouassi', appUrl: APP });
+    expect(subject).toBe('Dossier attribué — AVGH-26-10-0002');
+    expect(body).toContain('Bonjour Awa,');
+    expect(body).toContain('https://activa-alertes.com/cases/AVGH-26-10-0002');
+    expect(html).toContain('Bonjour Awa,');
+    expect(html).toContain('href="https://activa-alertes.com/cases/AVGH-26-10-0002"');
+    expect(html).toContain('Ouvrir le dossier');
+    expect(html).toContain('Critique');
+  });
+  it('reste poli sans nom et échappe le contenu', () => {
+    const { html } = buildInvestigatorAssignmentEmail({ facts: { ...(facts as object), entity: '<b>x</b>' } as never, appUrl: APP });
+    expect(html).toContain('Bonjour, ce dossier');
+    expect(html).not.toContain('<b>x</b>');
   });
 });
