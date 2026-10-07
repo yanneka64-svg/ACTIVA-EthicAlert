@@ -84,6 +84,8 @@ import {
 } from '../../src/domain/emailNotificationRules';
 // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail : logo + lien) ===
 import { plainTextToBrandedHtml, renderBrandedEmailHtml } from '../../src/domain/emailTemplate';
+// === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) ===
+import { formatSender } from '../../src/domain/emailTemplate';
 // === AMÉLIORATION AJOUTÉE (Brancher le vrai backend — Phase 1 : listCases) ===
 import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src/domain/caseVisibility';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P2) === filtres poussés dans la requête Firestore.
@@ -2029,7 +2031,8 @@ export const notifyEmail = onRequest({ secrets: [RESEND_API_KEY], maxInstances: 
     outgoing = newAlertNotification(trackingNumber);
   }
 
-  const fromAddress = process.env.NOTIFY_FROM_EMAIL || 'ACTIVA EthicAlert <onboarding@resend.dev>';
+  // === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) === « ACTIVA Whistleblowing <alertes@…> ».
+  const fromAddress = formatSender(process.env.NOTIFY_FROM_EMAIL, process.env.NOTIFY_FROM_NAME);
 
   try {
     const resendRes = await fetch('https://api.resend.com/emails', {
@@ -2684,7 +2687,8 @@ async function sendNotificationEmail(to: string, subject: string, body: string, 
   if (allowed.length && !allowed.includes(to.split('@')[1]?.toLowerCase() ?? '')) {
     return { ok: false, error: `Domaine du destinataire non autorisé (${to.split('@')[1]}).` };
   }
-  const from = process.env.NOTIFY_FROM_EMAIL || 'ACTIVA EthicAlert <onboarding@resend.dev>';
+  // === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) === « ACTIVA Whistleblowing <alertes@…> ».
+  const from = formatSender(process.env.NOTIFY_FROM_EMAIL, process.env.NOTIFY_FROM_NAME);
   const endpoint = process.env.NOTIFY_RESEND_ENDPOINT || 'https://api.resend.com/emails';
   try {
     const controller = new AbortController();
@@ -2758,7 +2762,8 @@ export const sendTestNotificationEmail = onCall({ secrets: [NOTIFY_RESEND_KEY] }
     ]),
   ];
   if (!emails.length) return { results: [] };
-  const subject = `[activa-whistleblowing] E-mail d’essai — ${GROUP_LABEL[group.id]}`;
+  // === AMÉLIORATION AJOUTÉE (message simplifié) === le nom de l'expéditeur porte déjà la marque.
+  const subject = `E-mail d’essai — ${GROUP_LABEL[group.id]}`;
   const body = [
     'Bonjour,',
     '',

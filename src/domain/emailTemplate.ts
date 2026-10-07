@@ -90,6 +90,27 @@ export interface BrandedEmailInput {
   reason?: string;
 }
 
+// === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) ===
+/** Nom affiché comme expéditeur dans la boîte de réception. */
+export const DEFAULT_SENDER_NAME = 'ACTIVA Whistleblowing';
+/** Adresse d'expédition par défaut (domaine activa-alertes.com vérifié chez Resend). */
+export const DEFAULT_SENDER_ADDRESS = 'alertes@activa-alertes.com';
+
+/**
+ * Expéditeur présenté proprement : « ACTIVA Whistleblowing <alertes@…> ».
+ * Garde l'adresse configurée (`NOTIFY_FROM_EMAIL`, avec ou sans nom) mais
+ * remplace l'ancien nom affiché (« ACTIVA EthicAlert »…) par le nom de
+ * l'application, sauf si un nom est imposé (`NOTIFY_FROM_NAME`).
+ */
+export function formatSender(configured?: string, name?: string): string {
+  const raw = String(configured ?? '').trim();
+  const m = raw.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/);
+  const address = (m ? m[1] : raw).trim();
+  const valid = /^[^@\s<>"]+@[^@\s<>"]+\.[^@\s<>"]+$/.test(address);
+  const display = String(name ?? '').replace(/["<>\r\n]/g, '').trim() || DEFAULT_SENDER_NAME;
+  return `${display} <${valid ? address : DEFAULT_SENDER_ADDRESS}>`;
+}
+
 /** Échappe le texte pour l'insérer dans du HTML. */
 export function escapeHtml(value: string): string {
   return String(value ?? '')
@@ -178,16 +199,16 @@ ${factRows.join('\n')}
 <a href="${escapeHtml(safeHref(input.cta.url))}" target="_blank" style="display:inline-block;padding:15px 30px;font-family:${FONT};font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px;">${escapeHtml(input.cta.label)}&nbsp;&nbsp;&rarr;</a>
 </td></tr>
 </table>
-<p style="margin:0 0 22px 0;font-family:${FONT};font-size:12px;line-height:1.55;color:${MUTED};">Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br><a href="${escapeHtml(safeHref(input.cta.url))}" style="color:${BRAND};word-break:break-all;">${escapeHtml(input.cta.url)}</a></p>`
+<p style="margin:0 0 22px 0;font-family:${FONT};font-size:12px;line-height:1.55;color:${MUTED};">Lien direct : <a href="${escapeHtml(safeHref(input.cta.url))}" style="color:${BRAND};word-break:break-all;">${escapeHtml(input.cta.url.replace(/^https?:\/\//i, ''))}</a></p>`
     : '';
 
   const note = input.note
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:${BRAND_TINT};border-radius:12px;margin:0 0 4px 0;">
 <tr>
-<td width="44" valign="top" style="width:44px;padding:14px 0 14px 16px;vertical-align:top;">
+<td width="44" valign="middle" style="width:44px;padding:14px 0 14px 16px;vertical-align:middle;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="30" height="30" align="center" valign="middle" bgcolor="#FFFFFF" style="width:30px;height:30px;border-radius:999px;background:#FFFFFF;font-size:14px;line-height:30px;">&#128274;</td></tr></table>
 </td>
-<td valign="top" style="padding:14px 18px 14px 10px;vertical-align:top;font-family:${FONT};font-size:13px;line-height:1.55;color:#1E3A6E;"><strong style="color:${BRAND_DEEP};">Confidentialité.</strong> ${textToHtml(input.note)}</td>
+<td valign="middle" style="padding:14px 18px 14px 10px;vertical-align:middle;font-family:${FONT};font-size:13px;line-height:1.55;color:#1E3A6E;">${textToHtml(input.note)}</td>
 </tr>
 </table>`
     : '';

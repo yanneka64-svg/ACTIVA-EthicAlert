@@ -1,6 +1,8 @@
 // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) ===
 import { describe, expect, it } from 'vitest';
 import { escapeHtml, plainTextToBrandedHtml, renderBrandedEmailHtml } from './emailTemplate';
+// === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) ===
+import { formatSender } from './emailTemplate';
 import { buildNotificationEmail } from './emailNotificationRules';
 
 const APP = 'https://activa-alertes.com/';
@@ -51,5 +53,20 @@ describe('buildNotificationEmail (version HTML)', () => {
     expect(html).toContain('href="https://activa-alertes.com/cases/AACMR-26-10-0005"');
     expect(html).toContain('Consulter le dossier');
     expect(html).toContain('Élevée');
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) ===
+describe('formatSender', () => {
+  it('affiche le nom de l’application devant l’adresse configurée', () => {
+    expect(formatSender('ACTIVA EthicAlert <alertes@activa-alertes.com>')).toBe('ACTIVA Whistleblowing <alertes@activa-alertes.com>');
+    expect(formatSender('notifications@group-activa.com')).toBe('ACTIVA Whistleblowing <notifications@group-activa.com>');
+  });
+  it('utilise l’adresse par défaut si rien (ou rien de valide) n’est configuré', () => {
+    expect(formatSender(undefined)).toBe('ACTIVA Whistleblowing <alertes@activa-alertes.com>');
+    expect(formatSender('pas-une-adresse')).toBe('ACTIVA Whistleblowing <alertes@activa-alertes.com>');
+  });
+  it('respecte un nom imposé, sans caractères dangereux', () => {
+    expect(formatSender('a@b.com', 'Alertes "ACTIVA"\r\n')).toBe('Alertes ACTIVA <a@b.com>');
   });
 });

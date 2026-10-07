@@ -60,7 +60,8 @@ describe('resolveNotificationRecipients', () => {
 describe('buildNotificationEmail', () => {
   it('référence, entité, catégorie, priorité, motif et lien — sans détail sensible', () => {
     const { subject, body } = buildNotificationEmail({ event: 'new_report', facts: facts({ priority: 'critical' }), group: 'dga', reason: 'critical', appUrl: 'https://activa.web.app/' });
-    expect(subject).toBe('[activa-whistleblowing] Nouveau signalement — AACMR-26-10-0002');
+    // === AMÉLIORATION AJOUTÉE (message simplifié) === sujet sans préfixe technique.
+    expect(subject).toBe('Nouveau signalement — AACMR-26-10-0002');
     expect(body).toContain('https://activa.web.app/cases/AACMR-26-10-0002');
     expect(body).toContain('Directeur Général Adjoint — motif : dossier de priorité très élevée ou critique');
     expect(body).toContain('aucun détail du signalement');

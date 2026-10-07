@@ -398,7 +398,9 @@ export function buildNotificationEmail(input: {
   const { event, facts, group, reason, appUrl } = input;
   const link = `${appUrl.replace(/\/+$/, '')}/cases/${encodeURIComponent(facts.reference)}`;
   const why = REASON_LABEL[reason] ? ` — motif : ${REASON_LABEL[reason]}` : '';
-  const subject = `[activa-whistleblowing] ${EVENT_TITLE[event]} — ${facts.reference}`;
+  // === AMÉLIORATION AJOUTÉE (message simplifié) === sujet court : le nom de
+  // l'expéditeur (« ACTIVA Whistleblowing ») porte déjà la marque.
+  const subject = `${EVENT_TITLE[event]} — ${facts.reference}`;
   const body = [
     'Bonjour,',
     '',
@@ -427,18 +429,17 @@ export function buildNotificationEmail(input: {
     title: `${EVENT_TITLE[event]} — ${facts.reference}`,
     preheader: `${EVENT_SENTENCE[event]} : dossier ${facts.reference}.`,
     eyebrow: EVENT_TITLE[event],
-    headline: `Dossier ${facts.reference}`,
-    subline: `${EVENT_SENTENCE[event]}.`,
-    badges: [{ label: `Priorité ${priorityLabel.toLowerCase()}`, tone: priorityTone }],
-    paragraphs: ['Bonjour,', 'Voici les informations utiles pour identifier le dossier.'],
+    // === AMÉLIORATION AJOUTÉE (message simplifié) === le numéro seul en titre,
+    // la priorité dans le bandeau, deux informations dans la fiche.
+    headline: facts.reference,
+    badges: [{ label: `Priorité : ${priorityLabel}`, tone: priorityTone }],
+    paragraphs: [`Bonjour, ${EVENT_SENTENCE[event].charAt(0).toLowerCase()}${EVENT_SENTENCE[event].slice(1)}.`],
     facts: [
-      { label: 'Dossier', value: facts.reference },
       { label: 'Entité', value: `${facts.entity} (${facts.country})` },
       { label: 'Catégorie', value: facts.category },
-      { label: 'Priorité', value: priorityLabel, tone: priorityTone },
     ],
     cta: { label: 'Consulter le dossier', url: link },
-    note: 'Aucun détail du signalement n’est transmis par e-mail. Connectez-vous au portail sécurisé pour le consulter.',
+    note: 'Le détail du signalement n’est consultable que sur le portail sécurisé.',
     reason: `Vous recevez cet e-mail en tant que ${GROUP_LABEL[group]}${REASON_LABEL[reason] ? ` — motif : ${REASON_LABEL[reason]}` : ''}.`,
   });
   return { subject, body, html };
