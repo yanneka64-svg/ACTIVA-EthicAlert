@@ -144,6 +144,26 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
 // cours avec une barre de progression, et des points permettent d'en choisir
 // une. Pause au survol ; si l'utilisateur limite les animations, toutes les
 // garanties s'affichent en liste, sans défilement.
+// === AMÉLIORATION AJOUTÉE (coordonnées sur une ligne) ===
+// Numéros de téléphone (+237 687 45 45 45) et adresses e-mail : affichés
+// d'un seul tenant (jamais coupés en fin de ligne) dans les bulles du hero.
+const CONTACT_RE = /(\+\d[\d ]{6,}\d|[\w.+-]+@[\w-]+(?:\.[\w-]+)+)/g;
+function isEmailOnly(text: string): boolean {
+  return /^[\w.+-]+@[\w-]+(?:\.[\w-]+)+$/.test(text.trim());
+}
+function renderContactText(text: string): React.ReactNode {
+  const parts = text.split(CONTACT_RE);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <span key={i} className="whitespace-nowrap font-semibold">
+        {part}
+      </span>
+    ) : (
+      part
+    )
+  );
+}
+
 interface TrustItem {
   Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   title: string;
@@ -169,7 +189,9 @@ function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel
     []
   );
   const STEP_MS = 3800;
-  const CARD = 280;
+  // === AMÉLIORATION AJOUTÉE (coordonnées sur une ligne) === 280 → 316 px :
+  // l'adresse e-mail complète tient sur une seule ligne dans la bulle.
+  const CARD = 316;
   const GAP = 16;
   React.useEffect(() => {
     if (reduced || paused) return;
@@ -261,7 +283,7 @@ function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel
                     queue. La bulle active est blanche ; les voisines sont en
                     verre dépoli, texte blanc. */}
                 <div
-                  className={`activa-bubble relative overflow-hidden rounded-[30px] p-6 min-h-[236px] flex flex-col backdrop-blur-xl transition-all duration-700 ${
+                  className={`activa-bubble relative overflow-hidden rounded-[30px] px-5 py-6 min-h-[236px] flex flex-col backdrop-blur-xl transition-all duration-700 ${
                     active
                       ? 'bg-white ring-1 ring-slate-200/90 opacity-100 scale-100 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)]'
                       : 'bg-white/10 ring-1 ring-white/25 opacity-70 scale-[0.88] shadow-none'
@@ -295,7 +317,9 @@ function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel
                       </span>
                     )}
                   </div>
-                  <p className={`relative mt-2 text-[14px] leading-relaxed break-words ${active ? 'text-slate-600' : 'text-white/80'}`}>{it.desc}</p>
+                  {/* === AMÉLIORATION AJOUTÉE (coordonnées sur une ligne) === le numéro
+                      et l'adresse e-mail ne sont jamais coupés (voir renderContactText). */}
+                  <p className={`relative mt-2 leading-relaxed ${isEmailOnly(it.desc) ? 'text-[13px] tracking-[-0.01em]' : 'text-[14px] break-words'} ${active ? 'text-slate-600' : 'text-white/80'}`}>{renderContactText(it.desc)}</p>
                   <div className="relative mt-auto pt-5 flex items-center gap-3">
                     <span className={`text-[12px] font-bold tabular-nums ${active ? 'text-[#1449B0]' : 'text-white/70'}`}>
                       {String((i % n) + 1).padStart(2, '0')}
