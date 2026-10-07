@@ -217,14 +217,16 @@ ${factRows.join('\n')}
     ? `<p style="margin:18px 0 0 0;font-family:${FONT};font-size:12px;line-height:1.55;color:${MUTED};">${textToHtml(input.reason)}</p>`
     : '';
 
+  // === AMÉLIORATION AJOUTÉE (bandeau compact) === étiquette en petites
+  // capitales (sans pastille), priorité alignée à droite du grand titre.
   const eyebrow = input.eyebrow
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 14px 0;"><tr><td bgcolor="#2F62C9" style="background:#2F62C9;border:1px solid #4A78D4;border-radius:999px;padding:5px 12px;font-family:${FONT};font-size:11px;line-height:1.2;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#FFFFFF;">${escapeHtml(input.eyebrow)}</td></tr></table>`
+    ? `<p style="margin:0 0 4px 0;font-family:${FONT};font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#BFD3FF;">${escapeHtml(input.eyebrow)}</p>`
     : '';
   const subline = input.subline
-    ? `<p style="margin:10px 0 0 0;font-family:${FONT};font-size:15px;line-height:1.55;color:#DCE6FB;">${escapeHtml(input.subline)}</p>`
+    ? `<p style="margin:4px 0 0 0;font-family:${FONT};font-size:14px;line-height:1.5;color:#DCE6FB;">${escapeHtml(input.subline)}</p>`
     : '';
   const badges = input.badges?.length
-    ? `<div style="margin:18px 0 0 0;">${input.badges.map((b) => pillHtml(b.label, b.tone, true)).join('&nbsp;&nbsp;')}</div>`
+    ? input.badges.map((b) => pillHtml(b.label, b.tone, true)).join('&nbsp;')
     : '';
 
   const preheader = input.preheader
@@ -242,7 +244,9 @@ ${factRows.join('\n')}
 <style>
 @media only screen and (max-width:520px){
   .aw-px{padding-left:20px !important;padding-right:20px !important;}
-  .aw-h1{font-size:23px !important;}
+  .aw-h1{font-size:19px !important;}
+  .aw-hero-l,.aw-hero-r{display:block !important;width:100% !important;text-align:left !important;padding-left:0 !important;}
+  .aw-hero-r{padding-top:10px !important;}
   .aw-col{display:block !important;width:100% !important;box-sizing:border-box;padding:12px 16px !important;}
   .aw-btn{width:100% !important;}
   .aw-btn a{display:block !important;}
@@ -261,11 +265,15 @@ ${preheader}
 <td class="aw-tag" align="right" valign="middle" style="vertical-align:middle;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${MUTED};white-space:nowrap;">&#128274;&nbsp;Confidentiel</td>
 </tr></table>
 </td></tr>
-<tr><td class="aw-px" bgcolor="${BRAND}" style="padding:30px 32px 30px 32px;background:${BRAND};background-image:linear-gradient(135deg,${BRAND_LIGHT} 0%,${BRAND} 52%,${BRAND_DEEP} 100%);">
+<tr><td class="aw-px" bgcolor="${BRAND}" style="padding:18px 32px;background:${BRAND};background-image:linear-gradient(135deg,${BRAND_LIGHT} 0%,${BRAND} 52%,${BRAND_DEEP} 100%);">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td class="aw-hero-l" valign="middle" style="vertical-align:middle;">
 ${eyebrow}
-<h1 class="aw-h1" style="margin:0;font-family:${FONT};font-size:26px;line-height:1.25;font-weight:800;letter-spacing:-.01em;color:#FFFFFF;">${escapeHtml(headline)}</h1>
+<h1 class="aw-h1" style="margin:0;font-family:${FONT};font-size:21px;line-height:1.25;font-weight:800;letter-spacing:-.01em;color:#FFFFFF;">${escapeHtml(headline)}</h1>
 ${subline}
-${badges}
+</td>
+${badges ? `<td class="aw-hero-r" align="right" valign="middle" style="vertical-align:middle;padding-left:12px;white-space:nowrap;">${badges}</td>` : ''}
+</tr></table>
 </td></tr>
 <tr><td class="aw-px" style="padding:28px 32px 30px 32px;">
 ${paragraphs}
