@@ -95,12 +95,17 @@ export interface BrandedEmailInput {
 export const DEFAULT_SENDER_NAME = 'ACTIVA Whistleblowing';
 /** Adresse d'expédition par défaut (domaine activa-alertes.com vérifié chez Resend). */
 export const DEFAULT_SENDER_ADDRESS = 'alertes@activa-alertes.com';
+// === AMÉLIORATION AJOUTÉE (adresse « no-reply ») ===
+/** Partie locale de l'adresse d'expédition, comme dans les e-mails automatiques des entreprises. */
+export const NO_REPLY_LOCAL_PART = 'no-reply';
 
 /**
- * Expéditeur présenté proprement : « ACTIVA Whistleblowing <alertes@…> ».
- * Garde l'adresse configurée (`NOTIFY_FROM_EMAIL`, avec ou sans nom) mais
- * remplace l'ancien nom affiché (« ACTIVA EthicAlert »…) par le nom de
- * l'application, sauf si un nom est imposé (`NOTIFY_FROM_NAME`).
+ * Expéditeur présenté proprement : « ACTIVA Whistleblowing <no-reply@activa-alertes.com> ».
+ * Garde le DOMAINE de l'adresse configurée (`NOTIFY_FROM_EMAIL`, avec ou sans
+ * nom ; domaine vérifié chez Resend) mais utilise toujours « no-reply » devant
+ * l'arobase, pour signaler qu'il ne faut pas répondre. Exception : l'expéditeur
+ * de test de Resend (resend.dev) reste tel quel, seul autorisé sur ce domaine.
+ * Le nom affiché est celui de l'application, sauf nom imposé (`NOTIFY_FROM_NAME`).
  */
 export function formatSender(configured?: string, name?: string): string {
   const raw = String(configured ?? '').trim();
@@ -108,7 +113,9 @@ export function formatSender(configured?: string, name?: string): string {
   const address = (m ? m[1] : raw).trim();
   const valid = /^[^@\s<>"]+@[^@\s<>"]+\.[^@\s<>"]+$/.test(address);
   const display = String(name ?? '').replace(/["<>\r\n]/g, '').trim() || DEFAULT_SENDER_NAME;
-  return `${display} <${valid ? address : DEFAULT_SENDER_ADDRESS}>`;
+  const domain = (valid ? address : DEFAULT_SENDER_ADDRESS).split('@')[1].toLowerCase();
+  const finalAddress = domain === 'resend.dev' ? address : `${NO_REPLY_LOCAL_PART}@${domain}`;
+  return `${display} <${finalAddress}>`;
 }
 
 /** Échappe le texte pour l'insérer dans du HTML. */
@@ -283,10 +290,7 @@ ${cta}
 ${note}
 ${reason}
 </td></tr>
-<tr><td class="aw-px" bgcolor="#F6F8FC" style="padding:12px 28px 14px 28px;background:#F6F8FC;border-top:1px solid ${CARD_LINE};">
-<p style="margin:0 0 2px 0;font-family:${FONT};font-size:11.5px;line-height:1.5;color:${MUTED};">Canal de gestion des alertes du Groupe ACTIVA &middot; message automatique, merci de ne pas répondre.</p>
-<p style="margin:0;font-family:${FONT};font-size:12px;line-height:1.5;"><a href="${escapeHtml(safeHref(base))}" target="_blank" style="color:${BRAND};font-weight:700;text-decoration:none;">${escapeHtml(host)}</a></p>
-</td></tr>
+${'' /* === AMÉLIORATION AJOUTÉE (message épuré) === pied de page retiré ; « ne pas répondre » est porté par l'adresse d'expédition no-reply@… */}
 </table>
 </td></tr>
 </table>

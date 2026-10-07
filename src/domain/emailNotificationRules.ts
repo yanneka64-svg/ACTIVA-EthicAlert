@@ -440,7 +440,7 @@ export function buildNotificationEmail(input: {
     ],
     cta: { label: 'Consulter le dossier', url: link },
     note: 'Le détail du signalement n’est consultable que sur le portail sécurisé.',
-    reason: `Vous recevez cet e-mail en tant que ${GROUP_LABEL[group]}${REASON_LABEL[reason] ? ` — motif : ${REASON_LABEL[reason]}` : ''}.`,
+    // === AMÉLIORATION AJOUTÉE (message épuré) === ligne « Vous recevez cet e-mail… » retirée de l'e-mail.
   });
   return { subject, body, html };
 }
@@ -491,7 +491,7 @@ export function buildInvestigatorAssignmentEmail(input: {
     ],
     cta: { label: 'Ouvrir le dossier', url: link },
     note: 'Le détail du signalement n’est consultable que sur le portail sécurisé.',
-    reason: 'Vous recevez cet e-mail car ce dossier vous a été attribué.',
+    // === AMÉLIORATION AJOUTÉE (message épuré) === ligne « Vous recevez cet e-mail… » retirée de l'e-mail.
   });
   return { subject, body, html };
 }

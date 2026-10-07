@@ -12,7 +12,8 @@ describe('renderBrandedEmailHtml', () => {
     const html = renderBrandedEmailHtml({ appUrl: APP, title: 'Titre', paragraphs: ['Bonjour'] });
     expect(html).toContain('src="https://activa-alertes.com/brand/activa-whistleblowing-logo.png"');
     expect(html).toContain('href="https://activa-alertes.com"');
-    expect(html).toContain('>activa-alertes.com</a>');
+    // === AMÉLIORATION AJOUTÉE (message épuré) === plus de pied de page.
+    expect(html).not.toContain('merci de ne pas répondre');
   });
 
   it('échappe tout le contenu (aucun HTML injecté)', () => {
@@ -58,16 +59,19 @@ describe('buildNotificationEmail (version HTML)', () => {
 
 // === AMÉLIORATION AJOUTÉE (présentation de l'expéditeur) ===
 describe('formatSender', () => {
-  it('affiche le nom de l’application devant l’adresse configurée', () => {
-    expect(formatSender('ACTIVA EthicAlert <alertes@activa-alertes.com>')).toBe('ACTIVA Whistleblowing <alertes@activa-alertes.com>');
-    expect(formatSender('notifications@group-activa.com')).toBe('ACTIVA Whistleblowing <notifications@group-activa.com>');
+  it('affiche le nom de l’application et une adresse no-reply sur le domaine configuré', () => {
+    expect(formatSender('ACTIVA EthicAlert <alertes@activa-alertes.com>')).toBe('ACTIVA Whistleblowing <no-reply@activa-alertes.com>');
+    expect(formatSender('notifications@group-activa.com')).toBe('ACTIVA Whistleblowing <no-reply@group-activa.com>');
   });
-  it('utilise l’adresse par défaut si rien (ou rien de valide) n’est configuré', () => {
-    expect(formatSender(undefined)).toBe('ACTIVA Whistleblowing <alertes@activa-alertes.com>');
-    expect(formatSender('pas-une-adresse')).toBe('ACTIVA Whistleblowing <alertes@activa-alertes.com>');
+  it('utilise le domaine par défaut si rien (ou rien de valide) n’est configuré', () => {
+    expect(formatSender(undefined)).toBe('ACTIVA Whistleblowing <no-reply@activa-alertes.com>');
+    expect(formatSender('pas-une-adresse')).toBe('ACTIVA Whistleblowing <no-reply@activa-alertes.com>');
+  });
+  it('garde l’expéditeur de test de Resend tel quel', () => {
+    expect(formatSender('ACTIVA <onboarding@resend.dev>')).toBe('ACTIVA Whistleblowing <onboarding@resend.dev>');
   });
   it('respecte un nom imposé, sans caractères dangereux', () => {
-    expect(formatSender('a@b.com', 'Alertes "ACTIVA"\r\n')).toBe('Alertes ACTIVA <a@b.com>');
+    expect(formatSender('a@b.com', 'Alertes "ACTIVA"\r\n')).toBe('Alertes ACTIVA <no-reply@b.com>');
   });
 });
 
