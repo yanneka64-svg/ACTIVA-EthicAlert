@@ -70,3 +70,24 @@ describe('formatSender', () => {
     expect(formatSender('a@b.com', 'Alertes "ACTIVA"\r\n')).toBe('Alertes ACTIVA <a@b.com>');
   });
 });
+
+// === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
+import { buildInvestigatorAssignmentEmail } from './emailNotificationRules';
+describe('buildInvestigatorAssignmentEmail', () => {
+  const facts = { reference: 'AVGH-26-10-0002', entity: 'ACTIVA Vie Ghana', country: 'Ghana', category: 'Ressources humaines', priority: 'critical' } as never;
+  it('salue l’enquêteur, donne le lien vers la fiche et la priorité', () => {
+    const { subject, body, html } = buildInvestigatorAssignmentEmail({ facts, investigatorName: 'Awa Kouassi', appUrl: APP });
+    expect(subject).toBe('Dossier attribué — AVGH-26-10-0002');
+    expect(body).toContain('Bonjour Awa,');
+    expect(body).toContain('https://activa-alertes.com/cases/AVGH-26-10-0002');
+    expect(html).toContain('Bonjour Awa,');
+    expect(html).toContain('href="https://activa-alertes.com/cases/AVGH-26-10-0002"');
+    expect(html).toContain('Ouvrir le dossier');
+    expect(html).toContain('Critique');
+  });
+  it('reste poli sans nom et échappe le contenu', () => {
+    const { html } = buildInvestigatorAssignmentEmail({ facts: { ...(facts as object), entity: '<b>x</b>' } as never, appUrl: APP });
+    expect(html).toContain('Bonjour, ce dossier');
+    expect(html).not.toContain('<b>x</b>');
+  });
+});

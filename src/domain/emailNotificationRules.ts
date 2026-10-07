@@ -445,6 +445,57 @@ export function buildNotificationEmail(input: {
   return { subject, body, html };
 }
 
+// === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
+/**
+ * E-mail envoyé à chaque enquêteur nouvellement attribué à un dossier. Même
+ * présentation que les autres notifications ; aucun détail sensible (ni faits,
+ * ni identité du déclarant, ni personne mise en cause).
+ */
+export function buildInvestigatorAssignmentEmail(input: {
+  facts: Pick<CaseNotificationFacts, 'reference' | 'entity' | 'country' | 'category' | 'priority'>;
+  investigatorName?: string;
+  appUrl: string;
+}): { subject: string; body: string; html: string } {
+  const { facts, appUrl } = input;
+  const link = `${appUrl.replace(/\/+$/, '')}/cases/${encodeURIComponent(facts.reference)}`;
+  const firstName = String(input.investigatorName ?? '').trim().split(/\s+/)[0] ?? '';
+  const hello = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+  const priorityLabel = PRIORITY_LABEL[facts.priority] ?? facts.priority;
+  const priorityTone = PRIORITY_TONE[facts.priority] ?? 'neutral';
+  const subject = `Dossier attribué — ${facts.reference}`;
+  const body = [
+    hello,
+    '',
+    `Le dossier ${facts.reference} vient de vous être attribué : vous en êtes l’enquêteur désigné.`,
+    '',
+    `Entité : ${facts.entity} (${facts.country})`,
+    `Catégorie : ${facts.category}`,
+    `Priorité : ${priorityLabel}`,
+    '',
+    `Ouvrir le dossier dans le portail sécurisé : ${link}`,
+    '',
+    'Le détail du signalement n’est consultable que sur le portail sécurisé.',
+    '— activa-whistleblowing (message automatique, ne pas répondre)',
+  ].join('\n');
+  const html = renderBrandedEmailHtml({
+    appUrl,
+    title: subject,
+    preheader: `Le dossier ${facts.reference} vient de vous être attribué.`,
+    eyebrow: 'Dossier attribué',
+    headline: facts.reference,
+    badges: [{ label: `Priorité : ${priorityLabel}`, tone: priorityTone }],
+    paragraphs: [`${hello} ce dossier vient de vous être attribué : vous en êtes l’enquêteur désigné.`],
+    facts: [
+      { label: 'Entité', value: `${facts.entity} (${facts.country})` },
+      { label: 'Catégorie', value: facts.category },
+    ],
+    cta: { label: 'Ouvrir le dossier', url: link },
+    note: 'Le détail du signalement n’est consultable que sur le portail sécurisé.',
+    reason: 'Vous recevez cet e-mail car ce dossier vous a été attribué.',
+  });
+  return { subject, body, html };
+}
+
 /** Validation stricte des réglages enregistrés par un administrateur. */
 export function sanitizeEmailNotificationSettings(raw: unknown): EmailNotificationSettings {
   if (!raw || typeof raw !== 'object') throw new Error('Invalid notification settings.');
