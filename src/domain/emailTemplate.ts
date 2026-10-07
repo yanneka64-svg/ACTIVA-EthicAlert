@@ -159,6 +159,7 @@ function pillHtml(label: string, tone: EmailTone = 'neutral', onDark = false): s
  * `renderBrandedEmailHtmlClassic`.
  */
 export function renderBrandedEmailHtml(input: BrandedEmailInput): string {
+  // === AMÉLIORATION AJOUTÉE (espaces optimisés) === marges et retraits resserrés.
   const base = normalizeAppUrl(input.appUrl);
   const logoUrl = `${base}${EMAIL_LOGO_PATH}`;
   const host = base.replace(/^https?:\/\//i, '');
@@ -168,15 +169,15 @@ export function renderBrandedEmailHtml(input: BrandedEmailInput): string {
     .filter((p) => p !== undefined && p !== null)
     .map(
       (p) =>
-        `<p style="margin:0 0 14px 0;font-family:${FONT};font-size:15px;line-height:1.65;color:${INK};">${textToHtml(p)}</p>`
+        `<p style="margin:0 0 10px 0;font-family:${FONT};font-size:15px;line-height:1.55;color:${INK};">${textToHtml(p)}</p>`
     )
     .join('');
 
   // Fiche du dossier : cases « libellé / valeur » deux par ligne (une seule sur téléphone).
   const factCell = (f: BrandedEmailFact | undefined, side: 'l' | 'r') =>
     f
-      ? `<td class="aw-col" width="50%" valign="top" style="width:50%;padding:${side === 'l' ? '14px 10px 14px 18px' : '14px 18px 14px 10px'};vertical-align:top;">
-<p style="margin:0 0 5px 0;font-family:${FONT};font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${MUTED};">${escapeHtml(f.label)}</p>
+      ? `<td class="aw-col" width="50%" valign="top" style="width:50%;padding:${side === 'l' ? '10px 8px 10px 16px' : '10px 16px 10px 8px'};vertical-align:top;">
+<p style="margin:0 0 3px 0;font-family:${FONT};font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${MUTED};">${escapeHtml(f.label)}</p>
 ${f.tone ? pillHtml(f.value, f.tone) : `<p style="margin:0;font-family:${FONT};font-size:15px;line-height:1.45;font-weight:600;color:${INK};">${escapeHtml(f.value)}</p>`}
 </td>`
       : `<td class="aw-col" width="50%" style="width:50%;padding:0;">&nbsp;</td>`;
@@ -188,33 +189,33 @@ ${f.tone ? pillHtml(f.value, f.tone) : `<p style="margin:0;font-family:${FONT};f
     );
   }
   const facts = list.length
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:#FFFFFF;border:1px solid ${CARD_LINE};border-radius:14px;margin:8px 0 24px 0;">
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:#FFFFFF;border:1px solid ${CARD_LINE};border-radius:12px;margin:4px 0 16px 0;">
 ${factRows.join('\n')}
 </table>`
     : '';
 
   const cta = input.cta
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="aw-btn" style="margin:2px 0 12px 0;">
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="aw-btn" style="margin:0 0 8px 0;">
 <tr><td align="center" bgcolor="${BRAND}" style="border-radius:12px;background:${BRAND};">
-<a href="${escapeHtml(safeHref(input.cta.url))}" target="_blank" style="display:inline-block;padding:15px 30px;font-family:${FONT};font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px;">${escapeHtml(input.cta.label)}&nbsp;&nbsp;&rarr;</a>
+<a href="${escapeHtml(safeHref(input.cta.url))}" target="_blank" style="display:inline-block;padding:12px 26px;font-family:${FONT};font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px;">${escapeHtml(input.cta.label)}&nbsp;&nbsp;&rarr;</a>
 </td></tr>
 </table>
-<p style="margin:0 0 22px 0;font-family:${FONT};font-size:12px;line-height:1.55;color:${MUTED};">Lien direct : <a href="${escapeHtml(safeHref(input.cta.url))}" style="color:${BRAND};word-break:break-all;">${escapeHtml(input.cta.url.replace(/^https?:\/\//i, ''))}</a></p>`
+<p style="margin:0 0 14px 0;font-family:${FONT};font-size:12px;line-height:1.5;color:${MUTED};">Lien direct : <a href="${escapeHtml(safeHref(input.cta.url))}" style="color:${BRAND};word-break:break-all;">${escapeHtml(input.cta.url.replace(/^https?:\/\//i, ''))}</a></p>`
     : '';
 
   const note = input.note
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:${BRAND_TINT};border-radius:12px;margin:0 0 4px 0;">
 <tr>
-<td width="44" valign="middle" style="width:44px;padding:14px 0 14px 16px;vertical-align:middle;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="30" height="30" align="center" valign="middle" bgcolor="#FFFFFF" style="width:30px;height:30px;border-radius:999px;background:#FFFFFF;font-size:14px;line-height:30px;">&#128274;</td></tr></table>
+<td width="44" valign="middle" style="width:40px;padding:9px 0 9px 12px;vertical-align:middle;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="26" height="26" align="center" valign="middle" bgcolor="#FFFFFF" style="width:26px;height:26px;border-radius:999px;background:#FFFFFF;font-size:13px;line-height:26px;">&#128274;</td></tr></table>
 </td>
-<td valign="middle" style="padding:14px 18px 14px 10px;vertical-align:middle;font-family:${FONT};font-size:13px;line-height:1.55;color:#1E3A6E;">${textToHtml(input.note)}</td>
+<td valign="middle" style="padding:9px 14px 9px 8px;vertical-align:middle;font-family:${FONT};font-size:13px;line-height:1.45;color:#1E3A6E;">${textToHtml(input.note)}</td>
 </tr>
 </table>`
     : '';
 
   const reason = input.reason
-    ? `<p style="margin:18px 0 0 0;font-family:${FONT};font-size:12px;line-height:1.55;color:${MUTED};">${textToHtml(input.reason)}</p>`
+    ? `<p style="margin:12px 0 0 0;font-family:${FONT};font-size:12px;line-height:1.5;color:${MUTED};">${textToHtml(input.reason)}</p>`
     : '';
 
   // === AMÉLIORATION AJOUTÉE (bandeau compact) === étiquette en petites
@@ -243,11 +244,11 @@ ${factRows.join('\n')}
 <title>${escapeHtml(input.title)}</title>
 <style>
 @media only screen and (max-width:520px){
-  .aw-px{padding-left:20px !important;padding-right:20px !important;}
+  .aw-px{padding-left:16px !important;padding-right:16px !important;}
   .aw-h1{font-size:19px !important;}
   .aw-hero-l,.aw-hero-r{display:block !important;width:100% !important;text-align:left !important;padding-left:0 !important;}
   .aw-hero-r{padding-top:10px !important;}
-  .aw-col{display:block !important;width:100% !important;box-sizing:border-box;padding:12px 16px !important;}
+  .aw-col{display:block !important;width:100% !important;box-sizing:border-box;padding:8px 14px !important;}
   .aw-btn{width:100% !important;}
   .aw-btn a{display:block !important;}
   .aw-tag{display:none !important;}
@@ -257,15 +258,15 @@ ${factRows.join('\n')}
 <body style="margin:0;padding:0;background:${PAGE_BG};-webkit-text-size-adjust:100%;">
 ${preheader}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PAGE_BG}" style="background:${PAGE_BG};">
-<tr><td align="center" style="padding:32px 12px;">
+<tr><td align="center" style="padding:16px 8px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border:1px solid ${CARD_LINE};border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(13,53,127,.08);">
-<tr><td class="aw-px" style="padding:22px 32px;background:#FFFFFF;">
+<tr><td class="aw-px" style="padding:14px 28px;background:#FFFFFF;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td valign="middle" style="vertical-align:middle;"><a href="${escapeHtml(safeHref(base))}" target="_blank" style="text-decoration:none;"><img src="${escapeHtml(logoUrl)}" width="200" height="${Math.round((200 * 174) / 1200)}" alt="activa.whistleblowing" style="display:block;border:0;outline:none;width:200px;max-width:100%;height:auto;"></a></td>
 <td class="aw-tag" align="right" valign="middle" style="vertical-align:middle;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${MUTED};white-space:nowrap;">&#128274;&nbsp;Confidentiel</td>
 </tr></table>
 </td></tr>
-<tr><td class="aw-px" bgcolor="${BRAND}" style="padding:18px 32px;background:${BRAND};background-image:linear-gradient(135deg,${BRAND_LIGHT} 0%,${BRAND} 52%,${BRAND_DEEP} 100%);">
+<tr><td class="aw-px" bgcolor="${BRAND}" style="padding:14px 28px;background:${BRAND};background-image:linear-gradient(135deg,${BRAND_LIGHT} 0%,${BRAND} 52%,${BRAND_DEEP} 100%);">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td class="aw-hero-l" valign="middle" style="vertical-align:middle;">
 ${eyebrow}
@@ -275,15 +276,15 @@ ${subline}
 ${badges ? `<td class="aw-hero-r" align="right" valign="middle" style="vertical-align:middle;padding-left:12px;white-space:nowrap;">${badges}</td>` : ''}
 </tr></table>
 </td></tr>
-<tr><td class="aw-px" style="padding:28px 32px 30px 32px;">
+<tr><td class="aw-px" style="padding:20px 28px 20px 28px;">
 ${paragraphs}
 ${facts}
 ${cta}
 ${note}
 ${reason}
 </td></tr>
-<tr><td class="aw-px" bgcolor="#F6F8FC" style="padding:20px 32px 24px 32px;background:#F6F8FC;border-top:1px solid ${CARD_LINE};">
-<p style="margin:0 0 6px 0;font-family:${FONT};font-size:12px;line-height:1.55;color:${MUTED};">Canal de gestion des alertes du Groupe ACTIVA &middot; message automatique, merci de ne pas répondre.</p>
+<tr><td class="aw-px" bgcolor="#F6F8FC" style="padding:12px 28px 14px 28px;background:#F6F8FC;border-top:1px solid ${CARD_LINE};">
+<p style="margin:0 0 2px 0;font-family:${FONT};font-size:11.5px;line-height:1.5;color:${MUTED};">Canal de gestion des alertes du Groupe ACTIVA &middot; message automatique, merci de ne pas répondre.</p>
 <p style="margin:0;font-family:${FONT};font-size:12px;line-height:1.5;"><a href="${escapeHtml(safeHref(base))}" target="_blank" style="color:${BRAND};font-weight:700;text-decoration:none;">${escapeHtml(host)}</a></p>
 </td></tr>
 </table>
