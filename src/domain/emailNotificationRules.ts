@@ -16,6 +16,8 @@
 import type { CasePriority, HierarchyLevel, RoleId } from './caseTypes';
 // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) ===
 import { renderBrandedEmailHtml } from './emailTemplate';
+// === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) ===
+import type { EmailTone } from './emailTemplate';
 
 export type NotificationEvent = 'new_report' | 'assigned' | 'escalated' | 'closed' | 'reopened';
 export type NotificationCondition = 'always' | 'critical' | 'hr' | 'senior_implicated';
@@ -382,6 +384,8 @@ const REASON_LABEL: Record<NotificationCondition | 'escalation', string> = {
   senior_implicated: 'personne de rang Direction mise en cause',
 };
 const PRIORITY_LABEL: Record<CasePriority, string> = { low: 'Faible', high: 'Élevée', very_high: 'Très élevée', critical: 'Critique' };
+// === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) === couleur de la pastille de priorité.
+const PRIORITY_TONE: Record<CasePriority, EmailTone> = { low: 'neutral', high: 'warning', very_high: 'high', critical: 'danger' };
 
 /** Sujet et corps de l'e-mail (texte brut, sans aucun détail sensible). */
 export function buildNotificationEmail(input: {
@@ -413,20 +417,29 @@ export function buildNotificationEmail(input: {
   ].join('\n');
   // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) === même contenu
   // en HTML : logo du site d'alerte, tableau du dossier, bouton vers la fiche.
+  // === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) === bandeau
+  // (événement, dossier, pastille de priorité), fiche en deux colonnes et
+  // ligne discrète « pourquoi je reçois cet e-mail ».
+  const priorityLabel = PRIORITY_LABEL[facts.priority] ?? facts.priority;
+  const priorityTone = PRIORITY_TONE[facts.priority] ?? 'neutral';
   const html = renderBrandedEmailHtml({
     appUrl,
     title: `${EVENT_TITLE[event]} — ${facts.reference}`,
     preheader: `${EVENT_SENTENCE[event]} : dossier ${facts.reference}.`,
-    paragraphs: ['Bonjour,', `${EVENT_SENTENCE[event]}.`],
+    eyebrow: EVENT_TITLE[event],
+    headline: `Dossier ${facts.reference}`,
+    subline: `${EVENT_SENTENCE[event]}.`,
+    badges: [{ label: `Priorité ${priorityLabel.toLowerCase()}`, tone: priorityTone }],
+    paragraphs: ['Bonjour,', 'Voici les informations utiles pour identifier le dossier.'],
     facts: [
       { label: 'Dossier', value: facts.reference },
       { label: 'Entité', value: `${facts.entity} (${facts.country})` },
       { label: 'Catégorie', value: facts.category },
-      { label: 'Priorité', value: PRIORITY_LABEL[facts.priority] ?? facts.priority },
-      { label: 'Destinataire', value: `${GROUP_LABEL[group]}${REASON_LABEL[reason] ? ` — ${REASON_LABEL[reason]}` : ''}` },
+      { label: 'Priorité', value: priorityLabel, tone: priorityTone },
     ],
     cta: { label: 'Consulter le dossier', url: link },
-    note: 'Pour des raisons de confidentialité, aucun détail du signalement n’est transmis par e-mail. Connectez-vous au portail sécurisé pour le consulter.',
+    note: 'Aucun détail du signalement n’est transmis par e-mail. Connectez-vous au portail sécurisé pour le consulter.',
+    reason: `Vous recevez cet e-mail en tant que ${GROUP_LABEL[group]}${REASON_LABEL[reason] ? ` — motif : ${REASON_LABEL[reason]}` : ''}.`,
   });
   return { subject, body, html };
 }

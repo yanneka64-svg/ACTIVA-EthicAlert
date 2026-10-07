@@ -2773,6 +2773,10 @@ export const sendTestNotificationEmail = onCall({ secrets: [NOTIFY_RESEND_KEY] }
     appUrl: notifyAppUrl(),
     title: 'E-mail d’essai',
     preheader: `Notifications du groupe « ${GROUP_LABEL[group.id]} »`,
+    // === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) === bandeau d'en-tête.
+    eyebrow: 'Administration',
+    headline: 'E-mail d’essai',
+    subline: `Groupe de destinataires : ${GROUP_LABEL[group.id]}`,
     paragraphs: [
       'Bonjour,',
       `Ceci est un e-mail d’essai envoyé depuis l’administration du portail activa-whistleblowing par ${user.name}.`,
