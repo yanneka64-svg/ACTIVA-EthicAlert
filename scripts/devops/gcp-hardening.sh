@@ -14,6 +14,11 @@
 #   ./scripts/devops/gcp-hardening.sh app-check-enforce  # 4b. quelques jours plus tard, après contrôle des métriques
 #   BUDGET_AMOUNT=20EUR ./scripts/devops/gcp-hardening.sh budget        # 5. (plan Blaze requis)
 #   ALERT_EMAIL=darc@group-activa.com ./scripts/devops/gcp-hardening.sh monitoring   # 6.
+# === AMÉLIORATION AJOUTÉE (mise en production) ===
+#   ./scripts/devops/gcp-hardening.sh backups            # 7. sauvegardes Firestore + protection contre la suppression
+#   ./scripts/devops/gcp-hardening.sh auth               # 8. comptes : inscription publique fermée + politique de mots de passe
+#   ./scripts/devops/gcp-hardening.sh mfa                # 9. double authentification (TOTP) — après passage à Identity Platform
+#   ./scripts/devops/gcp-hardening.sh status             # état actuel de tout ce qui précède (lecture seule)
 #
 # Chaque étape demande confirmation avant toute modification et peut être
 # relancée sans dommage (les ressources existantes sont réutilisées).
@@ -26,7 +31,9 @@ SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 POOL="github"
 PROVIDER_ID="github-provider"
 DOMAINS=("activa-ethicalert-47246.web.app" "activa-ethicalert-47246.firebaseapp.com" "activa-ethicalert.group-activa.com" "activa-alertes.com")
-UPTIME_HOST="activa-ethicalert-47246.web.app"
+# === AMÉLIORATION AJOUTÉE (domaine personnalisé) === surveiller l'adresse publique réelle.
+UPTIME_HOST="${UPTIME_HOST:-activa-alertes.com}"
+FIRESTORE_DB="${FIRESTORE_DB:-default}"   # base NOMMÉE « default » (voir firebase.json)
 
 say()  { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 info() { printf '   %s\n' "$*"; }
@@ -303,6 +310,89 @@ JSON
   info "Alertes en place. Error Reporting est automatique pour les Cloud Functions une fois déployées."
 }
 
+
+# ---------------------------------------------------------------------------
+# === AMÉLIORATION AJOUTÉE (mise en production) === sauvegardes Firestore.
+step_backups() {
+  say "Sauvegardes Firestore (base « ${FIRESTORE_DB} »)"
+  info "- restauration à la seconde près sur 7 jours (PITR) ;"
+  info "- protection contre la suppression de la base ;"
+  info "- sauvegarde quotidienne (14 jours) et hebdomadaire le dimanche (14 semaines)."
+  confirm "Activer ces protections ?" || return 0
+  gcloud firestore databases update --database="$FIRESTORE_DB" --enable-pitr --project "$PROJECT_ID"
+  gcloud firestore databases update --database="$FIRESTORE_DB" --delete-protection --project "$PROJECT_ID"
+  local existing
+  existing="$(gcloud firestore backups schedules list --database="$FIRESTORE_DB" --project "$PROJECT_ID" --format json 2>/dev/null || true)"
+  if grep -q 'dailyRecurrence' <<< "$existing"; then
+    info "Sauvegarde quotidienne déjà programmée."
+  else
+    gcloud firestore backups schedules create --database="$FIRESTORE_DB" --recurrence=daily --retention=14d --project "$PROJECT_ID"
+  fi
+  if grep -q 'SUNDAY' <<< "$existing"; then
+    info "Sauvegarde hebdomadaire déjà programmée."
+  else
+    gcloud firestore backups schedules create --database="$FIRESTORE_DB" --recurrence=weekly --day-of-week=SUN --retention=14w --project "$PROJECT_ID"
+  fi
+  info "Fait. Tester une restauration une fois par trimestre (docs/DEVOPS-RUNBOOK.md §4.2)."
+}
+
+# === AMÉLIORATION AJOUTÉE (mise en production) === comptes du personnel.
+idtk() { # idtk <updateMask> <json>
+  curl -sS -o /tmp/idtk.out -w '%{http_code}' -X PATCH \
+    -H "Authorization: Bearer $(token)" -H "x-goog-user-project: $PROJECT_ID" -H "Content-Type: application/json" \
+    "https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/config?updateMask=$1" -d "$2"
+}
+step_auth() {
+  say "Comptes du personnel (Firebase Authentication)"
+  info "- fermer l'inscription libre : seuls les comptes créés par l'administrateur du portail existent"
+  info "  (la création de comptes par l'écran Utilisateurs passe par le serveur et n'est pas affectée) ;"
+  info "- politique de mots de passe : 8 caractères min., majuscule, minuscule, chiffre, caractère spécial"
+  info "  (mêmes règles que l'écran de changement de mot de passe)."
+  confirm "Appliquer ?" || return 0
+  local code
+  code="$(idtk 'client.permissions.disabledUserSignup' '{"client":{"permissions":{"disabledUserSignup":true}}}')"
+  [[ "$code" == 200 ]] && info "Inscription libre : fermée." || info "Inscription libre : échec HTTP $code — $(head -c 300 /tmp/idtk.out)"
+  code="$(idtk 'passwordPolicyConfig' '{"passwordPolicyConfig":{"passwordPolicyEnforcementState":"ENFORCE","forceUpgradeOnSignin":false,"passwordPolicyVersions":[{"customStrengthOptions":{"minPasswordLength":8,"containsLowercaseCharacter":true,"containsUppercaseCharacter":true,"containsNumericCharacter":true,"containsNonAlphanumericCharacter":true}}]}}')"
+  if [[ "$code" == 200 ]]; then
+    info "Politique de mots de passe : imposée."
+  else
+    info "Politique de mots de passe : échec HTTP $code — $(head -c 300 /tmp/idtk.out)"
+    info "(si le message mentionne Identity Platform : la règle reste appliquée par le portail lui-même ; elle sera imposée côté serveur après l'étape mfa)."
+  fi
+}
+
+# === AMÉLIORATION AJOUTÉE (mise en production) === double authentification.
+step_mfa() {
+  say "Double authentification (application d'authentification, TOTP)"
+  info "Prérequis : Firebase Console → Authentication → Paramètres → « Passer à Identity Platform »"
+  info "(facturation à l'usage ; la TOTP n'envoie pas de SMS)."
+  info "L'écran d'enrôlement doit être déployé dans le portail AVANT d'imposer la MFA aux comptes."
+  confirm "Identity Platform est-il activé, et voulez-vous autoriser la TOTP ?" || return 0
+  local code
+  code="$(idtk 'mfa' '{"mfa":{"state":"ENABLED","providerConfigs":[{"state":"ENABLED","totpProviderConfig":{"adjacentIntervals":5}}]}}')"
+  [[ "$code" == 200 ]] && info "TOTP autorisée (chaque compte l'active depuis son profil)." || info "Échec HTTP $code — $(head -c 300 /tmp/idtk.out)"
+}
+
+# === AMÉLIORATION AJOUTÉE (mise en production) === état actuel (lecture seule).
+step_status() {
+  say "État actuel (lecture seule)"
+  gcloud firestore databases describe --database="$FIRESTORE_DB" --project "$PROJECT_ID" \
+    --format 'value(pointInTimeRecoveryEnablement,deleteProtectionState)' | sed 's/^/   Firestore : /'
+  gcloud firestore backups schedules list --database="$FIRESTORE_DB" --project "$PROJECT_ID" \
+    --format 'value(name.basename(),retention)' 2>/dev/null | sed 's/^/   Sauvegarde programmée : /' || true
+  curl -sS -H "Authorization: Bearer $(token)" -H "x-goog-user-project: $PROJECT_ID" \
+    "https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/config" \
+    | python3 -c 'import sys,json;c=json.load(sys.stdin);print("   Inscription libre fermée :",c.get("client",{}).get("permissions",{}).get("disabledUserSignup",False));print("   Politique de mots de passe :",c.get("passwordPolicyConfig",{}).get("passwordPolicyEnforcementState","non configurée"));print("   MFA :",c.get("mfa",{}).get("state","DISABLED"))'
+  local pnum svc
+  pnum="$(project_number)"
+  for svc in firestore.googleapis.com identitytoolkit.googleapis.com; do
+    curl -sS -H "Authorization: Bearer $(token)" -H "x-goog-user-project: $PROJECT_ID" \
+      "https://firebaseappcheck.googleapis.com/v1/projects/${pnum}/services/${svc}" \
+      | python3 -c "import sys,json;print('   App Check ${svc} :',json.load(sys.stdin).get('enforcementMode','OFF'))"
+  done
+  gcloud monitoring policies list --project "$PROJECT_ID" --format 'value(displayName)' 2>/dev/null | sed 's/^/   Alerte : /' || true
+}
+
 # ---------------------------------------------------------------------------
 case "${1:-}" in
   wif)               step_wif ;;
@@ -312,5 +402,10 @@ case "${1:-}" in
   app-check-enforce) step_app_check_enforce ;;
   budget)            step_budget ;;
   monitoring)        step_monitoring ;;
-  *) sed -n '2,20p' "$0"; exit 1 ;;
+  # === AMÉLIORATION AJOUTÉE (mise en production) ===
+  backups)           step_backups ;;
+  auth)              step_auth ;;
+  mfa)               step_mfa ;;
+  status)            step_status ;;
+  *) sed -n '2,25p' "$0"; exit 1 ;;
 esac

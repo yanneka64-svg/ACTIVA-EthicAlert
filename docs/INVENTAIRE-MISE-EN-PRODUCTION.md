@@ -81,3 +81,19 @@ code** :
 - Synchronisation incrémentale au-delà de quelques centaines de dossiers (aujourd'hui : relecture toutes les 20 s par poste).
 - Scénarios de bout en bout sur émulateurs exécutés automatiquement en CI.
 - Diagnostic : le test « par compte » nécessite le droit `iam.serviceAccounts.signBlob`.
+
+## Mise à jour du 7 octobre 2026
+
+_Diagnostic de production du 7 octobre, 8 h 08 UTC (lecture seule)._
+
+| Point | État |
+|---|---|
+| E-mails | Expéditeur `ACTIVA Whistleblowing <no-reply@activa-alertes.com>` déployé ; 2 notifications envoyées, 0 échec en 30 jours ; 1 e-mail d'essai réussi sur 4 (à refaire depuis l'administration). Seul domaine de destinataires autorisé : `group-activa.com`. Nouvel e-mail « Dossier attribué » à l'enquêteur désigné. |
+| Comptes | Toujours 2 comptes (administrateur système, responsable des investigations) : B2 reste à faire. |
+| Dossiers | 0 dossier en base. |
+| Sauvegardes (B3) | PITR et protection contre la suppression toujours désactivées → `./scripts/devops/gcp-hardening.sh backups`. |
+| Comptes Firebase (R3) | Inscription libre ouverte, politique de mots de passe non configurée → `./scripts/devops/gcp-hardening.sh auth`. |
+| MFA (R4) | Désactivée ; nécessite Identity Platform puis l'écran d'enrôlement dans le portail → `./scripts/devops/gcp-hardening.sh mfa`. |
+| Branche `main` (R1) | Toujours non protégée (le dépôt étant public, la protection est gratuite). |
+| Recette (B6) | Plan détaillé : `docs/RECETTE-METIER.md`. |
+| État de tous ces réglages | `./scripts/devops/gcp-hardening.sh status` (lecture seule). |
