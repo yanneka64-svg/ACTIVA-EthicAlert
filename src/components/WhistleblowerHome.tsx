@@ -482,6 +482,25 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
         <div aria-hidden="true" className="hidden pointer-events-none absolute inset-0 [background-image:radial-gradient(rgb(255_255_255/0.22)_1px,transparent_1.2px)] [background-size:22px_22px] [mask-image:linear-gradient(100deg,transparent_25%,rgb(0_0_0/0.5)_55%,#000_85%)]" />
         <div aria-hidden="true" className="activa-aurora pointer-events-none absolute -right-40 -top-40 w-[720px] h-[720px] rounded-full bg-[radial-gradient(closest-side,rgb(90_134_221/0.55),transparent)] blur-2xl" />
         <div aria-hidden="true" className="activa-aurora-2 pointer-events-none absolute right-[18%] bottom-[-220px] w-[520px] h-[520px] rounded-full bg-[radial-gradient(closest-side,rgb(127_188_10/0.16),transparent)] blur-2xl" />
+        {/* === AMÉLIORATION AJOUTÉE (nuage « Business Ethics ») === image de
+            couverture des Lignes directrices du Programme de lutte contre la
+            fraude du Groupe (public/brand/ethique-nuage.webp), en filigrane deux
+            tons : mots bleus en bleu ciel, mots gris en blanc translucide.
+            Bureau : à droite, fondu vers le texte et les bords. Téléphone :
+            derrière le bas du bandeau, plus discret. Décoratif uniquement. */}
+        <div aria-hidden="true" className="activa-nuage pointer-events-none absolute inset-0 overflow-hidden">
+          <img
+            src="/brand/ethique-nuage.webp"
+            alt=""
+            decoding="async"
+            className="absolute max-w-none select-none
+              left-1/2 -translate-x-1/2 top-[58%] w-[165%] opacity-[0.2]
+              [mask-image:radial-gradient(closest-side,#000_50%,transparent_100%)]
+              sm:top-[50%] sm:w-[115%] sm:opacity-[0.22]
+              lg:left-auto lg:translate-x-0 lg:right-[-6%] lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:w-[min(1150px,78vw)] lg:opacity-[0.30]
+              lg:[mask-image:radial-gradient(closest-side_at_58%_52%,#000_55%,rgb(0_0_0/0.55)_78%,transparent_100%)]"
+          />
+        </div>
         <svg aria-hidden="true" className="pointer-events-none absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 1440 640">
           <path d="M -40 560 C 380 470, 760 640, 1480 300" fill="none" stroke="rgb(255 255 255 / 0.10)" strokeWidth="1.5" />
           <path d="M -40 600 C 420 520, 820 680, 1480 360" fill="none" stroke="rgb(255 255 255 / 0.06)" strokeWidth="1" />

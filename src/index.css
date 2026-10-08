@@ -830,3 +830,13 @@ body {
 .activa-helpline .activa-ripple { animation-duration: 6s; }
 .activa-helpline .activa-enter { animation-duration: 1.4s; }
 .activa-helpline .activa-modal-in { animation-duration: 1.4s; }
+
+/* === AMÉLIORATION AJOUTÉE (nuage « Business Ethics » de l'accueil) ===
+   Image de couverture des Lignes directrices anti-fraude du Groupe, en
+   filigrane deux tons sur le fond bleu : apparition douce, puis dérive très
+   lente. Désactivé si l'utilisateur limite les animations. */
+@keyframes activa-nuage-in { from { opacity: 0; transform: translate3d(24px, 0, 0) scale(1.04); } to { opacity: 1; transform: none; } }
+@keyframes activa-nuage-drift { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(-18px, 10px, 0) scale(1.025); } }
+.activa-nuage { animation: activa-nuage-in 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) 0.25s both; }
+.activa-nuage > img { animation: activa-nuage-drift 26s ease-in-out 1.6s infinite; }
+@media (prefers-reduced-motion: reduce) { .activa-nuage, .activa-nuage > img { animation: none !important; } }
