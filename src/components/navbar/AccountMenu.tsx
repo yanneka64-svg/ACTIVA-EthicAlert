@@ -14,6 +14,10 @@ import React from 'react';
 import { ChevronDown, User, HelpCircle, LogOut, ArrowLeftRight } from 'lucide-react';
 import type { UserProfile } from '../../types';
 import { computeAvailableSpaces } from '../../domain/staffSpaces';
+// === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+import { KeyRound } from 'lucide-react';
+import { StaffMfaDialog } from '../StaffMfaPanels';
+import { firebaseMfaApi } from '../../services/staffMfa';
 
 interface AccountMenuProps {
   t: Record<string, string>;
@@ -44,6 +48,9 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({
   setShowUserDropdown,
   userMenuRef,
 }) => {
+  // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+  // Fenêtre ouverte depuis le menu (comptes du personnel gérés par Firebase).
+  const [showMfa, setShowMfa] = React.useState(false);
   return (
     <div className="order-2 lg:order-none relative" ref={userMenuRef}>
       {/* === AMÉLIORATION AJOUTÉE (page de connexion plein cadre,
@@ -140,6 +147,17 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({
             </button>
           )}
 
+          {/* === AMÉLIORATION AJOUTÉE (double authentification du personnel) === */}
+          {isStaffUser && activeUser.authSource === 'firebase' && (
+            <button
+              id="btn-open-mfa"
+              onClick={() => setShowMfa(true)}
+              className="w-full flex items-center gap-2 text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium border-b border-slate-100"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-slate-400" /> {t.mfa_title}
+            </button>
+          )}
+
           {/* === AMÉLIORATION AJOUTÉE (menu profil — recentré sur
               l'identité connectée) === Le sélecteur "Changer de rôle
               pour tester" (liste de tous les comptes) et le "Mode
@@ -161,6 +179,16 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({
             </button>
           )}
         </div>
+      )}
+      {showMfa && (
+        <StaffMfaDialog
+          t={t}
+          api={firebaseMfaApi}
+          lang={(typeof document !== 'undefined' && document.documentElement.lang) || 'fr'}
+          accountLabel={activeUser.username || activeUser.email}
+          role={activeUser.role}
+          onClose={() => setShowMfa(false)}
+        />
       )}
     </div>
   );

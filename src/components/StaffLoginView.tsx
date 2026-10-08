@@ -32,6 +32,11 @@
  */
 import React, { useState } from 'react';
 import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft, Check, Circle } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+import { ShieldCheck } from 'lucide-react';
+import { StaffMfaSetup, TotpCodeInput, mfaErrorMessage } from './StaffMfaPanels';
+import { firebaseMfaApi } from '../services/staffMfa';
+import { isMfaRequiredForRole, isValidTotpCode } from '../domain/mfaPolicy';
 // === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
 import { BrandBlueBackdrop } from './ui/BrandBlue';
 import { Language, UserProfile } from '../types';
@@ -54,6 +59,8 @@ import {
   signInStaffWithUsername,
   syncStaffDirectory,
 } from '../services/staffAccountsClient';
+// === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+import { cancelStaffMfaSignIn, completeStaffMfaSignIn } from '../services/staffAccountsClient';
 
 interface StaffLoginViewProps {
   onLogin: (user: UserProfile) => void;
@@ -93,6 +100,65 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changeError, setChangeError] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+  // `mfaChallenge` : mot de passe accepté, code de l'application attendu.
+  // `enrollUser` : compte dont le rôle exige la double authentification et
+  // qui ne l'a pas encore activée — l'écran d'activation passe avant l'accès.
+  const [mfaChallenge, setMfaChallenge] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState('');
+  const [mfaVerifying, setMfaVerifying] = useState(false);
+  const [enrollUser, setEnrollUser] = useState<UserProfile | null>(null);
+
+  const enterPortal = (user: UserProfile) => {
+    onLogin(user);
+    syncStaffDirectory().catch(() => {});
+  };
+
+  /** Accès au portail, sauf si le rôle exige d'abord d'activer la double authentification. */
+  const proceedAfterFirebaseLogin = (user: UserProfile) => {
+    if (isMfaRequiredForRole(user.role) && !firebaseMfaApi.currentEnrollment()) {
+      setEnrollUser(user);
+      return;
+    }
+    enterPortal(user);
+  };
+
+  const handleMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValidTotpCode(mfaCode)) return;
+    setMfaError('');
+    setMfaVerifying(true);
+    try {
+      const result = await completeStaffMfaSignIn(mfaCode);
+      if (result.ok === true) {
+        clearAttempts(username.trim());
+        setMfaChallenge(false);
+        setMfaCode('');
+        if (result.mustChangePassword) {
+          setPendingUser(result.user);
+          return;
+        }
+        proceedAfterFirebaseLogin(result.user);
+        return;
+      }
+      setMfaError(result.reason === 'expired' ? t.login_error_expired : t.login_error_unreachable);
+    } catch (err) {
+      setMfaError(mfaErrorMessage(t, err));
+      setMfaCode('');
+    } finally {
+      setMfaVerifying(false);
+    }
+  };
+
+  const cancelMfa = () => {
+    cancelStaffMfaSignIn();
+    setMfaChallenge(false);
+    setMfaCode('');
+    setMfaError('');
+    setPassword('');
+  };
   // === AMÉLIORATION AJOUTÉE : page « Mot de passe oublié ? » ===
   // Le lien affiche désormais une page dédiée (même carte, même
   // emplacement) invitant à contacter l'équipe support, avec un retour à
@@ -137,8 +203,15 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
             setPendingUser(remote.user);
             return;
           }
-          onLogin(remote.user);
-          syncStaffDirectory().catch(() => {});
+          // === AMÉLIORATION AJOUTÉE (double authentification) === au lieu
+          // de onLogin direct : activation d'abord si le rôle l'exige.
+          proceedAfterFirebaseLogin(remote.user);
+          return;
+        }
+        // === AMÉLIORATION AJOUTÉE (double authentification) === mot de passe
+        // correct : le code de l'application est demandé à l'étape suivante.
+        if (remote.reason === 'mfa_required') {
+          setMfaChallenge(true);
           return;
         }
         if (remote.reason === 'expired') {
@@ -246,12 +319,22 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
         await changeOwnStaffPassword(pendingUser.username, newPassword);
       } catch {
         setIsChangingPassword(false);
+        // === AMÉLIORATION AJOUTÉE (double authentification) === mot de passe
+        // changé, compte protégé : le code de l'application est demandé.
+        if (firebaseMfaApi.hasPendingChallenge()) {
+          setPendingUser(null);
+          setMfaChallenge(true);
+          return;
+        }
         setChangeError(t.login_error_unexpected);
         return;
       }
       setIsChangingPassword(false);
-      onLogin({ ...pendingUser, mustChangePassword: false });
-      syncStaffDirectory().catch(() => {});
+      // === AMÉLIORATION AJOUTÉE (double authentification) === activation
+      // d'abord si le rôle l'exige (au lieu de onLogin direct).
+      const changedUser = { ...pendingUser, mustChangePassword: false };
+      setPendingUser(null);
+      proceedAfterFirebaseLogin(changedUser);
       return;
     }
     await storage.changePassword(pendingUser.id, newPassword, pendingUser);
@@ -394,6 +477,73 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
               className="activa-shine w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#0B2545] to-[#134074] text-white text-xs font-bold shadow-lg shadow-[#0B2545]/25 enabled:hover:shadow-xl enabled:hover:-translate-y-0.5 disabled:opacity-50 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
             >
               {isChangingPassword ? t.login_change_pending : t.login_change_submit}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+  // Activation obligatoire (rôles d'administration) : même carte que la
+  // connexion. Si la plateforme n'a pas encore autorisé la TOTP, l'accès est
+  // accordé comme avant (aucun compte bloqué).
+  if (enrollUser) {
+    return (
+      <div className="activa-form relative overflow-hidden min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-16 sm:py-20">
+        <BrandBlueBackdrop />
+        <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
+          <div className="text-center mb-5">
+            <span className="activa-enter inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30" style={{ '--d': '120ms' } as React.CSSProperties}>
+              <ShieldCheck className="w-6 h-6" strokeWidth={1.75} />
+            </span>
+            <p className="activa-enter text-sm font-extrabold tracking-tight text-slate-900" style={{ '--d': '200ms' } as React.CSSProperties}>{t.mfa_title}</p>
+            <div className="activa-draw-x w-10 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400 mx-auto mt-3" style={{ '--d': '320ms', transformOrigin: 'center' } as React.CSSProperties} />
+          </div>
+          <StaffMfaSetup
+            t={t}
+            api={firebaseMfaApi}
+            accountLabel={enrollUser.username || enrollUser.email}
+            required
+            onDone={() => enterPortal(enrollUser)}
+            onUnavailable={() => enterPortal(enrollUser)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+  // Étape « code à 6 chiffres » après un mot de passe correct.
+  if (mfaChallenge) {
+    return (
+      <div className="activa-form relative overflow-hidden min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-16 sm:py-20">
+        <BrandBlueBackdrop />
+        <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
+          <div className="text-center mb-6">
+            <span className="activa-enter inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30" style={{ '--d': '120ms' } as React.CSSProperties}>
+              <ShieldCheck className="w-6 h-6" strokeWidth={1.75} />
+            </span>
+            <p className="activa-enter text-sm font-extrabold tracking-tight text-slate-900" style={{ '--d': '200ms' } as React.CSSProperties}>{t.mfa_challenge_title}</p>
+            <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">{t.mfa_challenge_body}</p>
+            <div className="activa-draw-x w-10 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400 mx-auto mt-3" style={{ '--d': '320ms', transformOrigin: 'center' } as React.CSSProperties} />
+          </div>
+          <form onSubmit={handleMfaSubmit} className="activa-enter space-y-4" style={{ '--d': '300ms' } as React.CSSProperties}>
+            <TotpCodeInput id="input-mfa-login-code" value={mfaCode} onChange={setMfaCode} label={t.mfa_code_label} autoFocus />
+            {mfaError && (
+              <p role="alert" className="activa-enter text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{mfaError}</p>
+            )}
+            <button
+              type="submit"
+              id="btn-submit-mfa-login"
+              disabled={!isValidTotpCode(mfaCode) || mfaVerifying}
+              className="activa-shine w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#0B2545] to-[#134074] text-white text-xs font-bold tracking-wide shadow-lg shadow-[#0B2545]/25 enabled:hover:shadow-xl enabled:hover:-translate-y-0.5 disabled:opacity-50 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
+            >
+              <ShieldCheck className="w-4 h-4" strokeWidth={2} />
+              {mfaVerifying ? t.mfa_verifying : t.mfa_challenge_submit}
+            </button>
+            <button type="button" id="btn-mfa-back" onClick={cancelMfa} className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-blue-700 hover:underline">
+              <ArrowLeft className="w-3.5 h-3.5" /> {t.mfa_challenge_back}
             </button>
           </form>
         </div>

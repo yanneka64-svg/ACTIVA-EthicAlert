@@ -20,6 +20,7 @@
     "firebase": "^12.19.0",
     "jspdf": "4.2.1",
     "lucide-react": "^0.546.0",
+    "qrcode-generator": "2.0.4",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "react-router-dom": "^7.18.3",

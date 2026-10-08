@@ -22,6 +22,8 @@ import { roleHasPermission } from '../domain/permissions';
 import { StaffAccountInput, StaffAccountProfile, isStaffRole, staffAuthEmail } from '../domain/staffAccounts';
 import { getPhase4Config, getPhase4Firebase, getPhase4Functions } from './firebaseClient';
 import { getStaffClaims, isStaffAuthConfigured, signInStaff, signOutStaff } from './staffAuth';
+// === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+import { clearMfaChallenge, firebaseMfaApi, isMfaChallenge, rememberMfaChallenge } from './staffMfa';
 import { storage } from './storage';
 
 export { isStaffAuthConfigured };
@@ -63,7 +65,8 @@ const WRONG_CREDENTIALS = ['auth/invalid-credential', 'auth/wrong-password', 'au
 
 export type StaffSignInResult =
   | { ok: true; user: UserProfile; mustChangePassword: boolean }
-  | { ok: false; reason: 'wrong_credentials' | 'expired' | 'locked' | 'not_provisioned' | 'unavailable' | 'password_policy' };
+  // === AMÉLIORATION AJOUTÉE (double authentification) === 'mfa_required' : le code de l'application est attendu.
+  | { ok: false; reason: 'wrong_credentials' | 'expired' | 'locked' | 'not_provisioned' | 'unavailable' | 'password_policy' | 'mfa_required' };
 
 /**
  * Connexion par identifiant + mot de passe contre Firebase Auth, puis
@@ -73,6 +76,9 @@ export async function signInStaffWithUsername(username: string, password: string
   try {
     await signInStaff(staffAuthEmail(username, getPhase4Config().projectId), password);
   } catch (e) {
+    // === AMÉLIORATION AJOUTÉE (double authentification) === mot de passe
+    // correct, compte protégé : l'écran demande le code à 6 chiffres.
+    if (isMfaChallenge(e) && rememberMfaChallenge(e)) return { ok: false, reason: 'mfa_required' };
     const code = staffErrorCode(e);
     if (WRONG_CREDENTIALS.includes(code)) return { ok: false, reason: 'wrong_credentials' };
     if (code === 'auth/too-many-requests') return { ok: false, reason: 'locked' };
@@ -82,6 +88,13 @@ export async function signInStaffWithUsername(username: string, password: string
     if (code === 'auth/password-does-not-meet-requirements') return { ok: false, reason: 'password_policy' };
     return { ok: false, reason: 'unavailable' };
   }
+  return loadSignedInStaffProfile();
+}
+
+// === AMÉLIORATION AJOUTÉE (double authentification) === suite commune de la
+// connexion (après mot de passe, ou après le code de l'application) : lecture
+// du profil du personnel, inchangée.
+export async function loadSignedInStaffProfile(): Promise<StaffSignInResult> {
   try {
     const { account, expired } = await callStaffFunction<Record<string, never>, { account: StaffAccountProfile; expired: boolean }>(
       'getMyStaffProfile',
@@ -98,13 +111,31 @@ export async function signInStaffWithUsername(username: string, password: string
   }
 }
 
+// === AMÉLIORATION AJOUTÉE (double authentification) === connexion terminée
+// avec le code à 6 chiffres. Les erreurs Firebase (code invalide…) remontent.
+export async function completeStaffMfaSignIn(code: string): Promise<StaffSignInResult> {
+  await firebaseMfaApi.resolveChallenge(code);
+  return loadSignedInStaffProfile();
+}
+
+export function cancelStaffMfaSignIn(): void {
+  clearMfaChallenge();
+}
+
 /**
  * Remplace le mot de passe temporaire, puis rouvre la session avec le
  * nouveau (le serveur révoque les sessions après le changement).
  */
 export async function changeOwnStaffPassword(username: string, newPassword: string): Promise<void> {
   await callStaffFunction<{ newPassword: string }, { ok: true }>('changeMyStaffPassword', { newPassword });
-  await signInStaff(staffAuthEmail(username, getPhase4Config().projectId), newPassword);
+  try {
+    await signInStaff(staffAuthEmail(username, getPhase4Config().projectId), newPassword);
+  } catch (e) {
+    // === AMÉLIORATION AJOUTÉE (double authentification) === compte protégé :
+    // la demande de code est mémorisée, l'écran la présente ensuite.
+    if (isMfaChallenge(e)) rememberMfaChallenge(e);
+    throw e;
+  }
 }
 
 /** Recharge l'annuaire du personnel depuis Firebase dans storage.ts. Renvoie le nombre de comptes, ou `null` si indisponible. */
