@@ -97,3 +97,55 @@ _Diagnostic de production du 7 octobre, 8 h 08 UTC (lecture seule)._
 | Branche `main` (R1) | Toujours non protégée (le dépôt étant public, la protection est gratuite). |
 | Recette (B6) | Plan détaillé : `docs/RECETTE-METIER.md`. |
 | État de tous ces réglages | `./scripts/devops/gcp-hardening.sh status` (lecture seule). |
+
+## Mise à jour du 8 octobre 2026 — reste à faire pour la mise en exploitation
+
+_Diagnostic de production du 8 octobre, 12 h 24 UTC (lecture seule)._
+
+### Fait depuis le 7 octobre
+
+| Point | État |
+|---|---|
+| Sauvegardes (B3) | Restauration à la seconde (PITR) et protection contre la suppression **activées**. |
+| Comptes Firebase (R3) | Politique de mots de passe **imposée** ; inscription libre fermée. |
+| Branche `main` (R1) | **Protégée** : contrôles `web` et `functions` obligatoires. |
+| Double authentification (R4) | Identity Platform activé, **MFA activée** (Google Authenticator) ; obligatoire pour les administrateurs système et sécurité ; réinitialisation depuis l'écran Utilisateurs. |
+| Dépôt public | Envoi par l'adresse du site (même origine), numéro provisoire unique hors ligne, alias en cas de numéro déjà pris, bandeau « Transmission en cours », cause des échecs dans la piste d'audit, autotest `/diagnostic-envoi.html`. |
+| Formulaire | Champs obligatoires manquants signalés en rouge. |
+| E-mails | Expéditeur `no-reply@activa-alertes.com`, e-mail à l'enquêteur désigné ; 4 notifications envoyées, 0 échec en 30 jours. |
+
+### Reste à faire
+
+**Bloquant**
+
+| # | Action | Qui |
+|---|---|---|
+| E1 | Créer les comptes réels (opérateurs, DARC / Conformité, enquêteurs) — aujourd'hui 2 comptes seulement | Administrateur du portail |
+| E2 | Vérifier les destinataires des e-mails (superviseurs, DARC, DGA, DRH : 1 adresse chacun aujourd'hui) puis refaire l'e-mail d'essai de chaque groupe (1 essai réussi sur 4 à ce jour) | Administrateur du portail |
+| E3 | Recette métier complète (`docs/RECETTE-METIER.md`), y compris un dépôt depuis 2 ou 3 téléphones | DARC + opérateur + enquêteur |
+| E4 | Purger les dossiers de test après la recette (dont `AACMR-26-10-0001`) | Administrateur GitHub (workflow « Firebase delete test cases ») |
+| E5 | Mentions légales : RCCM, représentant légal, hébergeur (Google Cloud, base en Europe `eur3`), durée de conservation, contact du DPO | Service juridique |
+| E6 | Signalement du 8 octobre resté sur le téléphone : ouvrir activa-alertes.com sur ce téléphone pour qu'il parte | Déclarant (test) |
+
+**Fortement recommandé**
+
+| # | Action | Qui |
+|---|---|---|
+| E7 | Second compte administrateur système (sinon personne ne peut réinitialiser la double authentification de l'unique administrateur) et clé Google Authenticator conservée en lieu sûr | Direction + administrateur |
+| E8 | App Check imposé pour la base et la connexion du personnel (`gcp-hardening.sh app-check-enforce`) ; garder le formulaire public non imposé | Cloud Shell |
+| E9 | Budget et alertes de dépense (`gcp-hardening.sh budget`, en indiquant la devise du compte de facturation) | Cloud Shell |
+| E10 | Révoquer l'ancienne clé JSON de déploiement et supprimer le secret GitHub `FIREBASE_SERVICE_ACCOUNT_ACTIVA` | Cloud Shell + GitHub |
+| E11 | Vérifier que les sauvegardes programmées et les alertes de supervision existent (`gcp-hardening.sh status` ; le diagnostic n'a pas le droit de les lire) | Cloud Shell |
+
+**Avant l'ouverture au public (organisation)**
+
+- Désigner qui surveille la boîte de réception, et à quelle fréquence.
+- Communiquer le lien et la procédure aux collaborateurs (note interne, affichage).
+- Former les opérateurs et enquêteurs (le guide fonctionnel est prêt).
+
+**Après l'ouverture (améliorations)**
+
+- Rappels automatiques des délais dépassés.
+- Conservation et suppression automatiques des données (champ `retentionUntil` non calculé).
+- Pièces jointes au-delà de 7 Mo.
+- Traduction EN / PT des écrans d'administration récents.
