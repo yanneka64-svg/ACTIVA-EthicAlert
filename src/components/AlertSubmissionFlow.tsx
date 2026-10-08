@@ -226,6 +226,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
   // continue de s'appliquer à ce mot de passe sans aucun changement.
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
+  const [showMissing, setShowMissing] = useState(false);
 
   // Submission result
   const [submittedAlert, setSubmittedAlert] = useState<AlertRecord | null>(null);
@@ -404,18 +406,21 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     if (!detailedDescription.trim()) {
       setErrorMsg(t.err_missing_description);
       setCurrentStep(3);
+      setShowMissing(true); // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
       return;
     }
 
     if (!incidentDates.trim()) {
       setErrorMsg(t.err_missing_date);
       setCurrentStep(3);
+      setShowMissing(true); // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
       return;
     }
 
     if (!incidentLocation.trim()) {
       setErrorMsg(t.err_missing_location);
       setCurrentStep(3);
+      setShowMissing(true); // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
       return;
     }
 
@@ -862,6 +867,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                     isOngoing={isOngoing}
                     setIsOngoing={setIsOngoing}
                     setErrorMsg={setErrorMsg}
+                    showMissing={showMissing}
                     setCurrentStep={setCurrentStep}
                   />
                 )}

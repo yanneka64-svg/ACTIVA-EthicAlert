@@ -178,6 +178,11 @@ export const en: Record<string, string> = {
   label_dates: 'Date(s) of facts',
   no_future_dates_warning: 'Date cannot be in the future',
   label_location: 'Incident location',
+  // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
+  err_missing_fields: 'Required information missing: {fields}.',
+  field_required_dates: 'Enter the date or period of the facts.',
+  field_required_location: 'Enter where the facts took place.',
+  field_required_description: 'Describe the facts: this is essential to handle your report.',
 
 
   btn_add_involved: '+ Add an implicated person',
