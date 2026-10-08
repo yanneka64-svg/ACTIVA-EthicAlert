@@ -201,11 +201,14 @@ function ChannelDots({ items, index, go, paused, reduced, stepMs, label }: { ite
   );
 }
 
-function ShowcaseHeader({ label, heading, center }: { label: string; heading: string; center?: boolean }) {
+// === AMÉLIORATION AJOUTÉE (titre retiré) === `hideHeading` : sur demande
+// explicite, « Trois façons de nous parler » n'est plus affiché au-dessus des
+// cartes 3D (seul le surtitre « Choisissez votre canal » reste).
+function ShowcaseHeader({ label, heading, center, hideHeading }: { label: string; heading: string; center?: boolean; hideHeading?: boolean }) {
   return (
     <div className={center ? 'text-center' : ''}>
       <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#C9DAF8]">{label}</p>
-      <p className="mt-1.5 text-[20px] sm:text-[22px] font-extrabold tracking-tight leading-tight text-white">{heading}</p>
+      <p hidden={hideHeading} className="mt-1.5 text-[20px] sm:text-[22px] font-extrabold tracking-tight leading-tight text-white">{heading}</p>
     </div>
   );
 }
@@ -224,8 +227,8 @@ export function HeroChannelCoverflow({ items, label, heading, availability }: Ch
   if (n === 0) return null;
   return (
     <div {...bind} className="relative w-full select-none">
-      <ShowcaseHeader label={label} heading={heading} center />
-      <div className="relative mt-6 h-[350px] sm:h-[356px] [perspective:1300px]">
+      <ShowcaseHeader label={label} heading={heading} center hideHeading />
+      <div className="relative mt-5 h-[350px] sm:h-[356px] [perspective:1300px]">
         <span aria-hidden="true" className="absolute left-1/2 -translate-x-1/2 bottom-1 w-[62%] h-10 rounded-full bg-[#020B26]/45 blur-2xl" />
         {items.map((it, i) => {
           const rel = relPos(i, index, n);
