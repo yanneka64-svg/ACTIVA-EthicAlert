@@ -163,6 +163,44 @@ function ChannelPills({ items, index, go, paused, reduced, stepMs, label }: { it
   );
 }
 
+/** === AMÉLIORATION AJOUTÉE (points de défilement) ===
+ * Un point par carte ; le point actif s'allonge et se remplit pendant
+ * l'affichage (pause au survol). Cliquable pour aller à une carte. */
+function ChannelDots({ items, index, go, paused, reduced, stepMs, label }: { items: ChannelShowcaseItem[]; index: number; go: (i: number) => void; paused: boolean; reduced: boolean; stepMs: number; label: string }) {
+  return (
+    <div role="tablist" aria-label={label} className="flex items-center justify-center gap-2.5">
+      {items.map((it, i) => {
+        const active = i === index;
+        return (
+          <button
+            key={it.title}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            aria-label={it.title}
+            onClick={() => go(i)}
+            className="group p-1.5 -m-1.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          >
+            <span
+              className={`relative block h-2.5 rounded-full overflow-hidden transition-all duration-500 ease-out ${
+                active ? 'w-11 bg-white/30' : 'w-2.5 bg-white/40 group-hover:bg-white/70'
+              }`}
+            >
+              {active && (
+                <span
+                  key={index}
+                  className={`${reduced ? '' : 'activa-trust-progress'} absolute inset-y-0 left-0 block rounded-full bg-white shadow-[0_0_10px_rgb(255_255_255/0.7)]`}
+                  style={reduced ? { width: '100%' } : { animationDuration: `${stepMs}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+                />
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function ShowcaseHeader({ label, heading, center }: { label: string; heading: string; center?: boolean }) {
   return (
     <div className={center ? 'text-center' : ''}>
@@ -245,7 +283,14 @@ export function HeroChannelCoverflow({ items, label, heading, availability }: Ch
           );
         })}
       </div>
-      <div className="mt-2">
+      {/* === AMÉLIORATION AJOUTÉE (points de défilement) === sur demande
+          explicite : les onglets nommés (En ligne, WhatsApp, E-mail) sont
+          remplacés par des points ; le point de la carte affichée s'allonge
+          et se remplit pendant son affichage. Onglets conservés, masqués. */}
+      <div className="mt-3">
+        <ChannelDots items={items} index={index} go={go} paused={paused} reduced={reduced} stepMs={STEP} label={label} />
+      </div>
+      <div hidden className="mt-2">
         <ChannelPills items={items} index={index} go={go} paused={paused} reduced={reduced} stepMs={STEP} label={label} />
       </div>
     </div>
