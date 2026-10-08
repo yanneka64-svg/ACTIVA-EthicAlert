@@ -94,6 +94,8 @@ import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src
 import { caseQueryEqualities, normalizePagination } from '../../src/domain/caseQuery';
 // === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution de la soumission publique.
 import { formatTrackingNumber, parseReporterCaseInput } from '../../src/domain/reporterCaseInput';
+// === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) ===
+import { sanitizeSubmissionDiagnostics } from '../../src/domain/submissionDiagnostics';
 // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
 import type { ReporterCaseDetails } from '../../src/domain/reporterCaseDetails';
 // === AMÉLIORATION AJOUTÉE (échanges instantanés, anonymat, documents du déclarant) ===
@@ -150,6 +152,8 @@ export {
   listStaffDirectory,
   resetStaffAccountPassword,
   updateStaffAccount,
+  // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+  resetStaffAccountMfa,
 } from './staffAccounts';
 
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P1 : fiabilité et coût) ===
@@ -1186,6 +1190,11 @@ async function verifyReporterAccess(caseNumber: string, accessCode: string): Pro
     }
     const others = await db.collection('cases').where('externalReference', '==', key).get();
     for (const doc of others.docs) if (doc.id !== reservedCaseId) candidates.push(doc);
+    // === AMÉLIORATION AJOUTÉE (numéro déjà pris par un autre dossier) ===
+    // numéro remis au déclarant mais déjà attribué à un autre dossier : son
+    // dossier le porte en alias (`reporterAliases`), son code d'accès l'ouvre.
+    const aliased = await db.collection('cases').where('reporterAliases', 'array-contains', key).get();
+    for (const doc of aliased.docs) if (!candidates.some((c) => c.id === doc.id)) candidates.push(doc);
   }
   for (const caseDoc of candidates) {
     const credsSnap = await db.collection('reporter_credentials').doc(caseDoc.id).get();
@@ -1238,7 +1247,9 @@ export const getCaseForReporter = onCall(async (request) => {
     // dates de mise à jour/clôture : jamais l'attribution, les notes
     // internes, les personnes citées ni l'évaluation du risque.
     reporterCase: {
-      externalReference: kase.externalReference ?? null,
+      // === AMÉLIORATION AJOUTÉE (numéro déjà pris par un autre dossier) ===
+      // le déclarant revoit le numéro qu'il a reçu (alias), jamais un autre.
+      externalReference: (kase.reporterAliases?.includes(caseNumber.trim().toUpperCase()) ? caseNumber.trim().toUpperCase() : kase.externalReference) ?? null,
       category: kase.category,
       subcategory: kase.subcategory,
       country: kase.country,
@@ -1632,6 +1643,8 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     throw new HttpsError('invalid-argument', parsed.error);
   }
   const data = parsed.value;
+  // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) ===
+  const clientDiagnostics = sanitizeSubmissionDiagnostics((request.data as { clientDiagnostics?: unknown } | null)?.clientDiagnostics);
   await assertCaseCreationAllowed(request.rawRequest?.ip ?? 'unknown');
 
   const seq = await nextCaseSequence();
@@ -1699,7 +1712,7 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   //   de suivi officiel (CODE-AA-MM-NNNN), unique, via un compteur par
   //   entité et par mois — fini les numéros identiques générés par deux
   //   appareils différents.
-  type CreateOutcome = { caseId: string; caseNumber: string; trackingNumber: string; created: boolean };
+  type CreateOutcome = { caseId: string; caseNumber: string; trackingNumber: string; created: boolean; aliasOf?: string };
   const outcome: CreateOutcome = await db.runTransaction(async (tx) => {
     const caseRef = db.collection('cases').doc(caseId);
     const credsRef = db.collection('reporter_credentials').doc(caseId);
@@ -1719,6 +1732,8 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
 
     let doc: Case = kase;
     let trackingNumber = kase.caseNumber;
+    // === AMÉLIORATION AJOUTÉE (numéro déjà pris par un autre dossier) ===
+    let aliasOf: string | undefined;
     if (data.externalReference) {
       const reservationRef = db.collection('external_references').doc(data.externalReference);
       const reservation = await tx.get(reservationRef);
@@ -1726,6 +1741,35 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
         tx.create(reservationRef, { caseId, createdAt: nowIso });
         doc = { ...kase, externalReference: data.externalReference };
         trackingNumber = data.externalReference;
+      } else {
+        // === AMÉLIORATION AJOUTÉE (numéro déjà pris par un autre dossier) ===
+        // Numéro fabriqué hors ligne par un appareil (sans réponse du serveur)
+        // et déjà attribué à un autre dossier : ce dossier reçoit un numéro
+        // officiel neuf (même entité, même mois) et garde le numéro remis au
+        // déclarant en alias, pour que ses identifiants de suivi l'ouvrent.
+        aliasOf = data.externalReference;
+        const entityFromRef = /^([A-Z0-9]{2,12})-\d{2}-\d{2}-/.exec(data.externalReference)?.[1];
+        if (entityFromRef) {
+          const now = new Date(nowIso);
+          const period = `${String(now.getUTCFullYear() % 100).padStart(2, '0')}${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+          const counterRef = db.collection('counters').doc(`tracking_${entityFromRef}_${period}`);
+          const counter = await tx.get(counterRef);
+          let seq = counter.exists ? Number((counter.data() as { value?: number }).value ?? 0) : 0;
+          let candidate: string | null = null;
+          for (let attempt = 0; attempt < 50 && !candidate; attempt++) {
+            seq += 1;
+            const ref = formatTrackingNumber(entityFromRef, now, seq);
+            const taken = await tx.get(db.collection('external_references').doc(ref));
+            if (!taken.exists) candidate = ref;
+          }
+          if (candidate) {
+            tx.set(counterRef, { value: seq }, { merge: true });
+            tx.create(db.collection('external_references').doc(candidate), { caseId, createdAt: nowIso });
+            doc = { ...doc, externalReference: candidate };
+            trackingNumber = candidate;
+          }
+        }
+        doc = { ...doc, reporterAliases: [data.externalReference] };
       }
     } else if (data.entityCode) {
       const now = new Date(nowIso);
@@ -1757,12 +1801,22 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     if (submissionRef) {
       tx.create(submissionRef, { caseId, caseNumber: kase.caseNumber, trackingNumber, createdAt: nowIso });
     }
-    return { caseId, caseNumber: kase.caseNumber, trackingNumber, created: true };
+    return { caseId, caseNumber: kase.caseNumber, trackingNumber, created: true, ...(aliasOf ? { aliasOf } : {}) };
   });
 
   if (outcome.created) {
     await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
     await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
+    // === AMÉLIORATION AJOUTÉE (numéro déjà pris par un autre dossier) ===
+    // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) === cause du
+    // premier échec sur l'appareil (catégories techniques, rien de personnel).
+    if (clientDiagnostics) {
+      console.warn('REPORTER_SUBMISSION_RECOVERED', JSON.stringify(clientDiagnostics));
+      await appendAudit({ actorId: 'reporter', action: 'REPORTER_SUBMISSION_RECOVERED', caseId, newValue: clientDiagnostics, reason: 'Dépôt arrivé après un premier échec sur l’appareil' });
+    }
+    if (outcome.aliasOf) {
+      await appendAudit({ actorId: 'reporter', action: 'REPORTER_REFERENCE_ALIASED', caseId, previousValue: outcome.aliasOf, newValue: outcome.trackingNumber, reason: 'Numéro remis hors ligne déjà attribué à un autre dossier' });
+    }
     // === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) ===
     // un compte du personnel nommé parmi les personnes mises en cause est
     // rattaché automatiquement : il ne voit plus le dossier sur le portail.

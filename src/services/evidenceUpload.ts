@@ -10,7 +10,7 @@
  * (getEvidenceFileForStaff, accès audité).
  */
 import type { AlertRecord, EvidenceFile } from '../types';
-import { getPhase4Functions, isPhase4Configured } from './firebaseClient';
+import { getPhase4Functions, getReporterFunctions, isPhase4Configured } from './firebaseClient';
 
 /** 7 Mo : même limite que le serveur (domain/conversation.ts). */
 const MAX_BYTES = 7 * 1024 * 1024;
@@ -29,7 +29,9 @@ export function base64Size(b64: string): number {
 }
 
 async function callable<Req, Res>(name: string) {
-  const functions = await getPhase4Functions();
+  // === AMÉLIORATION AJOUTÉE (envoi par l'adresse du site) === pièces du
+  // déclarant envoyées par l'adresse du site (voir getReporterFunctions).
+  const functions = name.endsWith('AsReporter') ? await getReporterFunctions() : await getPhase4Functions();
   const { httpsCallable } = await import('firebase/functions');
   return httpsCallable<Req, Res>(functions, name, { timeout: 120000 });
 }

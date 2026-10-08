@@ -302,6 +302,27 @@ export const resetStaffAccountPassword = onCall(async (request) => {
   return { tempPassword };
 });
 
+// === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+/**
+ * Réinitialise la double authentification d'un compte (téléphone perdu ou
+ * changé) : retire l'application enregistrée et ferme ses sessions. Le
+ * compte la réactivera à sa prochaine connexion (obligatoire pour les
+ * administrateurs). Jamais sur son propre compte. Tracé dans la piste d'audit.
+ */
+export const resetStaffAccountMfa = onCall(async (request) => {
+  const caller = requireUserManager(request);
+  const current = await loadProfile((request.data as { id?: unknown } | undefined)?.id);
+  if (current.id === caller.uid) throw new HttpsError('failed-precondition', 'You cannot reset your own two-factor authentication.');
+  await getAuth()
+    .updateUser(current.id, { multiFactor: { enrolledFactors: null } })
+    .catch((e: unknown) => {
+      throw authError(e);
+    });
+  await getAuth().revokeRefreshTokens(current.id);
+  await auditStaff(caller, 'STAFF_ACCOUNT_MFA_RESET', current.id, { username: current.username });
+  return { ok: true };
+});
+
 /**
  * Annuaire du personnel, pour tout compte du personnel connecté (listes
  * d'attribution, destinataires des notifications, écran Utilisateurs).

@@ -136,3 +136,32 @@ export function formatTrackingNumber(entityCode: string, date: Date, seq: number
   const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
   return `${entityCode}-${yy}-${mm}-${String(seq).padStart(4, '0')}`;
 }
+
+// === AMÉLIORATION AJOUTÉE (numéro provisoire unique hors ligne) ===
+const PROVISIONAL_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const PROVISIONAL_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+/**
+ * Numéro de suivi remis quand le serveur n'a pas encore confirmé le dépôt
+ * (appareil hors ligne) : CODE-AA-MM-XXXXXX, partie finale aléatoire qui
+ * commence par une lettre. Il ne peut donc jamais coïncider avec un numéro
+ * officiel (chiffres seulement) ni avec celui d'un autre appareil — au lieu
+ * du compteur propre à l'appareil, qui repartait de 0001 sur chaque téléphone.
+ */
+export function provisionalTrackingNumber(entityCode: string, date: Date = new Date(), random: (n: number) => Uint8Array = cryptoBytes): string {
+  const code = (entityCode || '').trim().toUpperCase() || 'GRP';
+  const yy = String(date.getFullYear() % 100).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const bytes = random(6);
+  let suffix = PROVISIONAL_LETTERS[bytes[0] % PROVISIONAL_LETTERS.length];
+  for (let i = 1; i < 6; i++) suffix += PROVISIONAL_ALPHABET[bytes[i] % PROVISIONAL_ALPHABET.length];
+  return `${code}-${yy}-${mm}-${suffix}`;
+}
+
+function cryptoBytes(n: number): Uint8Array {
+  const out = new Uint8Array(n);
+  const c = (globalThis as { crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array } }).crypto;
+  if (c?.getRandomValues) c.getRandomValues(out);
+  else for (let i = 0; i < n; i++) out[i] = Math.floor(Math.random() * 256);
+  return out;
+}

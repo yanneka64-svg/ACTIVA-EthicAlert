@@ -11,10 +11,24 @@ on:
         description: "Envoyer vraiment le dépôt (crée un dossier de test à classer sans suite)"
         type: boolean
         default: false
+      # === AMÉLIORATION AJOUTÉE (diagnostic téléphone) ===
+      probe:
+        description: "Sonde : la requête part vers le serveur avec un contenu vide (refusé, aucun dossier créé)"
+        type: boolean
+        default: false
+      site:
+        description: "Adresse du site"
+        type: string
+        default: "https://activa-alertes.com"
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    # === AMÉLIORATION AJOUTÉE (diagnostic téléphone) === un essai par appareil.
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iphone, android, desktop]
     timeout-minutes: 10
     permissions:
       contents: read
@@ -25,8 +39,11 @@ jobs:
       - name: Install Playwright (Chromium)
         run: |
           python3 -m pip install --quiet playwright==1.55.0
-          python3 -m playwright install --with-deps chromium
+          python3 -m playwright install --with-deps chromium webkit
       - name: Replay a public submission
         env:
           REAL: ${{ inputs.real && '1' || '0' }}
+          PROBE: ${{ inputs.probe && '1' || '0' }}
+          DEVICE: ${{ matrix.device }}
+          SITE_URL: ${{ inputs.site || 'https://activa-alertes.com' }}
         run: python3 scripts/e2e_public_submission.py

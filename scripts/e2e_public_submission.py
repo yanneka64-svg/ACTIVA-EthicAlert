@@ -22,6 +22,12 @@ SITE = os.environ.get("SITE_URL", "https://activa-ethicalert-47246.web.app")
 # (crée un dossier de test « à classer sans suite ») et sa réponse est
 # affichée. Par défaut, l'appel est intercepté et rien n'est créé.
 REAL = os.environ.get("REAL") == "1"
+# === AMÉLIORATION AJOUTÉE (diagnostic téléphone) ===
+# PROBE=1 : la requête part VRAIMENT vers le serveur mais avec un contenu
+# vide (refusé par la validation : aucun dossier créé) — prouve que le
+# navigateur atteint le serveur. DEVICE : iphone (WebKit) | android | desktop.
+PROBE = os.environ.get("PROBE") == "1"
+DEVICE = os.environ.get("DEVICE", "desktop")
 ACCESS_CODE_RE = re.compile(r"^[A-Za-z0-9]{8,64}$")
 EXTERNAL_REF_RE = re.compile(r"^[A-Z0-9][A-Z0-9-]{2,39}$")
 LIMITS = {"category": 150, "subcategory": 150, "country": 100, "entity": 150, "description": 20000}
@@ -54,8 +60,33 @@ def main():
     logs = []
     with sync_playwright() as p:
         exe = os.environ.get("CHROMIUM_PATH")
-        browser = p.chromium.launch(executable_path=exe) if exe else p.chromium.launch()
-        page = browser.new_page(viewport={"width": 390, "height": 844})
+        # === AMÉLIORATION AJOUTÉE (diagnostic téléphone) ===
+        if DEVICE == "iphone":
+            browser = p.webkit.launch()
+            page = browser.new_context(**p.devices["iPhone 13"], locale="fr-FR").new_page()
+        elif DEVICE == "android":
+            browser = p.chromium.launch(executable_path=exe) if exe else p.chromium.launch()
+            page = browser.new_context(**p.devices["Pixel 7"], locale="fr-FR").new_page()
+        else:
+            browser = p.chromium.launch(executable_path=exe) if exe else p.chromium.launch()
+            page = browser.new_page(viewport={"width": 390, "height": 844})
+        print(f"Appareil simulé : {DEVICE} — site : {SITE} — mode : {'sonde' if PROBE else ('réel' if REAL else 'intercepté')}")
+        import time
+        t0 = time.time()
+        net = []
+
+        def on_request(r):
+            u = r.url
+            if any(k in u for k in ("cloudfunctions.net", "googleapis.com", "recaptcha", "/api/")):
+                net.append(f"+{time.time() - t0:6.1f}s -> {r.method} {u[:140]}")
+
+        def on_any_response(res):
+            u = res.url
+            if any(k in u for k in ("cloudfunctions.net", "googleapis.com", "recaptcha", "/api/")):
+                net.append(f"+{time.time() - t0:6.1f}s <- {res.status} {u[:140]}")
+
+        page.on("request", on_request)
+        page.on("response", on_any_response)
         page.on("console", lambda m: logs.append(f"[console.{m.type}] {m.text}"))
         page.on("pageerror", lambda e: logs.append(f"[erreur JS] {e}"))
         page.on("requestfailed", lambda r: logs.append(f"[requête échouée] {r.url} {r.failure}"))
@@ -68,7 +99,7 @@ def main():
         responses = []
 
         def on_response(res):
-            if "createCaseAsReporter" in res.url:
+            if "createCaseAsReporter" in res.url or "/api/report" in res.url:
                 try:
                     body = res.text()
                 except Exception as e:  # noqa: BLE001
@@ -76,7 +107,13 @@ def main():
                 responses.append(f"HTTP {res.status} {body[:600]}")
 
         page.on("response", on_response)
-        if REAL:
+        if PROBE:
+            def probe(route, request):
+                captured.append({"url": request.url, "body": request.post_data})
+                route.continue_(post_data=json.dumps({"data": {}}))
+
+            page.route(re.compile(r".*(createCaseAsReporter|/api/report).*"), probe)
+        elif REAL:
             captured_ref = captured
 
             def observe(route, request):
@@ -106,9 +143,21 @@ def main():
         page.click("#btn-step3-next")
         page.click("#btn-step4-next")
         page.wait_for_timeout(400)
+        t_submit = time.time()
+        net.append(f"+{t_submit - t0:6.1f}s == clic « Envoyer »")
         page.click("#btn-submit-final")
-        page.wait_for_timeout(8000)
+        page.wait_for_timeout(30000 if PROBE else 8000)
+        try:
+            ack = page.locator("text=/[A-Z]{2,10}-\\d{2}-\\d{2}-[A-Z0-9]{4,6}/").first.inner_text(timeout=2000)
+        except Exception:  # noqa: BLE001
+            ack = "(numéro non trouvé à l'écran)"
+        outbox = page.evaluate("() => localStorage.getItem('activa_submission_outbox_v1')")
         browser.close()
+    print("\n=== Réseau (Firebase, reCAPTCHA, fonctions) ===")
+    for line in net[-60:]:
+        print(line)
+    print("\nNuméro affiché au déclarant :", ack)
+    print("Dépôt en file d'attente sur l'appareil :", "OUI" if outbox and outbox != "[]" else "NON")
 
     print("\n=== Appel createCaseAsReporter émis par le navigateur ? ===")
     if not captured:
@@ -124,7 +173,7 @@ def main():
         problems = validate(data)
         print("Validation serveur :", "OK" if not problems else "REFUS -> " + " ; ".join(problems))
 
-    if REAL:
+    if REAL or PROBE:
         print("\n=== Réponse du serveur à createCaseAsReporter ===")
         for r in responses or ["(aucune réponse reçue)"]:
             print(r)

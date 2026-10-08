@@ -35,7 +35,10 @@ import { Case } from '../domain/caseTypes';
 // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
 import type { ReporterCaseDetails } from '../domain/reporterCaseDetails';
 import { clampReporterCore } from '../domain/alertToReporterSubmission';
-import { getPhase4Functions, isPhase4Configured } from './firebaseClient';
+// === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) ===
+import { classifyUserAgent, normalizeErrorCode } from '../domain/submissionDiagnostics';
+import type { SubmissionDiagnostics } from '../domain/submissionDiagnostics';
+import { firebaseEmulatorHost, getPhase4Config, getPhase4Functions, getReporterFunctions, isPhase4Configured, sameOriginFunctionsBase } from './firebaseClient';
 
 export interface CaseMirrorInput {
   category: string;
@@ -62,6 +65,9 @@ export interface CaseMirrorInput {
   /** Signalement ancien (code en clair inconnu) : empreinte + sel du code d'accès. */
   accessCodeHash?: string;
   accessCodeSalt?: string;
+  // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) ===
+  /** Raison du premier échec, jointe à un dépôt qui aboutit plus tard (rien de personnel). */
+  clientDiagnostics?: SubmissionDiagnostics;
 }
 
 export interface CaseMirrorResult {
@@ -91,7 +97,7 @@ export async function mirrorSubmissionToRealBackend(input: CaseMirrorInput): Pro
 // === AMÉLIORATION AJOUTÉE (dépôt confirmé par le serveur) ===
 export type SubmitReportResult =
   | { ok: true; result: CaseMirrorResult }
-  | { ok: false; retryable: boolean };
+  | { ok: false; retryable: boolean; reason?: string };
 
 /**
  * Envoie le signalement à Firebase et ATTEND la réponse (au plus
@@ -100,20 +106,145 @@ export type SubmitReportResult =
  * enregistré : sinon il le garde en file d'attente (submissionOutbox.ts).
  * `retryable: false` = contenu refusé par le serveur (inutile de réessayer).
  */
-export async function submitReportToBackend(input: CaseMirrorInput, timeoutMs = 20000): Promise<SubmitReportResult> {
+export async function submitReportToBackend(
+  input: CaseMirrorInput,
+  timeoutMs = 20000,
+  // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) === premier
+  // échec déjà constaté pour ce dépôt (renvoi depuis la file d'attente).
+  earlier?: { firstError: string; attempts: number },
+): Promise<SubmitReportResult> {
   if (!isPhase4Configured()) return { ok: false, retryable: false };
+  const diag = (firstError: string, via: SubmissionDiagnostics['via']): SubmissionDiagnostics => ({
+    firstError: normalizeErrorCode(firstError),
+    attempts: earlier?.attempts ?? 1,
+    via,
+    ...classifyUserAgent(typeof navigator !== 'undefined' ? navigator.userAgent : ''),
+  });
+  // === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) ===
+  // Le SDK peut ne jamais émettre la requête sur certains téléphones (jeton
+  // App Check ou de session qui ne revient pas, réseau mobile capricieux) :
+  // délai global sur le SDK, puis seconds chemins d'envoi (voir plus bas).
+  let sdkCode = '';
   try {
-    const functions = await getPhase4Functions();
+    // === AMÉLIORATION AJOUTÉE (envoi par l'adresse du site) === chemin normal.
+    const functions = await getReporterFunctions();
     const { httpsCallable } = await import('firebase/functions');
     const fn = httpsCallable<CaseMirrorInput, CaseMirrorResult>(functions, 'createCaseAsReporter', { timeout: timeoutMs });
     // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) === cœur
     // ramené aux tailles acceptées par le serveur : un texte très long ne
     // fait jamais refuser l'enregistrement.
-    const response = await fn(clampReporterCore(input));
+    const payload = earlier ? { ...input, clientDiagnostics: diag(earlier.firstError, sameOriginFunctionsBase() ? 'site' : 'direct') } : input;
+    const response = await withDeadline(fn(clampReporterCore(payload)), timeoutMs + 5000);
     return { ok: true, result: response.data };
   } catch (e) {
     const code = typeof e === 'object' && e && 'code' in e ? String((e as { code: unknown }).code) : '';
-    return { ok: false, retryable: code !== 'functions/invalid-argument' };
+    // === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) ===
+    // Réponse explicite du serveur : comportement inchangé.
+    if (code === 'functions/invalid-argument') return { ok: false, retryable: false, reason: code };
+    if (SERVER_ANSWER_CODES.has(code)) return { ok: false, retryable: true, reason: code };
+    sdkCode = code || 'sdk-error';
+  }
+  // === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) ===
+  // La requête n'a sans doute jamais atteint le serveur : même envoi par le
+  // domaine du site (réécriture Firebase Hosting /api/report), puis par
+  // l'adresse directe de la fonction. Même `submissionId` : jamais de doublon.
+  for (const url of reportFallbackUrls()) {
+    const withDiag = { ...input, clientDiagnostics: diag(earlier?.firstError ?? sdkCode, url.startsWith('/') ? 'api' : 'direct') };
+    const outcome = await postCallableDirect(url, clampReporterCore(withDiag), timeoutMs);
+    if (outcome !== 'unreachable') return outcome;
+  }
+  console.warn('ACTIVA EthicAlert: serveur injoignable pour le dépôt, mis en file d’attente', sdkCode);
+  return { ok: false, retryable: true, reason: normalizeErrorCode(sdkCode) };
+}
+
+// === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) ===
+/** Codes d'erreur renvoyés par le serveur lui-même (la requête est arrivée). */
+const SERVER_ANSWER_CODES = new Set([
+  'functions/resource-exhausted',
+  'functions/permission-denied',
+  'functions/failed-precondition',
+  'functions/unauthenticated',
+  'functions/already-exists',
+  'functions/not-found',
+  'functions/out-of-range',
+]);
+
+function withDeadline<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(Object.assign(new Error('deadline'), { code: 'client-deadline' })), ms);
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+/** Adresses de repli : domaine du site d'abord (même origine), puis la fonction directement. Aucune en émulateur. */
+export function reportFallbackUrls(): string[] {
+  try {
+    if (firebaseEmulatorHost()) return [];
+    const urls: string[] = [];
+    // === AMÉLIORATION AJOUTÉE (envoi par l'adresse du site) === le chemin
+    // normal passe déjà par l'adresse du site : le secours essaie l'adresse
+    // directe de la fonction. Hors Firebase Hosting, l'inverse.
+    const projectId = getPhase4Config().projectId;
+    const direct = projectId ? `https://us-central1-${projectId}.cloudfunctions.net/createCaseAsReporter` : '';
+    if (sameOriginFunctionsBase()) {
+      if (direct) urls.push(direct);
+    } else {
+      if (typeof window !== 'undefined' && /^https:$/.test(window.location?.protocol ?? '')) urls.push('/api/report');
+      if (direct) urls.push(direct);
+    }
+    return urls;
+  } catch {
+    return [];
+  }
+}
+
+/** Jeton App Check s'il est disponible en moins de 3 s (jamais bloquant). */
+async function quickAppCheckToken(): Promise<string | null> {
+  try {
+    const { getPhase4Firebase } = await import('./firebaseClient');
+    const { getAppCheckToken } = await import('./appCheck');
+    return await withDeadline(getAppCheckToken(getPhase4Firebase().app), 3000);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Appel d'une fonction « callable » sans le SDK (protocole HTTP public :
+ * POST `{ data }` → `{ result }` ou `{ error: { status } }`). `'unreachable'`
+ * si aucune réponse exploitable du serveur.
+ */
+export async function postCallableDirect(url: string, data: unknown, timeoutMs: number): Promise<SubmitReportResult | 'unreachable'> {
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = setTimeout(() => ctrl?.abort(), timeoutMs);
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const appCheck = await quickAppCheckToken();
+    if (appCheck) headers['X-Firebase-AppCheck'] = appCheck;
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ data }), credentials: 'omit', signal: ctrl?.signal });
+    let json: { result?: CaseMirrorResult; data?: CaseMirrorResult; error?: { status?: string } } | null = null;
+    try {
+      json = await res.json();
+    } catch {
+      json = null;
+    }
+    const result = json?.result ?? json?.data;
+    if (res.ok && result && typeof result === 'object' && 'caseId' in result) return { ok: true, result };
+    if (json?.error?.status) return { ok: false, retryable: json.error.status !== 'INVALID_ARGUMENT' };
+    return 'unreachable';
+  } catch {
+    return 'unreachable';
+  } finally {
+    clearTimeout(timer);
   }
 }
 

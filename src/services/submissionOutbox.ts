@@ -34,6 +34,9 @@ export interface OutboxItem {
   rejectedAt?: string;
   /** Déjà renvoyé sans ses détails après un refus (dernier recours avant `rejectedAt`). */
   detailsStripped?: boolean;
+  // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) ===
+  /** Code du premier échec, transmis au serveur avec l'envoi qui aboutit. */
+  lastError?: string;
 }
 
 // === AMÉLIORATION AJOUTÉE (aucun signalement perdu) ===
@@ -99,9 +102,10 @@ export function pendingSubmissionCount(): number {
   return read().length;
 }
 
-export function enqueueSubmission(localId: string, input: CaseMirrorInput): void {
+export function enqueueSubmission(localId: string, input: CaseMirrorInput, firstError?: string): void {
   const items = read().filter((i) => i.localId !== localId);
-  items.push({ localId, input, attempts: 0, queuedAt: new Date().toISOString() });
+  // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) === premier échec mémorisé.
+  items.push({ localId, input, attempts: 0, queuedAt: new Date().toISOString(), ...(firstError ? { lastError: firstError } : {}) });
   write(items);
 }
 
@@ -118,19 +122,25 @@ export function flushSubmissionOutbox(): Promise<number> {
       // refusé n'est plus jamais supprimé : renvoyé sans ses détails, puis
       // conservé et renvoyé une fois par jour.
       if (!isDue(item, now)) continue;
-      const res = await submitReportToBackend(item.input);
+      // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) === la
+      // raison du premier échec accompagne l'envoi (piste d'audit serveur).
+      const res = await submitReportToBackend(item.input, undefined, {
+        firstError: item.lastError ?? 'queued-earlier',
+        attempts: item.attempts + 1,
+      });
       const remaining = read().filter((i) => i.localId !== item.localId);
+      const lastError = item.lastError ?? (res.ok === false ? res.reason : undefined);
       if (res.ok === true) {
         storage.linkMirroredCase(item.localId, res.result.caseId, res.result.caseNumber);
         write(remaining);
         sent += 1;
       } else if (!res.retryable && !item.detailsStripped && (item.input.details || item.input.accessCodeHash)) {
-        write([...remaining, { ...item, input: withoutDetails(item.input), detailsStripped: true, attempts: item.attempts + 1 }]);
+        write([...remaining, { ...item, input: withoutDetails(item.input), detailsStripped: true, attempts: item.attempts + 1, ...(lastError ? { lastError } : {}) }]);
       } else if (!res.retryable || item.attempts + 1 >= MAX_ATTEMPTS) {
         console.error('ACTIVA EthicAlert: signalement refusé par le serveur, conservé pour un nouvel essai', item.localId);
-        write([...remaining, { ...item, attempts: item.attempts + 1, rejectedAt: new Date().toISOString() }]);
+        write([...remaining, { ...item, attempts: item.attempts + 1, rejectedAt: new Date().toISOString(), ...(lastError ? { lastError } : {}) }]);
       } else {
-        write([...remaining, { ...item, attempts: item.attempts + 1 }]);
+        write([...remaining, { ...item, attempts: item.attempts + 1, ...(lastError ? { lastError } : {}) }]);
       }
     }
     return sent;

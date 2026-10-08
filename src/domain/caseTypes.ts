@@ -79,6 +79,12 @@ export interface Case extends Auditable {
    * accepte aussi ce numéro, avec le même code d'accès.
    */
   externalReference?: string;
+  /**
+   * === AMÉLIORATION AJOUTÉE (numéro déjà pris par un autre dossier) ===
+   * Numéros de suivi remis au déclarant hors ligne mais déjà attribués à un
+   * autre dossier : acceptés par `getCaseForReporter` pour CE dossier.
+   */
+  reporterAliases?: string[];
   status: CaseStatus;
 
   category: string;
