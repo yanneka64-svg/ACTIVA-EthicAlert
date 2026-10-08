@@ -830,3 +830,53 @@ body {
 .activa-helpline .activa-ripple { animation-duration: 6s; }
 .activa-helpline .activa-enter { animation-duration: 1.4s; }
 .activa-helpline .activa-modal-in { animation-duration: 1.4s; }
+
+/* === AMÉLIORATION AJOUTÉE (nuage « Business Ethics » de l'accueil) ===
+   Image de couverture des Lignes directrices anti-fraude du Groupe, en
+   filigrane deux tons sur le fond bleu : apparition douce, puis dérive très
+   lente. Désactivé si l'utilisateur limite les animations. */
+@keyframes activa-nuage-in { from { opacity: 0; transform: translate3d(24px, 0, 0) scale(1.04); } to { opacity: 1; transform: none; } }
+@keyframes activa-nuage-drift { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(-18px, 10px, 0) scale(1.025); } }
+.activa-nuage { animation: activa-nuage-in 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) 0.25s both; }
+.activa-nuage > img { animation: activa-nuage-drift 26s ease-in-out 1.6s infinite; }
+@media (prefers-reduced-motion: reduce) { .activa-nuage, .activa-nuage > img { animation: none !important; } }
+
+/* === AMÉLIORATION AJOUTÉE (nuage v2 — plus beau) === halo flou derrière les
+   mots, dérive lente de l'ensemble, et reflet de lumière qui balaie le nuage
+   de gauche à droite toutes les 12 s (bande diagonale du masque). */
+.activa-nuage-stage { animation: activa-nuage-drift 26s ease-in-out 1.6s infinite; }
+.activa-nuage-glow { filter: blur(14px); opacity: 0.22; }
+@keyframes activa-nuage-shine { 0% { -webkit-mask-position: 100% 0; mask-position: 100% 0; } 55%, 100% { -webkit-mask-position: 0% 0; mask-position: 0% 0; } }
+.activa-nuage-shine {
+  opacity: 0.5;
+  -webkit-mask-image: linear-gradient(105deg, transparent 44%, #000 50%, transparent 56%);
+  mask-image: linear-gradient(105deg, transparent 44%, #000 50%, transparent 56%);
+  -webkit-mask-size: 300% 100%; mask-size: 300% 100%;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: 100% 0; mask-position: 100% 0;
+  animation: activa-nuage-shine 12s cubic-bezier(0.45, 0, 0.25, 1) 2.2s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activa-nuage-stage { animation: none !important; }
+  .activa-nuage-shine { animation: none !important; display: none; }
+}
+
+/* === AMÉLIORATION AJOUTÉE (carrousel des canaux v2) === la carte suivante
+   avance depuis l'arrière de la pile, la barre de l'onglet actif se remplit. */
+@keyframes activa-deck-in {
+  0% { opacity: 0.35; transform: translate3d(0, 18px, 0) scale(0.94); }
+  100% { opacity: 1; transform: none; }
+}
+.activa-deck-in { animation: activa-deck-in 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .activa-deck-in { animation: none !important; } }
+
+/* === AMÉLIORATION AJOUTÉE (carrousel des canaux — propositions v3) ===
+   apparition des éléments de l'écran du téléphone (bulles, champs), points
+   « en train d'écrire », et transition entre deux écrans. */
+@keyframes activa-chat-in { 0% { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.96); } 100% { opacity: 1; transform: none; } }
+.activa-chat-in { animation: activa-chat-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes activa-typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.45; } 30% { transform: translateY(-3px); opacity: 1; } }
+.activa-typing { animation: activa-typing 1.1s ease-in-out infinite; }
+@keyframes activa-screen-in { 0% { opacity: 0; transform: scale(1.04); filter: blur(4px); } 100% { opacity: 1; transform: none; filter: none; } }
+.activa-screen-in { animation: activa-screen-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .activa-chat-in, .activa-typing, .activa-screen-in { animation: none !important; } }
