@@ -524,6 +524,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
     };
     let serverResult: CaseMirrorResult | null = null;
     let queueForRetry = false;
+    // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) ===
+    let firstError: string | undefined;
     if (isPhase4Configured()) {
       const res = await submitReportToBackend({ ...mirrorInput, entityCode });
       if (res.ok === true) {
@@ -531,6 +533,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
         if (res.result.trackingNumber) trackingNumber = res.result.trackingNumber;
       } else if (res.retryable) {
         queueForRetry = true;
+        firstError = res.reason;
       } else {
         // === AMÉLIORATION AJOUTÉE (aucun signalement perdu) === même refusé,
         // le signalement est mis en file : la file le renvoie sans ses détails,
@@ -634,7 +637,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
         void import('../services/evidenceUpload').then(({ uploadSubmissionFiles }) => uploadSubmissionFiles(token, toSend));
       }
     } else if (queueForRetry) {
-      enqueueSubmission(newRecord.id, { ...mirrorInput, externalReference: trackingNumber });
+      enqueueSubmission(newRecord.id, { ...mirrorInput, externalReference: trackingNumber }, firstError);
       void flushSubmissionOutbox();
     }
 

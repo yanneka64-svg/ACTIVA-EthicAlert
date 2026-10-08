@@ -17,6 +17,12 @@
     "rewrites": [
       { "source": "/api/notify-email", "function": { "functionId": "notifyEmail", "region": "us-central1" } },
       { "source": "/api/report", "function": { "functionId": "createCaseAsReporter", "region": "us-central1" } },
+      { "source": "/createCaseAsReporter", "function": { "functionId": "createCaseAsReporter", "region": "us-central1" } },
+      { "source": "/getCaseForReporter", "function": { "functionId": "getCaseForReporter", "region": "us-central1" } },
+      { "source": "/addCommunicationAsReporter", "function": { "functionId": "addCommunicationAsReporter", "region": "us-central1" } },
+      { "source": "/reporterConversation", "function": { "functionId": "reporterConversation", "region": "us-central1" } },
+      { "source": "/addEvidenceAsReporter", "function": { "functionId": "addEvidenceAsReporter", "region": "us-central1" } },
+      { "source": "/addSubmissionEvidenceAsReporter", "function": { "functionId": "addSubmissionEvidenceAsReporter", "region": "us-central1" } },
       { "source": "**", "destination": "/index.html" }
     ],
     "headers": [

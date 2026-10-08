@@ -68,5 +68,23 @@ const bad = await fetch('http://127.0.0.1:5000/api/report', { method: 'POST', he
 const badJson = (await bad.json()) as any;
 check('/api/report : contenu invalide refusé', badJson.error?.status === 'INVALID_ARGUMENT', badJson.error?.status);
 
+// === AMÉLIORATION AJOUTÉE (envoi par l'adresse du site) ===
+// 8. Chemin NORMAL du site : SDK Firebase avec l'adresse du site comme
+//    domaine (getFunctions(app, origine)) → réécriture Hosting → fonction.
+const siteFns = getFunctions(app, 'http://127.0.0.1:5000');
+const viaSite = (await httpsCallable(siteFns, 'createCaseAsReporter')({
+  ...base, entityCode: 'AACMR', submissionId: `sub-d-${stamp}`, accessCode: 'CodeDDDD4444',
+  clientDiagnostics: { firstError: 'functions/internal', attempts: 2, via: 'site', platform: 'ios', browser: 'safari' },
+})).data as any;
+check('SDK par l’adresse du site : dossier créé', typeof viaSite.caseId === 'string', viaSite.trackingNumber);
+const lookedUp = (await httpsCallable(siteFns, 'getCaseForReporter')({ caseNumber: viaSite.trackingNumber, accessCode: 'CodeDDDD4444' })).data as any;
+check('suivi par l’adresse du site', typeof lookedUp.sessionToken === 'string');
+const conv = (await httpsCallable(siteFns, 'reporterConversation')({ sessionToken: lookedUp.sessionToken })).data as any;
+check('messagerie par l’adresse du site', conv && typeof conv === 'object');
+await httpsCallable(siteFns, 'addCommunicationAsReporter')({ sessionToken: lookedUp.sessionToken, content: 'Message de test' });
+check('message du déclarant par l’adresse du site', true);
+const recovered = await db.collection('audit_logs').where('caseId', '==', viaSite.caseId).where('action', '==', 'REPORTER_SUBMISSION_RECOVERED').get();
+check('cause du premier échec dans la piste d’audit', recovered.size === 1 && recovered.docs[0].data().newValue?.firstError === 'functions/internal', recovered.docs[0]?.data().newValue);
+
 console.log(failures ? `\n${failures} échec(s)` : '\nTout est conforme.');
 process.exit(failures ? 1 : 0);

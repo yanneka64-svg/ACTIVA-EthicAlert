@@ -16,6 +16,8 @@ vi.mock('./firebaseClient', () => ({
   firebaseEmulatorHost: () => '',
   getPhase4Config: () => ({ projectId: 'demo-project' }),
   getPhase4Firebase: () => ({ app: {} }),
+  getReporterFunctions: () => mockGetPhase4Functions(),
+  sameOriginFunctionsBase: () => null,
 }));
 
 vi.mock('firebase/functions', async (importOriginal) => {
@@ -91,15 +93,28 @@ describe('submitReportToBackend — seconds chemins d’envoi', () => {
     const res = await submitReportToBackend({ ...input, submissionId: 's1' });
     expect(res).toEqual({ ok: true, result: { caseId: 'c1', caseNumber: 'CASE-2026-000009', trackingNumber: 'AACMR-26-10-0002' } });
     expect(fetchMock).toHaveBeenCalledWith(FN_URL, expect.objectContaining({ method: 'POST' }));
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).data.submissionId).toBe('s1');
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body).data;
+    expect(sent.submissionId).toBe('s1');
+    // === diagnostic joint : cause du premier échec, catégories seulement ===
+    expect(sent.clientDiagnostics).toMatchObject({ firstError: 'functions/internal', via: 'direct', attempts: 1 });
     vi.unstubAllGlobals();
+  });
+
+  it('renvoi depuis la file : la cause du premier échec accompagne l’envoi normal', async () => {
+    mockIsPhase4Configured.mockReturnValue(true);
+    mockGetPhase4Functions.mockResolvedValue({});
+    const callableFn = vi.fn().mockResolvedValue({ data: { caseId: 'c2', caseNumber: 'CASE-2026-000010' } });
+    mockHttpsCallable.mockReturnValue(callableFn);
+    const res = await submitReportToBackend(input, undefined, { firstError: 'functions/internal', attempts: 4 });
+    expect(res.ok).toBe(true);
+    expect(callableFn.mock.calls[0][0].clientDiagnostics).toMatchObject({ firstError: 'functions/internal', attempts: 4, via: 'direct' });
   });
 
   it('ne réessaie pas quand le serveur a répondu (limite atteinte)', async () => {
     reject('functions/resource-exhausted');
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    await expect(submitReportToBackend(input)).resolves.toEqual({ ok: false, retryable: true });
+    await expect(submitReportToBackend(input)).resolves.toEqual({ ok: false, retryable: true, reason: 'functions/resource-exhausted' });
     expect(fetchMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
@@ -108,7 +123,7 @@ describe('submitReportToBackend — seconds chemins d’envoi', () => {
     reject('functions/invalid-argument');
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    await expect(submitReportToBackend(input)).resolves.toEqual({ ok: false, retryable: false });
+    await expect(submitReportToBackend(input)).resolves.toEqual({ ok: false, retryable: false, reason: 'functions/invalid-argument' });
     expect(fetchMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
@@ -116,7 +131,7 @@ describe('submitReportToBackend — seconds chemins d’envoi', () => {
   it('tous les chemins injoignables : mis en file d’attente', async () => {
     reject('functions/unavailable');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
-    await expect(submitReportToBackend(input)).resolves.toEqual({ ok: false, retryable: true });
+    await expect(submitReportToBackend(input)).resolves.toEqual({ ok: false, retryable: true, reason: 'functions/unavailable' });
     vi.unstubAllGlobals();
   });
 

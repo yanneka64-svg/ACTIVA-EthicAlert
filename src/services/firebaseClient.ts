@@ -149,6 +149,49 @@ export async function getPhase4Functions(): Promise<Functions> {
   return fns;
 }
 
+// === AMÉLIORATION AJOUTÉE (envoi par l'adresse du site) ===
+/** Domaines servis par Firebase Hosting, où les réécritures vers les fonctions existent (firebase.json). */
+const HOSTING_HOST_RE = /(^|\.)activa-alertes\.com$|\.web\.app$|\.firebaseapp\.com$/i;
+
+/**
+ * Adresse du site si les fonctions du déclarant peuvent être appelées par
+ * elle (réécritures Firebase Hosting), sinon `null` (développement local,
+ * émulateurs, autre hébergeur).
+ */
+export function sameOriginFunctionsBase(): string | null {
+  try {
+    if (firebaseEmulatorHost() || typeof window === 'undefined') return null;
+    const { protocol, hostname, origin } = window.location;
+    return protocol === 'https:' && HOSTING_HOST_RE.test(hostname) ? origin : null;
+  } catch {
+    return null;
+  }
+}
+
+let reporterFns: Functions | null = null;
+
+/**
+ * === AMÉLIORATION AJOUTÉE (envoi par l'adresse du site) ===
+ * Fonctions appelées par le déclarant (dépôt, suivi, messages, pièces) :
+ * elles passent par l'adresse du site lui-même (ex. https://activa-alertes.com/
+ * createCaseAsReporter, réécrite par Firebase Hosting vers la fonction).
+ * Le téléphone qui a chargé la page atteint forcément cette adresse, même
+ * quand son réseau (Wi-Fi filtré, opérateur, DNS, bloqueur) ne laisse pas
+ * passer l'adresse séparée des fonctions (…cloudfunctions.net) — cause du
+ * dépôt du 8 octobre jamais arrivé au serveur. Même origine : pas non plus de
+ * requête préalable CORS (un aller-retour réseau de moins sur mobile).
+ * Hors Firebase Hosting : mêmes fonctions qu'avant (getPhase4Functions).
+ */
+export async function getReporterFunctions(): Promise<Functions> {
+  if (reporterFns) return reporterFns;
+  const base = sameOriginFunctionsBase();
+  if (!base) return getPhase4Functions();
+  const { app: phase4App } = getPhase4Firebase();
+  const { getFunctions } = await import('firebase/functions');
+  reporterFns = getFunctions(phase4App, base);
+  return reporterFns;
+}
+
 // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) ===
 /**
  * Attend que Firebase ait rétabli la session (au chargement d'une page, elle

@@ -11,7 +11,7 @@
  *
  * Ne lève jamais : un résultat `{ ok: false }` indique la raison.
  */
-import { getPhase4Functions, isPhase4Configured } from './firebaseClient';
+import { getPhase4Functions, getReporterFunctions, isPhase4Configured } from './firebaseClient';
 import type { ReporterCasePayload } from '../domain/reporterCaseToAlert';
 
 export type ReporterAccessResult =
@@ -27,7 +27,8 @@ function reasonOf(e: unknown): 'denied' | 'locked' | 'unavailable' {
 
 async function callable<I, O>(name: string) {
   const { httpsCallable } = await import('firebase/functions');
-  return httpsCallable<I, O>(await getPhase4Functions(), name);
+  // === AMÉLIORATION AJOUTÉE (envoi par l'adresse du site) ===
+  return httpsCallable<I, O>(await getReporterFunctions(), name);
 }
 
 export function isReporterCloudConfigured(): boolean {

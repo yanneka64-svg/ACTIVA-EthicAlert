@@ -94,6 +94,8 @@ import { CaseListFilter, isCaseListedFor, VisiblePageCollector } from '../../src
 import { caseQueryEqualities, normalizePagination } from '../../src/domain/caseQuery';
 // === AMÉLIORATION AJOUTÉE (revue PR #139) === validation d'exécution de la soumission publique.
 import { formatTrackingNumber, parseReporterCaseInput } from '../../src/domain/reporterCaseInput';
+// === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) ===
+import { sanitizeSubmissionDiagnostics } from '../../src/domain/submissionDiagnostics';
 // === AMÉLIORATION AJOUTÉE (signalement enregistré EN ENTIER) ===
 import type { ReporterCaseDetails } from '../../src/domain/reporterCaseDetails';
 // === AMÉLIORATION AJOUTÉE (échanges instantanés, anonymat, documents du déclarant) ===
@@ -1641,6 +1643,8 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     throw new HttpsError('invalid-argument', parsed.error);
   }
   const data = parsed.value;
+  // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) ===
+  const clientDiagnostics = sanitizeSubmissionDiagnostics((request.data as { clientDiagnostics?: unknown } | null)?.clientDiagnostics);
   await assertCaseCreationAllowed(request.rawRequest?.ip ?? 'unknown');
 
   const seq = await nextCaseSequence();
@@ -1804,6 +1808,12 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
     await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
     // === AMÉLIORATION AJOUTÉE (numéro déjà pris par un autre dossier) ===
+    // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) === cause du
+    // premier échec sur l'appareil (catégories techniques, rien de personnel).
+    if (clientDiagnostics) {
+      console.warn('REPORTER_SUBMISSION_RECOVERED', JSON.stringify(clientDiagnostics));
+      await appendAudit({ actorId: 'reporter', action: 'REPORTER_SUBMISSION_RECOVERED', caseId, newValue: clientDiagnostics, reason: 'Dépôt arrivé après un premier échec sur l’appareil' });
+    }
     if (outcome.aliasOf) {
       await appendAudit({ actorId: 'reporter', action: 'REPORTER_REFERENCE_ALIASED', caseId, previousValue: outcome.aliasOf, newValue: outcome.trackingNumber, reason: 'Numéro remis hors ligne déjà attribué à un autre dossier' });
     }
