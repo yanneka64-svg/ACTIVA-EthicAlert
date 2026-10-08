@@ -15,6 +15,8 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
+// === AMÉLIORATION AJOUTÉE (fenêtre affichée en entier) ===
+import { createPortal } from 'react-dom';
 import { Check, Copy, ShieldCheck, Smartphone, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -441,7 +443,11 @@ export function StaffMfaDialog({
 
   const since = enrollment?.enrolledAt ? new Date(enrollment.enrolledAt).toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
-  return (
+  // === AMÉLIORATION AJOUTÉE (fenêtre affichée en entier) === rendue au
+  // niveau de la page (portail) : ouverte depuis le menu du profil, elle
+  // restait sinon enfermée dans la barre du haut (dont le flou d'arrière-plan
+  // limite les éléments « fixes ») et apparaissait coupée.
+  const dialog = (
     <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 py-8 bg-[#0B2A66]/70 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="mfa-dialog-title" onClick={onClose}>
       <div className="activa-modal-in relative w-full max-w-sm max-h-full overflow-y-auto bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-7" onClick={(e) => e.stopPropagation()}>
         <button type="button" onClick={onClose} aria-label={t.mfa_close} className="absolute right-4 top-4 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100">
@@ -533,4 +539,5 @@ export function StaffMfaDialog({
       </div>
     </div>
   );
+  return typeof document !== 'undefined' ? createPortal(dialog, document.body) : dialog;
 }

@@ -178,6 +178,11 @@ export const pt: Record<string, string> = {
   label_dates: 'Data(s) dos fatos',
   no_future_dates_warning: 'A data não pode ser futura',
   label_location: 'Local do incidente',
+  // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
+  err_missing_fields: 'Informações obrigatórias em falta: {fields}.',
+  field_required_dates: 'Indique a data ou o período dos factos.',
+  field_required_location: 'Indique o local onde os factos ocorreram.',
+  field_required_description: 'Descreva os factos: é a informação indispensável para tratar a sua denúncia.',
 
 
   btn_add_involved: '+ Adicionar pessoa implicada',

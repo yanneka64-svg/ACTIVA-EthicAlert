@@ -11,7 +11,7 @@
  * AlertSubmissionFlow.tsx et est passé en props tel quel.
  */
 import React from 'react';
-import { Calendar, Building2, Plus, Trash2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Calendar, Building2, Plus, Trash2, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
 import { Language, InvolvedPerson, Witness } from '../../types';
 import { EntityDef, CategoryDef, IMPACT_TYPES } from '../../data/activaConfig';
 import { Button } from '../ui';
@@ -53,6 +53,23 @@ interface Step3IncidentProps {
   setIsOngoing: (v: boolean) => void;
   setErrorMsg: (v: string) => void;
   setCurrentStep: (v: number) => void;
+  // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
+  /** Vrai quand l'envoi a été refusé faute d'un champ obligatoire : les champs vides sont signalés d'emblée. */
+  showMissing?: boolean;
+}
+
+// === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
+const FIELD_BASE = 'w-full px-3 py-2 text-xs border rounded-lg focus:ring-2 focus:outline-none transition-colors';
+const FIELD_OK = 'border-slate-300 focus:ring-blue-500';
+const FIELD_MISSING = 'border-rose-400 bg-rose-50/50 focus:ring-rose-300 focus:border-rose-500';
+
+function MissingNote({ id, text }: { id: string; text: string }) {
+  return (
+    <p id={id} className="activa-enter mt-1 flex items-start gap-1 text-[11px] font-semibold text-rose-600">
+      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
+      <span>{text}</span>
+    </p>
+  );
 }
 
 export const Step3Incident: React.FC<Step3IncidentProps> = ({
@@ -91,7 +108,20 @@ export const Step3Incident: React.FC<Step3IncidentProps> = ({
   setIsOngoing,
   setErrorMsg,
   setCurrentStep,
+  showMissing = false,
 }) => {
+  // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) === dès qu'on a
+  // tenté de continuer, chaque champ obligatoire vide passe au rouge avec une
+  // indication ; il redevient normal dès qu'il est rempli.
+  const [tried, setTried] = React.useState(showMissing);
+  const flag = tried || showMissing;
+  const missingDates = flag && !incidentDates.trim();
+  const missingLocation = flag && !incidentLocation.trim();
+  const missingDescription = flag && !detailedDescription.trim();
+  React.useEffect(() => {
+    if (flag && incidentDates.trim() && incidentLocation.trim() && detailedDescription.trim()) setErrorMsg('');
+  }, [flag, incidentDates, incidentLocation, detailedDescription, setErrorMsg]);
+
   return (
     <div className="space-y-6 animate-fadeIn">
       <div>
@@ -110,8 +140,8 @@ export const Step3Incident: React.FC<Step3IncidentProps> = ({
         <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t.sub_incident_context}</span>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="input-incident-dates" className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+            <label htmlFor="input-incident-dates" className={`block text-xs font-semibold mb-1 flex items-center gap-1 ${missingDates ? 'text-rose-700' : 'text-slate-700'}`}>
+              <Calendar className={`w-3.5 h-3.5 ${missingDates ? 'text-rose-500' : 'text-slate-500'}`} />
               {t.label_dates} *
             </label>
             <input
@@ -120,20 +150,28 @@ export const Step3Incident: React.FC<Step3IncidentProps> = ({
               value={incidentDates}
               onChange={(e) => setIncidentDates(e.target.value)}
               /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_dates}) */
-              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={missingDates || undefined}
+              aria-describedby={missingDates ? 'err-incident-dates' : undefined}
+              className={`${FIELD_BASE} ${missingDates ? FIELD_MISSING : FIELD_OK}`}
             />
+            {missingDates && <MissingNote id="err-incident-dates" text={t.field_required_dates} />}
             <p className="text-[10px] text-slate-500 mt-0.5">{t.no_future_dates_warning}</p>
           </div>
           <div>
-            <label htmlFor="input-incident-location" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_location} *</label>
+            <label htmlFor="input-incident-location" className={`block text-xs font-semibold mb-1 ${missingLocation ? 'text-rose-700' : 'text-slate-700'}`}>{t.label_location} *</label>
             <input
               id="input-incident-location"
               type="text"
               value={incidentLocation}
               onChange={(e) => setIncidentLocation(e.target.value)}
               /* === AMÉLIORATION AJOUTÉE : exemple de saisie retiré (était placeholder={t.sub_ph_location}) */
-              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={missingLocation || undefined}
+              aria-describedby={missingLocation ? 'err-incident-location' : undefined}
+              className={`${FIELD_BASE} ${missingLocation ? FIELD_MISSING : FIELD_OK}`}
             />
+            {missingLocation && <MissingNote id="err-incident-location" text={t.field_required_location} />}
           </div>
         </div>
 
@@ -331,15 +369,19 @@ export const Step3Incident: React.FC<Step3IncidentProps> = ({
           explicite pour ne pas dupliquer un intitulé de
           section ici. */}
       <div className="pt-2 border-t border-slate-100">
-        <label htmlFor="input-detailed-description" className="block text-xs font-semibold text-slate-700 mb-1">{t.label_description} *</label>
+        <label htmlFor="input-detailed-description" className={`block text-xs font-semibold mb-1 ${missingDescription ? 'text-rose-700' : 'text-slate-700'}`}>{t.label_description} *</label>
         <textarea
           id="input-detailed-description"
           rows={5}
           value={detailedDescription}
           onChange={(e) => setDetailedDescription(e.target.value)}
           placeholder={t.desc_placeholder}
-          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none leading-relaxed"
+          aria-required="true"
+          aria-invalid={missingDescription || undefined}
+          aria-describedby={missingDescription ? 'err-detailed-description' : undefined}
+          className={`${FIELD_BASE} leading-relaxed ${missingDescription ? FIELD_MISSING : FIELD_OK}`}
         />
+        {missingDescription && <MissingNote id="err-detailed-description" text={t.field_required_description} />}
       </div>
 
       {/* === AMÉLIORATION AJOUTÉE (organisation du formulaire —
@@ -457,7 +499,20 @@ export const Step3Incident: React.FC<Step3IncidentProps> = ({
           id="btn-step3-next"
           onClick={() => {
             if (!detailedDescription.trim() || !incidentDates.trim() || !incidentLocation.trim()) {
-              setErrorMsg(t.err_missing_desc_date_location);
+              // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
+              // bandeau qui nomme les champs manquants (ancien message :
+              // t.err_missing_desc_date_location), champs en rouge, curseur
+              // placé sur le premier champ à compléter.
+              const missing = [
+                !incidentDates.trim() && { id: 'input-incident-dates', label: t.label_dates },
+                !incidentLocation.trim() && { id: 'input-incident-location', label: t.label_location },
+                !detailedDescription.trim() && { id: 'input-detailed-description', label: t.label_description },
+              ].filter(Boolean) as { id: string; label: string }[];
+              setTried(true);
+              setErrorMsg((t.err_missing_fields || t.err_missing_desc_date_location).replace('{fields}', missing.map((m) => m.label).join(', ')));
+              const first = document.getElementById(missing[0].id);
+              first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              first?.focus({ preventScroll: true });
               return;
             }
             setErrorMsg('');

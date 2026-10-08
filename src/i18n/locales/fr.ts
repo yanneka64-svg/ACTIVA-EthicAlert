@@ -214,6 +214,11 @@ export const fr: Record<string, string> = {
   label_dates: 'Date(s) des faits constatés',
   no_future_dates_warning: 'La date ne peut pas être située dans le futur',
   label_location: 'Lieu précis de l’incident',
+  // === AMÉLIORATION AJOUTÉE (champs obligatoires signalés) ===
+  err_missing_fields: 'Informations obligatoires manquantes : {fields}.',
+  field_required_dates: 'Indiquez la date ou la période des faits.',
+  field_required_location: 'Indiquez le lieu où les faits se sont produits.',
+  field_required_description: 'Décrivez les faits : c’est l’information indispensable pour traiter votre signalement.',
   
   // Risk Matrix fields
 
