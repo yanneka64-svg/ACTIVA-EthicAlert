@@ -16,6 +16,8 @@
 import type { CasePriority, HierarchyLevel, RoleId } from './caseTypes';
 // === AMÉLIORATION AJOUTÉE (e-mails à l'image du portail) ===
 import { renderBrandedEmailHtml } from './emailTemplate';
+// === AMÉLIORATION AJOUTÉE (message du déclarant) ===
+import { ROLE_PERMISSIONS, hasGlobalCaseVisibility } from './permissions';
 // === AMÉLIORATION AJOUTÉE (refonte esthétique des e-mails) ===
 import type { EmailTone } from './emailTemplate';
 
@@ -543,4 +545,118 @@ export function sanitizeEmailNotificationSettings(raw: unknown): EmailNotificati
     ? [...new Set((r.investigatorKeywords as unknown[]).map((k) => String(k).trim()).filter((k) => k && k.length <= 80))].slice(0, 20)
     : DEFAULT_INVESTIGATOR_KEYWORDS;
   return { groups, hrCategories, routing, investigatorKeywords };
+}
+
+// ---------------------------------------------------------------------------
+// === AMÉLIORATION AJOUTÉE (message du déclarant) ===
+// Quand le déclarant écrit depuis son espace de suivi, la personne qui a le
+// dossier en charge est prévenue par e-mail :
+// - dossier attribué → le ou les enquêteurs attribués, et eux seuls (un
+//   enquêteur n'est jamais prévenu pour un dossier qui ne lui est pas attribué) ;
+// - dossier pas encore attribué → les opérateurs (rôles qui attribuent les
+//   dossiers et les voient tous), dans leur périmètre pays / entité.
+// Jamais une personne mise en cause dans le dossier, ni un compte désactivé.
+// Le contenu du message n'est jamais mis dans l'e-mail.
+// ---------------------------------------------------------------------------
+
+/** Rôles « opérateur » : attribuent les dossiers et les voient tous (comme l'espace Opérateur du portail). */
+export const OPERATOR_ROLES: readonly RoleId[] = (Object.keys(ROLE_PERMISSIONS) as RoleId[]).filter(
+  (r) => r !== 'investigator' && ROLE_PERMISSIONS[r].includes('cases.assign') && hasGlobalCaseVisibility(r)
+);
+
+export interface ReporterMessageRecipient {
+  uid: string;
+  email: string;
+  name: string;
+  /** `investigator` : enquêteur attribué ; `operator` : dossier pas encore attribué. */
+  as: 'investigator' | 'operator';
+}
+
+export function resolveReporterMessageRecipients(input: {
+  assigneeUids: (string | null | undefined)[];
+  implicatedUids?: string[];
+  staff: StaffRecipientCandidate[];
+  facts: Pick<CaseNotificationFacts, 'country' | 'entity'>;
+}): ReporterMessageRecipient[] {
+  const implicated = new Set(input.implicatedUids ?? []);
+  const usable = (s: StaffRecipientCandidate) => s.active && isValidEmail(s.email) && !implicated.has(s.uid);
+  const assigned = Array.from(new Set(input.assigneeUids.filter((u): u is string => !!u)));
+  const seen = new Set<string>();
+  const out: ReporterMessageRecipient[] = [];
+  const add = (s: StaffRecipientCandidate, as: ReporterMessageRecipient['as']) => {
+    const e = s.email.trim().toLowerCase();
+    if (seen.has(e)) return;
+    seen.add(e);
+    out.push({ uid: s.uid, email: e, name: s.name ?? '', as });
+  };
+  if (assigned.length) {
+    for (const uid of assigned) {
+      const s = input.staff.find((m) => m.uid === uid);
+      if (s && usable(s)) add(s, 'investigator');
+    }
+    return out;
+  }
+  for (const s of input.staff) {
+    if (OPERATOR_ROLES.includes(s.role) && usable(s) && inScope(s, input.facts as CaseNotificationFacts)) add(s, 'operator');
+  }
+  return out;
+}
+
+/** Délai minimal entre deux e-mails pour des messages successifs du déclarant sur un même dossier. */
+export const REPORTER_MESSAGE_NOTIFY_INTERVAL_MS = 10 * 60 * 1000;
+
+export function shouldNotifyReporterMessage(lastNotifiedAt: string | null | undefined, now: Date = new Date()): boolean {
+  const t = lastNotifiedAt ? Date.parse(lastNotifiedAt) : NaN;
+  return Number.isNaN(t) || now.getTime() - t >= REPORTER_MESSAGE_NOTIFY_INTERVAL_MS;
+}
+
+/** E-mail « Nouveau message du déclarant » : jamais le contenu du message. */
+export function buildReporterMessageEmail(input: {
+  facts: Pick<CaseNotificationFacts, 'reference' | 'entity' | 'country' | 'category' | 'priority'>;
+  recipientName?: string;
+  as: ReporterMessageRecipient['as'];
+  appUrl: string;
+}): { subject: string; body: string; html: string } {
+  const { facts, appUrl } = input;
+  const link = `${appUrl.replace(/\/+$/, '')}/cases/${encodeURIComponent(facts.reference)}`;
+  const firstName = String(input.recipientName ?? '').trim().split(/\s+/)[0] ?? '';
+  const hello = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+  const priorityLabel = PRIORITY_LABEL[facts.priority] ?? facts.priority;
+  const priorityTone = PRIORITY_TONE[facts.priority] ?? 'neutral';
+  const why =
+    input.as === 'investigator'
+      ? 'Vous êtes l’enquêteur désigné sur ce dossier.'
+      : 'Ce dossier n’est pas encore attribué à un enquêteur.';
+  const subject = `Nouveau message du déclarant — ${facts.reference}`;
+  const body = [
+    hello,
+    '',
+    `Le déclarant du dossier ${facts.reference} vient de vous écrire depuis son espace de suivi.`,
+    why,
+    '',
+    `Entité : ${facts.entity} (${facts.country})`,
+    `Catégorie : ${facts.category}`,
+    `Priorité : ${priorityLabel}`,
+    '',
+    `Lire et répondre dans le portail sécurisé : ${link}`,
+    '',
+    'Le contenu du message n’est consultable que sur le portail sécurisé.',
+    '— activa-whistleblowing (message automatique, ne pas répondre)',
+  ].join('\n');
+  const html = renderBrandedEmailHtml({
+    appUrl,
+    title: subject,
+    preheader: `Le déclarant du dossier ${facts.reference} vient de vous écrire.`,
+    eyebrow: 'Nouveau message du déclarant',
+    headline: facts.reference,
+    badges: [{ label: `Priorité : ${priorityLabel}`, tone: priorityTone }],
+    paragraphs: [`${hello} le déclarant vient de vous écrire depuis son espace de suivi. ${why}`],
+    facts: [
+      { label: 'Entité', value: `${facts.entity} (${facts.country})` },
+      { label: 'Catégorie', value: facts.category },
+    ],
+    cta: { label: 'Lire et répondre', url: link },
+    note: 'Le contenu du message n’est consultable que sur le portail sécurisé.',
+  });
+  return { subject, body, html };
 }
