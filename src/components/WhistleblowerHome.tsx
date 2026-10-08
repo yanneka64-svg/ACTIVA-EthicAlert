@@ -26,6 +26,8 @@ import { useScrollMotion } from '../hooks/useScrollMotion';
 import { UserCheck, Clock3 } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (ligne d'assistance — trois canaux) ===
 import { Phone as PhoneIcon, Mail as MailIcon, Send as SendIcon, MessageCircle as WhatsAppIcon } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (carrousel des canaux v2) ===
+import { ArrowUpRight } from 'lucide-react';
 
 // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip 3D)
 // === Sur demande explicite : chaque carte pivote à 180° au clic/tap pour
@@ -172,6 +174,10 @@ interface TrustItem {
   // === AMÉLIORATION AJOUTÉE (canaux dans le carrousel) === bulle cliquable.
   href?: string;
   onClick?: () => void;
+  // === AMÉLIORATION AJOUTÉE (carrousel des canaux v2) === libellé court de
+  // l'onglet et texte du bouton d'action de la carte.
+  short?: string;
+  cta?: string;
 }
 
 function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel: string; trustItemsKept?: TrustItem[] }) {
@@ -381,6 +387,162 @@ function HeroTrustShowcase({ items, liveLabel }: { items: TrustItem[]; liveLabel
   );
 }
 
+// === AMÉLIORATION AJOUTÉE (carrousel des canaux v2) ===
+// Sur demande explicite (« revoit également le carrousel ») : panneau en verre
+// dépoli posé sur le nuage, avec en-tête « Choisissez votre canal », une pile
+// de cartes (la carte active devant, les suivantes en retrait derrière) et des
+// onglets En ligne / WhatsApp / E-mail dont la barre se remplit pendant
+// l'affichage. Chaque carte porte un vrai bouton d'action (formulaire,
+// WhatsApp, e-mail). Défilement automatique toutes les 5,5 s, en pause au
+// survol, au focus clavier et au toucher ; balayage gauche/droite sur
+// téléphone. Si l'utilisateur limite les animations : pas de défilement
+// automatique, les onglets restent utilisables. L'ancienne vitrine
+// (HeroTrustShowcase) reste définie ci-dessus, non affichée.
+function HeroChannelDeck({
+  items,
+  label,
+  heading,
+  availability,
+}: {
+  items: TrustItem[];
+  label: string;
+  heading: string;
+  availability: string;
+}) {
+  const n = items.length;
+  const [index, setIndex] = React.useState(0);
+  const [paused, setPaused] = React.useState(false);
+  const touchX = React.useRef<number | null>(null);
+  const reduced = React.useMemo(
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    []
+  );
+  const STEP_MS = 5500;
+  React.useEffect(() => {
+    if (reduced || paused || n < 2) return;
+    const id = window.setTimeout(() => setIndex((i) => (i + 1) % n), STEP_MS);
+    return () => window.clearTimeout(id);
+  }, [index, paused, reduced, n]);
+  if (n === 0) return null;
+  const go = (i: number) => setIndex(((i % n) + n) % n);
+  const current = items[index];
+  const CurrentIcon = current.Icon;
+  const external = !!current.href && current.href.startsWith('http');
+  const ctaClass =
+    'group/cta mt-auto flex items-center justify-between gap-3 rounded-2xl bg-[#EEF3FC] hover:bg-[#1449B0] px-4 py-3 text-[14px] font-bold text-[#1449B0] hover:text-white transition-colors duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1449B0]/30';
+  const ctaInner = (
+    <>
+      <span className="truncate">{current.cta ?? current.title}</span>
+      <span className="w-8 h-8 shrink-0 rounded-xl bg-white/80 group-hover/cta:bg-white/15 flex items-center justify-center transition-colors duration-300">
+        {external ? (
+          <ArrowUpRight className="w-4 h-4 transition-transform duration-300 group-hover/cta:-translate-y-0.5 group-hover/cta:translate-x-0.5" strokeWidth={2.2} />
+        ) : (
+          <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/cta:translate-x-0.5" strokeWidth={2.2} />
+        )}
+      </span>
+    </>
+  );
+
+  return (
+    <div
+      className="relative w-full max-w-[460px] mx-auto lg:mr-0 rounded-[32px] p-4 sm:p-5 bg-[linear-gradient(160deg,rgb(255_255_255/0.16),rgb(255_255_255/0.05))] backdrop-blur-xl ring-1 ring-inset ring-white/25 shadow-[0_40px_90px_-40px_rgb(2_12_40/0.9)]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+      onTouchStart={(e) => {
+        touchX.current = e.touches[0]?.clientX ?? null;
+        setPaused(true);
+      }}
+      onTouchEnd={(e) => {
+        const start = touchX.current;
+        const end = e.changedTouches[0]?.clientX;
+        touchX.current = null;
+        if (start != null && end != null && Math.abs(end - start) > 40) go(index + (end < start ? 1 : -1));
+      }}
+    >
+      {/* En-tête du panneau */}
+      <div className="px-1.5 pt-1 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#C9DAF8]">{label}</p>
+          <p className="mt-1 text-[19px] sm:text-[21px] font-extrabold tracking-tight leading-tight text-white">{heading}</p>
+        </div>
+        <span className="shrink-0 mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 ring-1 ring-inset ring-emerald-300/40 px-2.5 py-1 text-[11px] font-bold text-emerald-100 whitespace-nowrap">
+          <span className="activa-live-dot w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <span className="sr-only">{availability}</span>
+          <span aria-hidden="true">24/7</span>
+        </span>
+      </div>
+
+      {/* Pile de cartes : la carte active devant, deux cartes en retrait derrière */}
+      <div className="relative mt-4 mb-4">
+        <span aria-hidden="true" className="absolute inset-x-7 -bottom-[18px] h-12 rounded-[22px] bg-white/20 ring-1 ring-inset ring-white/20" />
+        <span aria-hidden="true" className="absolute inset-x-3.5 -bottom-[9px] h-12 rounded-[24px] bg-white/45 ring-1 ring-inset ring-white/30" />
+        <div
+          key={index}
+          id="hero-channel-panel"
+          role="tabpanel"
+          aria-label={current.title}
+          className={`${reduced ? '' : 'activa-deck-in'} relative z-10 min-h-[208px] flex flex-col rounded-[26px] bg-white p-5 sm:p-6 shadow-[0_30px_60px_-30px_rgb(3_16_48/0.85)]`}
+        >
+          <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-24 rounded-t-[26px] bg-gradient-to-b from-[#EEF3FC] to-transparent" />
+          <div className="relative flex items-center gap-4">
+            <span className="w-14 h-14 shrink-0 rounded-[18px] bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_14px_28px_-12px_rgb(20_73_176/0.95)]">
+              <CurrentIcon className="w-7 h-7" strokeWidth={1.7} />
+            </span>
+            <p className="min-w-0 text-[21px] leading-tight font-extrabold tracking-tight text-[#0B2545]">{current.title}</p>
+          </div>
+          <p className={`relative mt-4 mb-5 leading-relaxed text-slate-600 ${isEmailOnly(current.desc) ? 'text-[13.5px] tracking-[-0.01em]' : 'text-[15px] break-words'}`}>
+            {renderContactText(current.desc)}
+          </p>
+          {current.href ? (
+            <a href={current.href} target={external ? '_blank' : undefined} rel="noopener noreferrer" className={`relative ${ctaClass}`}>
+              {ctaInner}
+            </a>
+          ) : (
+            <button type="button" onClick={current.onClick} className={`relative ${ctaClass}`}>
+              {ctaInner}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Onglets : un par canal, barre de progression sous l'onglet actif */}
+      <div role="tablist" aria-label={label} className="mt-7 grid gap-1.5 rounded-2xl bg-[#0B2E73]/35 p-1.5 ring-1 ring-inset ring-white/15" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+        {items.map((it, i) => {
+          const TabIcon = it.Icon;
+          const active = i === index;
+          return (
+            <button
+              key={it.title}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-controls="hero-channel-panel"
+              onClick={() => go(i)}
+              className={`relative overflow-hidden flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl px-1 sm:px-2 py-2.5 text-[12px] sm:text-[13px] font-bold transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                active ? 'bg-white text-[#0F3C93] shadow-[0_8px_18px_-10px_rgb(0_0_0/0.6)]' : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <TabIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" strokeWidth={2} />
+              <span className="truncate">{it.short ?? it.title}</span>
+              {active && !reduced && (
+                <span aria-hidden="true" className="absolute left-3 right-3 bottom-1 h-[2px] rounded-full bg-[#1449B0]/12 overflow-hidden">
+                  <span
+                    key={index}
+                    className="activa-trust-progress block h-full rounded-full bg-gradient-to-r from-[#1449B0] to-[#5A86DD]"
+                    style={{ animationDuration: `${STEP_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+                  />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface WhistleblowerHomeProps {
   lang: Language;
   onStartNewAlert: () => void;
@@ -406,6 +568,13 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
     { Icon: SendIcon, title: t.helpline_other_online_title, desc: t.helpline_other_online_desc, onClick: onStartNewAlert },
     { Icon: WhatsAppIcon, title: t.hero_channel_whatsapp_title, desc: t.hero_channel_whatsapp_desc, href: 'https://wa.me/237687454545' },
     { Icon: MailIcon, title: t.helpline_home_email_title, desc: 'activa.whistleblowing@group-activa.com', href: 'mailto:activa.whistleblowing@group-activa.com' },
+  ];
+  // === AMÉLIORATION AJOUTÉE (carrousel des canaux v2) === mêmes canaux, avec
+  // libellé d'onglet court et texte du bouton d'action.
+  const channelDeckItems: TrustItem[] = [
+    { ...channelItems[0], short: t.helpline_other_online_title, cta: t.btn_new_alert },
+    { ...channelItems[1], short: 'WhatsApp', cta: t.helpline_whatsapp_btn },
+    { ...channelItems[2], short: t.helpline_home_email_title, cta: t.helpline_email_btn },
   ];
   // === AMÉLIORATION AJOUTÉE (effet « ralenti » au défilement) === voir useScrollMotion.ts
   const motionRootRef = React.useRef<HTMLDivElement>(null);
@@ -488,11 +657,33 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             tons : mots bleus en bleu ciel, mots gris en blanc translucide.
             Bureau : à droite, fondu vers le texte et les bords. Téléphone :
             derrière le bas du bandeau, plus discret. Décoratif uniquement. */}
+        {/* === AMÉLIORATION AJOUTÉE (nuage v2 — plus beau) === sur demande
+            explicite : image refaite en haute définition
+            (public/brand/ethique-nuage-v2.webp, 2000 px) — contours nets, mots
+            principaux (BUSINESS, ETHICS, CORPORATE…) plus présents que les
+            petits mots (effet de profondeur). Trois couches superposées : halo
+            flou lumineux, mots nets, et un reflet de lumière qui balaie
+            lentement le nuage. La première version reste ci-dessous, masquée
+            (`loading="lazy"` : jamais téléchargée tant qu'elle est masquée). */}
         <div aria-hidden="true" className="activa-nuage pointer-events-none absolute inset-0 overflow-hidden">
+          <div
+            className="activa-nuage-stage absolute aspect-[2000/1375]
+              left-1/2 -translate-x-1/2 top-[56%] w-[170%]
+              [mask-image:radial-gradient(closest-side,#000_45%,transparent_100%)]
+              sm:top-[46%] sm:w-[118%]
+              lg:left-auto lg:translate-x-0 lg:right-[-7%] lg:top-1/2 lg:-translate-y-1/2 lg:w-[min(1180px,80vw)]
+              lg:[mask-image:radial-gradient(closest-side_at_58%_52%,#000_58%,rgb(0_0_0/0.5)_80%,transparent_100%)]"
+          >
+            <img src="/brand/ethique-nuage-v2.webp" alt="" decoding="async" className="activa-nuage-glow absolute inset-0 w-full h-full select-none" />
+            <img src="/brand/ethique-nuage-v2.webp" alt="" decoding="async" className="absolute inset-0 w-full h-full select-none opacity-[0.17] sm:opacity-[0.2] lg:opacity-[0.27]" />
+            <img src="/brand/ethique-nuage-v2.webp" alt="" decoding="async" className="activa-nuage-shine absolute inset-0 w-full h-full select-none" />
+          </div>
           <img
             src="/brand/ethique-nuage.webp"
             alt=""
             decoding="async"
+            loading="lazy"
+            hidden
             className="absolute max-w-none select-none
               left-1/2 -translate-x-1/2 top-[58%] w-[165%] opacity-[0.2]
               [mask-image:radial-gradient(closest-side,#000_50%,transparent_100%)]
@@ -565,7 +756,17 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           </div>
 
           <div className="activa-enter min-w-0" style={{ '--d': '500ms' } as React.CSSProperties}>
-            <HeroTrustShowcase
+            {/* === AMÉLIORATION AJOUTÉE (carrousel des canaux v2) === remplace
+                l'affichage de la vitrine précédente (conservée ci-dessous, masquée). */}
+            <HeroChannelDeck
+              items={channelDeckItems}
+              label={t.helpline_home_label}
+              heading={t.helpline_home_heading}
+              availability={t.helpline_available}
+            />
+          </div>
+          <div hidden className="activa-enter min-w-0" style={{ '--d': '500ms' } as React.CSSProperties}>
+            {false && <HeroTrustShowcase
               liveLabel={t.hero_trust_live}
               // === AMÉLIORATION AJOUTÉE (trois canaux qui défilent) === sur demande
               // explicite : les bulles présentent les trois canaux (en ligne,
@@ -579,7 +780,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 { Icon: KeyRound, title: t.hero_trust_4_title, desc: t.hero_trust_4_desc },
                 { Icon: Clock3, title: t.hero_trust_5_title, desc: t.hero_trust_5_desc, live: true },
               ]}
-            />
+            />}
           </div>
         </div>
       </div>
