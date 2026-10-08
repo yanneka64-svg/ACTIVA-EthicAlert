@@ -211,8 +211,11 @@ export function HeroChannelCoverflow({ items, label, heading, availability }: Ch
             >
               <div className="rounded-[28px] overflow-hidden bg-white shadow-[0_50px_90px_-40px_rgb(2_12_40/0.95)] ring-1 ring-white/50">
                 <div className={`relative h-[148px] bg-gradient-to-br ${a.grad} overflow-hidden`}>
+                  {/* === AMÉLIORATION AJOUTÉE (cercles retirés des cartes) === sur
+                      demande explicite : les cercles concentriques ne sont plus
+                      affichés (conservés, masqués). */}
                   {[0, 1, 2].map((k) => (
-                    <span key={k} aria-hidden="true" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" style={{ width: 120 + k * 80, height: 120 + k * 80 }} />
+                    <span key={k} aria-hidden="true" hidden className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" style={{ width: 120 + k * 80, height: 120 + k * 80 }} />
                   ))}
                   <span aria-hidden="true" className="absolute -right-10 -top-16 w-48 h-48 rounded-full bg-white/15 blur-2xl" />
                   <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-white ring-1 ring-inset ring-white/30">
