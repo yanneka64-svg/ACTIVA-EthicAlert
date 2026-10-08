@@ -2,7 +2,8 @@
  * === AMÉLIORATION AJOUTÉE (carrousel des canaux — propositions v3) ===
  *
  * Trois présentations des canaux de signalement (en ligne, WhatsApp, e-mail)
- * pour le haut de la page d'accueil, proposées au choix :
+ * pour le haut de la page d'accueil, proposées au choix. Retenue et affichée :
+ * `HeroChannelCoverflow` (proposition A) ; les deux autres restent disponibles :
  * - `HeroChannelCoverflow` : cartes en 3D, la carte active de face, les deux
  *   autres pivotées de part et d'autre ;
  * - `HeroChannelFan` : cartes colorées disposées en éventail, la carte active
@@ -180,13 +181,13 @@ export function HeroChannelCoverflow({ items, label, heading, availability }: Ch
   const STEP = 4800;
   const { index, go, paused, reduced, bind } = useRotation(n, STEP);
   const wide = useMinWidth(640);
-  const W = wide ? 286 : 244;
-  const X = wide ? 168 : 118;
+  const W = wide ? 286 : 274;
+  const X = wide ? 168 : 132;
   if (n === 0) return null;
   return (
     <div {...bind} className="relative w-full select-none">
       <ShowcaseHeader label={label} heading={heading} center />
-      <div className="relative mt-6 h-[392px] sm:h-[410px] [perspective:1300px]">
+      <div className="relative mt-6 h-[350px] sm:h-[356px] [perspective:1300px]">
         <span aria-hidden="true" className="absolute left-1/2 -translate-x-1/2 bottom-1 w-[62%] h-10 rounded-full bg-[#020B26]/45 blur-2xl" />
         {items.map((it, i) => {
           const rel = relPos(i, index, n);
@@ -229,7 +230,7 @@ export function HeroChannelCoverflow({ items, label, heading, availability }: Ch
                     item={it}
                     tabIndex={active ? 0 : -1}
                     style={{ background: `linear-gradient(135deg, ${a.solid}, ${a.solid}dd)` }}
-                    className="group/cta mt-4 w-full flex items-center justify-between gap-2 rounded-2xl px-4 py-3 text-[13px] sm:text-[14px] font-bold text-white transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1449B0]/30"
+                    className="group/cta mt-4 w-full flex items-center justify-between gap-2 rounded-2xl px-3.5 sm:px-4 py-3 text-[13px] sm:text-[14px] font-bold text-white transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1449B0]/30"
                   >
                     <span className="min-w-0 truncate">{it.cta ?? it.title}</span>
                     <ActionArrow item={it} className="w-4 h-4 shrink-0 transition-transform duration-300 group-hover/cta:translate-x-0.5" />

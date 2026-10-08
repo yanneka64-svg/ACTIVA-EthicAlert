@@ -28,7 +28,7 @@ import { UserCheck, Clock3 } from 'lucide-react';
 import { Phone as PhoneIcon, Mail as MailIcon, Send as SendIcon, MessageCircle as WhatsAppIcon } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (carrousel des canaux v2) ===
 import { ArrowUpRight } from 'lucide-react';
-import { HeroChannelCoverflow, HeroChannelFan, HeroChannelPhone } from './home/HeroChannelShowcases';
+import { HeroChannelCoverflow } from './home/HeroChannelShowcases';
 
 // === AMÉLIORATION AJOUTÉE (cartes "Comment ça marche ?" à effet flip 3D)
 // === Sur demande explicite : chaque carte pivote à 180° au clic/tap pour
@@ -759,17 +759,17 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
           <div className="activa-enter min-w-0" style={{ '--d': '500ms' } as React.CSSProperties}>
             {/* === AMÉLIORATION AJOUTÉE (carrousel des canaux v2) === remplace
                 l'affichage de la vitrine précédente (conservée ci-dessous, masquée). */}
-            {/* === AMÉLIORATION AJOUTÉE (carrousel — propositions v3, aperçu) ===
-                choix temporaire par l'adresse (?vitrine=a|b|c) le temps de
-                retenir une proposition ; sans paramètre : carrousel actuel. */}
-            {(() => {
-              const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('vitrine') : null;
-              const P = { items: channelDeckItems, label: t.helpline_home_label, heading: t.helpline_home_heading, availability: t.helpline_available };
-              if (v === 'a') return <HeroChannelCoverflow {...P} />;
-              if (v === 'b') return <HeroChannelFan {...P} />;
-              if (v === 'c') return <HeroChannelPhone {...P} />;
-              return <HeroChannelDeck {...P} />;
-            })()}
+            {/* === AMÉLIORATION AJOUTÉE (carrousel des canaux v3 — proposition A
+                retenue) === sur demande explicite : cartes en 3D, la carte du
+                canal en cours de face, les deux autres pivotées de part et
+                d'autre (voir home/HeroChannelShowcases.tsx). Le carrousel v2
+                reste ci-dessous, non affiché. */}
+            <HeroChannelCoverflow
+              items={channelDeckItems}
+              label={t.helpline_home_label}
+              heading={t.helpline_home_heading}
+              availability={t.helpline_available}
+            />
             {false && <HeroChannelDeck
               items={channelDeckItems}
               label={t.helpline_home_label}
