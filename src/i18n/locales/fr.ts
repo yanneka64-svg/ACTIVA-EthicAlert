@@ -1206,6 +1206,10 @@ export const fr: Record<string, string> = {
   cases_readonly_empty: 'Aucun dossier à afficher pour le moment.',
   // === AMÉLIORATION AJOUTÉE : message d'accueil du dossier dans la langue du déclarant, menus (FR/EN/PT) ===
   sub_auto_first_message: 'Votre signalement a été reçu sous la référence {tracking}. Il est actuellement classé au niveau {level} ({treatment}). Vous pouvez utiliser cette messagerie sécurisée pour échanger avec la DARC.',
+  // === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) ===
+  sub_pending_title: 'Transmission en cours',
+  sub_pending_body: 'Votre signalement est enregistré sur cet appareil mais n’a pas encore pu être transmis à l’équipe (connexion instable). Il sera envoyé automatiquement : gardez cette page ouverte, ou revenez sur le site depuis ce même appareil et ce même navigateur. Votre numéro et votre mot de passe restent valables.',
+  sub_pending_done: 'Signalement transmis à l’équipe.',
   common_options: 'Options',
   common_menu: 'Menu',
   // === AMÉLIORATION AJOUTÉE : bureau d'enquête — filtres, colonnes, clôture, réouverture (FR/EN/PT) ===

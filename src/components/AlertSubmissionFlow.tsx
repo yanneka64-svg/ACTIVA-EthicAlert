@@ -63,6 +63,9 @@ import { Step2Declarant } from './submission/Step2Declarant';
 import { Step3Incident } from './submission/Step3Incident';
 import { Step4Evidence } from './submission/Step4Evidence';
 import { Step5Review } from './submission/Step5Review';
+// === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) ===
+import { PendingTransmissionNotice } from './submission/PendingTransmissionNotice';
+import { provisionalTrackingNumber } from '../domain/reporterCaseInput';
 
 interface AlertSubmissionFlowProps {
   lang: Language;
@@ -226,6 +229,8 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
 
   // Submission result
   const [submittedAlert, setSubmittedAlert] = useState<AlertRecord | null>(null);
+  // === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) ===
+  const [pendingTransmission, setPendingTransmission] = useState(false);
   // === AMÉLIORATION AJOUTÉE (formulaire sur portable) === l'accusé de
   // réception s'affiche depuis le haut (numéro de suivi et code visibles).
   useEffect(() => {
@@ -533,6 +538,11 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
         queueForRetry = true;
       }
     }
+    // === AMÉLIORATION AJOUTÉE (numéro provisoire unique hors ligne) ===
+    // Dépôt non confirmé par le serveur : numéro provisoire unique au lieu du
+    // compteur de l'appareil (qui donnait le même numéro sur chaque téléphone).
+    if (!serverResult && queueForRetry) trackingNumber = provisionalTrackingNumber(entityCode);
+    setPendingTransmission(!serverResult && queueForRetry);
 
     const newRecord: AlertRecord = {
       id: 'alt-' + Date.now(),
@@ -748,6 +758,9 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
             </div>
             {submittedAlert ? (
               /* STEP 6: ACKNOWLEDGMENT */
+              <>
+              {/* === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) === */}
+              {pendingTransmission && <PendingTransmissionNotice t={t} alertId={submittedAlert.id} />}
               <AcknowledgmentStep
                 t={t}
                 submittedAlert={submittedAlert}
@@ -764,6 +777,7 @@ export const AlertSubmissionFlow: React.FC<AlertSubmissionFlowProps> = ({
                   }).catch(() => onSuccessNavigateToTrack(tracking));
                 }}
               />
+              </>
             ) : (
               <form onSubmit={handleSubmit} className="activa-caret-blink space-y-6">
                 {/* STEP 1: REPORT TYPE */}

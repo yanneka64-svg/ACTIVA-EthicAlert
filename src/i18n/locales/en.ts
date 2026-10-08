@@ -1020,6 +1020,10 @@ export const en: Record<string, string> = {
   cases_readonly_empty: 'No cases to display yet.',
   // === AMÉLIORATION AJOUTÉE : message d'accueil du dossier dans la langue du déclarant, menus (FR/EN/PT) ===
   sub_auto_first_message: 'Your report has been received under reference {tracking}. It is currently classified at level {level} ({treatment}). You can use this secure messaging to communicate with DARC.',
+  // === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) ===
+  sub_pending_title: 'Sending in progress',
+  sub_pending_body: 'Your report is saved on this device but could not yet be sent to the team (unstable connection). It will be sent automatically: keep this page open, or come back to the site from this same device and browser. Your number and password remain valid.',
+  sub_pending_done: 'Report delivered to the team.',
   common_options: 'Options',
   common_menu: 'Menu',
   // === AMÉLIORATION AJOUTÉE : bureau d'enquête — filtres, colonnes, clôture, réouverture (FR/EN/PT) ===

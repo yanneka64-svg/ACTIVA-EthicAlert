@@ -1020,6 +1020,10 @@ export const pt: Record<string, string> = {
   cases_readonly_empty: 'Ainda não há processos para mostrar.',
   // === AMÉLIORATION AJOUTÉE : message d'accueil du dossier dans la langue du déclarant, menus (FR/EN/PT) ===
   sub_auto_first_message: 'A sua denúncia foi recebida com a referência {tracking}. Está atualmente classificada no nível {level} ({treatment}). Pode utilizar esta mensagem segura para comunicar com a DARC.',
+  // === AMÉLIORATION AJOUTÉE (envoi garanti depuis tous les appareils) ===
+  sub_pending_title: 'Envio em curso',
+  sub_pending_body: 'A sua denúncia está guardada neste dispositivo, mas ainda não pôde ser enviada à equipa (ligação instável). Será enviada automaticamente: mantenha esta página aberta ou volte ao site a partir deste mesmo dispositivo e navegador. O seu número e a sua palavra-passe continuam válidos.',
+  sub_pending_done: 'Denúncia transmitida à equipa.',
   common_options: 'Opções',
   common_menu: 'Menu',
   // === AMÉLIORATION AJOUTÉE : bureau d'enquête — filtres, colonnes, clôture, réouverture (FR/EN/PT) ===

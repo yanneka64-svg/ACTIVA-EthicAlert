@@ -16,6 +16,7 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       { "source": "/api/notify-email", "function": { "functionId": "notifyEmail", "region": "us-central1" } },
+      { "source": "/api/report", "function": { "functionId": "createCaseAsReporter", "region": "us-central1" } },
       { "source": "**", "destination": "/index.html" }
     ],
     "headers": [
