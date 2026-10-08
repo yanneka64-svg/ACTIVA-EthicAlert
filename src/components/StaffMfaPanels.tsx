@@ -15,7 +15,8 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
-import { Check, Copy, X } from 'lucide-react';
+import { Check, Copy, ShieldCheck, Smartphone, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import { formatTotpSecret, isMfaRequiredForRole, isValidTotpCode, mfaErrorKind, normalizeTotpCode } from '../domain/mfaPolicy';
 import type { MfaApi, TotpEnrollmentStart } from '../services/staffMfa';
@@ -26,9 +27,42 @@ type T = Record<string, string>;
 const INPUT =
   'w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white text-xs focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none';
 // === AMÉLIORATION AJOUTÉE (version sobre, sur demande) === bouton simple, sans effets.
-export const MFA_PRIMARY_BTN =
+export const MFA_PRIMARY_BTN_PLAIN =
   'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] enabled:hover:bg-[#134074] text-white text-xs font-bold disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200';
+// === AMÉLIORATION AJOUTÉE (présentation plus stylée, sur demande) === même
+// bouton que l'écran de connexion : dégradé ACTIVA, ombre douce, reflet au survol.
+// (La version unie reste disponible : MFA_PRIMARY_BTN_PLAIN.)
+export const MFA_PRIMARY_BTN =
+  'activa-shine w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#0B2545] to-[#134074] text-white text-xs font-bold shadow-lg shadow-[#0B2545]/25 enabled:hover:shadow-xl enabled:hover:-translate-y-0.5 disabled:opacity-40 disabled:shadow-none transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200';
 const PRIMARY_BTN = MFA_PRIMARY_BTN;
+
+/**
+ * === AMÉLIORATION AJOUTÉE (présentation plus stylée, sur demande) ===
+ * En-tête commun des cartes de double authentification : pastille d'icône
+ * bleue, titre, consigne et petit trait d'accent — même langage visuel que la
+ * carte de connexion du personnel.
+ */
+export function MfaCardHeader({ icon: Icon = ShieldCheck, title, subtitle }: { icon?: LucideIcon; title: string; subtitle?: string }) {
+  return (
+    <div className="text-center mb-5">
+      <span className="activa-enter inline-flex w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-600/30">
+        <Icon className="w-5 h-5" strokeWidth={1.9} />
+      </span>
+      <p className="text-base font-extrabold tracking-tight text-slate-900 [text-wrap:balance]">{title}</p>
+      {subtitle && <p className="mt-1.5 text-xs text-slate-600 leading-relaxed [text-wrap:balance]">{subtitle}</p>}
+      <div className="activa-draw-x w-10 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400 mx-auto mt-3" style={{ transformOrigin: 'center' }} />
+    </div>
+  );
+}
+
+/** Pastille numérotée d'une étape (1 : scanner, 2 : saisir le code). */
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span aria-hidden="true" className="shrink-0 inline-flex w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold items-center justify-center tabular-nums">
+      {n}
+    </span>
+  );
+}
 
 /** Message d'erreur lisible pour une erreur Firebase. */
 export function mfaErrorMessage(t: T, e: unknown): string {
@@ -62,30 +96,63 @@ export function TotpCodeInput({
   onChange,
   label,
   autoFocus,
+  step,
 }: {
   id: string;
   value: string;
   onChange: (code: string) => void;
   label: string;
   autoFocus?: boolean;
+  /** Numéro d'étape affiché devant le libellé (écran d'activation). */
+  step?: number;
 }) {
+  // === AMÉLIORATION AJOUTÉE (présentation plus stylée, sur demande) ===
+  // Six cases groupées 3 + 3, comme le code affiché par Google Authenticator.
+  // Un seul vrai champ (transparent, posé sur les cases) reçoit la saisie : le
+  // collage, le remplissage automatique et le clavier numérique fonctionnent
+  // comme avant.
+  const [focused, setFocused] = useState(false);
+  const active = Math.min(value.length, 5);
+  const slot = (i: number) => {
+    const digit = value[i] ?? '';
+    const isActive = focused && i === active && value.length < 6;
+    const tone = isActive
+      ? 'border-blue-500 bg-white ring-4 ring-blue-500/15'
+      : digit
+        ? 'border-blue-200 bg-blue-50/60'
+        : 'border-slate-200 bg-slate-50';
+    return (
+      <span key={i} className={`h-12 flex-1 min-w-0 rounded-xl border flex items-center justify-center text-xl font-extrabold tabular-nums text-[#0B2545] transition-all duration-150 ${tone}`}>
+        {digit || (isActive ? <span className="w-0.5 h-5 rounded-full bg-blue-600 animate-pulse" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />)}
+      </span>
+    );
+  };
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-semibold text-slate-700 mb-1.5">
+      <label htmlFor={id} className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2">
+        {step !== undefined && <StepBadge n={step} />}
         {label}
       </label>
-      <input
-        id={id}
-        value={value}
-        onChange={(e) => onChange(normalizeTotpCode(e.target.value))}
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        pattern="[0-9]*"
-        maxLength={14}
-        autoFocus={autoFocus}
-        placeholder="000000"
-        className="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-white text-center text-lg font-bold tracking-[0.3em] tabular-nums text-slate-900 placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none"
-      />
+      <div className="relative">
+        <div aria-hidden="true" className="flex items-center gap-1.5 sm:gap-2 pointer-events-none select-none">
+          {[0, 1, 2].map(slot)}
+          <span className="w-2 h-0.5 shrink-0 rounded-full bg-slate-300" />
+          {[3, 4, 5].map(slot)}
+        </div>
+        <input
+          id={id}
+          value={value}
+          onChange={(e) => onChange(normalizeTotpCode(e.target.value))}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]*"
+          maxLength={14}
+          autoFocus={autoFocus}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-text text-transparent caret-transparent outline-none"
+        />
+      </div>
     </div>
   );
 }
@@ -100,7 +167,7 @@ function QrCode({ text }: { text: string }) {
   }, [text]);
   return (
     <div
-      className="w-44 h-44 mx-auto p-2 rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm [&_svg]:w-full [&_svg]:h-full"
+      className="w-40 h-40 mx-auto p-2 rounded-xl bg-white ring-1 ring-slate-200 shadow-[0_10px_24px_-14px_rgb(11_37_69/0.45)] [&_svg]:w-full [&_svg]:h-full"
       role="img"
       aria-label="QR code"
       dangerouslySetInnerHTML={{ __html: svg }}
@@ -260,26 +327,33 @@ export function StaffMfaSetup({
   // une consigne, le QR code, le code, un bouton ; la clé manuelle est repliée.
   return (
     <form onSubmit={confirmCode} className="space-y-4" id="mfa-setup-scan">
-      <p className="text-xs font-semibold text-slate-800 leading-relaxed">{t.mfa_step_scan}</p>
+      {/* === AMÉLIORATION AJOUTÉE (présentation plus stylée) === étapes
+          numérotées et QR code posé dans un cadre bleuté. */}
+      <p className="flex items-start gap-2 text-xs font-semibold text-slate-800 leading-relaxed">
+        <StepBadge n={1} />
+        <span>{t.mfa_step_scan}</span>
+      </p>
+      <div className="rounded-2xl bg-gradient-to-b from-blue-50 to-slate-50/40 ring-1 ring-blue-100 px-4 pt-4 pb-3">
       {start ? (
         <QrCode text={start.uri} />
       ) : (
-        <div className="w-44 h-44 mx-auto rounded-2xl bg-slate-100 animate-pulse" aria-hidden="true" />
+        <div className="w-40 h-40 mx-auto rounded-xl bg-white/80 animate-pulse" aria-hidden="true" />
       )}
       {start && (
-        <details className="text-center">
+        <details className="mt-3 text-center">
           <summary className="cursor-pointer text-[11px] font-semibold text-blue-700 hover:underline">{t.mfa_manual}</summary>
           <div className="mt-2 flex items-center gap-2 text-left">
-            <code id="mfa-secret-key" className="flex-1 min-w-0 rounded-lg bg-slate-50 ring-1 ring-slate-200 px-2.5 py-2 text-[11.5px] font-bold tracking-wider text-slate-800 break-all">
+            <code id="mfa-secret-key" className="flex-1 min-w-0 rounded-lg bg-white ring-1 ring-slate-200 px-2.5 py-2 text-[11.5px] font-bold tracking-wider text-slate-800 break-all">
               {formatTotpSecret(start.key)}
             </code>
-            <button type="button" onClick={() => void copyKey()} aria-label={t.mfa_copy} title={t.mfa_copy} className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-lg text-blue-700 ring-1 ring-slate-200 hover:bg-slate-50">
+            <button type="button" onClick={() => void copyKey()} aria-label={t.mfa_copy} title={t.mfa_copy} className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white text-blue-700 ring-1 ring-slate-200 hover:bg-blue-50">
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
         </details>
       )}
-      <TotpCodeInput id="input-mfa-enroll-code" value={code} onChange={setCode} label={t.mfa_code_label} />
+      </div>
+      <TotpCodeInput id="input-mfa-enroll-code" value={code} onChange={setCode} label={t.mfa_code_label} step={2} />
       <ErrorNote text={error} />
       <button type="submit" id="btn-mfa-confirm" disabled={!start || !isValidTotpCode(code) || busy} className={PRIMARY_BTN}>
         {busy ? t.mfa_verifying : t.mfa_confirm}
@@ -373,9 +447,19 @@ export function StaffMfaDialog({
         <button type="button" onClick={onClose} aria-label={t.mfa_close} className="absolute right-4 top-4 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100">
           <X className="w-4 h-4" />
         </button>
-        <div className="mb-4 pr-8">
-          <p id="mfa-dialog-title" className="text-base font-bold text-slate-900">Google Authenticator</p>
-          <p className={`mt-0.5 text-xs font-semibold ${enrollment ? 'text-emerald-700' : 'text-slate-500'}`}>{enrollment ? t.mfa_status_on : t.mfa_status_off}</p>
+        {/* === AMÉLIORATION AJOUTÉE (présentation plus stylée) === pastille
+            d'icône et statut sous forme de badge. */}
+        <div className="mb-5 pr-8 flex items-center gap-3">
+          <span className="shrink-0 inline-flex w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white items-center justify-center shadow-lg shadow-blue-600/30">
+            <Smartphone className="w-5 h-5" strokeWidth={1.9} />
+          </span>
+          <div className="min-w-0">
+            <p id="mfa-dialog-title" className="text-base font-extrabold tracking-tight text-slate-900">Google Authenticator</p>
+            <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-bold ring-1 ${enrollment ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-slate-100 text-slate-600 ring-slate-200'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${enrollment ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              {enrollment ? t.mfa_status_on : t.mfa_status_off}
+            </span>
+          </div>
         </div>
 
         {info && <p className="mb-4 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{info}</p>}
@@ -396,7 +480,12 @@ export function StaffMfaDialog({
         {step === 'status' && (
           <div className="space-y-4" id="mfa-dialog-status">
             <p className="text-xs text-slate-600 leading-relaxed">{t.mfa_intro}</p>
-            {since && <p className="text-xs font-semibold text-slate-800">{t.mfa_enabled_since.replace('{date}', since)}</p>}
+            {since && (
+              <p className="flex items-center gap-2 rounded-xl bg-emerald-50/70 ring-1 ring-emerald-100 px-3 py-2.5 text-xs font-semibold text-emerald-800">
+                <ShieldCheck className="w-4 h-4 shrink-0" strokeWidth={2} />
+                {t.mfa_enabled_since.replace('{date}', since)}
+              </p>
+            )}
             {required ? (
               <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{t.mfa_disable_locked}</p>
             ) : (

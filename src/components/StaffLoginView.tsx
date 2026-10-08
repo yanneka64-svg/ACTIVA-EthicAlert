@@ -31,9 +31,9 @@
  * oublié ?"), distincte de l'identifiant de connexion.
  */
 import React, { useState } from 'react';
-import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft, Check, Circle } from 'lucide-react';
+import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft, Check, Circle, ShieldCheck, Smartphone } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
-import { MFA_PRIMARY_BTN, StaffMfaSetup, TotpCodeInput, mfaErrorMessage } from './StaffMfaPanels';
+import { MFA_PRIMARY_BTN, MfaCardHeader, StaffMfaSetup, TotpCodeInput, mfaErrorMessage } from './StaffMfaPanels';
 import { firebaseMfaApi } from '../services/staffMfa';
 import { isMfaRequiredForRole, isValidTotpCode } from '../domain/mfaPolicy';
 // === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
@@ -492,8 +492,10 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
       <div className="activa-form relative overflow-hidden min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-16 sm:py-20">
         <BrandBlueBackdrop />
         <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
-          {/* === AMÉLIORATION AJOUTÉE (version épurée) === titre simple. */}
-          <p className="text-base font-bold text-slate-900 mb-4">{t.mfa_setup_title}</p>
+          {/* === AMÉLIORATION AJOUTÉE (présentation plus stylée) === en-tête
+              commun (pastille d'icône, titre, trait d'accent). Ancien titre simple :
+              <p className="text-base font-bold text-slate-900 mb-4">{t.mfa_setup_title}</p> */}
+          <MfaCardHeader icon={ShieldCheck} title={t.mfa_setup_title} />
           <StaffMfaSetup
             t={t}
             api={firebaseMfaApi}
@@ -515,8 +517,8 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
         <BrandBlueBackdrop />
         <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
           {/* === AMÉLIORATION AJOUTÉE (version épurée) === titre simple + une consigne. */}
-          <p className="text-base font-bold text-slate-900">{t.mfa_challenge_title}</p>
-          <p className="text-xs text-slate-600 mt-1 mb-4 leading-relaxed">{t.mfa_challenge_body}</p>
+          {/* === AMÉLIORATION AJOUTÉE (présentation plus stylée) === en-tête commun. */}
+          <MfaCardHeader icon={Smartphone} title={t.mfa_challenge_title} subtitle={t.mfa_challenge_body} />
           <form onSubmit={handleMfaSubmit} className="space-y-4">
             <TotpCodeInput id="input-mfa-login-code" value={mfaCode} onChange={setMfaCode} label={t.mfa_code_label} autoFocus />
             {mfaError && (
