@@ -14,6 +14,8 @@ import { AlertRecord, AlertStatus, AppNotification, AuditLogEntry, EnterpriseWor
 import { CaseStatus } from '../domain/caseTypes';
 // === AMÉLIORATION AJOUTÉE (Phase 4 — routage indépendant) ===
 import { isGlobalCaseViewer, isImplicated } from './authz';
+// === AMÉLIORATION AJOUTÉE (message du déclarant) ===
+import { canSeeOperatorSpace } from '../domain/staffSpaces';
 
 /** Legacy AlertStatus -> the richer enterprise lifecycle the Control Panel/workspace UI uses. */
 export function mapToEnterpriseStatus(alert: AlertRecord): EnterpriseWorkflowStatus {
@@ -230,7 +232,11 @@ export function generateNotifications(
     }
 
     const lastMessage = alert.messages[alert.messages.length - 1];
-    if (lastMessage && lastMessage.sender === 'whistleblower') {
+    // === AMÉLIORATION AJOUTÉE (message du déclarant) === « Nouveau message »
+    // seulement pour les opérateurs et les enquêteurs attribués au dossier
+    // (jamais un profil de consultation, ni un enquêteur non attribué).
+    const handlesCase = canSeeOperatorSpace(activeUser) || alert.assignedInvestigators.includes(activeUser.id);
+    if (lastMessage && lastMessage.sender === 'whistleblower' && handlesCase) {
       notifications.push({
         id: `msg-${lastMessage.id}`,
         type: 'new_message',

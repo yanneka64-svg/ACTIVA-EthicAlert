@@ -70,6 +70,10 @@ import {
   buildNotificationEmail,
   // === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
   buildInvestigatorAssignmentEmail,
+  // === AMÉLIORATION AJOUTÉE (message du déclarant) ===
+  buildReporterMessageEmail,
+  resolveReporterMessageRecipients,
+  shouldNotifyReporterMessage,
   DEFAULT_EMAIL_NOTIFICATION_SETTINGS,
   GROUP_LABEL,
   isValidEmail,
@@ -1279,7 +1283,8 @@ export const getCaseForReporter = onCall(async (request) => {
 // alerts), not an oversight.
 // ---------------------------------------------------------------------------
 
-export const addCommunicationAsReporter = onCall(async (request) => {
+// === AMÉLIORATION AJOUTÉE (message du déclarant) === secret d'envoi des e-mails.
+export const addCommunicationAsReporter = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async (request) => {
   const { caseNumber, accessCode, content, sessionToken } = request.data as { caseNumber?: string; accessCode?: string; content?: string; sessionToken?: string };
   // === AMÉLIORATION AJOUTÉE (échanges instantanés) === session du déclarant
   // acceptée à la place du couple numéro + code (même dossier, déjà prouvé).
@@ -1287,7 +1292,7 @@ export const addCommunicationAsReporter = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'caseNumber, accessCode and content are required.');
   }
   if (typeof content !== 'string' || content.length > 10000) throw new HttpsError('invalid-argument', 'Message too long.');
-  const { ref: caseRef } = sessionToken
+  const { ref: caseRef, kase: reporterCase } = sessionToken
     ? await verifyReporterSession(sessionToken)
     : await verifyReporterAccess(caseNumber as string, accessCode as string);
 
@@ -1308,9 +1313,66 @@ export const addCommunicationAsReporter = onCall(async (request) => {
   // === AMÉLIORATION AJOUTÉE (échanges instantanés) === le déclarant a fini d'écrire.
   await caseRef.collection('presence').doc('state').set({ reporterTypingAt: null }, { merge: true });
   await appendTimeline(caseRef.id, 'MESSAGE_SENT', 'reporter');
+  // === AMÉLIORATION AJOUTÉE (message du déclarant) === la personne qui a le
+  // dossier en charge est prévenue par e-mail (enquêteur attribué, sinon
+  // opérateurs). N'interrompt jamais l'envoi du message.
+  await notifyReporterMessage(caseRef, reporterCase);
 
   return { messageId };
 });
+
+// === AMÉLIORATION AJOUTÉE (message du déclarant) ===
+/**
+ * E-mail « Nouveau message du déclarant » : enquêteur(s) attribué(s) au
+ * dossier, et eux seuls ; dossier pas encore attribué → opérateurs de son
+ * périmètre. Jamais une personne mise en cause. Au plus un e-mail toutes les
+ * 10 minutes par dossier (messages successifs). Chaque envoi est tracé dans
+ * la piste d'audit. Ne lève jamais.
+ */
+async function notifyReporterMessage(caseRef: FirebaseFirestore.DocumentReference, kase: Case): Promise<void> {
+  try {
+    const stateRef = caseRef.collection('notifications').doc('reporter_message');
+    const now = new Date();
+    const claimed = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(stateRef);
+      if (!shouldNotifyReporterMessage(snap.exists ? (snap.data() as { lastNotifiedAt?: string }).lastNotifiedAt : null, now)) return false;
+      tx.set(stateRef, { lastNotifiedAt: now.toISOString() }, { merge: true });
+      return true;
+    });
+    if (!claimed) return;
+    const staff = await loadStaffRecipientCandidates();
+    const recipients = resolveReporterMessageRecipients({
+      assigneeUids: [kase.assignee, ...(kase.additionalInvestigators ?? [])],
+      implicatedUids: kase.implicatedUserIds ?? [],
+      staff,
+      facts: { country: kase.country, entity: kase.entity },
+    });
+    if (!recipients.length) return;
+    const appUrl = notifyAppUrl();
+    const facts = {
+      reference: kase.externalReference || kase.caseNumber,
+      entity: kase.entity,
+      country: kase.country,
+      category: kase.category,
+      priority: kase.priority,
+    };
+    for (const r of recipients) {
+      const { subject, body, html } = buildReporterMessageEmail({ facts, recipientName: r.name, as: r.as, appUrl });
+      const res = await sendNotificationEmail(r.email, subject, body, html);
+      await appendAudit({
+        actorId: 'system-notifications',
+        action: res.ok ? 'EMAIL_NOTIFICATION_SENT' : 'EMAIL_NOTIFICATION_FAILED',
+        caseId: caseRef.id,
+        objectType: 'email',
+        objectId: r.email,
+        newValue: { event: 'reporter_message', group: r.as },
+        ...(res.error ? { reason: res.error } : {}),
+      });
+    }
+  } catch (e) {
+    console.error('notifyReporterMessage failed', e);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // === AMÉLIORATION AJOUTÉE (échanges instantanés, « est en train d'écrire »,
