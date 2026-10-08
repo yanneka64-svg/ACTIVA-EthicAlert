@@ -191,3 +191,9 @@ export async function resetFirebaseStaffAccountPassword(id: string): Promise<str
   const res = await callStaffFunction<{ id: string }, { tempPassword: string }>('resetStaffAccountPassword', { id });
   return res.tempPassword;
 }
+
+// === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+/** Retire l'application d'authentification d'un compte (téléphone perdu ou changé). */
+export async function resetFirebaseStaffAccountMfa(id: string): Promise<void> {
+  await callStaffFunction<{ id: string }, { ok: true }>('resetStaffAccountMfa', { id });
+}

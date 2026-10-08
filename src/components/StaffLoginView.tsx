@@ -33,7 +33,6 @@
 import React, { useState } from 'react';
 import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft, Check, Circle } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
-import { ShieldCheck } from 'lucide-react';
 import { MFA_PRIMARY_BTN, StaffMfaSetup, TotpCodeInput, mfaErrorMessage } from './StaffMfaPanels';
 import { firebaseMfaApi } from '../services/staffMfa';
 import { isMfaRequiredForRole, isValidTotpCode } from '../domain/mfaPolicy';
@@ -493,13 +492,8 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
       <div className="activa-form relative overflow-hidden min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-16 sm:py-20">
         <BrandBlueBackdrop />
         <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
-          <div className="text-center mb-5">
-            <span className="activa-enter inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30" style={{ '--d': '120ms' } as React.CSSProperties}>
-              <ShieldCheck className="w-6 h-6" strokeWidth={1.75} />
-            </span>
-            <p className="activa-enter text-sm font-extrabold tracking-tight text-slate-900" style={{ '--d': '200ms' } as React.CSSProperties}>{t.mfa_title}</p>
-            <div className="activa-draw-x w-10 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400 mx-auto mt-3" style={{ '--d': '320ms', transformOrigin: 'center' } as React.CSSProperties} />
-          </div>
+          {/* === AMÉLIORATION AJOUTÉE (version épurée) === titre simple. */}
+          <p className="text-base font-bold text-slate-900 mb-4">{t.mfa_setup_title}</p>
           <StaffMfaSetup
             t={t}
             api={firebaseMfaApi}
@@ -520,15 +514,10 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
       <div className="activa-form relative overflow-hidden min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-16 sm:py-20">
         <BrandBlueBackdrop />
         <div className="activa-modal-in relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-6 sm:p-8">
-          <div className="text-center mb-6">
-            <span className="activa-enter inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30" style={{ '--d': '120ms' } as React.CSSProperties}>
-              <ShieldCheck className="w-6 h-6" strokeWidth={1.75} />
-            </span>
-            <p className="activa-enter text-sm font-extrabold tracking-tight text-slate-900" style={{ '--d': '200ms' } as React.CSSProperties}>{t.mfa_challenge_title}</p>
-            <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">{t.mfa_challenge_body}</p>
-            <div className="activa-draw-x w-10 h-1 rounded-full bg-gradient-to-r from-blue-600 to-sky-400 mx-auto mt-3" style={{ '--d': '320ms', transformOrigin: 'center' } as React.CSSProperties} />
-          </div>
-          <form onSubmit={handleMfaSubmit} className="activa-enter space-y-4" style={{ '--d': '300ms' } as React.CSSProperties}>
+          {/* === AMÉLIORATION AJOUTÉE (version épurée) === titre simple + une consigne. */}
+          <p className="text-base font-bold text-slate-900">{t.mfa_challenge_title}</p>
+          <p className="text-xs text-slate-600 mt-1 mb-4 leading-relaxed">{t.mfa_challenge_body}</p>
+          <form onSubmit={handleMfaSubmit} className="space-y-4">
             <TotpCodeInput id="input-mfa-login-code" value={mfaCode} onChange={setMfaCode} label={t.mfa_code_label} autoFocus />
             {mfaError && (
               <p role="alert" className="activa-enter text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{mfaError}</p>

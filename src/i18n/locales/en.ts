@@ -1690,4 +1690,7 @@ export const en: Record<string, string> = {
   mfa_error_not_enabled: "Two-factor authentication is not yet enabled on the platform. Contact the administrator.",
   mfa_error_unknown: "Something went wrong. Please try again.",
   mfa_step_label: "Step {n} of 2",
+  users_reset_mfa: "Reset two-factor authentication (lost or new phone)",
+  users_mfa_reset_done: "Two-factor authentication reset for {name}: it will be set up again at their next sign-in.",
+  mfa_setup_title: "Set up Google Authenticator",
 };

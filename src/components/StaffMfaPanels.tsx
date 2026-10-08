@@ -15,7 +15,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
-import { Check, Copy, KeyRound, X } from 'lucide-react';
+import { Check, Copy, X } from 'lucide-react';
 
 import { formatTotpSecret, isMfaRequiredForRole, isValidTotpCode, mfaErrorKind, normalizeTotpCode } from '../domain/mfaPolicy';
 import type { MfaApi, TotpEnrollmentStart } from '../services/staffMfa';
@@ -71,7 +71,7 @@ export function TotpCodeInput({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">
+      <label htmlFor={id} className="block text-xs font-semibold text-slate-700 mb-1.5">
         {label}
       </label>
       <input
@@ -188,7 +188,9 @@ export function StaffMfaSetup({
     setBusy(true);
     try {
       await api.finishTotpEnrollment(start, code);
-      setStep('done');
+      // === AMÉLIORATION AJOUTÉE (version épurée) === pas d'écran de
+      // confirmation : on entre directement (ou la fenêtre se ferme).
+      onDone();
     } catch (err) {
       setError(mfaErrorMessage(t, err));
       setCode('');
@@ -258,7 +260,6 @@ export function StaffMfaSetup({
   // une consigne, le QR code, le code, un bouton ; la clé manuelle est repliée.
   return (
     <form onSubmit={confirmCode} className="space-y-4" id="mfa-setup-scan">
-      {required && <p className="text-xs text-slate-600 leading-relaxed">{t.mfa_required_intro}</p>}
       <p className="text-xs font-semibold text-slate-800 leading-relaxed">{t.mfa_step_scan}</p>
       {start ? (
         <QrCode text={start.uri} />
@@ -372,17 +373,9 @@ export function StaffMfaDialog({
         <button type="button" onClick={onClose} aria-label={t.mfa_close} className="absolute right-4 top-4 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100">
           <X className="w-4 h-4" />
         </button>
-        <div className="flex items-center gap-3 mb-5 pr-8">
-          <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 shrink-0">
-            <KeyRound className="w-5 h-5" strokeWidth={1.75} />
-          </span>
-          <div>
-            <p id="mfa-dialog-title" className="text-sm font-extrabold tracking-tight text-slate-900">{t.mfa_title}</p>
-            <span className={`inline-flex items-center gap-1.5 mt-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${enrollment ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${enrollment ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-              {enrollment ? t.mfa_status_on : t.mfa_status_off}
-            </span>
-          </div>
+        <div className="mb-4 pr-8">
+          <p id="mfa-dialog-title" className="text-base font-bold text-slate-900">Google Authenticator</p>
+          <p className={`mt-0.5 text-xs font-semibold ${enrollment ? 'text-emerald-700' : 'text-slate-500'}`}>{enrollment ? t.mfa_status_on : t.mfa_status_off}</p>
         </div>
 
         {info && <p className="mb-4 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{info}</p>}

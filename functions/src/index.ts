@@ -150,6 +150,8 @@ export {
   listStaffDirectory,
   resetStaffAccountPassword,
   updateStaffAccount,
+  // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+  resetStaffAccountMfa,
 } from './staffAccounts';
 
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P1 : fiabilité et coût) ===

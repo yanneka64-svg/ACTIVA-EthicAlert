@@ -1690,4 +1690,7 @@ export const pt: Record<string, string> = {
   mfa_error_not_enabled: "A autenticação de dois fatores ainda não está ativada na plataforma. Contacte o administrador.",
   mfa_error_unknown: "Ocorreu um erro. Tente novamente.",
   mfa_step_label: "Passo {n} de 2",
+  users_reset_mfa: "Repor a autenticação de dois fatores (telemóvel perdido ou trocado)",
+  users_mfa_reset_done: "Autenticação de dois fatores reposta para {name}: será reativada no próximo início de sessão.",
+  mfa_setup_title: "Configurar o Google Authenticator",
 };

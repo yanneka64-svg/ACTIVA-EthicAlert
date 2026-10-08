@@ -1877,4 +1877,7 @@ export const fr: Record<string, string> = {
   mfa_error_not_enabled: "La double authentification n'est pas encore activée sur la plateforme. Contactez l'administrateur.",
   mfa_error_unknown: "Une erreur est survenue. Réessayez.",
   mfa_step_label: "Étape {n} sur 2",
+  users_reset_mfa: "Réinitialiser la double authentification (téléphone perdu ou changé)",
+  users_mfa_reset_done: "Double authentification réinitialisée pour {name} : elle sera réactivée à sa prochaine connexion.",
+  mfa_setup_title: "Activer Google Authenticator",
 };

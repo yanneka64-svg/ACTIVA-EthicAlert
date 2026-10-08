@@ -20,6 +20,9 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, KeyRound, Copy, CheckCircle2, Cloud, HardDrive, Users as UsersIcon, Mail, Building2 } from 'lucide-react';
+// === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+import { Smartphone } from 'lucide-react';
+import { resetFirebaseStaffAccountMfa } from '../../services/staffAccountsClient';
 // === AMÉLIORATION AJOUTÉE (écrans d'administration modernisés) ===
 import { AdminPageHeader, SearchField } from '../ui/AdminControls';
 import { Language, UserProfile, UserRole } from '../../types';
@@ -352,6 +355,25 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
   // Recours nécessaire si le mot de passe temporaire expire (4h, voir
   // storage.ts) avant que l'utilisateur ne se soit connecté — sans cette
   // action, un tel compte resterait bloqué sans recours.
+  // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
+  // Téléphone perdu ou changé : retire Google Authenticator du compte, qui
+  // le réactivera à sa prochaine connexion.
+  const [resetMfaConfirmId, setResetMfaConfirmId] = useState<string | null>(null);
+  const handleResetMfa = async (u: UserProfile) => {
+    setResetMfaConfirmId(null);
+    if (!cloudMode) {
+      alert(t.users_cloud_admin_required);
+      return;
+    }
+    try {
+      await resetFirebaseStaffAccountMfa(u.id);
+      storage.logAudit('CONFIG_UPDATED', `Double authentification réinitialisée pour "${u.name}" par ${activeUser.name}.`, undefined, activeUser);
+      onSaved(t.users_mfa_reset_done.replace('{name}', u.name));
+    } catch (err) {
+      alert(cloudErrorMessage(err, u.username));
+    }
+  };
+
   const handleResetPassword = async (u: UserProfile) => {
     // === AMÉLIORATION AJOUTÉE (comptes du personnel dans Firebase) ===
     if (u.authSource === 'firebase') {
@@ -485,6 +507,18 @@ export const UsersTab: React.FC<UsersTabProps> = ({ users, entities, countries, 
                     <KeyRound className="w-4 h-4" />
                   </button>
                 )}
+                {/* === AMÉLIORATION AJOUTÉE (double authentification) === */}
+                {u.authSource === 'firebase' && u.id !== activeUser.id &&
+                  (resetMfaConfirmId === u.id ? (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleResetMfa(u)} className="px-2 py-1 rounded-lg bg-blue-700 text-white font-bold text-[10px]">{t.common_confirm}</button>
+                      <button onClick={() => setResetMfaConfirmId(null)} className="px-2 py-1 rounded-lg bg-slate-200 text-slate-700 text-[10px]">{t.btn_cancel}</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setResetMfaConfirmId(u.id)} className="p-2 rounded-xl hover:bg-blue-50 text-blue-700" title={t.users_reset_mfa} aria-label={t.users_reset_mfa}>
+                      <Smartphone className="w-4 h-4" />
+                    </button>
+                  ))}
                 {deleteUserConfirmId === u.id ? (
                   <div className="flex items-center gap-1">
                     <button onClick={() => handleDeleteUser(u)} className="px-2 py-1 rounded-lg bg-rose-600 text-white font-bold text-[10px]">{t.common_confirm}</button>
