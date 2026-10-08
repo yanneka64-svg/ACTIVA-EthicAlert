@@ -34,7 +34,7 @@ import React, { useState } from 'react';
 import { LogIn, Lock, User, Eye, EyeOff, ShieldAlert, KeyRound, ArrowLeft, Check, Circle } from 'lucide-react';
 // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
 import { ShieldCheck } from 'lucide-react';
-import { StaffMfaSetup, TotpCodeInput, mfaErrorMessage } from './StaffMfaPanels';
+import { MFA_PRIMARY_BTN, StaffMfaSetup, TotpCodeInput, mfaErrorMessage } from './StaffMfaPanels';
 import { firebaseMfaApi } from '../services/staffMfa';
 import { isMfaRequiredForRole, isValidTotpCode } from '../domain/mfaPolicy';
 // === AMÉLIORATION AJOUTÉE (bleu ACTIVA sur toutes les fenêtres) ===
@@ -537,9 +537,8 @@ export const StaffLoginView: React.FC<StaffLoginViewProps> = ({ onLogin, onGoToC
               type="submit"
               id="btn-submit-mfa-login"
               disabled={!isValidTotpCode(mfaCode) || mfaVerifying}
-              className="activa-shine w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#0B2545] to-[#134074] text-white text-xs font-bold tracking-wide shadow-lg shadow-[#0B2545]/25 enabled:hover:shadow-xl enabled:hover:-translate-y-0.5 disabled:opacity-50 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
+              className={MFA_PRIMARY_BTN}
             >
-              <ShieldCheck className="w-4 h-4" strokeWidth={2} />
               {mfaVerifying ? t.mfa_verifying : t.mfa_challenge_submit}
             </button>
             <button type="button" id="btn-mfa-back" onClick={cancelMfa} className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-blue-700 hover:underline">

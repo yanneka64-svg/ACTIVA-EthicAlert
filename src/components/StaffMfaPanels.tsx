@@ -15,7 +15,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
-import { Check, Copy, KeyRound, Lock, ShieldCheck, Smartphone, X } from 'lucide-react';
+import { Check, Copy, KeyRound, X } from 'lucide-react';
 
 import { formatTotpSecret, isMfaRequiredForRole, isValidTotpCode, mfaErrorKind, normalizeTotpCode } from '../domain/mfaPolicy';
 import type { MfaApi, TotpEnrollmentStart } from '../services/staffMfa';
@@ -25,8 +25,10 @@ type T = Record<string, string>;
 
 const INPUT =
   'w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white text-xs focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none';
-const PRIMARY_BTN =
-  'activa-shine w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#0B2545] to-[#134074] text-white text-xs font-bold tracking-wide shadow-lg shadow-[#0B2545]/25 enabled:hover:shadow-xl enabled:hover:-translate-y-0.5 disabled:opacity-50 transition-all duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200';
+// === AMÉLIORATION AJOUTÉE (version sobre, sur demande) === bouton simple, sans effets.
+export const MFA_PRIMARY_BTN =
+  'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0B2545] enabled:hover:bg-[#134074] text-white text-xs font-bold disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200';
+const PRIMARY_BTN = MFA_PRIMARY_BTN;
 
 /** Message d'erreur lisible pour une erreur Firebase. */
 export function mfaErrorMessage(t: T, e: unknown): string {
@@ -82,7 +84,7 @@ export function TotpCodeInput({
         maxLength={14}
         autoFocus={autoFocus}
         placeholder="000000"
-        className="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-slate-50/60 focus:bg-white text-center text-xl font-bold tracking-[0.5em] tabular-nums text-slate-900 placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none"
+        className="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-white text-center text-lg font-bold tracking-[0.3em] tabular-nums text-slate-900 placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 outline-none"
       />
     </div>
   );
@@ -209,11 +211,10 @@ export function StaffMfaSetup({
   if (step === 'done') {
     return (
       <div className="text-center space-y-4" id="mfa-setup-done">
-        <span className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white items-center justify-center shadow-lg shadow-emerald-600/30">
-          <ShieldCheck className="w-6 h-6" strokeWidth={1.75} />
-        </span>
         <div>
-          <p className="text-sm font-extrabold tracking-tight text-slate-900">{t.mfa_done_title}</p>
+          <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-emerald-700">
+            <Check className="w-4 h-4" strokeWidth={2.5} /> {t.mfa_done_title}
+          </p>
           <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">{t.mfa_done_body}</p>
         </div>
         <button type="button" id="btn-mfa-done" onClick={onDone} className={PRIMARY_BTN}>
@@ -229,7 +230,6 @@ export function StaffMfaSetup({
         <p className="text-xs text-slate-600 leading-relaxed">{t.mfa_intro}</p>
         <ErrorNote text={error} />
         <button type="button" id="btn-mfa-start" onClick={() => void begin()} disabled={busy} className={PRIMARY_BTN}>
-          <Smartphone className="w-4 h-4" strokeWidth={2} />
           {busy ? t.mfa_verifying : t.mfa_activate}
         </button>
       </div>
@@ -248,52 +248,39 @@ export function StaffMfaSetup({
         </div>
         <ErrorNote text={error} />
         <button type="submit" disabled={!password || busy} className={PRIMARY_BTN}>
-          <Lock className="w-4 h-4" strokeWidth={2} />
           {busy ? t.mfa_verifying : t.mfa_password_submit}
         </button>
       </form>
     );
   }
 
-  // step === 'scan'
+  // step === 'scan' — === AMÉLIORATION AJOUTÉE (version sobre, sur demande) ===
+  // une consigne, le QR code, le code, un bouton ; la clé manuelle est repliée.
   return (
     <form onSubmit={confirmCode} className="space-y-4" id="mfa-setup-scan">
       {required && <p className="text-xs text-slate-600 leading-relaxed">{t.mfa_required_intro}</p>}
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#1449B0]">{t.mfa_step_label.replace('{n}', '1')}</p>
-        <p className="text-xs font-semibold text-slate-800">{t.mfa_step_scan}</p>
-        {start ? (
-          <QrCode text={start.uri} />
-        ) : (
-          <div className="w-44 h-44 mx-auto rounded-2xl bg-white ring-1 ring-slate-200 animate-pulse" aria-hidden="true" />
-        )}
-        {start && (
-          <div>
-            <p className="text-[11px] text-slate-500">{t.mfa_manual}</p>
-            <div className="mt-1.5 flex items-center gap-2">
-              <code id="mfa-secret-key" className="flex-1 min-w-0 rounded-lg bg-white ring-1 ring-slate-200 px-2.5 py-2 text-[11.5px] font-bold tracking-wider text-slate-800 break-all">
-                {formatTotpSecret(start.key)}
-              </code>
-              <button
-                type="button"
-                onClick={() => void copyKey()}
-                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-bold text-[#1449B0] ring-1 ring-blue-200 bg-white hover:bg-blue-50 transition"
-              >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? t.mfa_copied : t.mfa_copy}
-              </button>
-            </div>
+      <p className="text-xs font-semibold text-slate-800 leading-relaxed">{t.mfa_step_scan}</p>
+      {start ? (
+        <QrCode text={start.uri} />
+      ) : (
+        <div className="w-44 h-44 mx-auto rounded-2xl bg-slate-100 animate-pulse" aria-hidden="true" />
+      )}
+      {start && (
+        <details className="text-center">
+          <summary className="cursor-pointer text-[11px] font-semibold text-blue-700 hover:underline">{t.mfa_manual}</summary>
+          <div className="mt-2 flex items-center gap-2 text-left">
+            <code id="mfa-secret-key" className="flex-1 min-w-0 rounded-lg bg-slate-50 ring-1 ring-slate-200 px-2.5 py-2 text-[11.5px] font-bold tracking-wider text-slate-800 break-all">
+              {formatTotpSecret(start.key)}
+            </code>
+            <button type="button" onClick={() => void copyKey()} aria-label={t.mfa_copy} title={t.mfa_copy} className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-lg text-blue-700 ring-1 ring-slate-200 hover:bg-slate-50">
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </button>
           </div>
-        )}
-      </div>
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#1449B0]">{t.mfa_step_label.replace('{n}', '2')}</p>
-        <p className="text-xs font-semibold text-slate-800">{t.mfa_step_code}</p>
-        <TotpCodeInput id="input-mfa-enroll-code" value={code} onChange={setCode} label={t.mfa_code_label} />
-      </div>
+        </details>
+      )}
+      <TotpCodeInput id="input-mfa-enroll-code" value={code} onChange={setCode} label={t.mfa_code_label} />
       <ErrorNote text={error} />
       <button type="submit" id="btn-mfa-confirm" disabled={!start || !isValidTotpCode(code) || busy} className={PRIMARY_BTN}>
-        <ShieldCheck className="w-4 h-4" strokeWidth={2} />
         {busy ? t.mfa_verifying : t.mfa_confirm}
       </button>
     </form>
