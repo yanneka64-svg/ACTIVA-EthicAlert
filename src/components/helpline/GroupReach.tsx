@@ -98,7 +98,11 @@ export function GroupReachCard({ title, subtitle }: { title: string; subtitle: s
   const entityCount = ACTIVA_ENTITIES.length;
   return (
     <div className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      {/* === AMÉLIORATION AJOUTÉE (texte simplifié) === sur demande explicite :
+          sans titre, l'en-tête se réduit à l'icône et la phrase principale ;
+          la pastille « pays · filiales » et le pied « WhatsApp · E-mail »
+          restent dans le code, masqués. */}
+      <div className={`${title ? 'flex' : 'hidden'} items-center justify-between gap-3 flex-wrap`}>
         <span className="inline-flex items-center gap-2.5">
           <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]">
             <Globe2 className="w-5 h-5" strokeWidth={1.8} />
@@ -109,16 +113,23 @@ export function GroupReachCard({ title, subtitle }: { title: string; subtitle: s
           {countries.length} pays · {entityCount} filiales
         </span>
       </div>
-      <p className="mt-6 text-[22px] sm:text-[26px] font-extrabold tracking-tight leading-tight text-[#0B2545]">{subtitle}</p>
-      <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+      <p className={`${title ? 'mt-6' : 'flex items-center gap-3'} text-[22px] sm:text-[26px] font-extrabold tracking-tight leading-tight text-[#0B2545]`}>
+        {!title && (
+          <span className="w-10 h-10 shrink-0 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]">
+            <Globe2 className="w-5 h-5" strokeWidth={1.8} />
+          </span>
+        )}
+        {subtitle}
+      </p>
+      <div className={`${title ? 'mt-5' : 'mt-7'} grid grid-cols-2 gap-x-4 gap-y-3`}>
         {countries.map((c) => (
-          <span key={c.code} className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-slate-700">
+          <span key={c.code} className="inline-flex items-center gap-2 text-[14px] font-semibold text-slate-700">
             <FlagMark code={c.code} className="w-6 h-4" />
             {c.name}
           </span>
         ))}
       </div>
-      <div className="mt-auto pt-6 flex items-center gap-4 text-[12.5px] text-slate-500">
+      <div className={`${title ? 'flex' : 'hidden'} mt-auto pt-6 items-center gap-4 text-[12.5px] text-slate-500`}>
         <span className="inline-flex items-center gap-1.5"><MessageCircle className="w-4 h-4 text-[#1449B0]" strokeWidth={2} />WhatsApp</span>
         <span className="inline-flex items-center gap-1.5"><Mail className="w-4 h-4 text-[#1449B0]" strokeWidth={2} />E-mail</span>
         <span className="text-slate-400">· mêmes canaux partout</span>

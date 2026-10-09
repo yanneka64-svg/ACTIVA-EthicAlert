@@ -168,7 +168,39 @@ const ChannelCarousel: React.FC<{ slides: React.ReactNode[]; labels: string[] }>
           })}
         </div>
       </div>
-      <div className="mt-5 flex items-center gap-2">
+      {/* === AMÉLIORATION AJOUTÉE (points de défilement) === sur demande
+          explicite : les onglets « WhatsApp Business / Adresse e-mail dédiée »
+          sont remplacés par des points qui montrent le passage d'une carte à
+          l'autre (même rendu que l'accueil) ; les onglets restent, masqués. */}
+      <div className="mt-6 flex items-center gap-2.5">
+        {slides.map((_, i) => {
+          const active = i === index;
+          return (
+            <button
+              key={i}
+              type="button"
+              aria-label={labels[i] ?? `${i + 1} / ${n}`}
+              aria-current={active}
+              onClick={() => {
+                setAnimate(true);
+                setPos(i);
+              }}
+              className="group p-1.5 -m-1.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              <span className={`relative block h-2.5 rounded-full overflow-hidden transition-all duration-500 ease-out ${active ? 'w-11 bg-white/30' : 'w-2.5 bg-white/40 group-hover:bg-white/70'}`}>
+                {active && (
+                  <span
+                    key={pos}
+                    className={`${reduced ? '' : 'activa-trust-progress'} absolute inset-y-0 left-0 block rounded-full bg-white shadow-[0_0_10px_rgb(255_255_255/0.7)]`}
+                    style={reduced ? { width: '100%' } : { animationDuration: `${STEP_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+                  />
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="hidden mt-5 items-center gap-2">
         {labels.map((label, i) => (
           <button
             key={label}
@@ -471,13 +503,13 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                 </div>
               </div>,
               ...((typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('filiales') === 'b')
-                ? [<GroupReachCard key="group" title="Toutes les filiales du Groupe" subtitle="Une seule ligne pour toutes les filiales ACTIVA" />]
+                ? [<GroupReachCard key="group" title="" subtitle={`Disponible dans ${groupCountries().length} pays`} />]
                 : []),
             ]}
           />
           )}
           {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('filiales') === 'a' && (
-            <GroupCountriesTicker label="Disponible dans toutes les filiales du Groupe" />
+            <GroupCountriesTicker label={`Disponible dans ${groupCountries().length} pays`} />
           )}
           </div>
         </div>
