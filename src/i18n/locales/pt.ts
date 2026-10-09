@@ -1635,7 +1635,7 @@ export const pt: Record<string, string> = {
   helpline_step1_desc: "Envie uma mensagem para +237 687 45 45 45 no WhatsApp, ou um e-mail.",
   helpline_step2_title: "Mensagem de boas-vindas",
   // === AMÉLIORATION AJOUTÉE (étapes WhatsApp / e-mail revues) === lien vers le site, formulaire, accusé de réception.
-  helpline_step2_desc: "Recebe uma mensagem de boas-vindas com a ligação para www.activa-alertes.com.",
+  helpline_step2_desc: "Recebe uma mensagem de boas-vindas com a ligação para a plataforma online.",
   helpline_step3_title: "Preencha o formulário",
   helpline_step3_desc: "Preencha o formulário de denúncia: o quê, onde, quando, quem. Pode permanecer anónimo.",
   helpline_step4_title: "Descarregue o aviso de receção",
