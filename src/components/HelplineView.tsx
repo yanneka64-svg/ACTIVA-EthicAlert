@@ -17,6 +17,8 @@ import { Phone, Copy, Check, Send, MessageCircle, MessageSquareText, Search, Mai
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { BrandBlueBackdrop } from './ui/BrandBlue';
+// === AMÉLIORATION AJOUTÉE (ligne d'assistance ouverte à tout le Groupe) ===
+import { CountrySlide, GroupCountriesTicker, GroupReachCard, groupCountries } from './helpline/GroupReach';
 
 // Coordonnées réelles du canal (mêmes valeurs que ContactView.tsx).
 export const HELPLINE_NUMBER = '+237 687 45 45 45';
@@ -345,8 +347,24 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               demande explicite : WhatsApp Business et e-mail sont deux cartes
               distinctes qui défilent de la droite vers la gauche (ralenti,
               pause au survol). */}
+          {/* === AMÉLIORATION AJOUTÉE (ligne d'assistance ouverte à tout le Groupe) ===
+              aperçu des propositions (?filiales=a|b|c), le temps d'en retenir une. */}
+          <div className="min-w-0">
+          {(() => {
+            const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('filiales') : null;
+            if (v !== 'c') return null;
+            return (
+              <ChannelCarousel
+                labels={[]}
+                slides={groupCountries().map((c) => (
+                  <CountrySlide key={c.code} country={c} openLabel={t.helpline_open} onWhatsApp={HELPLINE_WHATSAPP_LINK} onEmail={`mailto:${HELPLINE_EMAIL}`} />
+                ))}
+              />
+            );
+          })()}
+          {(typeof window === 'undefined' || new URLSearchParams(window.location.search).get('filiales') !== 'c') && (
           <ChannelCarousel
-            labels={[t.contact_whatsapp_title, t.contact_email_title]}
+            labels={[t.contact_whatsapp_title, t.contact_email_title, ...((typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('filiales') === 'b') ? ['Toutes les filiales'] : [])]}
             slides={[
               <div key="wa" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col">
                 {/* === AMÉLIORATION AJOUTÉE (cartes allégées) === sur demande
@@ -452,8 +470,16 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                   </button>
                 </div>
               </div>,
+              ...((typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('filiales') === 'b')
+                ? [<GroupReachCard key="group" title="Toutes les filiales du Groupe" subtitle="Une seule ligne pour toutes les filiales ACTIVA" />]
+                : []),
             ]}
           />
+          )}
+          {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('filiales') === 'a' && (
+            <GroupCountriesTicker label="Disponible dans toutes les filiales du Groupe" />
+          )}
+          </div>
         </div>
       </div>
 

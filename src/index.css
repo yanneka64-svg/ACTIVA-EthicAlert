@@ -880,3 +880,9 @@ body {
 @keyframes activa-screen-in { 0% { opacity: 0; transform: scale(1.04); filter: blur(4px); } 100% { opacity: 1; transform: none; filter: none; } }
 .activa-screen-in { animation: activa-screen-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @media (prefers-reduced-motion: reduce) { .activa-chat-in, .activa-typing, .activa-screen-in { animation: none !important; } }
+
+/* === AMÉLIORATION AJOUTÉE (ligne d'assistance ouverte à tout le Groupe) ===
+   bande de pays qui défile en continu de droite à gauche (pause au survol). */
+@keyframes activa-ticker { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
+.activa-ticker { animation: activa-ticker 38s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .activa-ticker { animation: none !important; flex-wrap: wrap; width: auto; } }

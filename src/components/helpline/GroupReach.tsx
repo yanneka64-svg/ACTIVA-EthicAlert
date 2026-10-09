@@ -1,0 +1,166 @@
+/**
+ * === AMÉLIORATION AJOUTÉE (ligne d'assistance ouverte à tout le Groupe) ===
+ *
+ * Propositions pour montrer, sur la page « Ligne d'assistance », que la
+ * plateforme est disponible pour l'ensemble des filiales du Groupe :
+ * - `GroupCountriesTicker` : bande de pays qui défilent en continu (drapeau
+ *   stylisé + nom) sous le carrousel des canaux ;
+ * - `GroupReachCard` : carte « Toutes les filiales du Groupe » ajoutée au
+ *   carrousel (pays, nombre de filiales, mêmes canaux partout) ;
+ * - `CountrySlide` : une carte par pays (drapeau, filiales du pays, canaux).
+ *
+ * Les pays et filiales viennent de la liste du Groupe (activaConfig). Les
+ * drapeaux sont dessinés (bandes de couleurs simplifiées) : les émojis de
+ * drapeaux ne s'affichent pas sous Windows.
+ */
+import React from 'react';
+import { Building2, Globe2, Mail, MessageCircle } from 'lucide-react';
+import { ACTIVA_COUNTRIES, ACTIVA_ENTITIES } from '../../data/activaConfig';
+import { trData } from '../../i18n/dataLabels';
+
+/** Couleurs simplifiées des drapeaux (bandes), sens 'v' vertical ou 'h' horizontal. */
+const FLAG_STRIPES: Record<string, { dir: 'v' | 'h'; colors: string[]; bg?: string }> = {
+  CM: { dir: 'v', colors: ['#007A5E', '#CE1126', '#FCD116'] },
+  CD: { dir: 'h', colors: ['#007FFF'], bg: 'linear-gradient(150deg, #007FFF 0 36%, #F7D618 36% 41%, #CE1021 41% 59%, #F7D618 59% 64%, #007FFF 64%)' },
+  GN: { dir: 'v', colors: ['#CE1126', '#FCD116', '#009460'] },
+  CI: { dir: 'v', colors: ['#F77F00', '#FFFFFF', '#009E60'] },
+  GH: { dir: 'h', colors: ['#CE1126', '#FCD116', '#006B3F'] },
+  LR: { dir: 'h', colors: ['#BF0A30'], bg: 'linear-gradient(#002868, #002868) 0 0 / 42% 56% no-repeat, repeating-linear-gradient(180deg, #BF0A30 0 18.2%, #FFFFFF 18.2% 36.4%)' },
+  SL: { dir: 'h', colors: ['#1EB53A', '#FFFFFF', '#0072C6'] },
+  MU: { dir: 'h', colors: ['#EA2839', '#1A206D', '#FFD500', '#00A551'] },
+  FR: { dir: 'v', colors: ['#0055A4', '#FFFFFF', '#EF4135'] },
+  AO: { dir: 'h', colors: ['#CC092F', '#000000'] },
+};
+
+export function FlagMark({ code, className = 'w-7 h-5' }: { code: string; className?: string }) {
+  const f = FLAG_STRIPES[code];
+  if (!f) return <span className={`${className} rounded-[4px] bg-slate-200`} aria-hidden="true" />;
+  const step = 100 / f.colors.length;
+  const stops = f.colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(', ');
+  return (
+    <span
+      aria-hidden="true"
+      className={`${className} inline-block shrink-0 rounded-[4px] ring-1 ring-black/10 shadow-sm`}
+      style={{ background: f.bg ?? `linear-gradient(${f.dir === 'v' ? '90deg' : '180deg'}, ${stops})` }}
+    />
+  );
+}
+
+export interface GroupCountry {
+  code: string;
+  name: string;
+  entities: string[];
+}
+
+export function groupCountries(): GroupCountry[] {
+  return ACTIVA_COUNTRIES.map((c) => ({
+    code: c.code,
+    name: trData(c.name),
+    entities: ACTIVA_ENTITIES.filter((e) => e.country === c.name).map((e) => e.name),
+  }));
+}
+
+/* ------------------------------------------------------------------ */
+/* Proposition A — bande de pays qui défilent                          */
+/* ------------------------------------------------------------------ */
+export function GroupCountriesTicker({ label }: { label: string }) {
+  const countries = groupCountries();
+  const row = [...countries, ...countries];
+  return (
+    <div className="mt-6">
+      <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#C9DAF8]">
+        <Globe2 className="w-3.5 h-3.5" strokeWidth={2} />
+        {label}
+      </p>
+      <div className="relative mt-3 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
+        <div className="activa-ticker flex w-max gap-2.5 py-1 hover:[animation-play-state:paused]">
+          {row.map((c, i) => (
+            <span
+              key={`${c.code}-${i}`}
+              aria-hidden={i >= countries.length}
+              className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-inset ring-white/20 backdrop-blur"
+            >
+              <FlagMark code={c.code} className="w-5 h-3.5" />
+              {c.name}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Proposition B — carte « Toutes les filiales du Groupe »             */
+/* ------------------------------------------------------------------ */
+export function GroupReachCard({ title, subtitle }: { title: string; subtitle: string }) {
+  const countries = groupCountries();
+  const entityCount = ACTIVA_ENTITIES.length;
+  return (
+    <div className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <span className="inline-flex items-center gap-2.5">
+          <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]">
+            <Globe2 className="w-5 h-5" strokeWidth={1.8} />
+          </span>
+          <span className="text-[15px] font-extrabold text-[#0B2545]">{title}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EEF3FC] px-2.5 py-1 text-[11px] font-bold text-[#1449B0]">
+          {countries.length} pays · {entityCount} filiales
+        </span>
+      </div>
+      <p className="mt-6 text-[22px] sm:text-[26px] font-extrabold tracking-tight leading-tight text-[#0B2545]">{subtitle}</p>
+      <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+        {countries.map((c) => (
+          <span key={c.code} className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-slate-700">
+            <FlagMark code={c.code} className="w-6 h-4" />
+            {c.name}
+          </span>
+        ))}
+      </div>
+      <div className="mt-auto pt-6 flex items-center gap-4 text-[12.5px] text-slate-500">
+        <span className="inline-flex items-center gap-1.5"><MessageCircle className="w-4 h-4 text-[#1449B0]" strokeWidth={2} />WhatsApp</span>
+        <span className="inline-flex items-center gap-1.5"><Mail className="w-4 h-4 text-[#1449B0]" strokeWidth={2} />E-mail</span>
+        <span className="text-slate-400">· mêmes canaux partout</span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Proposition C — une carte par pays                                  */
+/* ------------------------------------------------------------------ */
+export function CountrySlide({ country, openLabel, onWhatsApp, onEmail }: { country: GroupCountry; openLabel: string; onWhatsApp: string; onEmail: string }) {
+  return (
+    <div className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <span className="inline-flex items-center gap-3">
+          <FlagMark code={country.code} className="w-11 h-8 rounded-md" />
+          <span className="text-[24px] font-extrabold tracking-tight text-[#0B2545]">{country.name}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+          <span className="activa-live-dot w-2 h-2 rounded-full bg-emerald-500" />
+          {openLabel}
+        </span>
+      </div>
+      <ul className="mt-6 space-y-2">
+        {country.entities.map((e) => (
+          <li key={e} className="flex items-center gap-2 text-[14px] font-semibold text-slate-700">
+            <Building2 className="w-4 h-4 text-[#1449B0] shrink-0" strokeWidth={1.9} />
+            {e}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-auto pt-7 grid grid-cols-2 gap-2.5">
+        <a href={onWhatsApp} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] text-white text-sm font-bold shadow-lg shadow-[#1449B0]/30">
+          <MessageCircle className="w-4 h-4" strokeWidth={2} />
+          WhatsApp
+        </a>
+        <a href={onEmail} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-700 text-sm font-semibold">
+          <Mail className="w-4 h-4" strokeWidth={1.9} />
+          E-mail
+        </a>
+      </div>
+    </div>
+  );
+}
