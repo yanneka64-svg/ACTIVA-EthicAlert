@@ -269,7 +269,7 @@ export function HeroChannelCoverflow({ items, label, heading, availability }: Ch
                 </div>
                 <div className="p-5">
                   <p className="text-[20px] font-extrabold tracking-tight text-[#0B2545]">{it.title}</p>
-                  <p className={`mt-1.5 min-h-[44px] leading-snug text-slate-600 ${it.desc.includes('@') ? 'text-[12.5px] tracking-[-0.01em]' : 'text-[14px]'}`}>{contactText(it.desc)}</p>
+                  <p className={`mt-1.5 min-h-[44px] leading-snug text-slate-600 ${it.desc.includes('@') ? 'text-[11.5px] sm:text-[12.5px] tracking-[-0.01em]' : 'text-[14px]'}`}>{contactText(it.desc)}</p>
                   <ChannelAction
                     item={it}
                     tabIndex={active ? 0 : -1}

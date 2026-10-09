@@ -1655,7 +1655,8 @@ export const pt: Record<string, string> = {
   helpline_from_anywhere: "Um único número WhatsApp para todos os países do Grupo",
   helpline_whatsapp_btn: "Abrir o WhatsApp",
   helpline_email_label: "Ou escreva-nos por e-mail",
-  helpline_email_btn: "Escrever um e-mail",
+  // === AMÉLIORATION AJOUTÉE (libellé demandé) === « Escrever » → « Enviar ».
+  helpline_email_btn: "Enviar um e-mail",
   helpline_home_email_title: "E-mail",
   hero_channel_whatsapp_title: "WhatsApp Business",
   hero_channel_whatsapp_desc: "Escreva-nos para +237 687 45 45 45, 24 h/24.",
