@@ -285,13 +285,18 @@ export function routingPlan(
 
 // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
 /**
- * Comptes du personnel à écarter du dossier (accès au portail) parce que leur
- * niveau est mis en cause — même décision que pour les e-mails (routingPlan) :
- * - niveau Superviseurs, DARC, DGA ou DRH mis en cause : tous les comptes
+ * Comptes du personnel à écarter du dossier (accès au portail) quand un niveau
+ * est mis en cause — seuls les niveaux qui reçoivent l'alerte (routingPlan)
+ * voient le dossier :
+ * - le niveau mis en cause (Superviseurs, DARC, DGA, DRH) : tous les comptes
  *   actifs ayant un rôle de ce niveau ;
+ * - === AMÉLIORATION AJOUTÉE (niveaux inférieurs écartés) === les destinataires
+ *   habituels remplacés par l'escalade (ex. les superviseurs quand la DARC est
+ *   mise en cause) : un niveau inférieur ne voit jamais une alerte qui porte
+ *   sur un niveau supérieur. Un rôle partagé avec un niveau destinataire est
+ *   conservé ;
  * - un enquêteur mis en cause : l'enquêteur nommé (prénom et nom) ; si aucun
- *   compte enquêteur n'est reconnu par son nom, tous les comptes enquêteur
- *   (impossible de savoir lequel est visé).
+ *   compte enquêteur n'est reconnu par son nom, tous les comptes enquêteur.
  * Les personnes nommées sont en plus rattachées individuellement à leur
  * compte (implicatedUserIds) par le serveur.
  */
@@ -301,17 +306,23 @@ export function levelExcludedStaffUids(
   staff: StaffRecipientCandidate[]
 ): string[] {
   const plan = routingPlan(settings, facts, staff);
+  if (plan.routingCase === 'none') return [];
   const out = new Set<string>();
-  for (const level of plan.implicated) {
-    if (level === 'investigators') {
-      const investigators = staff.filter((s) => s.active && s.role === 'investigator');
-      const named = investigators.filter((s) => s.name && (facts.implicatedPersons ?? []).some((p) => namesMatch(p.name, s.name)));
-      for (const s of named.length ? named : investigators) out.add(s.uid);
-      continue;
-    }
-    const group = settings.groups.find((g) => g.id === level);
-    if (!group) continue;
-    for (const s of staff) if (s.active && group.roles.includes(s.role)) out.add(s.uid);
+  const rolesOf = (ids: RecipientGroupId[]) =>
+    new Set(ids.flatMap((id) => settings.groups.find((g) => g.id === id)?.roles ?? []));
+  const implicatedGroups = plan.implicated.filter((l): l is RecipientGroupId => l !== 'investigators');
+  const usual = (settings.routing?.none ?? DEFAULT_ROUTING.none) as RecipientGroupId[];
+  const displaced = usual.filter((g) => !plan.recipients.includes(g) && !implicatedGroups.includes(g));
+  const recipientRoles = rolesOf(plan.recipients);
+  const excludedRoles = new Set<RoleId>([
+    ...rolesOf(implicatedGroups),
+    ...[...rolesOf(displaced)].filter((r) => !recipientRoles.has(r)),
+  ]);
+  for (const s of staff) if (s.active && excludedRoles.has(s.role)) out.add(s.uid);
+  if (plan.implicated.includes('investigators')) {
+    const investigators = staff.filter((s) => s.active && s.role === 'investigator');
+    const named = investigators.filter((s) => s.name && (facts.implicatedPersons ?? []).some((p) => namesMatch(p.name, s.name)));
+    for (const s of named.length ? named : investigators) out.add(s.uid);
   }
   return [...out];
 }

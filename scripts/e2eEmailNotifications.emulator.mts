@@ -184,7 +184,13 @@ check('superviseur cité par sa fonction : la DARC voit et ouvre le dossier', da
 const darc7 = await canOpen(darcAcc, c7.caseId);
 const sup7 = await canOpen(supCm, c7.caseId);
 check('DARC citée par sa fonction : le compte DARC ne voit ni n’ouvre le dossier', !darc7.open && !darc7.listed, darc7);
-check('DARC citée par sa fonction : les superviseurs conservent l’accès', sup7.open && sup7.listed, sup7);
+// === AMÉLIORATION AJOUTÉE (niveaux inférieurs écartés) === une alerte sur la
+// DARC n'est vue que par les niveaux qui la reçoivent (DGA, DRH).
+const op7 = await canOpen(op, c7.caseId);
+check('DARC citée par sa fonction : aucun superviseur ne voit ni n’ouvre le dossier', !sup7.open && !sup7.listed && !op7.open && !op7.listed, { sup7, op7 });
+const sup6 = await canOpen(supCm, c6.caseId);
+const darc6 = await canOpen(darcAcc, c6.caseId);
+check('enquêteur mis en cause : seule la DARC voit le dossier (superviseurs écartés)', !sup6.open && !sup6.listed && darc6.open && darc6.listed, { sup6, darc6 });
 const a8 = (await db.collection('audit_logs').where('caseId', '==', c8.caseId).where('action', '==', 'ESCALATION_ACCESS_RESTRICTED').get()).docs;
 check('restriction d’accès inscrite dans la piste d’audit (sans nom)', a8.length === 1 && !JSON.stringify(a8[0].data()).includes('Superviseur régional'), a8.map((d) => d.data().newValue));
 

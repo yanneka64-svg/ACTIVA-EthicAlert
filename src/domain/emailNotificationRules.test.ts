@@ -160,13 +160,20 @@ describe('levelExcludedStaffUids — accès au portail retiré au niveau mis en 
   it('superviseur nommé : tout le niveau superviseurs écarté', () => {
     expect(levelExcludedStaffUids(settings, f([{ name: 'MEBADA Eric', position: 'Chef' }]), people).sort()).toEqual(['fa', 'si']);
   });
-  it('DARC citée par sa fonction : comptes DARC écartés, superviseurs conservés', () => {
-    expect(levelExcludedStaffUids(settings, f([{ name: 'Inconnu', position: 'DARC' }]), people)).toEqual(['darc']);
+  it('DARC citée par sa fonction : comptes DARC ET superviseurs écartés (seuls DGA et DRH)', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'Inconnu', position: 'DARC' }]), people).sort()).toEqual(['darc', 'fa', 'si']);
   });
-  it('enquêteur nommé : lui seul est écarté', () => {
-    expect(levelExcludedStaffUids(settings, f([{ name: 'jean paul MBARGA', position: 'Agent' }]), people)).toEqual(['inv1']);
+  it('DGA cité : superviseurs écartés, la DARC conserve l’accès', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'Inconnu', position: 'Directeur Général Adjoint' }]), people).sort()).toEqual(['fa', 'si']);
   });
-  it('enquêteur cité sans nom reconnu : tous les enquêteurs écartés', () => {
-    expect(levelExcludedStaffUids(settings, f([{ name: 'Inconnu', position: 'Enquêteur' }]), people).sort()).toEqual(['inv1', 'inv2']);
+  it('enquêteur nommé : lui et les superviseurs sont écartés (DARC seule)', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'jean paul MBARGA', position: 'Agent' }]), people).sort()).toEqual(['fa', 'inv1', 'si']);
+  });
+  it('enquêteur cité sans nom reconnu : tous les enquêteurs et les superviseurs écartés', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'Inconnu', position: 'Enquêteur' }]), people).sort()).toEqual(['fa', 'inv1', 'inv2', 'si']);
+  });
+  it('rôle partagé avec le niveau destinataire : conservé', () => {
+    const shared = { ...settings, groups: settings.groups.map((g) => (g.id === 'darc' ? { ...g, roles: ['darc_compliance', 'senior_investigator'] as typeof g.roles } : g)) };
+    expect(levelExcludedStaffUids(shared, f([{ name: 'X', position: 'Agent', }, { name: 'Inconnu', position: 'Enquêteur' }]), people).sort()).toEqual(['fa', 'inv1', 'inv2']);
   });
 });
