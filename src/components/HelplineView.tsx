@@ -17,6 +17,8 @@ import { Phone, Copy, Check, Send, MessageCircle, MessageSquareText, Search, Mai
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { BrandBlueBackdrop } from './ui/BrandBlue';
+// === AMÉLIORATION AJOUTÉE (ligne d'assistance ouverte à tout le Groupe) ===
+import { GroupCountriesTicker, groupCountries } from './helpline/GroupReach';
 
 // Coordonnées réelles du canal (mêmes valeurs que ContactView.tsx).
 export const HELPLINE_NUMBER = '+237 687 45 45 45';
@@ -166,7 +168,39 @@ const ChannelCarousel: React.FC<{ slides: React.ReactNode[]; labels: string[] }>
           })}
         </div>
       </div>
-      <div className="mt-5 flex items-center gap-2">
+      {/* === AMÉLIORATION AJOUTÉE (points de défilement) === sur demande
+          explicite : les onglets « WhatsApp Business / Adresse e-mail dédiée »
+          sont remplacés par des points qui montrent le passage d'une carte à
+          l'autre (même rendu que l'accueil) ; les onglets restent, masqués. */}
+      <div className="mt-6 flex items-center gap-2.5">
+        {slides.map((_, i) => {
+          const active = i === index;
+          return (
+            <button
+              key={i}
+              type="button"
+              aria-label={labels[i] ?? `${i + 1} / ${n}`}
+              aria-current={active}
+              onClick={() => {
+                setAnimate(true);
+                setPos(i);
+              }}
+              className="group p-1.5 -m-1.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              <span className={`relative block h-2.5 rounded-full overflow-hidden transition-all duration-500 ease-out ${active ? 'w-11 bg-white/30' : 'w-2.5 bg-white/40 group-hover:bg-white/70'}`}>
+                {active && (
+                  <span
+                    key={pos}
+                    className={`${reduced ? '' : 'activa-trust-progress'} absolute inset-y-0 left-0 block rounded-full bg-white shadow-[0_0_10px_rgb(255_255_255/0.7)]`}
+                    style={reduced ? { width: '100%' } : { animationDuration: `${STEP_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+                  />
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="hidden mt-5 items-center gap-2">
         {labels.map((label, i) => (
           <button
             key={label}
@@ -345,6 +379,10 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               demande explicite : WhatsApp Business et e-mail sont deux cartes
               distinctes qui défilent de la droite vers la gauche (ralenti,
               pause au survol). */}
+          {/* === AMÉLIORATION AJOUTÉE (ligne d'assistance ouverte à tout le Groupe) ===
+              sur demande explicite : sous les cartes, « Disponible dans N pays »
+              et la bande des pays du Groupe qui défilent. */}
+          <div className="min-w-0">
           <ChannelCarousel
             labels={[t.contact_whatsapp_title, t.contact_email_title]}
             slides={[
@@ -454,6 +492,8 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               </div>,
             ]}
           />
+          <GroupCountriesTicker lang={lang} label={t.helpline_group_countries.replace('{count}', String(groupCountries(lang).length))} />
+          </div>
         </div>
       </div>
 

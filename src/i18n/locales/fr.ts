@@ -1845,6 +1845,8 @@ export const fr: Record<string, string> = {
   helpline_email_label: "Ou écrivez-nous par e-mail",
   // === AMÉLIORATION AJOUTÉE (libellé demandé) === « Écrire » → « Envoyer ».
   helpline_email_btn: "Envoyer un e-mail",
+  // === AMÉLIORATION AJOUTÉE (pays du Groupe sur la ligne d'assistance) ===
+  helpline_group_countries: "Disponible dans {count} pays",
   helpline_home_email_title: "E-mail",
   hero_channel_whatsapp_title: "WhatsApp Business",
   hero_channel_whatsapp_desc: "Écrivez-nous au +237 687 45 45 45, 24 h/24.",
