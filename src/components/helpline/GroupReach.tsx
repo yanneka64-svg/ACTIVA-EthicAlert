@@ -58,6 +58,22 @@ function FlagStar({ code }: { code: string }) {
   );
 }
 
+// === AMÉLIORATION AJOUTÉE (emblème de l'Angola) === sur demande explicite :
+// demi-roue dentée, machette et étoile jaunes, simplifiées pour rester
+// lisibles en petit.
+function AngolaEmblem() {
+  return (
+    <svg viewBox="0 0 24 24" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ height: '78%', aspectRatio: '1' }}>
+      <g fill="none" stroke="#FFCB00" strokeLinecap="butt">
+        <path d="M5.3 9.9 A7 7 0 1 0 16.9 7" strokeWidth="2.4" />
+        <path d="M3.4 9.3 A9 9 0 1 0 18.3 5.6" strokeWidth="1.8" strokeDasharray="1.5 1.3" />
+        <path d="M6.5 17.5 L17.5 6.5" strokeWidth="2.2" strokeLinecap="round" />
+      </g>
+      <polygon fill="#FFCB00" points="8.8,5.6 9.6,8 12.1,8 10.1,9.5 10.8,11.9 8.8,10.4 6.8,11.9 7.5,9.5 5.5,8 8,8" />
+    </svg>
+  );
+}
+
 export function FlagMark({ code, className = 'w-7 h-5' }: { code: string; className?: string }) {
   const f = FLAG_STRIPES[code];
   if (!f) return <span className={`${className} rounded-[4px] bg-slate-200`} aria-hidden="true" />;
@@ -70,6 +86,7 @@ export function FlagMark({ code, className = 'w-7 h-5' }: { code: string; classN
       style={{ background: f.bg ?? `linear-gradient(${f.dir === 'v' ? '90deg' : '180deg'}, ${stops})` }}
     >
       <FlagStar code={code} />
+      {code === 'AO' && <AngolaEmblem />}
     </span>
   );
 }
