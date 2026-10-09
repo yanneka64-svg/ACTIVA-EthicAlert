@@ -13,7 +13,7 @@
  * - Autres canaux : en ligne, e-mail, suivi d'un dossier.
  */
 import React from 'react';
-import { Phone, Copy, Check, Send, MessageCircle, MessageSquareText, Search, Mail, ArrowRight, Globe2, PenLine, KeyRound, Clock3, Languages, ChevronRight, Lock } from 'lucide-react';
+import { Phone, Copy, Check, Send, MessageCircle, MessageSquareText, Search, Mail, ArrowRight, Globe2, PenLine, KeyRound, Clock3, FileDown, Languages, ChevronRight, Lock } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { BrandBlueBackdrop } from './ui/BrandBlue';
@@ -23,6 +23,24 @@ export const HELPLINE_NUMBER = '+237 687 45 45 45';
 export const HELPLINE_TEL = 'tel:+237687454545';
 export const HELPLINE_WHATSAPP_LINK = 'https://wa.me/237687454545';
 export const HELPLINE_EMAIL = 'activa.whistleblowing@group-activa.com';
+
+// === AMÉLIORATION AJOUTÉE (étapes WhatsApp / e-mail revues) ===
+// « www.activa-alertes.com » cité dans un texte devient un lien cliquable.
+const SITE_LABEL = 'www.activa-alertes.com';
+const SITE_URL = 'https://www.activa-alertes.com';
+function linkifySite(text: string): React.ReactNode {
+  const i = text.indexOf(SITE_LABEL);
+  if (i < 0) return text;
+  return (
+    <>
+      {text.slice(0, i)}
+      <a href={SITE_URL} className="font-semibold text-[#1449B0] underline underline-offset-2 decoration-[#1449B0]/40 hover:decoration-[#1449B0] whitespace-nowrap">
+        {SITE_LABEL}
+      </a>
+      {text.slice(i + SITE_LABEL.length)}
+    </>
+  );
+}
 
 function usePrefersReducedMotion(): boolean {
   return React.useMemo(
@@ -229,6 +247,10 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
     { Icon: PenLine, title: t.helpline_step3_title, desc: t.helpline_step3_desc },
     { Icon: KeyRound, title: t.helpline_step4_title, desc: t.helpline_step4_desc },
   ];
+  // === AMÉLIORATION AJOUTÉE (étapes WhatsApp / e-mail revues) === l'étape 4
+  // invite à télécharger l'accusé de réception : icône « téléchargement »
+  // (l'icône clé reste dans STEPS ci-dessus, remplacée à l'affichage).
+  STEPS[3] = { ...STEPS[3], Icon: FileDown };
 
   const ghostBtn =
     'inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-300';
@@ -494,7 +516,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                     </span>
                   </span>
                   <span className={`mt-4 text-[16px] font-extrabold tracking-tight transition-colors duration-[1200ms] ${lit ? 'text-[#0B2545]' : 'text-slate-400'}`}>{title}</span>
-                  <span className={`mt-1 text-[13.5px] leading-relaxed max-w-[17rem] transition-colors duration-[1200ms] ${lit ? 'text-slate-600' : 'text-slate-400'}`}>{desc}</span>
+                  <span className={`mt-1 text-[13.5px] leading-relaxed max-w-[17rem] transition-colors duration-[1200ms] ${lit ? 'text-slate-600' : 'text-slate-400'}`}>{linkifySite(desc)}</span>
                 </li>
               );
             })}
