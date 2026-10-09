@@ -1822,7 +1822,7 @@ export const fr: Record<string, string> = {
   helpline_step1_desc: "Envoyez un message au +237 687 45 45 45 sur WhatsApp, ou un e-mail.",
   helpline_step2_title: "Message d'accueil",
   // === AMÉLIORATION AJOUTÉE (étapes WhatsApp / e-mail revues) === lien vers le site, formulaire, accusé de réception.
-  helpline_step2_desc: "Vous recevez un message d'accueil avec le lien vers www.activa-alertes.com.",
+  helpline_step2_desc: "Vous recevez un message d'accueil avec le lien vers la plateforme en ligne.",
   helpline_step3_title: "Remplissez le formulaire",
   helpline_step3_desc: "Complétez le formulaire de déclaration\u00a0: quoi, où, quand, qui. Vous pouvez rester anonyme.",
   helpline_step4_title: "Téléchargez l'accusé de réception",
