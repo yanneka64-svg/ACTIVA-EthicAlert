@@ -283,6 +283,39 @@ export function routingPlan(
   return { routingCase, implicated, recipients };
 }
 
+// === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+/**
+ * Comptes du personnel à écarter du dossier (accès au portail) parce que leur
+ * niveau est mis en cause — même décision que pour les e-mails (routingPlan) :
+ * - niveau Superviseurs, DARC, DGA ou DRH mis en cause : tous les comptes
+ *   actifs ayant un rôle de ce niveau ;
+ * - un enquêteur mis en cause : l'enquêteur nommé (prénom et nom) ; si aucun
+ *   compte enquêteur n'est reconnu par son nom, tous les comptes enquêteur
+ *   (impossible de savoir lequel est visé).
+ * Les personnes nommées sont en plus rattachées individuellement à leur
+ * compte (implicatedUserIds) par le serveur.
+ */
+export function levelExcludedStaffUids(
+  settings: EmailNotificationSettings,
+  facts: CaseNotificationFacts,
+  staff: StaffRecipientCandidate[]
+): string[] {
+  const plan = routingPlan(settings, facts, staff);
+  const out = new Set<string>();
+  for (const level of plan.implicated) {
+    if (level === 'investigators') {
+      const investigators = staff.filter((s) => s.active && s.role === 'investigator');
+      const named = investigators.filter((s) => s.name && (facts.implicatedPersons ?? []).some((p) => namesMatch(p.name, s.name)));
+      for (const s of named.length ? named : investigators) out.add(s.uid);
+      continue;
+    }
+    const group = settings.groups.find((g) => g.id === level);
+    if (!group) continue;
+    for (const s of staff) if (s.active && group.roles.includes(s.role)) out.add(s.uid);
+  }
+  return [...out];
+}
+
 function inScope(staff: StaffRecipientCandidate, facts: CaseNotificationFacts): boolean {
   if (staff.countries.length && !staff.countries.includes(facts.country)) return false;
   if (staff.entities.length && !staff.entities.includes(facts.entity)) return false;

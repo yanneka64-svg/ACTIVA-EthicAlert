@@ -94,7 +94,10 @@ service cloud.firestore {
     // Rule #9 of the brief: a person implicated in a report must NEVER access
     // that case, regardless of role, assignment, or scope.
     function isNotImplicated(kase) {
-      return !(request.auth.uid in kase.implicatedUserIds);
+      return !(request.auth.uid in kase.implicatedUserIds)
+        // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+        // comptes du niveau mis en cause, écartés par l'escalade.
+        && !(request.auth.uid in kase.get('escalationExcludedUserIds', []));
     }
     // === AMÉLIORATION AJOUTÉE : confidentiality clearance now mirrored into rules ===
     // Was previously enforced ONLY in src/domain/permissions.ts (can() ->

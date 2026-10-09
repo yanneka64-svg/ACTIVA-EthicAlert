@@ -136,3 +136,37 @@ describe('acheminement selon la personne mise en cause', () => {
     expect(parseContact('Awa Ndiaye <AWA@x.com>')).toEqual({ name: 'Awa Ndiaye', email: 'awa@x.com' });
   });
 });
+
+// === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+import { levelExcludedStaffUids } from './emailNotificationRules';
+describe('levelExcludedStaffUids — accès au portail retiré au niveau mis en cause', () => {
+  const people: StaffRecipientCandidate[] = [
+    { uid: 'fa', email: 'fa@group-activa.com', name: 'Awa Fonction', role: 'functional_admin', active: true, countries: [], entities: [] },
+    { uid: 'si', email: 'si@group-activa.com', name: 'Eric Mebada', role: 'senior_investigator', active: true, countries: [], entities: [] },
+    { uid: 'darc', email: 'darc@group-activa.com', name: 'Diane Arc', role: 'darc_compliance', active: true, countries: [], entities: [] },
+    { uid: 'inv1', email: 'i1@group-activa.com', name: 'Jean Paul Mbarga', role: 'investigator', active: true, countries: [], entities: [] },
+    { uid: 'inv2', email: 'i2@group-activa.com', name: 'Paul Ndi', role: 'investigator', active: true, countries: [], entities: [] },
+    { uid: 'old', email: 'old@group-activa.com', name: 'Ancien Sup', role: 'senior_investigator', active: false, countries: [], entities: [] },
+  ];
+  const f = (persons: { name?: string; position?: string }[]): CaseNotificationFacts => ({
+    reference: 'R', category: 'Fraude', entity: 'E', country: 'Cameroun', priority: 'high', implicatedLevels: [], implicatedPersons: persons,
+  });
+  it('personne du dispositif mise en cause : personne n’est écarté', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'Tiers Externe', position: 'Comptable' }]), people)).toEqual([]);
+  });
+  it('superviseur cité par sa fonction : tous les comptes superviseurs actifs écartés', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'X', position: 'Superviseur régional' }]), people).sort()).toEqual(['fa', 'si']);
+  });
+  it('superviseur nommé : tout le niveau superviseurs écarté', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'MEBADA Eric', position: 'Chef' }]), people).sort()).toEqual(['fa', 'si']);
+  });
+  it('DARC citée par sa fonction : comptes DARC écartés, superviseurs conservés', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'Inconnu', position: 'DARC' }]), people)).toEqual(['darc']);
+  });
+  it('enquêteur nommé : lui seul est écarté', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'jean paul MBARGA', position: 'Agent' }]), people)).toEqual(['inv1']);
+  });
+  it('enquêteur cité sans nom reconnu : tous les enquêteurs écartés', () => {
+    expect(levelExcludedStaffUids(settings, f([{ name: 'Inconnu', position: 'Enquêteur' }]), people).sort()).toEqual(['inv1', 'inv2']);
+  });
+});

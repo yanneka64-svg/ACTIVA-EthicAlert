@@ -79,6 +79,9 @@ import {
   isValidEmail,
   namesMatch,
   parseContact,
+  // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+  levelExcludedStaffUids,
+  routingPlan,
   RECIPIENT_GROUP_IDS,
   resolveNotificationRecipients,
   sanitizeEmailNotificationSettings,
@@ -268,6 +271,14 @@ async function appendAudit(entry: { actorId: string; action: string; caseId?: st
 // here specifically to avoid re-deriving "fetch the case, compute
 // implicatedUserIds fresh, call can()" slightly differently in each new
 // callable — every one of them must agree on this, always.
+// === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+// Comptes qui n'ont jamais accès au dossier : personnes mises en cause
+// rattachées à un compte (implicatedUserIdsFromPersons) ET comptes du niveau
+// mis en cause écartés par l'escalade (Case.escalationExcludedUserIds).
+function caseExcludedUids(kase: Case, persons: Person[]): string[] {
+  return Array.from(new Set([...implicatedUserIdsFromPersons(persons), ...(kase.escalationExcludedUserIds ?? [])]));
+}
+
 async function requireCaseAccess(caseId: string, user: AppUser, permission: Permission): Promise<{ ref: FirebaseFirestore.DocumentReference; kase: Case }> {
   const ref = db.collection('cases').doc(caseId);
   const snap = await ref.get();
@@ -275,7 +286,8 @@ async function requireCaseAccess(caseId: string, user: AppUser, permission: Perm
   const kase = snap.data() as Case;
 
   const personsSnap = await ref.collection('persons').get();
-  const implicated = implicatedUserIdsFromPersons(personsSnap.docs.map((d) => d.data() as Person));
+  // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+  const implicated = caseExcludedUids(kase, personsSnap.docs.map((d) => d.data() as Person));
   if (!can(user, permission, { case: kase, implicatedUserIds: implicated })) {
     throw new HttpsError('permission-denied', `Not authorized (${permission}) on this case.`);
   }
@@ -473,7 +485,9 @@ export const listCases = onCall(async (request) => {
     const withoutDenormalized: Case[] = [];
     for (const kase of cases) {
       if (Array.isArray(kase.implicatedUserIds)) {
-        personsByCase.set(kase.caseId, kase.implicatedUserIds.map((uid) => ({ kind: 'subject', linkedUserId: uid }) as Person));
+        // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) === + comptes du niveau mis en cause.
+        const excluded = Array.from(new Set([...kase.implicatedUserIds, ...(kase.escalationExcludedUserIds ?? [])]));
+        personsByCase.set(kase.caseId, excluded.map((uid) => ({ kind: 'subject', linkedUserId: uid }) as Person));
       } else {
         withoutDenormalized.push(kase);
       }
@@ -481,7 +495,11 @@ export const listCases = onCall(async (request) => {
     await Promise.all(
       withoutDenormalized.map(async (kase) => {
         const personsSnap = await db.collection('cases').doc(kase.caseId).collection('persons').where('kind', '==', 'subject').get();
-        personsByCase.set(kase.caseId, personsSnap.docs.map((d) => d.data() as Person));
+        personsByCase.set(kase.caseId, [
+          ...personsSnap.docs.map((d) => d.data() as Person),
+          // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+          ...(kase.escalationExcludedUserIds ?? []).map((uid) => ({ kind: 'subject', linkedUserId: uid }) as Person),
+        ]);
       })
     );
     for (const kase of cases) {
@@ -516,7 +534,8 @@ export const assignCase = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async (reques
   const kase = snap.data() as Case;
 
   const personsSnap = await ref.collection('persons').get();
-  const implicated = implicatedUserIdsFromPersons(personsSnap.docs.map((d) => d.data() as Person));
+  // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+  const implicated = caseExcludedUids(kase, personsSnap.docs.map((d) => d.data() as Person));
   if (!can(user, 'cases.assign', { case: kase, implicatedUserIds: implicated })) {
     throw new HttpsError('permission-denied', 'Not authorized to assign this case.');
   }
@@ -563,7 +582,8 @@ export const changeCaseStatus = onCall(async (request) => {
   const kase = snap.data() as Case;
 
   const personsSnap = await ref.collection('persons').get();
-  const implicated = implicatedUserIdsFromPersons(personsSnap.docs.map((d) => d.data() as Person));
+  // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+  const implicated = caseExcludedUids(kase, personsSnap.docs.map((d) => d.data() as Person));
   const requiredPermission = to === 'closed' ? 'cases.close' : 'cases.edit';
   if (!can(user, requiredPermission, { case: kase, implicatedUserIds: implicated })) {
     throw new HttpsError('permission-denied', 'Not authorized to change this case status.');
@@ -1343,7 +1363,8 @@ async function notifyReporterMessage(caseRef: FirebaseFirestore.DocumentReferenc
     const staff = await loadStaffRecipientCandidates();
     const recipients = resolveReporterMessageRecipients({
       assigneeUids: [kase.assignee, ...(kase.additionalInvestigators ?? [])],
-      implicatedUids: kase.implicatedUserIds ?? [],
+      // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+      implicatedUids: [...(kase.implicatedUserIds ?? []), ...(kase.escalationExcludedUserIds ?? [])],
       staff,
       facts: { country: kase.country, entity: kase.entity },
     });
@@ -1884,11 +1905,15 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     // rattaché automatiquement : il ne voit plus le dossier sur le portail.
     const subjects = (data.details?.persons ?? []).filter((p) => p.kind === 'subject');
     const implicatedUids = await autoLinkImplicatedStaff(caseId, data.details?.persons ?? []);
+    // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) === le
+    // niveau mis en cause (fonction citée ou membre nommé) perd aussi l'accès
+    // au dossier, comme il est écarté des e-mails.
+    const levelExcludedUids = await restrictImplicatedLevels(caseId, subjects.map((p) => ({ name: p.name, position: p.position })));
     // === AMÉLIORATION AJOUTÉE (notifications e-mail) === superviseurs, DARC,
     // et le cas échéant DGA / DRH (règles de l'administration).
     await notifyCaseEvent('new_report', {
       caseId,
-      excludedUids: implicatedUids,
+      excludedUids: [...implicatedUids, ...levelExcludedUids],
       facts: {
         implicatedPersons: subjects.map((p) => ({ name: p.name, position: p.position })),
         reference: outcome.trackingNumber,
@@ -2242,7 +2267,8 @@ export const getCaseDetails = onCall(async (request) => {
       ref.collection('coi_declarations').get(),
     ]);
     const personList = persons.docs.map((d) => d.data() as Person);
-    const context = { case: kase, implicatedUserIds: implicatedUserIdsFromPersons(personList) };
+    // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+    const context = { case: kase, implicatedUserIds: caseExcludedUids(kase, personList) };
     const communications = can(user, 'communications.read', context)
       ? (await ref.collection('communications').get()).docs.map((d) => d.data() as Communication)
       : [];
@@ -2303,7 +2329,8 @@ export const applyPortalUpdate = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async 
   const kase = snap.data() as Case;
   const personsSnap = await ref.collection('persons').get();
   const persons = personsSnap.docs.map((d) => d.data() as Person);
-  const context = { case: kase, implicatedUserIds: implicatedUserIdsFromPersons(persons) };
+  // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+  const context = { case: kase, implicatedUserIds: caseExcludedUids(kase, persons) };
   if (!can(user, 'cases.read', context)) throw new HttpsError('permission-denied', 'Not authorized on this case.');
 
   const applied: string[] = [];
@@ -2492,7 +2519,8 @@ export const applyPortalUpdate = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async 
       // === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) ===
       implicatedPersons: persons.filter((p) => p.kind === 'subject').map((p) => ({ name: p.name, position: p.position })),
     };
-    const excludedUids = [user.userId, ...implicatedUserIdsFromPersons(persons)];
+    // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+    const excludedUids = [user.userId, ...caseExcludedUids(kase, persons)];
     for (const ev of events) await notifyCaseEvent(ev, { caseId, facts, excludedUids });
   }
   // === AMÉLIORATION AJOUTÉE (e-mail à l'enquêteur désigné) ===
@@ -2503,7 +2531,8 @@ export const applyPortalUpdate = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async 
       previousUids: [kase.assignee, ...(kase.additionalInvestigators ?? [])],
       nextUids: [assignment.assignee, ...assignment.additionalInvestigators],
       actorId: user.userId,
-      excludedUids: implicatedUserIdsFromPersons(persons),
+      // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+      excludedUids: caseExcludedUids(kase, persons),
     });
   }
 
@@ -3007,6 +3036,35 @@ async function autoLinkImplicatedStaff(caseId: string, persons: { kind: string; 
     return linked;
   } catch (e) {
     console.error('autoLinkImplicatedStaff failed', e);
+    return [];
+  }
+}
+
+// === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+/**
+ * Écarte du dossier les comptes du niveau mis en cause (même décision que
+ * l'acheminement des e-mails, voir levelExcludedStaffUids) :
+ * `Case.escalationExcludedUserIds`. Audité sans aucun nom. Renvoie les comptes
+ * écartés. N'échoue jamais (un échec est journalisé).
+ */
+async function restrictImplicatedLevels(caseId: string, implicatedPersons: { name?: string; position?: string }[]): Promise<string[]> {
+  try {
+    if (!implicatedPersons.length) return [];
+    const [settings, staff] = await Promise.all([loadEmailNotificationSettings(), loadStaffRecipientCandidates()]);
+    const facts: CaseNotificationFacts = { reference: '', category: '', entity: '', country: '', priority: 'low', implicatedLevels: [], implicatedPersons };
+    const excluded = levelExcludedStaffUids(settings, facts, staff);
+    if (!excluded.length) return [];
+    await db.collection('cases').doc(caseId).update({ escalationExcludedUserIds: FieldValue.arrayUnion(...excluded) });
+    await appendAudit({
+      actorId: 'system',
+      action: 'ESCALATION_ACCESS_RESTRICTED',
+      caseId,
+      newValue: { levels: routingPlan(settings, facts, staff).implicated, excludedAccounts: excluded.length },
+      reason: 'Niveau mis en cause dans le signalement : comptes de ce niveau écartés du dossier',
+    });
+    return excluded;
+  } catch (e) {
+    console.error('restrictImplicatedLevels failed', e);
     return [];
   }
 }
