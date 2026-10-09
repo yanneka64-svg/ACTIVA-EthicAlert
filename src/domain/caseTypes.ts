@@ -111,6 +111,16 @@ export interface Case extends Auditable {
    * against `resource.data`, mirroring `permissions.ts`'s `can()` check.
    */
   implicatedUserIds: string[];
+  /**
+   * === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+   * Comptes écartés du dossier parce que leur NIVEAU est mis en cause dans le
+   * signalement (fonction citée, ex. « superviseur », « DARC », ou membre du
+   * niveau nommé) : ils ne reçoivent pas les e-mails (voir
+   * emailNotificationRules.routingPlan) et n'ont pas accès au dossier. Tenu
+   * séparément de `implicatedUserIds` (recalculé à partir des personnes
+   * rattachées) pour ne jamais être effacé par une mise à jour des personnes.
+   */
+  escalationExcludedUserIds?: string[];
 
   slaStartAt?: ISODateString;
   slaDueAt?: ISODateString;

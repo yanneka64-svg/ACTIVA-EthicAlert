@@ -71,7 +71,10 @@ check('portal.status / closureSummary enregistrés', kase.portal?.status === 'cl
 check('implicatedUserIds mis à jour', JSON.stringify(kase.implicatedUserIds) === JSON.stringify([inv2Uid]));
 check('tâche terminée', (await db.collection('cases').doc(caseId).collection('tasks').doc('tsk-local-1').get()).data()?.status === 'completed');
 const audits = await db.collection('audit_logs').where('caseId', '==', caseId).get();
-check('piste d’audit', audits.docs.map((d) => d.data().action).sort().join(',') === 'CASE_ASSIGNED,PERSON_LINKED_TO_USER,PORTAL_CASE_UPDATED,TASKS_UPDATED', audits.docs.map((d) => d.data().action));
+// === AMÉLIORATION AJOUTÉE (test mis à jour) === les envois d'e-mails, ajoutés
+// depuis et vérifiés par e2eEmailNotifications, sont exclus de cette comparaison.
+const caseActions = audits.docs.map((d) => d.data().action as string).filter((a) => !a.startsWith('EMAIL_NOTIFICATION_'));
+check('piste d’audit', caseActions.sort().join(',') === 'CASE_ASSIGNED,PERSON_LINKED_TO_USER,PORTAL_CASE_UPDATED,TASKS_UPDATED', caseActions);
 
 // 2. Champ refusé
 try {

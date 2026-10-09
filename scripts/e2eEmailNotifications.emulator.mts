@@ -31,9 +31,9 @@ async function staff(username: string, role: string, email: string, countries: s
 }
 const adm = await staff('admin.notif', 'system_admin', 'admin.notif@group-activa.com');
 const op = await staff('op.notif', 'functional_admin', 'operateur@group-activa.com');
-await staff('sup.cm', 'senior_investigator', 'superviseur.cameroun@group-activa.com', ['Cameroun']);
+const supCm = await staff('sup.cm', 'senior_investigator', 'superviseur.cameroun@group-activa.com', ['Cameroun']);
 await staff('sup.gh', 'senior_investigator', 'superviseur.ghana@group-activa.com', ['Ghana']);
-await staff('darc', 'darc_compliance', 'darc@group-activa.com');
+const darcAcc = await staff('darc', 'darc_compliance', 'darc@group-activa.com');
 const inv = await staff('inv.notif', 'investigator', 'enqueteur@group-activa.com', [], 'Jean-Paul Mbarga');
 
 const app = initializeApp({ projectId: 'demo-activa', apiKey: 'demo', authDomain: 'demo' });
@@ -155,7 +155,7 @@ await signOut(cAuth);
 
 // 7. La DARC est mise en cause (par sa fonction) → DGA et DRH
 reset();
-await report('darc', [{ kind: 'subject', name: 'Inconnu', position: 'Directeur Audit, Risques et Conformité' }]);
+const c7 = await report('darc', [{ kind: 'subject', name: 'Inconnu', position: 'Directeur Audit, Risques et Conformité' }]);
 await wait(500);
 const m7 = captured();
 check('DARC mise en cause : DGA et DRH uniquement', JSON.stringify(to(m7)) === JSON.stringify(['dga@group-activa.com', 'drh@group-activa.com']), to(m7));
@@ -163,9 +163,36 @@ check('motif « escalade automatique » indiqué', m7.every((m) => m.text.includ
 
 // 8. Un superviseur est mis en cause → DARC (pas de superviseur)
 reset();
-await report('sup', [{ kind: 'subject', name: 'X', position: 'Superviseur régional' }]);
+const c8 = await report('sup', [{ kind: 'subject', name: 'X', position: 'Superviseur régional' }]);
 await wait(500);
 check('superviseur mis en cause : DARC seule', JSON.stringify(to(captured())) === JSON.stringify(['boite.darc@group-activa.com', 'darc@group-activa.com']), to(captured()));
+
+// === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+// Le niveau mis en cause par sa fonction perd aussi l'accès au dossier.
+const canOpen = async (who: { login: string }, caseId: string) => {
+  await signInWithEmailAndPassword(cAuth, who.login, 'Passw0rd!x');
+  const details = ((await call('getCaseDetails')({ caseIds: [caseId] })).data as { details?: unknown[] }).details ?? [];
+  const list = ((await call('listCases')({})).data as { items?: { caseId: string }[] }).items ?? [];
+  await signOut(cAuth);
+  return { open: details.length > 0, listed: list.some((c) => c.caseId === caseId) };
+};
+const sup8 = await canOpen(supCm, c8.caseId);
+const op8 = await canOpen(op, c8.caseId);
+const darc8 = await canOpen(darcAcc, c8.caseId);
+check('superviseur cité par sa fonction : aucun superviseur ne voit ni n’ouvre le dossier', !sup8.open && !sup8.listed && !op8.open && !op8.listed, { sup8, op8 });
+check('superviseur cité par sa fonction : la DARC voit et ouvre le dossier', darc8.open && darc8.listed, darc8);
+const darc7 = await canOpen(darcAcc, c7.caseId);
+const sup7 = await canOpen(supCm, c7.caseId);
+check('DARC citée par sa fonction : le compte DARC ne voit ni n’ouvre le dossier', !darc7.open && !darc7.listed, darc7);
+// === AMÉLIORATION AJOUTÉE (niveaux inférieurs écartés) === une alerte sur la
+// DARC n'est vue que par les niveaux qui la reçoivent (DGA, DRH).
+const op7 = await canOpen(op, c7.caseId);
+check('DARC citée par sa fonction : aucun superviseur ne voit ni n’ouvre le dossier', !sup7.open && !sup7.listed && !op7.open && !op7.listed, { sup7, op7 });
+const sup6 = await canOpen(supCm, c6.caseId);
+const darc6 = await canOpen(darcAcc, c6.caseId);
+check('enquêteur mis en cause : seule la DARC voit le dossier (superviseurs écartés)', !sup6.open && !sup6.listed && darc6.open && darc6.listed, { sup6, darc6 });
+const a8 = (await db.collection('audit_logs').where('caseId', '==', c8.caseId).where('action', '==', 'ESCALATION_ACCESS_RESTRICTED').get()).docs;
+check('restriction d’accès inscrite dans la piste d’audit (sans nom)', a8.length === 1 && !JSON.stringify(a8[0].data()).includes('Superviseur régional'), a8.map((d) => d.data().newValue));
 
 console.log(failures ? `${failures} échec(s)` : 'TOUT EST VERT');
 process.exit(failures ? 1 : 0);
