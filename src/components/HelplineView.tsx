@@ -18,7 +18,7 @@ import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { BrandBlueBackdrop } from './ui/BrandBlue';
 // === AMÉLIORATION AJOUTÉE (ligne d'assistance ouverte à tout le Groupe) ===
-import { CountrySlide, GroupCountriesTicker, GroupReachCard, groupCountries } from './helpline/GroupReach';
+import { GroupCountriesTicker, groupCountries } from './helpline/GroupReach';
 
 // Coordonnées réelles du canal (mêmes valeurs que ContactView.tsx).
 export const HELPLINE_NUMBER = '+237 687 45 45 45';
@@ -380,23 +380,11 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               distinctes qui défilent de la droite vers la gauche (ralenti,
               pause au survol). */}
           {/* === AMÉLIORATION AJOUTÉE (ligne d'assistance ouverte à tout le Groupe) ===
-              aperçu des propositions (?filiales=a|b|c), le temps d'en retenir une. */}
+              sur demande explicite : sous les cartes, « Disponible dans N pays »
+              et la bande des pays du Groupe qui défilent. */}
           <div className="min-w-0">
-          {(() => {
-            const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('filiales') : null;
-            if (v !== 'c') return null;
-            return (
-              <ChannelCarousel
-                labels={[]}
-                slides={groupCountries().map((c) => (
-                  <CountrySlide key={c.code} country={c} openLabel={t.helpline_open} onWhatsApp={HELPLINE_WHATSAPP_LINK} onEmail={`mailto:${HELPLINE_EMAIL}`} />
-                ))}
-              />
-            );
-          })()}
-          {(typeof window === 'undefined' || new URLSearchParams(window.location.search).get('filiales') !== 'c') && (
           <ChannelCarousel
-            labels={[t.contact_whatsapp_title, t.contact_email_title, ...((typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('filiales') === 'b') ? ['Toutes les filiales'] : [])]}
+            labels={[t.contact_whatsapp_title, t.contact_email_title]}
             slides={[
               <div key="wa" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col">
                 {/* === AMÉLIORATION AJOUTÉE (cartes allégées) === sur demande
@@ -502,15 +490,9 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                   </button>
                 </div>
               </div>,
-              ...((typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('filiales') === 'b')
-                ? [<GroupReachCard key="group" title="" subtitle={`Disponible dans ${groupCountries().length} pays`} />]
-                : []),
             ]}
           />
-          )}
-          {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('filiales') === 'a' && (
-            <GroupCountriesTicker label={`Disponible dans ${groupCountries().length} pays`} />
-          )}
+          <GroupCountriesTicker lang={lang} label={t.helpline_group_countries.replace('{count}', String(groupCountries(lang).length))} />
           </div>
         </div>
       </div>

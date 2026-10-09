@@ -1,7 +1,7 @@
 /**
  * === AMÉLIORATION AJOUTÉE (ligne d'assistance ouverte à tout le Groupe) ===
  *
- * Propositions pour montrer, sur la page « Ligne d'assistance », que la
+ * Retenu : `GroupCountriesTicker` (proposition A). Propositions pour montrer, sur la page « Ligne d'assistance », que la
  * plateforme est disponible pour l'ensemble des filiales du Groupe :
  * - `GroupCountriesTicker` : bande de pays qui défilent en continu (drapeau
  *   stylisé + nom) sous le carrousel des canaux ;
@@ -17,6 +17,7 @@ import React from 'react';
 import { Building2, Globe2, Mail, MessageCircle } from 'lucide-react';
 import { ACTIVA_COUNTRIES, ACTIVA_ENTITIES } from '../../data/activaConfig';
 import { trData } from '../../i18n/dataLabels';
+import type { Language } from '../../types';
 
 /** Couleurs simplifiées des drapeaux (bandes), sens 'v' vertical ou 'h' horizontal. */
 const FLAG_STRIPES: Record<string, { dir: 'v' | 'h'; colors: string[]; bg?: string }> = {
@@ -52,10 +53,10 @@ export interface GroupCountry {
   entities: string[];
 }
 
-export function groupCountries(): GroupCountry[] {
+export function groupCountries(lang?: Language): GroupCountry[] {
   return ACTIVA_COUNTRIES.map((c) => ({
     code: c.code,
-    name: trData(c.name),
+    name: trData(c.name, lang),
     entities: ACTIVA_ENTITIES.filter((e) => e.country === c.name).map((e) => e.name),
   }));
 }
@@ -63,8 +64,8 @@ export function groupCountries(): GroupCountry[] {
 /* ------------------------------------------------------------------ */
 /* Proposition A — bande de pays qui défilent                          */
 /* ------------------------------------------------------------------ */
-export function GroupCountriesTicker({ label }: { label: string }) {
-  const countries = groupCountries();
+export function GroupCountriesTicker({ label, lang }: { label: string; lang?: Language }) {
+  const countries = groupCountries(lang);
   const row = [...countries, ...countries];
   return (
     <div className="mt-6">

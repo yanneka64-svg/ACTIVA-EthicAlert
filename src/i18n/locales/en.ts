@@ -1657,6 +1657,8 @@ export const en: Record<string, string> = {
   helpline_whatsapp_btn: "Open WhatsApp",
   helpline_email_label: "Or email us",
   helpline_email_btn: "Send an email",
+  // === AMÉLIORATION AJOUTÉE (pays du Groupe sur la ligne d'assistance) ===
+  helpline_group_countries: "Available in {count} countries",
   helpline_home_email_title: "Email",
   hero_channel_whatsapp_title: "WhatsApp Business",
   hero_channel_whatsapp_desc: "Message us on +237 687 45 45 45, 24/7.",
