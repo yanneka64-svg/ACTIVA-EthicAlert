@@ -33,6 +33,31 @@ const FLAG_STRIPES: Record<string, { dir: 'v' | 'h'; colors: string[]; bg?: stri
   AO: { dir: 'h', colors: ['#CC092F', '#000000'] },
 };
 
+// === AMÉLIORATION AJOUTÉE (étoiles des drapeaux) === sur demande explicite
+// (étoile du Cameroun absente) : étoile dessinée par-dessus les bandes pour
+// les drapeaux qui en portent une (position en % du drapeau, taille en % de
+// sa hauteur).
+const FLAG_STARS: Record<string, { color: string; x: number; y: number; size: number }> = {
+  CM: { color: '#FCD116', x: 50, y: 50, size: 46 },
+  GH: { color: '#000000', x: 50, y: 50, size: 34 },
+  CD: { color: '#F7D618', x: 18, y: 24, size: 36 },
+  LR: { color: '#FFFFFF', x: 21, y: 28, size: 34 },
+};
+
+function FlagStar({ code }: { code: string }) {
+  const star = FLAG_STARS[code];
+  if (!star) return null;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="absolute -translate-x-1/2 -translate-y-1/2"
+      style={{ left: `${star.x}%`, top: `${star.y}%`, height: `${star.size}%`, aspectRatio: '1' }}
+    >
+      <polygon fill={star.color} points="12,1.5 14.6,9 22.5,9 16.1,13.8 18.5,21.5 12,16.8 5.5,21.5 7.9,13.8 1.5,9 9.4,9" />
+    </svg>
+  );
+}
+
 export function FlagMark({ code, className = 'w-7 h-5' }: { code: string; className?: string }) {
   const f = FLAG_STRIPES[code];
   if (!f) return <span className={`${className} rounded-[4px] bg-slate-200`} aria-hidden="true" />;
@@ -41,9 +66,11 @@ export function FlagMark({ code, className = 'w-7 h-5' }: { code: string; classN
   return (
     <span
       aria-hidden="true"
-      className={`${className} inline-block shrink-0 rounded-[4px] ring-1 ring-black/10 shadow-sm`}
+      className={`${className} relative inline-block shrink-0 overflow-hidden rounded-[4px] ring-1 ring-black/10 shadow-sm`}
       style={{ background: f.bg ?? `linear-gradient(${f.dir === 'v' ? '90deg' : '180deg'}, ${stops})` }}
-    />
+    >
+      <FlagStar code={code} />
+    </span>
   );
 }
 
