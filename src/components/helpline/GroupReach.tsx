@@ -118,14 +118,16 @@ export function GroupCountriesTicker({ label, lang }: { label: string; lang?: La
         {label}
       </p>
       <div className="relative mt-3 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
-        <div className="activa-ticker flex w-max gap-2.5 py-1 hover:[animation-play-state:paused]">
+        {/* === AMÉLIORATION AJOUTÉE (pastilles retirées) === sur demande
+            explicite : drapeau + nom du pays, sans pastille autour. */}
+        <div className="activa-ticker flex w-max gap-8 py-1.5 hover:[animation-play-state:paused]">
           {row.map((c, i) => (
             <span
               key={`${c.code}-${i}`}
               aria-hidden={i >= countries.length}
-              className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-inset ring-white/20 backdrop-blur"
+              className="inline-flex items-center gap-2.5 whitespace-nowrap text-[14px] font-semibold text-white"
             >
-              <FlagMark code={c.code} className="w-5 h-3.5" />
+              <FlagMark code={c.code} className="w-6 h-4" />
               {c.name}
             </span>
           ))}
