@@ -250,7 +250,10 @@ export function HeroChannelCoverflow({ items, label, heading, availability }: Ch
                 transition: 'transform 900ms cubic-bezier(0.22, 0.8, 0.2, 1), opacity 900ms ease',
               }}
             >
-              <div className="rounded-[28px] overflow-hidden bg-white shadow-[0_50px_90px_-40px_rgb(2_12_40/0.95)] ring-1 ring-white/50">
+              {/* === AMÉLIORATION AJOUTÉE (contours blancs retirés) === sur demande
+                  explicite : plus de liseré blanc autour des cartes, de la
+                  pastille 24/7 ni du carré de l'icône. */}
+              <div className="rounded-[28px] overflow-hidden bg-white shadow-[0_50px_90px_-40px_rgb(2_12_40/0.95)]">
                 <div className={`relative h-[148px] bg-gradient-to-br ${a.grad} overflow-hidden`}>
                   {/* === AMÉLIORATION AJOUTÉE (cercles retirés des cartes) === sur
                       demande explicite : les cercles concentriques ne sont plus
@@ -259,11 +262,11 @@ export function HeroChannelCoverflow({ items, label, heading, availability }: Ch
                     <span key={k} aria-hidden="true" hidden className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" style={{ width: 120 + k * 80, height: 120 + k * 80 }} />
                   ))}
                   <span aria-hidden="true" className="absolute -right-10 -top-16 w-48 h-48 rounded-full bg-white/15 blur-2xl" />
-                  <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-white ring-1 ring-inset ring-white/30">
+                  <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-white">
                     <span className="activa-live-dot w-1.5 h-1.5 rounded-full bg-emerald-300" />
                     24/7
                   </span>
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[76px] h-[76px] rounded-[24px] bg-white/20 backdrop-blur-md ring-1 ring-inset ring-white/50 shadow-[0_18px_36px_-14px_rgb(0_0_0/0.55)] flex items-center justify-center">
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[76px] h-[76px] rounded-[24px] bg-white/20 backdrop-blur-md shadow-[0_18px_36px_-14px_rgb(0_0_0/0.55)] flex items-center justify-center">
                     <ItemIcon className="w-9 h-9 text-white" strokeWidth={1.7} />
                   </span>
                 </div>
