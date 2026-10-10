@@ -315,25 +315,52 @@ const CompactChannelCard: React.FC<{ ch: CompactChannel }> = ({ ch }) => (
 );
 
 /** Ligne de contact : icône, coordonnée, boutons ronds (propositions 2 et 3). */
+// === AMÉLIORATION AJOUTÉE (coordonnée sur une seule ligne) === sur demande
+// explicite : l'adresse e-mail ne passe jamais à la ligne ; la taille du
+// texte se réduit juste assez pour tenir dans la largeur disponible.
+const FitOneLine: React.FC<{ children: React.ReactNode; max: number; min?: number }> = ({ children, max, min = 11 }) => {
+  const ref = React.useRef<HTMLSpanElement>(null);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    const parent = el?.parentElement;
+    if (!el || !parent) return;
+    const fit = () => {
+      el.style.fontSize = `${max}px`;
+      const avail = parent.clientWidth;
+      const need = el.scrollWidth;
+      if (avail > 0 && need > avail) el.style.fontSize = `${Math.max(min, Math.floor(((max * avail) / need) * 10) / 10)}px`;
+    };
+    fit();
+    void document.fonts?.ready.then(fit);
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(fit);
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, [max, min]);
+  return (
+    <span ref={ref} className="inline-block whitespace-nowrap" style={{ fontSize: `${max}px` }}>
+      {children}
+    </span>
+  );
+};
+
+// Grille : icône, intitulé et boutons sur la première ligne ; la coordonnée
+// occupe toute la largeur sous l'intitulé (et sous l'icône sur mobile).
 const ChannelRow: React.FC<{ ch: CompactChannel }> = ({ ch }) => (
-  <div className="flex items-center gap-3.5 sm:gap-4">
-    <span className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl ${channelIconBox}`}>
+  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3.5 sm:gap-x-4">
+    <span className={`col-start-1 row-start-1 sm:row-span-3 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl ${channelIconBox}`}>
       <ch.Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.8} />
     </span>
-    <div className="min-w-0 flex-1">
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-slate-500">
-        {ch.title}
-        {ch.status && (
-          <span className="inline-flex items-center gap-1 normal-case tracking-normal text-[11px] text-emerald-700">
-            <span className="activa-live-dot w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            {ch.status}
-          </span>
-        )}
-      </p>
-      <div className={`mt-1 font-extrabold text-[#0B2545] leading-tight ${ch.valueClass}`}>{ch.value}</div>
-      <p className="mt-0.5 text-[12px] text-slate-500">{ch.meta}</p>
-    </div>
-    <div className="flex shrink-0 items-center gap-1.5">
+    <p className="col-start-2 row-start-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-slate-500">
+      {ch.title}
+      {ch.status && (
+        <span className="inline-flex items-center gap-1 normal-case tracking-normal text-[11px] text-emerald-700">
+          <span className="activa-live-dot w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          {ch.status}
+        </span>
+      )}
+    </p>
+    <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-1.5">
       <a
         href={ch.href}
         {...(ch.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
@@ -353,6 +380,8 @@ const ChannelRow: React.FC<{ ch: CompactChannel }> = ({ ch }) => (
         {ch.copied ? <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.2} /> : <Copy className="w-4 h-4" strokeWidth={1.9} />}
       </button>
     </div>
+    <div className={`col-start-1 col-span-3 row-start-2 sm:col-start-2 sm:col-span-2 min-w-0 mt-2.5 sm:mt-1 font-extrabold text-[#0B2545] leading-tight ${ch.valueClass}`}>{ch.value}</div>
+    <p className="col-start-1 col-span-3 row-start-3 sm:col-start-2 sm:col-span-2 mt-0.5 text-[12px] text-slate-500">{ch.meta}</p>
   </div>
 );
 
@@ -552,8 +581,9 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                 Icon: MessageCircle,
                 title: t.contact_whatsapp_title,
                 status: t.helpline_open,
-                value: HELPLINE_NUMBER,
-                valueClass: `whitespace-nowrap ${presentation === '1' ? 'text-[24px] sm:text-[28px]' : 'text-[17px] sm:text-[21px]'}`,
+                // Même animation de chiffres qui roulent que sur la grande carte.
+                value: <RollingNumber value={HELPLINE_NUMBER} />,
+                valueClass: `whitespace-nowrap ${presentation === '1' ? 'text-[24px] sm:text-[28px]' : 'text-[22px] sm:text-[24px]'}`,
                 meta: t.helpline_wa_meta,
                 href: HELPLINE_WHATSAPP_LINK,
                 external: true,
@@ -566,14 +596,9 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               {
                 Icon: Mail,
                 title: t.contact_email_title,
-                // Coupure de ligne autorisée seulement après « @ ».
-                value: (
-                  <>
-                    {HELPLINE_EMAIL.split('@')[0]}@<wbr />
-                    {HELPLINE_EMAIL.split('@')[1]}
-                  </>
-                ),
-                valueClass: `break-words ${presentation === '1' ? 'text-[14.5px] sm:text-[15.5px]' : 'text-[13px] sm:text-[14.5px]'}`,
+                // Toujours sur une seule ligne (taille ajustée à la largeur).
+                value: <FitOneLine max={presentation === '1' ? 16 : 18}>{HELPLINE_EMAIL}</FitOneLine>,
+                valueClass: '',
                 meta: t.helpline_email_meta,
                 href: `mailto:${HELPLINE_EMAIL}`,
                 actionLabel: t.helpline_email_btn,
