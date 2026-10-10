@@ -375,6 +375,9 @@ const ChannelRowsCard: React.FC<{ channels: CompactChannel[] }> = ({ channels })
   </div>
 );
 
+/** Présentation retenue pour les canaux : '2' = lignes de contact empilées. */
+const CHANNEL_PRESENTATION = '2';
+
 interface HelplineViewProps {
   lang: Language;
   onStartNewAlert: () => void;
@@ -383,19 +386,12 @@ interface HelplineViewProps {
 
 export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAlert, onGoToTrack }) => {
   const t = TRANSLATIONS[lang];
-  // === AMÉLIORATION AJOUTÉE (forme des cartes) === aperçu temporaire des
-  // propositions (?cartes=a|b|c) : a = bulle de message, b = coins en
-  // feuille, c = cartes empilées ; sans paramètre, la forme actuelle.
-  const cardShape = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('cartes') : null;
-  const presentation = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('presentation') : null;
-  const cardShell = `h-full bg-white border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col ${
-    cardShape === 'a' ? 'relative rounded-[28px] rounded-bl-[6px]' : cardShape === 'b' ? 'rounded-[64px_14px_64px_14px]' : 'rounded-[28px]'
-  }`;
-  const bubbleTail = cardShape === 'a' ? (
-    <svg aria-hidden="true" viewBox="0 0 28 16" className="absolute -left-px -bottom-[19px] w-9 h-5">
-      <path d="M1 0 H26 C20 9 10 15 0 16 C3 11 2 5 1 0 Z" fill="#fff" />
-    </svg>
-  ) : null;
+  // === AMÉLIORATION AJOUTÉE (présentation des canaux) === sur demande
+  // explicite : cartes « ligne de contact » empilées (proposition 2). Les
+  // autres présentations et les grandes cartes restent dans le code.
+  const presentation = CHANNEL_PRESENTATION as '1' | '2' | '3' | null;
+  const cardShell =
+    'h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col';
   const reduced = usePrefersReducedMotion();
   const [copied, setCopied] = React.useState<'phone' | 'email' | null>(null);
   const [step, setStep] = React.useState(0);
@@ -598,10 +594,9 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
           {!presentation && (
           <ChannelCarousel
             labels={[t.contact_whatsapp_title, t.contact_email_title]}
-            layout={cardShape && cardShape !== 'c' ? 'slide' : 'stack'}
+            layout="stack"
             slides={[
               <div key="wa" className={cardShell}>
-                {bubbleTail}
                 {/* === AMÉLIORATION AJOUTÉE (cartes allégées) === sur demande
                     explicite (« trop touffu ») : une seule ligne d'information
                     par canal, plus d'espace ; les listes détaillées restent dans
@@ -672,7 +667,6 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                 </dl>
               </div>,
               <div key="mail" className={cardShell}>
-                {bubbleTail}
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="inline-flex items-center gap-2.5">
                     <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]">
