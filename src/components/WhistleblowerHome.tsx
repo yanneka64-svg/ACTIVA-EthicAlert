@@ -730,10 +730,12 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
             </p>
 
             <div className="activa-enter mt-8 flex flex-col sm:flex-row sm:items-center gap-3" style={{ '--d': '620ms' } as React.CSSProperties}>
+              {/* === AMÉLIORATION AJOUTÉE (contour blanc retiré) === sur demande
+                  explicite : plus de liseré blanc autour du bouton « Signaler ». */}
               <button
                 id="hero-btn-new-alert"
                 onClick={onStartNewAlert}
-                className="activa-shine group flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#0F3C93] hover:bg-[#0C3176] ring-1 ring-inset ring-white/15 text-white font-bold text-[15px] sm:text-base shadow-[0_14px_28px_-14px_rgb(0_0_0/0.7)] hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                className="activa-shine group flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#0F3C93] hover:bg-[#0C3176] text-white font-bold text-[15px] sm:text-base shadow-[0_14px_28px_-14px_rgb(0_0_0/0.7)] hover:-translate-y-0.5 transition-all duration-300 ease-out whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
               >
                 <Send className="w-4 h-4" strokeWidth={1.75} />
                 <span>{t.btn_new_alert}</span>
