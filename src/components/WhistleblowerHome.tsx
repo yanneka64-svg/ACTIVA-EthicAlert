@@ -62,9 +62,12 @@ interface HowItWorksCardProps {
   // du pictogramme (sur tuile blanche) et de l'étiquette d'étape.
   toneTextClass?: string;
   toneChipClass?: string;
+  // === AMÉLIORATION AJOUTÉE (texte justifié) === langue du texte, pour la
+  // césure des mots longs (évite les grands blancs du texte justifié).
+  textLang?: string;
 }
 
-function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle, backDesc, backButtonLabel, stepLabel = `Étape ${idx + 1} · ${category}`, toneSolidClass = 'bg-gradient-to-br from-blue-500 to-blue-700', flipHint, toneTextClass = 'text-blue-600', toneChipClass = 'bg-blue-50 text-blue-700' }: HowItWorksCardProps) {
+function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle, backDesc, backButtonLabel, stepLabel = `Étape ${idx + 1} · ${category}`, toneSolidClass = 'bg-gradient-to-br from-blue-500 to-blue-700', flipHint, toneTextClass = 'text-blue-600', toneChipClass = 'bg-blue-50 text-blue-700', textLang }: HowItWorksCardProps) {
   const [flipped, setFlipped] = React.useState(false);
 
   return (
@@ -104,7 +107,8 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
           <div className="flex-1 flex flex-col gap-2 p-5 pt-4">
             <span className={`self-start px-2.5 py-1 rounded-full text-[11px] font-bold ${toneChipClass}`}>{stepLabel}</span>
             <h4 className="font-bold text-[#12305F] text-base tracking-tight">{title}</h4>
-            <p className="text-[13px] text-slate-500 leading-relaxed flex-1">{desc}</p>
+            {/* === AMÉLIORATION AJOUTÉE (texte justifié) === sur demande explicite. */}
+            <p lang={textLang} className="text-[13px] text-slate-500 leading-relaxed flex-1 text-justify hyphens-auto">{desc}</p>
             {flipHint && (
               <span className={`inline-flex items-center gap-1.5 pt-1 text-xs font-semibold ${toneTextClass}`}>
                 {flipHint}
@@ -1004,6 +1008,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 flipHint={t.process_flip_hint}
                 toneTextClass={toneText[step.tone]}
                 toneChipClass={toneChip[step.tone]}
+                textLang={lang}
               />
               </div>
             );
