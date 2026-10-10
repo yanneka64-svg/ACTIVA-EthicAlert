@@ -41,6 +41,29 @@ import { HeroChannelCoverflow } from './home/HeroChannelShowcases';
 // qu'un positionnement `absolute` : le conteneur s'ajuste naturellement à
 // la plus haute des deux faces, sans mesure JS ni saut de mise en page,
 // et reste responsive à toutes les tailles d'écran par construction.
+// === AMÉLIORATION AJOUTÉE (texte justifié sans grands blancs) === points de
+// césure (trait d'union conditionnel) dans les mots longs des cartes
+// « étapes » : le navigateur peut couper ces mots en fin de ligne, ce qui
+// évite les espaces trop larges du texte justifié, même sans dictionnaire.
+const SOFT_HYPHEN_WORDS: Record<string, string> = Object.fromEntries(
+  [
+    // FR
+    'Rem-plis-sez', 'for-mu-laire', 'ano-nyme', 'iden-ti-fiant', 'four-nis', 'si-gna-le-ment', 'sé-cu-ri-sé',
+    'con-sul-ter', 'avan-ce-ment', 'échan-ger', 'confi-den-tia-li-té', 'ma-nière', 'sé-rieuse', 'com-pé-tentes',
+    'quel-ques', 'pou-vez', 'res-ter', 'sui-vre', 'es-pace', 'Connec-tez', 'ana-ly-sé', 'trai-té', 'équi-pes', 'iden-ti-fiant',
+    // EN
+    'anon-y-mous', 'con-fi-den-tial-ly', 'ex-change', 'mes-sages', 'prog-ress', 'com-pe-tent', 'se-ri-ous-ly', 're-viewed',
+    're-ceive', 'ac-cess', 're-port', 'han-dled', 'se-cure',
+    // PT
+    'for-mu-lá-rio', 'per-ma-ne-cer', 'anó-ni-mo', 'iden-ti-fi-ca-dor', 'for-ne-ci-dos', 'acom-pa-nhar', 'de-nún-cia',
+    'con-sul-tar', 'pro-gres-so', 'men-sa-gens', 'con-fi-den-cia-li-da-de', 'ana-li-sa-da', 'com-pe-ten-tes',
+    'Preen-cha', 'eta-pas', 'Po-de', 'có-di-go', 'aces-so', 'se-gu-ra', 'tro-car', 'tra-ta-da', 'equi-pas',
+  ].map((w) => [w.replace(/-/g, ''), w.replace(/-/g, '\u00AD')]),
+);
+function withSoftHyphens(text: string): string {
+  return text.replace(/[\p{L}]+/gu, (w) => SOFT_HYPHEN_WORDS[w] ?? w);
+}
+
 interface HowItWorksCardProps {
   idx: number;
   Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -62,9 +85,12 @@ interface HowItWorksCardProps {
   // du pictogramme (sur tuile blanche) et de l'étiquette d'étape.
   toneTextClass?: string;
   toneChipClass?: string;
+  // === AMÉLIORATION AJOUTÉE (texte justifié) === langue du texte, pour la
+  // césure des mots longs (évite les grands blancs du texte justifié).
+  textLang?: string;
 }
 
-function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle, backDesc, backButtonLabel, stepLabel = `Étape ${idx + 1} · ${category}`, toneSolidClass = 'bg-gradient-to-br from-blue-500 to-blue-700', flipHint, toneTextClass = 'text-blue-600', toneChipClass = 'bg-blue-50 text-blue-700' }: HowItWorksCardProps) {
+function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle, backDesc, backButtonLabel, stepLabel = `Étape ${idx + 1} · ${category}`, toneSolidClass = 'bg-gradient-to-br from-blue-500 to-blue-700', flipHint, toneTextClass = 'text-blue-600', toneChipClass = 'bg-blue-50 text-blue-700', textLang }: HowItWorksCardProps) {
   const [flipped, setFlipped] = React.useState(false);
 
   return (
@@ -104,7 +130,10 @@ function HowItWorksCard({ idx, Icon, title, desc, toneClass, category, backTitle
           <div className="flex-1 flex flex-col gap-2 p-5 pt-4">
             <span className={`self-start px-2.5 py-1 rounded-full text-[11px] font-bold ${toneChipClass}`}>{stepLabel}</span>
             <h4 className="font-bold text-[#12305F] text-base tracking-tight">{title}</h4>
-            <p className="text-[13px] text-slate-500 leading-relaxed flex-1">{desc}</p>
+            {/* === AMÉLIORATION AJOUTÉE (texte justifié) === sur demande explicite. */}
+            {/* Entre 1024 et 1279 px les 4 cartes sont trop étroites (≈ 190 px) :
+                texte aligné à gauche à ces largeurs pour éviter les grands blancs. */}
+            <p lang={textLang} className="text-[13px] text-slate-500 leading-relaxed flex-1 text-justify lg:text-left xl:text-justify hyphens-auto">{withSoftHyphens(desc)}</p>
             {flipHint && (
               <span className={`inline-flex items-center gap-1.5 pt-1 text-xs font-semibold ${toneTextClass}`}>
                 {flipHint}
@@ -1004,6 +1033,7 @@ export const WhistleblowerHome: React.FC<WhistleblowerHomeProps> = ({
                 flipHint={t.process_flip_hint}
                 toneTextClass={toneText[step.tone]}
                 toneChipClass={toneChip[step.tone]}
+                textLang={lang}
               />
               </div>
             );
