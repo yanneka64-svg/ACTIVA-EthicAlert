@@ -87,7 +87,7 @@ const RollingNumber: React.FC<{ value: string }> = ({ value }) => {
  * glissement de 1,4 s), pause au survol ou quand un bouton a le focus.
  * Les cartes non visibles sont inertes (ni clic ni tabulation).
  */
-const ChannelCarousel: React.FC<{ slides: React.ReactNode[]; labels: string[] }> = ({ slides, labels }) => {
+const ChannelCarousel: React.FC<{ slides: React.ReactNode[]; labels: string[]; layout?: 'slide' | 'stack' }> = ({ slides, labels, layout = 'slide' }) => {
   const n = slides.length;
   const viewportRef = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(0);
@@ -143,22 +143,25 @@ const ChannelCarousel: React.FC<{ slides: React.ReactNode[]; labels: string[] }>
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
     >
-      <div ref={viewportRef} className="relative overflow-hidden -my-8 py-8 [mask-image:linear-gradient(90deg,#000_0%,#000_88%,transparent)]">
-        <div
-          className="flex items-stretch"
-          style={{
-            gap: `${GAP}px`,
-            transform: `translateX(-${pos * (card + GAP)}px)`,
-            transition: animate ? `transform ${SLIDE_MS}ms cubic-bezier(0.65, 0, 0.35, 1)` : 'none',
-          }}
-        >
-          {track.map((slide, i) => {
-            const active = i === pos;
+      {/* === AMÉLIORATION AJOUTÉE (cartes empilées) === proposition « pile » :
+          la carte active est devant, la suivante dépasse derrière, décalée et
+          légèrement inclinée ; elles permutent au lieu de glisser. */}
+      {layout === 'stack' ? (
+        <div className="relative grid pt-5 pr-5 sm:pt-6 sm:pr-6">
+          {slides.map((slide, i) => {
+            const d = (i - index + n) % n;
+            const active = d === 0;
             return (
               <div
                 key={i}
-                className={`shrink-0 transition-[opacity,transform] duration-[1400ms] ${active ? 'opacity-100 scale-100' : 'opacity-60 scale-[0.96] pointer-events-none'}`}
-                style={{ width: `${card}px` }}
+                className={`[grid-area:1/1] transition-[transform,filter] duration-[1100ms] ease-[cubic-bezier(0.65,0,0.35,1)] ${active ? '' : 'pointer-events-none'}`}
+                style={{
+                  zIndex: n - d,
+                  // Cartes opaques : pas de superposition de texte pendant la permutation.
+                  filter: active ? 'none' : 'brightness(0.86) saturate(0.7)',
+                  transformOrigin: '50% 100%',
+                  transform: active ? 'none' : `translate(${d * 18}px, ${-d * 18}px) scale(${1 - d * 0.04}) rotate(${d * 2}deg)`,
+                }}
                 aria-hidden={!active}
                 inert={!active}
               >
@@ -167,7 +170,33 @@ const ChannelCarousel: React.FC<{ slides: React.ReactNode[]; labels: string[] }>
             );
           })}
         </div>
-      </div>
+      ) : (
+        <div ref={viewportRef} className="relative overflow-hidden -my-8 py-8 [mask-image:linear-gradient(90deg,#000_0%,#000_88%,transparent)]">
+          <div
+            className="flex items-stretch"
+            style={{
+              gap: `${GAP}px`,
+              transform: `translateX(-${pos * (card + GAP)}px)`,
+              transition: animate ? `transform ${SLIDE_MS}ms cubic-bezier(0.65, 0, 0.35, 1)` : 'none',
+            }}
+          >
+            {track.map((slide, i) => {
+              const active = i === pos;
+              return (
+                <div
+                  key={i}
+                  className={`shrink-0 transition-[opacity,transform] duration-[1400ms] ${active ? 'opacity-100 scale-100' : 'opacity-60 scale-[0.96] pointer-events-none'}`}
+                  style={{ width: `${card}px` }}
+                  aria-hidden={!active}
+                  inert={!active}
+                >
+                  {slide}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {/* === AMÉLIORATION AJOUTÉE (points de défilement) === sur demande
           explicite : les onglets « WhatsApp Business / Adresse e-mail dédiée »
           sont remplacés par des points qui montrent le passage d'une carte à
@@ -230,6 +259,18 @@ interface HelplineViewProps {
 
 export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAlert, onGoToTrack }) => {
   const t = TRANSLATIONS[lang];
+  // === AMÉLIORATION AJOUTÉE (forme des cartes) === aperçu temporaire des
+  // propositions (?cartes=a|b|c) : a = bulle de message, b = coins en
+  // feuille, c = cartes empilées ; sans paramètre, la forme actuelle.
+  const cardShape = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('cartes') : null;
+  const cardShell = `h-full bg-white border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col ${
+    cardShape === 'a' ? 'relative rounded-[28px] rounded-bl-[6px]' : cardShape === 'b' ? 'rounded-[64px_14px_64px_14px]' : 'rounded-[28px]'
+  }`;
+  const bubbleTail = cardShape === 'a' ? (
+    <svg aria-hidden="true" viewBox="0 0 28 16" className="absolute -left-px -bottom-[19px] w-9 h-5">
+      <path d="M1 0 H26 C20 9 10 15 0 16 C3 11 2 5 1 0 Z" fill="#fff" />
+    </svg>
+  ) : null;
   const reduced = usePrefersReducedMotion();
   const [copied, setCopied] = React.useState<'phone' | 'email' | null>(null);
   const [step, setStep] = React.useState(0);
@@ -385,8 +426,10 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
           <div className="min-w-0">
           <ChannelCarousel
             labels={[t.contact_whatsapp_title, t.contact_email_title]}
+            layout={cardShape === 'c' ? 'stack' : 'slide'}
             slides={[
-              <div key="wa" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col">
+              <div key="wa" className={cardShell}>
+                {bubbleTail}
                 {/* === AMÉLIORATION AJOUTÉE (cartes allégées) === sur demande
                     explicite (« trop touffu ») : une seule ligne d'information
                     par canal, plus d'espace ; les listes détaillées restent dans
@@ -456,7 +499,8 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                   </div>
                 </dl>
               </div>,
-              <div key="mail" className="h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col">
+              <div key="mail" className={cardShell}>
+                {bubbleTail}
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="inline-flex items-center gap-2.5">
                     <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]">
