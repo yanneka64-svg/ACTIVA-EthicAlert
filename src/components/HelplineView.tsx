@@ -13,7 +13,7 @@
  * - Autres canaux : en ligne, e-mail, suivi d'un dossier.
  */
 import React from 'react';
-import { Phone, Copy, Check, Send, MessageCircle, MessageSquareText, Search, Mail, ArrowRight, Globe2, PenLine, KeyRound, Clock3, FileDown, Languages, ChevronRight, Lock } from 'lucide-react';
+import { Phone, Copy, Check, Send, ArrowUpRight, MessageCircle, MessageSquareText, Search, Mail, ArrowRight, Globe2, PenLine, KeyRound, Clock3, FileDown, Languages, ChevronRight, Lock } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { BrandBlueBackdrop } from './ui/BrandBlue';
@@ -251,6 +251,130 @@ const ChannelCarousel: React.FC<{ slides: React.ReactNode[]; labels: string[]; l
   );
 };
 
+// === AMÉLIORATION AJOUTÉE (cartes plus compactes) === sur demande explicite
+// (« cartes très grosses ») : propositions de présentation plus légère pour
+// les canaux, en aperçu (?presentation=1|2|3) ; les grandes cartes restent.
+interface CompactChannel {
+  Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  title: string;
+  status?: string;
+  value: React.ReactNode;
+  valueClass: string;
+  meta: string;
+  href: string;
+  external?: boolean;
+  actionLabel: string;
+  onCopy: () => void;
+  copied: boolean;
+  copyLabel: string;
+  copiedLabel: string;
+}
+
+const channelIconBox = 'shrink-0 bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]';
+const compactShell = 'bg-white border border-slate-200/90 shadow-[0_28px_60px_-30px_rgb(3_16_48/0.8)]';
+
+/** Proposition 1 : même contenu, en plus petit. */
+const CompactChannelCard: React.FC<{ ch: CompactChannel }> = ({ ch }) => (
+  <div className={`h-full ${compactShell} rounded-[22px] p-5 sm:p-6 flex flex-col`}>
+    <div className="flex items-center justify-between gap-3 flex-wrap">
+      <span className="inline-flex items-center gap-2.5 min-w-0">
+        <span className={`w-8 h-8 rounded-xl ${channelIconBox}`}>
+          <ch.Icon className="w-4 h-4" strokeWidth={1.9} />
+        </span>
+        <span className="text-[13.5px] font-extrabold text-[#0B2545]">{ch.title}</span>
+      </span>
+      {ch.status && (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700">
+          <span className="activa-live-dot w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          {ch.status}
+        </span>
+      )}
+    </div>
+    <div className={`mt-4 font-extrabold tracking-tight text-[#0B2545] leading-tight ${ch.valueClass}`}>{ch.value}</div>
+    <p className="mt-1.5 text-[12.5px] text-slate-500">{ch.meta}</p>
+    <div className="mt-auto pt-5 flex items-center gap-2">
+      <a
+        href={ch.href}
+        {...(ch.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        className="activa-shine inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] text-white text-[13px] font-bold shadow-md shadow-[#1449B0]/25 transition-all duration-300"
+      >
+        <ch.Icon className="w-4 h-4" strokeWidth={2} />
+        {ch.actionLabel}
+      </a>
+      <button
+        type="button"
+        onClick={ch.onCopy}
+        aria-label={ch.copyLabel}
+        title={ch.copied ? ch.copiedLabel : ch.copyLabel}
+        className="w-10 h-10 shrink-0 rounded-xl border border-slate-200 text-slate-600 flex items-center justify-center hover:border-slate-300 hover:text-[#1449B0] transition-colors"
+      >
+        {ch.copied ? <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.2} /> : <Copy className="w-4 h-4" strokeWidth={1.9} />}
+      </button>
+    </div>
+  </div>
+);
+
+/** Ligne de contact : icône, coordonnée, boutons ronds (propositions 2 et 3). */
+const ChannelRow: React.FC<{ ch: CompactChannel }> = ({ ch }) => (
+  <div className="flex items-center gap-3.5 sm:gap-4">
+    <span className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl ${channelIconBox}`}>
+      <ch.Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.8} />
+    </span>
+    <div className="min-w-0 flex-1">
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-slate-500">
+        {ch.title}
+        {ch.status && (
+          <span className="inline-flex items-center gap-1 normal-case tracking-normal text-[11px] text-emerald-700">
+            <span className="activa-live-dot w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            {ch.status}
+          </span>
+        )}
+      </p>
+      <div className={`mt-1 font-extrabold text-[#0B2545] leading-tight ${ch.valueClass}`}>{ch.value}</div>
+      <p className="mt-0.5 text-[12px] text-slate-500">{ch.meta}</p>
+    </div>
+    <div className="flex shrink-0 items-center gap-1.5">
+      <a
+        href={ch.href}
+        {...(ch.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        aria-label={ch.actionLabel}
+        title={ch.actionLabel}
+        className="w-10 h-10 rounded-full bg-gradient-to-br from-[#2B5FC8] to-[#1449B0] text-white flex items-center justify-center shadow-md shadow-[#1449B0]/30 hover:-translate-y-0.5 transition-transform"
+      >
+        <ArrowUpRight className="w-4.5 h-4.5" strokeWidth={2.2} />
+      </a>
+      <button
+        type="button"
+        onClick={ch.onCopy}
+        aria-label={ch.copyLabel}
+        title={ch.copied ? ch.copiedLabel : ch.copyLabel}
+        className="w-10 h-10 rounded-full border border-slate-200 text-slate-600 flex items-center justify-center hover:border-slate-300 hover:text-[#1449B0] transition-colors"
+      >
+        {ch.copied ? <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.2} /> : <Copy className="w-4 h-4" strokeWidth={1.9} />}
+      </button>
+    </div>
+  </div>
+);
+
+/** Proposition 2 : une ligne de contact par carte (cartes empilées). */
+const ChannelRowCard: React.FC<{ ch: CompactChannel }> = ({ ch }) => (
+  <div className={`h-full ${compactShell} rounded-[20px] p-4 sm:p-5 flex items-center`}>
+    <div className="w-full"><ChannelRow ch={ch} /></div>
+  </div>
+);
+
+/** Proposition 3 : une seule carte, les deux canaux l'un sous l'autre. */
+const ChannelRowsCard: React.FC<{ channels: CompactChannel[] }> = ({ channels }) => (
+  <div className={`activa-modal-in ${compactShell} rounded-[22px] p-2`}>
+    {channels.map((ch, i) => (
+      <React.Fragment key={ch.title}>
+        {i > 0 && <div className="mx-4 h-px bg-slate-100" />}
+        <div className="p-3 sm:p-4"><ChannelRow ch={ch} /></div>
+      </React.Fragment>
+    ))}
+  </div>
+);
+
 interface HelplineViewProps {
   lang: Language;
   onStartNewAlert: () => void;
@@ -263,6 +387,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
   // propositions (?cartes=a|b|c) : a = bulle de message, b = coins en
   // feuille, c = cartes empilées ; sans paramètre, la forme actuelle.
   const cardShape = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('cartes') : null;
+  const presentation = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('presentation') : null;
   const cardShell = `h-full bg-white border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col ${
     cardShape === 'a' ? 'relative rounded-[28px] rounded-bl-[6px]' : cardShape === 'b' ? 'rounded-[64px_14px_64px_14px]' : 'rounded-[28px]'
   }`;
@@ -424,9 +549,56 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               sur demande explicite : sous les cartes, « Disponible dans N pays »
               et la bande des pays du Groupe qui défilent. */}
           <div className="min-w-0">
+          {(() => {
+            if (!presentation) return null;
+            const channels: CompactChannel[] = [
+              {
+                Icon: MessageCircle,
+                title: t.contact_whatsapp_title,
+                status: t.helpline_open,
+                value: HELPLINE_NUMBER,
+                valueClass: `whitespace-nowrap ${presentation === '1' ? 'text-[24px] sm:text-[28px]' : 'text-[17px] sm:text-[21px]'}`,
+                meta: t.helpline_wa_meta,
+                href: HELPLINE_WHATSAPP_LINK,
+                external: true,
+                actionLabel: t.helpline_whatsapp_btn,
+                onCopy: () => copy(HELPLINE_NUMBER.replace(/\s/g, ''), 'phone'),
+                copied: copied === 'phone',
+                copyLabel: t.helpline_copy,
+                copiedLabel: t.helpline_copied,
+              },
+              {
+                Icon: Mail,
+                title: t.contact_email_title,
+                // Coupure de ligne autorisée seulement après « @ ».
+                value: (
+                  <>
+                    {HELPLINE_EMAIL.split('@')[0]}@<wbr />
+                    {HELPLINE_EMAIL.split('@')[1]}
+                  </>
+                ),
+                valueClass: `break-words ${presentation === '1' ? 'text-[14.5px] sm:text-[15.5px]' : 'text-[13px] sm:text-[14.5px]'}`,
+                meta: t.helpline_email_meta,
+                href: `mailto:${HELPLINE_EMAIL}`,
+                actionLabel: t.helpline_email_btn,
+                onCopy: () => copy(HELPLINE_EMAIL, 'email'),
+                copied: copied === 'email',
+                copyLabel: t.helpline_copy,
+                copiedLabel: t.helpline_copied,
+              },
+            ];
+            if (presentation === '3') return <div className="max-w-[460px]"><ChannelRowsCard channels={channels} /></div>;
+            const Card = presentation === '1' ? CompactChannelCard : ChannelRowCard;
+            return (
+              <div className="max-w-[460px]">
+                <ChannelCarousel labels={channels.map((c) => c.title)} layout="stack" slides={channels.map((c) => <Card key={c.title} ch={c} />)} />
+              </div>
+            );
+          })()}
+          {!presentation && (
           <ChannelCarousel
             labels={[t.contact_whatsapp_title, t.contact_email_title]}
-            layout={cardShape === 'c' ? 'stack' : 'slide'}
+            layout={cardShape && cardShape !== 'c' ? 'slide' : 'stack'}
             slides={[
               <div key="wa" className={cardShell}>
                 {bubbleTail}
@@ -536,6 +708,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               </div>,
             ]}
           />
+          )}
           <GroupCountriesTicker lang={lang} label={t.helpline_group_countries.replace('{count}', String(groupCountries(lang).length))} />
           </div>
         </div>
