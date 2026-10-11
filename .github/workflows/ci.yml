@@ -54,3 +54,42 @@ jobs:
         run: npm run build
       - name: Dependency audit
         run: npm audit --audit-level=high --omit=dev
+
+  # === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) ===
+  # Tous les scénarios de bout en bout sur les émulateurs Firebase (projet
+  # fictif demo-activa : aucune donnée, aucun compte ni aucun e-mail réels) :
+  # batterie d'attaques (scripts/e2eSecurity.emulator.mts : accès sans compte,
+  # mauvais rôle, dossier d'un autre, force brute, jetons falsifiés, données
+  # piégées, accès direct à la base…) puis les parcours métier existants.
+  # Aucun identifiant GCP n'est utilisé ni accessible dans ce job.
+  emulator-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4 (v4.4.0)
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2 (v2.2.0)
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v4 (v4.4.0)
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - run: bun install --frozen-lockfile
+      - name: Build web app (servi par l'émulateur Hosting)
+        run: bun run build
+      - name: Build functions
+        working-directory: functions
+        run: npm ci && npm run build
+      - name: Emulator settings (fictifs)
+        run: |
+          printf 'NOTIFY_RESEND_ENDPOINT=http://127.0.0.1:5555/emails\nNOTIFY_APP_URL=https://portail-test.example\nNOTIFY_ALLOWED_RECIPIENT_DOMAINS=group-activa.com\n' > functions/.env.local
+          printf 'RESEND_API_KEY=test-key\n' > functions/.secret.local
+      - name: Run emulator scenarios
+        run: |
+          export JAVA_HOME="${JAVA_HOME_21_X64:-$JAVA_HOME}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          npx --yes firebase-tools@15.31.0 emulators:exec \
+            --config firebase.e2e.json --project demo-activa \
+            --only auth,firestore,functions,hosting \
+            "bash scripts/devops/runEmulatorTests.sh"

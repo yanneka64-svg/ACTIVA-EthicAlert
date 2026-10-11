@@ -87,6 +87,94 @@ export interface PortalPatch {
   assignedInvestigators?: string[];
   taskUpdates?: PortalTaskUpdate[];
   personLinks?: PortalPersonLink[];
+  // === AMÉLIORATION AJOUTÉE (modifications simultanées) === valeur de chaque
+  // champ texte AVANT la modification, telle que ce navigateur la connaissait.
+  // Le serveur n'écrit le champ que s'il a toujours cette valeur ; sinon
+  // quelqu'un d'autre l'a modifié entre-temps : conflit signalé, rien
+  // d'écrasé (au lieu de « le dernier qui enregistre gagne » sans prévenir).
+  expected?: { portal?: { [K in PortalStateKey]?: PortalState[K] | null } };
+}
+
+/** Champs protégés contre l'écrasement simultané (textes saisis, dates, choix propres au portail). */
+export const PORTAL_CONFLICT_CHECKED_KEYS: PortalStateKey[] = PORTAL_LOCAL_ONLY_KEYS;
+
+function normalizedPortalValue(v: unknown): unknown {
+  if (v === undefined || v === null || v === '') return null;
+  if (Array.isArray(v)) return [...v].map(String).sort();
+  return v;
+}
+
+/**
+ * Champs du portail modifiés par quelqu'un d'autre depuis la valeur attendue
+ * par l'envoi (`expected`). Pur : utilisé par le serveur, testé à part.
+ *
+ * Jamais de faux conflit :
+ * - champ encore absent du serveur (valeur saisie avant le branchement du
+ *   portail au serveur, jamais envoyée) : rien à écraser, pas de conflit ;
+ * - serveur ayant déjà la valeur envoyée (même modification faite par deux
+ *   personnes, ou envoi rejoué après une coupure) : pas de conflit.
+ */
+export function portalConflicts(
+  current: PortalState | undefined | null,
+  expected: PortalPatch['expected'],
+  next?: PortalPatch['portal']
+): PortalStateKey[] {
+  const out: PortalStateKey[] = [];
+  const exp = expected?.portal ?? {};
+  const same = (x: unknown, y: unknown) => JSON.stringify(normalizedPortalValue(x)) === JSON.stringify(normalizedPortalValue(y));
+  for (const key of Object.keys(exp) as PortalStateKey[]) {
+    if (!PORTAL_CONFLICT_CHECKED_KEYS.includes(key)) continue;
+    const now = (current ?? {})[key];
+    if (normalizedPortalValue(now) === null) continue;
+    if (same(now, (exp as Record<string, unknown>)[key])) continue;
+    if (next && key in next && same(now, (next as Record<string, unknown>)[key])) continue;
+    out.push(key);
+  }
+  return out;
+}
+
+/**
+ * === AMÉLIORATION AJOUTÉE (file d'envoi : aucune modification perdue) ===
+ * Ce qui reste à envoyer quand un envoi a réussi alors que de nouvelles
+ * modifications du même dossier ont été ajoutées pendant le trajet.
+ * `sent` est ce qui est parti, `current` l'envoi fusionné en attente.
+ * Les valeurs attendues des champs qui viennent d'être écrits deviennent
+ * celles qu'on vient d'écrire (sinon le prochain envoi se croirait en conflit
+ * avec lui-même). Renvoie `null` si plus rien n'est à envoyer.
+ */
+export function remainingAfterSend(sent: PortalPatch, current: PortalPatch, conflictedKeys: string[] = []): PortalPatch | null {
+  if (JSON.stringify(sent) === JSON.stringify(current)) return null;
+  const out: PortalPatch = JSON.parse(JSON.stringify(current));
+  if (out.expected?.portal && sent.portal) {
+    for (const key of Object.keys(sent.portal) as PortalStateKey[]) {
+      if (!(key in out.expected.portal) || conflictedKeys.includes(key)) continue;
+      (out.expected.portal as Record<string, unknown>)[key] = (sent.portal as Record<string, unknown>)[key] ?? null;
+    }
+  }
+  // Retire ce qui a déjà été écrit tel quel.
+  if (out.portal && sent.portal) {
+    for (const key of Object.keys(out.portal) as PortalStateKey[]) {
+      if (!(key in sent.portal)) continue;
+      if (JSON.stringify((out.portal as Record<string, unknown>)[key]) === JSON.stringify((sent.portal as Record<string, unknown>)[key])) {
+        delete (out.portal as Record<string, unknown>)[key];
+        if (out.expected?.portal) delete (out.expected.portal as Record<string, unknown>)[key];
+      }
+    }
+    if (!Object.keys(out.portal).length) delete out.portal;
+  }
+  if (out.expected?.portal && !Object.keys(out.expected.portal).length) delete out.expected;
+  if (JSON.stringify(out.assignedInvestigators) === JSON.stringify(sent.assignedInvestigators)) delete out.assignedInvestigators;
+  if (out.taskUpdates && sent.taskUpdates) {
+    const sentTasks = new Set(sent.taskUpdates.map((t) => JSON.stringify(t)));
+    out.taskUpdates = out.taskUpdates.filter((t) => !sentTasks.has(JSON.stringify(t)));
+    if (!out.taskUpdates.length) delete out.taskUpdates;
+  }
+  if (out.personLinks && sent.personLinks) {
+    const sentLinks = new Set(sent.personLinks.map((l) => JSON.stringify(l)));
+    out.personLinks = out.personLinks.filter((l) => !sentLinks.has(JSON.stringify(l)));
+    if (!out.personLinks.length) delete out.personLinks;
+  }
+  return Object.keys(out).some((k) => k !== 'expected') ? out : null;
 }
 
 const TASK_STATUSES = ['not_started', 'in_progress', 'completed', 'cancelled'];
@@ -121,7 +209,17 @@ export function diffPortalUpdate(prev: AlertRecord, next: AlertRecord): PortalPa
     if (equalValue(before, after)) continue;
     (portal as Record<string, unknown>)[key] = after === undefined || after === '' ? null : after;
   }
-  if (Object.keys(portal).length) patch.portal = portal;
+  if (Object.keys(portal).length) {
+    patch.portal = portal;
+    // === AMÉLIORATION AJOUTÉE (modifications simultanées) ===
+    const expectedPortal: Record<string, unknown> = {};
+    for (const key of Object.keys(portal) as PortalStateKey[]) {
+      if (!PORTAL_CONFLICT_CHECKED_KEYS.includes(key)) continue;
+      const before = portalValue(prev, key);
+      expectedPortal[key] = before === undefined || before === '' ? null : before;
+    }
+    if (Object.keys(expectedPortal).length) patch.expected = { portal: expectedPortal as NonNullable<PortalPatch['expected']>['portal'] };
+  }
 
   if (!sameList(prev.assignedInvestigators, next.assignedInvestigators)) {
     patch.assignedInvestigators = [...(next.assignedInvestigators ?? [])];
@@ -166,6 +264,9 @@ export function mergePortalPatches(a: PortalPatch, b: PortalPatch): PortalPatch 
   const links = new Map<string, PortalPersonLink>();
   for (const l of [...(a.personLinks ?? []), ...(b.personLinks ?? [])]) links.set(l.personId, l);
   if (links.size) out.personLinks = [...links.values()];
+  // === AMÉLIORATION AJOUTÉE (modifications simultanées) === la valeur attendue
+  // la plus ANCIENNE l'emporte : c'est celle que le serveur doit encore avoir.
+  if (a.expected?.portal || b.expected?.portal) out.expected = { portal: { ...(b.expected?.portal ?? {}), ...(a.expected?.portal ?? {}) } };
   return out;
 }
 
@@ -275,7 +376,26 @@ export function sanitizePortalPatch(input: unknown): PortalPatch {
     });
   }
 
-  if (!Object.keys(out).length) throw new PortalPatchError('Nothing to update.');
+  // === AMÉLIORATION AJOUTÉE (modifications simultanées) ===
+  if (raw.expected !== undefined) {
+    const e = raw.expected as Record<string, unknown> | null;
+    if (!e || typeof e !== 'object' || Array.isArray(e)) throw new PortalPatchError('expected must be an object.');
+    const ep = e.portal as Record<string, unknown> | undefined;
+    if (ep !== undefined) {
+      if (!ep || typeof ep !== 'object' || Array.isArray(ep)) throw new PortalPatchError('expected.portal must be an object.');
+      const clean: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(ep)) {
+        if (!(PORTAL_CONFLICT_CHECKED_KEYS as string[]).includes(key)) throw new PortalPatchError(`Unknown expected field ${key}.`);
+        if (value === null || typeof value === 'boolean') clean[key] = value;
+        else if (typeof value === 'string') clean[key] = text(value, 20000, `expected.${key}`);
+        else if (Array.isArray(value) && value.length <= 50 && value.every((v) => typeof v === 'string' && ID_RE.test(v))) clean[key] = value;
+        else throw new PortalPatchError(`Invalid expected value for ${key}.`);
+      }
+      if (Object.keys(clean).length) out.expected = { portal: clean as NonNullable<PortalPatch['expected']>['portal'] };
+    }
+  }
+
+  if (!Object.keys(out).filter((k) => k !== 'expected').length) throw new PortalPatchError('Nothing to update.');
   return out;
 }
 

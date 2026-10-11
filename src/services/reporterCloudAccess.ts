@@ -106,11 +106,60 @@ export async function pollReporterConversation(sessionToken: string, typing?: bo
   }
 }
 
+// === AMÉLIORATION AJOUTÉE (envoi rejouable sans doublon) ===
+// Chaque envoi porte un identifiant choisi ici. Si le serveur ne répond pas
+// à temps (base lente, réseau coupé), l'envoi est rejoué une fois avec le
+// MÊME identifiant : le serveur ne l'enregistre qu'une fois. Si la personne
+// renvoie elle-même le même texte après un échec, le même identifiant est
+// réutilisé (au plus 10 minutes) : pas de message en double.
+const pendingSendIds = new Map<string, { id: string; at: number }>();
+const PENDING_SEND_TTL_MS = 10 * 60 * 1000;
+
+export function newClientSendId(): string {
+  const bytes = new Uint8Array(12);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Identifiant d'envoi stable pour un même contenu tant qu'il n'a pas abouti. */
+export function sendIdFor(key: string, now = Date.now()): string {
+  for (const [k, v] of pendingSendIds) if (now - v.at > PENDING_SEND_TTL_MS) pendingSendIds.delete(k);
+  const existing = pendingSendIds.get(key);
+  if (existing) return existing.id;
+  const id = newClientSendId();
+  pendingSendIds.set(key, { id, at: now });
+  return id;
+}
+
+export function clearSendId(key: string): void {
+  pendingSendIds.delete(key);
+}
+
+/** Erreurs passagères (délai dépassé, serveur indisponible) : un nouvel essai a du sens. */
+export function isTransientCallableError(e: unknown): boolean {
+  const code = typeof e === 'object' && e && 'code' in e ? String((e as { code: unknown }).code) : '';
+  return ['functions/deadline-exceeded', 'functions/unavailable', 'functions/internal', 'functions/aborted'].includes(code);
+}
+
+async function callWithOneRetry<T>(call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (e) {
+    if (!isTransientCallableError(e)) throw e;
+    await new Promise((r) => setTimeout(r, 1500));
+    return call();
+  }
+}
+
 export async function sendReporterMessageWithSession(sessionToken: string, content: string): Promise<boolean> {
   if (!isPhase4Configured() || !sessionToken) return false;
+  // === AMÉLIORATION AJOUTÉE (envoi rejouable sans doublon) ===
+  const key = `msg:${sessionToken.split('.')[0]}:${content}`;
+  const clientMessageId = sendIdFor(key);
   try {
-    const fn = await callable<{ sessionToken: string; content: string }, unknown>('addCommunicationAsReporter');
-    await fn({ sessionToken, content });
+    const fn = await callable<{ sessionToken: string; content: string; clientMessageId: string }, unknown>('addCommunicationAsReporter');
+    await callWithOneRetry(() => fn({ sessionToken, content, clientMessageId }));
+    clearSendId(key);
     return true;
   } catch {
     return false;
@@ -139,10 +188,17 @@ export async function sendReporterFile(sessionToken: string, file: File, message
   if (!isPhase4Configured() || !sessionToken) return { ok: false, reason: 'failed' };
   try {
     const dataBase64 = await fileToBase64(file);
-    const fn = await callable<{ sessionToken: string; fileName: string; fileType: string; dataBase64: string; message?: string }, unknown>(
-      'addEvidenceAsReporter'
+    const fn = await callable<
+      { sessionToken: string; fileName: string; fileType: string; dataBase64: string; message?: string; clientUploadId: string },
+      unknown
+    >('addEvidenceAsReporter');
+    // === AMÉLIORATION AJOUTÉE (envoi rejouable sans doublon) ===
+    const key = `file:${sessionToken.split('.')[0]}:${file.name}:${file.size}:${file.lastModified}:${message ?? ''}`;
+    const clientUploadId = sendIdFor(key);
+    await callWithOneRetry(() =>
+      fn({ sessionToken, fileName: file.name, fileType: file.type || 'application/octet-stream', dataBase64, ...(message ? { message } : {}), clientUploadId })
     );
-    await fn({ sessionToken, fileName: file.name, fileType: file.type || 'application/octet-stream', dataBase64, ...(message ? { message } : {}) });
+    clearSendId(key);
     return { ok: true };
   } catch (e) {
     const code = typeof e === 'object' && e && 'code' in e ? String((e as { code: unknown }).code) : '';

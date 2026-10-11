@@ -1770,6 +1770,15 @@ export const fr: Record<string, string> = {
   persist_failure_quota: "L’espace de stockage de ce navigateur est plein (pièces jointes trop volumineuses ?). Réduisez la taille des pièces jointes, puis réessayez ; en cas de doute, contactez l’équipe DARC avant de fermer cette page.",
   persist_failure_generic: "Le navigateur a refusé l’enregistrement (navigation privée ou stockage bloqué ?). Ne fermez pas cette page et contactez l’équipe DARC.",
   persist_failure_dismiss: "Fermer",
+  // === AMÉLIORATION AJOUTÉE (modifications simultanées et envois en échec) ===
+  portal_sync_conflict_title: "Une modification n’a pas été enregistrée : un collègue a modifié ce champ en même temps.",
+  portal_sync_conflict_body: "Sa version a été conservée pour ne rien écraser. Elle s’affiche après actualisation ; vérifiez-la, puis ressaisissez votre modification si nécessaire.",
+  portal_sync_rejected_title: "Une modification a été refusée par le serveur.",
+  portal_sync_rejected_body: "Vos droits ne permettent pas cette action sur ce dossier, ou les données sont invalides. Rien n’a été enregistré.",
+  portal_sync_pending_title: "Enregistrement sur le serveur en attente.",
+  portal_sync_pending_body: "Le serveur ne répond pas pour l’instant (réseau ou ralentissement). Votre travail est conservé dans ce navigateur et sera renvoyé automatiquement : ne videz pas les données du navigateur.",
+  portal_sync_case: "Dossier",
+  portal_sync_refresh: "Actualiser",
   // === AMÉLIORATION AJOUTÉE (page de suivi — version B) ===
   track_eyebrow: 'Espace de suivi sécurisé',
   track_title_part1: 'Suivi confidentiel de',

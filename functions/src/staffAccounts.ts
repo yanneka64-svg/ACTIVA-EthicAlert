@@ -45,6 +45,9 @@ import {
 // === AMÉLIORATION AJOUTÉE (politique de mots de passe Firebase) === mots de
 // passe temporaires conformes (majuscule, minuscule, chiffre, caractère spécial).
 import { generatePolicyCompliantPassword } from '../../src/services/crypto';
+// === AMÉLIORATION AJOUTÉE (double authentification exigée par le serveur) ===
+import { adminMfaSatisfied } from '../../src/domain/serverInputGuards';
+import { isMfaRequiredForRole } from '../../src/domain/mfaPolicy';
 
 const DATABASE_ID = process.env.FIRESTORE_DATABASE_ID || 'default';
 const STAFF_USERS = 'staff_users';
@@ -100,11 +103,57 @@ function requireStaffCaller(request: CallableRequest, allowTempPassword = false)
   };
 }
 
-function requireUserManager(request: CallableRequest): StaffCaller {
+// === AMÉLIORATION AJOUTÉE (double authentification exigée par le serveur) ===
+// Jusqu'ici, seule la page de connexion imposait la double authentification
+// aux administrateurs : avec le seul mot de passe d'un administrateur qui ne
+// l'avait pas encore activée, un appel direct aux fonctions (sans passer par
+// le portail) donnait tous ses droits. Le serveur l'exige désormais : session
+// ouverte avec le second facteur, ou facteur enregistré sur le compte
+// (Firebase refuse alors toute connexion par mot de passe seul).
+// Interrupteur d'urgence : ADMIN_MFA_ENFORCEMENT=off (variable des Functions).
+// Sur l'émulateur, désactivé sauf si `system/emulator_flags.adminMfa == 'on'`
+// (tests), pour ne pas exiger de second facteur des comptes de test.
+const factorCountCache = new Map<string, { count: number; at: number }>();
+
+async function adminMfaEnforced(): Promise<boolean> {
+  if (process.env.FUNCTIONS_EMULATOR === 'true') {
+    const flags = await db().collection('system').doc('emulator_flags').get().catch(() => null);
+    return flags?.data()?.adminMfa === 'on';
+  }
+  return process.env.ADMIN_MFA_ENFORCEMENT !== 'off';
+}
+
+async function enrolledFactorCount(uid: string): Promise<number> {
+  const cached = factorCountCache.get(uid);
+  if (cached && Date.now() - cached.at < 60_000) return cached.count;
+  const user = await getAuth().getUser(uid).catch(() => null);
+  const count = user?.multiFactor?.enrolledFactors?.length ?? 0;
+  // Seul un résultat positif est mémorisé : un administrateur qui vient
+  // d'activer sa double authentification n'est jamais bloqué par un ancien « 0 ».
+  if (count > 0) factorCountCache.set(uid, { count, at: Date.now() });
+  return count;
+}
+
+/** Refuse un appel d'administrateur dont la double authentification n'est pas établie. */
+export async function assertAdminMfa(request: CallableRequest): Promise<void> {
+  if (!request.auth) return;
+  const token = request.auth.token as { role?: string; firebase?: { sign_in_second_factor?: unknown } };
+  if (!isMfaRequiredForRole(token.role)) return;
+  const secondFactor = token.firebase?.sign_in_second_factor;
+  if (typeof secondFactor === 'string' && secondFactor) return;
+  if (!(await adminMfaEnforced())) return;
+  const count = await enrolledFactorCount(request.auth.uid);
+  if (!adminMfaSatisfied({ role: token.role, signInSecondFactor: secondFactor, enrolledFactorCount: count })) {
+    throw new HttpsError('failed-precondition', 'Two-factor authentication required for administrator accounts.');
+  }
+}
+
+async function requireUserManager(request: CallableRequest): Promise<StaffCaller> {
   const caller = requireStaffCaller(request);
   if (!roleHasPermission(caller.role, 'users.manage')) {
     throw new HttpsError('permission-denied', 'Not authorized (users.manage).');
   }
+  await assertAdminMfa(request);
   return caller;
 }
 
@@ -172,7 +221,7 @@ function authError(e: unknown): HttpsError {
 
 /** Crée un compte : Firebase Auth + claims + profil Firestore. Renvoie le mot de passe temporaire une seule fois. */
 export const createStaffAccount = onCall(async (request) => {
-  const caller = requireUserManager(request);
+  const caller = await requireUserManager(request);
   const parsed = parseStaffAccountInput((request.data as { account?: unknown } | undefined)?.account);
   if (parsed.ok === false) throw new HttpsError('invalid-argument', parsed.error);
   const raw = parsed.value as StaffAccountInput;
@@ -220,7 +269,7 @@ export const createStaffAccount = onCall(async (request) => {
 
 /** Modifie un compte (nom, e-mail, identifiant, rôle, poste, entité, pays). Ne touche jamais au mot de passe. */
 export const updateStaffAccount = onCall(async (request) => {
-  const caller = requireUserManager(request);
+  const caller = await requireUserManager(request);
   const data = (request.data ?? {}) as { id?: unknown; changes?: unknown };
   const current = await loadProfile(data.id);
   const parsed = parseStaffAccountInput(data.changes, true);
@@ -270,7 +319,7 @@ export const updateStaffAccount = onCall(async (request) => {
 
 /** Supprime un compte (Firebase Auth + profil + réservation d'identifiant). */
 export const deleteStaffAccount = onCall(async (request) => {
-  const caller = requireUserManager(request);
+  const caller = await requireUserManager(request);
   const current = await loadProfile((request.data as { id?: unknown } | undefined)?.id);
   if (current.id === caller.uid) throw new HttpsError('failed-precondition', 'You cannot delete your own account.');
   if (current.role === 'system_admin' && current.active) await assertAnotherActiveSystemAdmin(current.id);
@@ -288,7 +337,7 @@ export const deleteStaffAccount = onCall(async (request) => {
 
 /** Régénère un mot de passe temporaire (4 h), à changer à la prochaine connexion. */
 export const resetStaffAccountPassword = onCall(async (request) => {
-  const caller = requireUserManager(request);
+  const caller = await requireUserManager(request);
   const current = await loadProfile((request.data as { id?: unknown } | undefined)?.id);
   const tempPassword = generatePolicyCompliantPassword(TEMP_PASSWORD_LENGTH);
   await getAuth().updateUser(current.id, { password: tempPassword }).catch((e: unknown) => {
@@ -310,7 +359,7 @@ export const resetStaffAccountPassword = onCall(async (request) => {
  * administrateurs). Jamais sur son propre compte. Tracé dans la piste d'audit.
  */
 export const resetStaffAccountMfa = onCall(async (request) => {
-  const caller = requireUserManager(request);
+  const caller = await requireUserManager(request);
   const current = await loadProfile((request.data as { id?: unknown } | undefined)?.id);
   if (current.id === caller.uid) throw new HttpsError('failed-precondition', 'You cannot reset your own two-factor authentication.');
   await getAuth()

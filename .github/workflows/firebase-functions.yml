@@ -122,6 +122,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # === AMÉLIORATION AJOUTÉE (séparation test / production) === voir firebase-hosting.yml.
+    environment: production
     permissions:
       contents: read
       # Jeton OIDC pour la fédération d'identité (WIF), si configurée.
@@ -165,6 +167,9 @@ jobs:
           V_RATE: ${{ vars.NOTIFY_RATE_LIMIT }}
           V_REPORTER: ${{ vars.REPORTER_CREATE_MAX_PER_HOUR }}
           V_APPCHECK: ${{ vars.ENFORCE_APP_CHECK }}
+          # === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) ===
+          V_GLOBAL: ${{ vars.REPORTER_CREATE_GLOBAL_MAX_PER_HOUR }}
+          V_ADMIN_MFA: ${{ vars.ADMIN_MFA_ENFORCEMENT }}
           # === AMÉLIORATION AJOUTÉE (domaine personnalisé) === lien du portail dans les e-mails
           V_APPURL: ${{ vars.NOTIFY_APP_URL || secrets.NOTIFY_APP_URL || 'https://activa-alertes.com' }}
         run: |
@@ -176,6 +181,8 @@ jobs:
             [ -n "$V_FROM" ] && echo "NOTIFY_FROM_EMAIL=\"${V_FROM}\""
             [ -n "$V_RATE" ] && echo "NOTIFY_RATE_LIMIT=${V_RATE}"
             [ -n "$V_REPORTER" ] && echo "REPORTER_CREATE_MAX_PER_HOUR=${V_REPORTER}"
+            [ -n "$V_GLOBAL" ] && echo "REPORTER_CREATE_GLOBAL_MAX_PER_HOUR=${V_GLOBAL}"
+            [ -n "$V_ADMIN_MFA" ] && echo "ADMIN_MFA_ENFORCEMENT=${V_ADMIN_MFA}"
             [ -n "$V_APPURL" ] && echo "NOTIFY_APP_URL=${V_APPURL}"
             true
           } > functions/.env

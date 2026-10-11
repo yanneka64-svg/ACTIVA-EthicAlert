@@ -20,6 +20,8 @@ import { readFileSync } from 'fs';
 import { INITIAL_ALERTS } from '../src/data/activaConfig';
 import { migrateLegacyAlertsToCases, MIGRATION_SYSTEM_USER } from '../src/data-access/migrateLegacy';
 import { FirestoreAdminCaseRepository } from './firestoreAdminRepository';
+// === AMÉLIORATION AJOUTÉE (séparation test / production) ===
+import { assertNotProductionProject } from '../src/domain/environment';
 
 async function main() {
   const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS_PATH;
@@ -27,6 +29,9 @@ async function main() {
 
   const credential = keyPath ? cert(JSON.parse(readFileSync(keyPath, 'utf8'))) : applicationDefault();
   const projectId = keyPath ? JSON.parse(readFileSync(keyPath, 'utf8')).project_id : undefined;
+  // === AMÉLIORATION AJOUTÉE (séparation test / production) === données de
+  // démonstration : jamais dans la base de production sans confirmation.
+  assertNotProductionProject(projectId ?? process.env.GCLOUD_PROJECT, process.env.CONFIRM_PRODUCTION, 'chargement de données de démonstration');
 
   const app = initializeApp({ credential, projectId });
   const repository = new FirestoreAdminCaseRepository(app, getFirestore, databaseId);

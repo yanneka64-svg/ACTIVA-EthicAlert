@@ -56,7 +56,7 @@ describe('storage → serveur (applyPortalUpdate)', () => {
     ]);
     await flush();
     await flush();
-    expect(queuePortalUpdate).toHaveBeenCalledWith('case-cloud-y', { portal: { investigationReport: 'Rapport saisi avant' } });
+    expect(queuePortalUpdate).toHaveBeenCalledWith('case-cloud-y', expect.objectContaining({ portal: { investigationReport: 'Rapport saisi avant' } }));
     queuePortalUpdate.mockClear();
     storage.replaceCloudImportedAlerts([
       { ...a, id: 'cloud-y', mirroredCaseId: 'case-cloud-y', investigationReport: 'Rapport saisi avant', serverPortal: { investigationReport: 'Rapport saisi avant' }, updatedAt: 'x' },
