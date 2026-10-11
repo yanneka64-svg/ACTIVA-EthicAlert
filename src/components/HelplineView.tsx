@@ -147,14 +147,14 @@ const ChannelCarousel: React.FC<{ slides: React.ReactNode[]; labels: string[]; l
           la carte active est devant, la suivante dépasse derrière, décalée et
           légèrement inclinée ; elles permutent au lieu de glisser. */}
       {layout === 'stack' ? (
-        <div className="relative grid pt-5 pr-5 sm:pt-6 sm:pr-6">
+        <div className="relative grid grid-cols-[minmax(0,1fr)] pt-5 pr-5 sm:pt-6 sm:pr-6">
           {slides.map((slide, i) => {
             const d = (i - index + n) % n;
             const active = d === 0;
             return (
               <div
                 key={i}
-                className={`[grid-area:1/1] transition-[transform,filter] duration-[1100ms] ease-[cubic-bezier(0.65,0,0.35,1)] ${active ? '' : 'pointer-events-none'}`}
+                className={`[grid-area:1/1] min-w-0 transition-[transform,filter] duration-[1100ms] ease-[cubic-bezier(0.65,0,0.35,1)] ${active ? '' : 'pointer-events-none'}`}
                 style={{
                   zIndex: n - d,
                   // Cartes opaques : pas de superposition de texte pendant la permutation.
@@ -268,6 +268,8 @@ interface CompactChannel {
   copied: boolean;
   copyLabel: string;
   copiedLabel: string;
+  /** === AMÉLIORATION AJOUTÉE (proposition 6) === libellé court des onglets. */
+  shortTitle?: string;
 }
 
 const channelIconBox = 'shrink-0 bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white flex items-center justify-center shadow-[0_10px_22px_-10px_rgb(20_73_176/0.95)]';
@@ -404,8 +406,132 @@ const ChannelRowsCard: React.FC<{ channels: CompactChannel[] }> = ({ channels })
   </div>
 );
 
-/** Présentation retenue pour les canaux : '2' = lignes de contact empilées. */
-const CHANNEL_PRESENTATION = '2';
+// === AMÉLIORATION AJOUTÉE (cartes allégées — propositions 4, 5, 6) === sur
+// demande explicite (« plaquettes saturées, trop d'informations ») : trois
+// présentations plus sobres. Chaque canal se réduit à l'essentiel : le moyen
+// de contact, la coordonnée, une action. L'intitulé détaillé, la ligne
+// descriptive et la tuile d'icône disparaissent. Les présentations
+// précédentes restent dans le code.
+
+/** Bouton « copier » discret, réutilisé par les propositions 4 à 6. */
+const CopyIconButton: React.FC<{ ch: CompactChannel; tone?: 'light' | 'dark' }> = ({ ch, tone = 'light' }) => (
+  <button
+    type="button"
+    onClick={ch.onCopy}
+    aria-label={ch.copied ? ch.copiedLabel : ch.copyLabel}
+    title={ch.copied ? ch.copiedLabel : ch.copyLabel}
+    className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 ${
+      tone === 'dark'
+        ? 'text-white/75 hover:text-white hover:bg-white/10 focus-visible:ring-white/60'
+        : 'text-slate-400 hover:text-[#1449B0] hover:bg-slate-100 focus-visible:ring-[#1449B0]/40'
+    }`}
+  >
+    {ch.copied ? <Check className={`w-4 h-4 ${tone === 'dark' ? 'text-emerald-300' : 'text-emerald-600'}`} strokeWidth={2.2} /> : <Copy className="w-4 h-4" strokeWidth={1.9} />}
+  </button>
+);
+
+/** Proposition 4 : carte épurée, toute la carte ouvre le canal. */
+const ChannelMinimalCard: React.FC<{ ch: CompactChannel }> = ({ ch }) => (
+  <div className={`relative h-full ${compactShell} rounded-[20px] px-5 py-4 sm:px-6 sm:py-5`}>
+    <p className="flex items-center gap-2 text-[13px] font-semibold text-slate-500">
+      <ch.Icon className="w-4 h-4 text-[#1449B0]" strokeWidth={2} />
+      {ch.title}
+      {ch.status && <span aria-hidden="true" className="activa-live-dot ml-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+    </p>
+    <div className="mt-1.5 flex items-center gap-2">
+      <a
+        href={ch.href}
+        {...(ch.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        aria-label={ch.actionLabel}
+        title={ch.actionLabel}
+        className={`group min-w-0 flex-1 flex items-center gap-2 font-extrabold tracking-tight text-[#0B2545] hover:text-[#1449B0] transition-colors leading-tight ${ch.valueClass}`}
+      >
+        <span className="min-w-0 flex-1">{ch.value}</span>
+        <ArrowUpRight className="w-5 h-5 shrink-0 text-[#1449B0] opacity-60 transition-all group-hover:opacity-100 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" strokeWidth={2.2} />
+      </a>
+      <CopyIconButton ch={ch} />
+    </div>
+  </div>
+);
+
+/** Proposition 5 : sans carte, deux lignes directement sur le fond bleu. */
+const ChannelOnBlueList: React.FC<{ channels: CompactChannel[] }> = ({ channels }) => (
+  <div className="activa-modal-in max-w-[440px] divide-y divide-white/15 border-y border-white/15">
+    {channels.map((ch) => (
+      <div key={ch.title} className="flex items-center gap-3.5 py-4">
+        <span className="w-10 h-10 shrink-0 rounded-full bg-white/12 ring-1 ring-inset ring-white/20 text-white flex items-center justify-center">
+          <ch.Icon className="w-[18px] h-[18px]" strokeWidth={1.9} />
+        </span>
+        <a
+          href={ch.href}
+          {...(ch.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+          aria-label={`${ch.actionLabel} — ${ch.title}`}
+          className="group min-w-0 flex-1"
+        >
+          <span className="block text-[12px] font-medium text-[#C9DAF8]">{ch.title}</span>
+          <span className={`flex items-center gap-1.5 font-extrabold tracking-tight text-white leading-tight ${ch.valueClass}`}>
+            <span className="min-w-0 flex-1">{ch.value}</span>
+            <ArrowUpRight className="w-4 h-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" strokeWidth={2.2} />
+          </span>
+        </a>
+        <CopyIconButton ch={ch} tone="dark" />
+      </div>
+    ))}
+  </div>
+);
+
+/** Proposition 6 : une carte, deux onglets, une seule action. */
+const ChannelTabsCard: React.FC<{ channels: CompactChannel[] }> = ({ channels }) => {
+  const [active, setActive] = React.useState(0);
+  const ch = channels[active];
+  return (
+    <div className={`activa-modal-in max-w-[440px] ${compactShell} rounded-[22px] p-2`}>
+      <div role="tablist" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
+        {channels.map((c, i) => (
+          <button
+            key={c.title}
+            type="button"
+            role="tab"
+            aria-selected={i === active}
+            onClick={() => setActive(i)}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-[13px] font-bold transition-all ${
+              i === active ? 'bg-white text-[#0B2545] shadow-sm' : 'text-slate-500 hover:text-[#0B2545]'
+            }`}
+          >
+            <c.Icon className="w-4 h-4" strokeWidth={2} />
+            <span className="truncate">{c.shortTitle ?? c.title}</span>
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" className="px-4 pt-5 pb-4 sm:px-5">
+        <div className="flex items-center gap-2">
+          <div className={`min-w-0 flex-1 font-extrabold tracking-tight text-[#0B2545] leading-tight ${ch.valueClass}`}>{ch.value}</div>
+          <CopyIconButton ch={ch} />
+        </div>
+        <a
+          href={ch.href}
+          {...(ch.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+          className="activa-shine mt-4 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2B5FC8] to-[#1449B0] hover:from-[#1449B0] hover:to-[#0F3C93] px-4 py-3 text-[13.5px] font-bold text-white shadow-md shadow-[#1449B0]/25 transition-all duration-300"
+        >
+          {ch.actionLabel}
+          <ArrowUpRight className="w-4 h-4" strokeWidth={2.2} />
+        </a>
+      </div>
+    </div>
+  );
+};
+
+/** Présentation retenue pour les canaux : '4' = cartes épurées empilées. */
+// === AMÉLIORATION AJOUTÉE (cartes allégées) === sur demande explicite :
+// proposition 4 retenue (auparavant '2', lignes de contact empilées).
+const CHANNEL_PRESENTATION: string = '4';
+// === AMÉLIORATION AJOUTÉE (aperçu des propositions 4 à 6) === en
+// développement uniquement : `?presentation=4|5|6` dans l'adresse.
+const metaEnvHelpline = (import.meta as unknown as { env?: Record<string, unknown> }).env ?? {};
+function previewPresentation(): string | null {
+  if (metaEnvHelpline.DEV !== true || typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get('presentation');
+}
 
 interface HelplineViewProps {
   lang: Language;
@@ -418,7 +544,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
   // === AMÉLIORATION AJOUTÉE (présentation des canaux) === sur demande
   // explicite : cartes « ligne de contact » empilées (proposition 2). Les
   // autres présentations et les grandes cartes restent dans le code.
-  const presentation = CHANNEL_PRESENTATION as '1' | '2' | '3' | null;
+  const presentation = (previewPresentation() ?? CHANNEL_PRESENTATION) as '1' | '2' | '3' | '4' | '5' | '6' | null;
   const cardShell =
     'h-full bg-white rounded-[28px] border border-slate-200/90 shadow-[0_40px_80px_-36px_rgb(3_16_48/0.85)] p-7 sm:p-9 flex flex-col';
   const reduced = usePrefersReducedMotion();
@@ -580,6 +706,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               {
                 Icon: MessageCircle,
                 title: t.contact_whatsapp_title,
+                shortTitle: 'WhatsApp',
                 status: t.helpline_open,
                 // Même animation de chiffres qui roulent que sur la grande carte.
                 value: <RollingNumber value={HELPLINE_NUMBER} />,
@@ -596,6 +723,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               {
                 Icon: Mail,
                 title: t.contact_email_title,
+                shortTitle: 'E-mail',
                 // Toujours sur une seule ligne (taille ajustée à la largeur).
                 value: <FitOneLine max={presentation === '1' ? 16 : 18}>{HELPLINE_EMAIL}</FitOneLine>,
                 valueClass: '',
@@ -609,6 +737,16 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               },
             ];
             if (presentation === '3') return <div className="max-w-[460px]"><ChannelRowsCard channels={channels} /></div>;
+            // === AMÉLIORATION AJOUTÉE (cartes allégées — propositions 4, 5, 6) ===
+            if (presentation === '5') return <ChannelOnBlueList channels={channels} />;
+            if (presentation === '6') return <ChannelTabsCard channels={channels} />;
+            if (presentation === '4') {
+              return (
+                <div className="max-w-[440px]">
+                  <ChannelCarousel labels={channels.map((c) => c.title)} layout="stack" slides={channels.map((c) => <ChannelMinimalCard key={c.title} ch={c} />)} />
+                </div>
+              );
+            }
             const Card = presentation === '1' ? CompactChannelCard : ChannelRowCard;
             return (
               <div className="max-w-[460px]">
