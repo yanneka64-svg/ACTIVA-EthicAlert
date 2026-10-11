@@ -36,7 +36,9 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 // === AMÉLIORATION AJOUTÉE (revue PR #139) === pagination par curseur de listCases.
 import { FieldPath } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { CallableRequest, HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
+import { CallableRequest, HttpsError, onCall as onCallRaw, onRequest } from 'firebase-functions/v2/https';
+// === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) ===
+import { isReporterAccessCode, isReporterCaseNumber, isSafeDocId, safeStoredMimeType } from '../../src/domain/serverInputGuards';
 // === AMÉLIORATION AJOUTÉE : secret Resend pour notifyEmail (Secret Manager, Blaze) ===
 import { defineSecret } from 'firebase-functions/params';
 
@@ -150,7 +152,7 @@ import {
 import { setGlobalOptions } from 'firebase-functions/v2';
 // === AMÉLIORATION AJOUTÉE (comptes du personnel créés depuis le portail et
 // enregistrés dans Firebase) === voir functions/src/staffAccounts.ts.
-import { staffUidByContactEmail } from './staffAccounts';
+import { assertAdminMfa, staffUidByContactEmail } from './staffAccounts';
 export {
   changeMyStaffPassword,
   createStaffAccount,
@@ -162,6 +164,29 @@ export {
   // === AMÉLIORATION AJOUTÉE (double authentification du personnel) ===
   resetStaffAccountMfa,
 } from './staffAccounts';
+
+// === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) ===
+// Toutes les fonctions appelables de ce fichier passent par cette enveloppe :
+// - des données absentes ou d'un type inattendu (null, texte, tableau) sont
+//   remplacées par un objet vide : chaque fonction répond alors « données
+//   invalides » au lieu de planter (erreur interne 500) ;
+// - un compte d'administration doit avoir établi sa double authentification
+//   (voir assertAdminMfa, functions/src/staffAccounts.ts).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyCallableHandler = (request: CallableRequest<any>, response?: any) => any;
+function guardedHandler<H extends AnyCallableHandler>(handler: H): H {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (async (request: CallableRequest<any>, response?: any) => {
+    if (request.data === null || typeof request.data !== 'object' || Array.isArray(request.data)) {
+      (request as { data: unknown }).data = {};
+    }
+    await assertAdminMfa(request);
+    return handler(request, response);
+  }) as H;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const onCall = ((optsOrHandler: any, maybeHandler?: any) =>
+  maybeHandler === undefined ? onCallRaw(guardedHandler(optsOrHandler)) : onCallRaw(optsOrHandler, guardedHandler(maybeHandler))) as typeof onCallRaw;
 
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P1 : fiabilité et coût) ===
 // Options communes à TOUTES les fonctions, appliquées avant leur
@@ -205,7 +230,10 @@ db.settings({ ignoreUndefinedProperties: true });
 // non-secretly in .firebaserc/src/i18n/translations.ts) rather than left
 // to getStorage().bucket()'s default-bucket resolution, which requires the
 // Admin SDK to already know about a configured bucket.
-const STORAGE_BUCKET = 'activa-ethicalert-47246.firebasestorage.app';
+// === AMÉLIORATION AJOUTÉE (séparation test / production) === bucket du
+// projet où tourne la fonction (production ou test), jamais celui de la
+// production codé en dur : l'environnement de test ne doit pas y accéder.
+const STORAGE_BUCKET = `${process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'activa-ethicalert-47246'}.firebasestorage.app`;
 
 /** Builds the AppUser the domain layer expects from a verified callable request's auth context. */
 function requireAppUser(request: CallableRequest): AppUser {
@@ -280,6 +308,10 @@ function caseExcludedUids(kase: Case, persons: Person[]): string[] {
 }
 
 async function requireCaseAccess(caseId: string, user: AppUser, permission: Permission): Promise<{ ref: FirebaseFirestore.DocumentReference; kase: Case }> {
+  // === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) === un
+  // identifiant contenant « / » désignerait un AUTRE document (ex. un message
+  // du dossier lu comme s'il était un dossier) ; un objet faisait planter.
+  if (!isSafeDocId(caseId)) throw new HttpsError('invalid-argument', 'Invalid caseId.');
   const ref = db.collection('cases').doc(caseId);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError('not-found', `Case ${caseId} not found.`);
@@ -1187,8 +1219,13 @@ async function recordReporterAttempt(key: string, success: boolean): Promise<voi
 // code"), and a caller's rate-limit attempt is recorded/cleared here in
 // exactly one place, not once per callable.
 async function verifyReporterAccess(caseNumber: string, accessCode: string): Promise<{ ref: FirebaseFirestore.DocumentReference; kase: Case }> {
-  const key = caseNumber.trim().toUpperCase();
   const invalid = () => new HttpsError('permission-denied', 'Invalid case number or access code.');
+  // === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) === un
+  // numéro ou un code d'un type inattendu (objet, nombre), contenant « / » ou
+  // démesuré faisait planter la fonction (erreur interne) : même réponse
+  // qu'un mauvais code, sans rien révéler.
+  if (!isReporterCaseNumber(caseNumber) || !isReporterAccessCode(accessCode)) throw invalid();
+  const key = caseNumber.trim().toUpperCase();
 
   await assertReporterNotRateLimited(key);
 
@@ -1515,7 +1552,9 @@ export const addEvidenceAsReporter = onCall(async (request) => {
   if (already.data().count >= REPORTER_FILE_MAX_PER_CASE) throw new HttpsError('resource-exhausted', 'Too many files for this case.');
 
   const name = safeFileName(fileName ?? 'document');
-  const type = typeof fileType === 'string' && fileType.length <= 120 ? fileType : 'application/octet-stream';
+  // === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) === type
+  // exécutable par un navigateur (HTML, SVG…) ou mal formé → octet-stream.
+  const type = safeStoredMimeType(fileType);
   const evidenceId = newId('ev');
   const messageId = newId('msg');
   const nowIso = new Date().toISOString();
@@ -1669,7 +1708,7 @@ function reporterDetailsWrites(
   (details.evidence ?? []).forEach((e, i) => {
     const evidenceId = `evidence-${caseId}-${i + 1}`;
     const evidence: Evidence = {
-      evidenceId, caseId, fileName: e.name, fileType: e.type, fileSize: e.size,
+      evidenceId, caseId, fileName: e.name, fileType: safeStoredMimeType(e.type), fileSize: e.size, // === AMÉLIORATION AJOUTÉE (types à risque neutralisés) ===
       description: 'Pièce déposée par le déclarant avec son signalement (fichier conservé sur son appareil, non transmis).',
       version: 1, confidentiality: 'restricted', status: 'active',
       ...audit,
@@ -1701,6 +1740,34 @@ function reporterDetailsWrites(
 const REPORTER_CREATE_MAX_PER_WINDOW = Number(process.env.REPORTER_CREATE_MAX_PER_HOUR) > 0 ? Number(process.env.REPORTER_CREATE_MAX_PER_HOUR) : 10;
 const REPORTER_CREATE_WINDOW_MS = 60 * 60 * 1000;
 
+// === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) ===
+// L'adresse IP vue par la fonction vient de l'en-tête X-Forwarded-For, que
+// l'appelant peut inventer : en changeant cette valeur à chaque envoi, le
+// plafond par IP était contourné (test : 15 dépôts sur 15 acceptés). Un
+// plafond GLOBAL, toutes adresses confondues, borne désormais le nombre de
+// dépôts par heure (défaut 60, REPORTER_CREATE_GLOBAL_MAX_PER_HOUR) — et donc
+// le nombre d'e-mails « nouveau signalement » envoyés au personnel. La vraie
+// protection reste App Check (ENFORCE_APP_CHECK=true, docs/DEVOPS-RUNBOOK.md).
+const REPORTER_CREATE_GLOBAL_MAX_PER_WINDOW =
+  Number(process.env.REPORTER_CREATE_GLOBAL_MAX_PER_HOUR) > 0 ? Number(process.env.REPORTER_CREATE_GLOBAL_MAX_PER_HOUR) : 60;
+
+async function assertGlobalCaseCreationAllowed(): Promise<void> {
+  const ref = db.collection('rate_limits').doc('create__global');
+  const allowed = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    const data = snap.exists ? (snap.data() as { windowStart?: number; count?: number }) : {};
+    const fresh = !data.windowStart || now - data.windowStart >= REPORTER_CREATE_WINDOW_MS;
+    const count = fresh ? 1 : (data.count ?? 0) + 1;
+    tx.set(ref, { windowStart: fresh ? now : data.windowStart, count }, { merge: true });
+    return count <= REPORTER_CREATE_GLOBAL_MAX_PER_WINDOW;
+  });
+  if (!allowed) {
+    console.warn('REPORTER_CREATE_GLOBAL_LIMIT_REACHED');
+    throw new HttpsError('resource-exhausted', 'Too many submissions right now. Try again later.');
+  }
+}
+
 async function assertCaseCreationAllowed(ip: string): Promise<void> {
   const ref = db.collection('rate_limits').doc(`create_${ip.replace(/[^A-Za-z0-9:.]/g, '_').slice(0, 100) || 'unknown'}`);
   const allowed = await db.runTransaction(async (tx) => {
@@ -1729,6 +1796,7 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) ===
   const clientDiagnostics = sanitizeSubmissionDiagnostics((request.data as { clientDiagnostics?: unknown } | null)?.clientDiagnostics);
   await assertCaseCreationAllowed(request.rawRequest?.ip ?? 'unknown');
+  await assertGlobalCaseCreationAllowed();
 
   const seq = await nextCaseSequence();
   const caseId = newId('case');
@@ -2019,7 +2087,8 @@ export const addEvidence = onCall(async (request) => {
   const evidenceId = newId('evd');
   const nowIso = new Date().toISOString();
   const evidence: Evidence = {
-    evidenceId, caseId, fileName, fileType, fileSize, description, storagePath, sha256Hash,
+    // === AMÉLIORATION AJOUTÉE (types à risque neutralisés) ===
+    evidenceId, caseId, fileName, fileType: safeStoredMimeType(fileType), fileSize, description, storagePath, sha256Hash,
     version: 1, confidentiality, status: 'active',
     createdAt: nowIso, createdBy: user.userId, updatedAt: nowIso, updatedBy: user.userId,
   };
@@ -2580,7 +2649,7 @@ export const addSubmissionEvidenceAsReporter = onCall(async (request) => {
   const { ref } = await verifyReporterSession(sessionToken ?? '');
   const bytes = decodeEvidenceFile(dataBase64);
   const name = safeFileName(fileName ?? 'document');
-  const type = typeof fileType === 'string' && fileType.length <= 120 ? fileType : 'application/octet-stream';
+  const type = safeStoredMimeType(fileType); // === AMÉLIORATION AJOUTÉE (types à risque neutralisés) ===
   const sha256Hash = createHash('sha256').update(bytes).digest('hex');
   const nowIso = new Date().toISOString();
 
@@ -2643,7 +2712,7 @@ export const addEvidenceAsStaff = onCall(async (request) => {
   const { ref } = await requireCaseAccess(caseId, user, 'evidence.upload');
   const bytes = decodeEvidenceFile(dataBase64);
   const name = safeFileName(fileName ?? 'document');
-  const type = typeof fileType === 'string' && fileType.length <= 120 ? fileType : 'application/octet-stream';
+  const type = safeStoredMimeType(fileType); // === AMÉLIORATION AJOUTÉE (types à risque neutralisés) ===
   const sha256Hash = createHash('sha256').update(bytes).digest('hex');
   const nowIso = new Date().toISOString();
 

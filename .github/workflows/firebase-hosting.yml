@@ -91,6 +91,8 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           # === AMÉLIORATION AJOUTÉE (Audit DevOps — P1) === App Check (facultatif, vide = inactif).
           VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
+          # === AMÉLIORATION AJOUTÉE (séparation test / production) ===
+          VITE_APP_ENV: production
 
       - name: Upload built site
         if: env.HAS_SA == 'true'
@@ -105,6 +107,11 @@ jobs:
     needs: build
     if: needs.build.outputs.deploy == 'true'
     runs-on: ubuntu-latest
+    # === AMÉLIORATION AJOUTÉE (séparation test / production) === environnement
+    # GitHub « production » : y ajouter des approbateurs obligatoires
+    # (Settings → Environments → production) pour qu'aucune mise en ligne ne
+    # parte sans validation humaine. Sans règle, le déploiement reste automatique.
+    environment: production
     permissions:
       contents: read
       # === AMÉLIORATION AJOUTÉE === jeton OIDC pour la fédération d'identité (WIF),

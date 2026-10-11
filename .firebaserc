@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "activa-ethicalert-47246"
+    "default": "activa-ethicalert-47246",
+    "production": "activa-ethicalert-47246",
+    "staging": "activa-ethicalert-staging"
   }
 }

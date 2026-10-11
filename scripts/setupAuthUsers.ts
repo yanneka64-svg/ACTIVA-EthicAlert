@@ -18,6 +18,8 @@
  *   GOOGLE_APPLICATION_CREDENTIALS_PATH=/path/to/key.json npx tsx scripts/setupAuthUsers.ts
  */
 
+// === AMÉLIORATION AJOUTÉE (séparation test / production) ===
+import { assertNotProductionProject } from '../src/domain/environment';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { randomBytes } from 'crypto';
@@ -52,6 +54,9 @@ async function main() {
   const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS_PATH;
   if (!keyPath) throw new Error('Set GOOGLE_APPLICATION_CREDENTIALS_PATH to your service account JSON path.');
   const sa = JSON.parse(readFileSync(keyPath, 'utf8'));
+  // === AMÉLIORATION AJOUTÉE (séparation test / production) === comptes de
+  // démonstration : jamais en production sans confirmation explicite.
+  assertNotProductionProject(sa.project_id, process.env.CONFIRM_PRODUCTION, 'création des comptes de démonstration');
   const app = initializeApp({ credential: cert(sa), projectId: sa.project_id });
   const auth = getAuth(app);
 

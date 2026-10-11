@@ -7,6 +7,16 @@ access, ... role escalation, ... audit log manipulation"). Every claim here was
 verified with a real request, not reasoned about in the abstract — see the linked
 evidence in `docs/PHASES.md`/`docs/FIREBASE-SETUP.md` for the exact calls made.
 
+## === AMÉLIORATION AJOUTÉE === Batterie d'attaques automatisée (octobre 2026)
+
+77 contrôles d'attaque et de cas limites exécutés à chaque modification par la
+CI, sur émulateurs (`scripts/e2eSecurity.emulator.mts`). Constats et
+corrections : **docs/TESTS-SECURITE.md** (double authentification des
+administrateurs exigée par le serveur, plafond global des dépôts publics,
+validation des identifiants, robustesse aux entrées absurdes, types de
+fichiers à risque neutralisés). Séparation test / production :
+**docs/ENVIRONNEMENTS.md**.
+
 ## Security review of the full branch diff — 3 confirmed findings, all fixed
 
 A structured review of every file changed on this branch (vs `origin/main`) was

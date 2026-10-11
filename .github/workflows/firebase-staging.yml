@@ -1,0 +1,177 @@
+# === AMÉLIORATION AJOUTÉE (séparation test / production) ===
+# Déploiement de l'environnement de TEST (recette), sur un projet Firebase
+# DISTINCT de la production : site, Cloud Functions, règles et index Firestore.
+# Les testeurs y essaient les nouveautés avec des données fictives, sans
+# jamais toucher aux vrais signalements (bandeau orange « Environnement de
+# TEST » affiché sur chaque page, src/components/EnvironmentBanner.tsx).
+#
+# Déclenchement : push sur la branche `staging`, ou lancement manuel.
+# Mise en place (une fois, voir docs/ENVIRONNEMENTS.md) — environnement GitHub
+# « staging » (Settings → Environments → New environment → staging) avec :
+#   Variables : STAGING_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER,
+#               GCP_DEPLOY_SERVICE_ACCOUNT (ceux du projet de TEST),
+#               NOTIFY_ALLOWED_RECIPIENT_DOMAINS (facultatif)
+#   Secrets   : VITE_FIREBASE_* (configuration Web du projet de TEST),
+#               RESEND_API_KEY (facultatif : clé de test)
+# Tant que STAGING_PROJECT_ID n'est pas défini, le workflow s'arrête
+# proprement. Il refuse de s'exécuter si ce projet est celui de production.
+name: Deploy staging (test)
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-staging
+  cancel-in-progress: false
+
+env:
+  PRODUCTION_PROJECT_ID: activa-ethicalert-47246
+  REGION: us-central1
+  FIREBASE_TOOLS: firebase-tools@15.31.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    permissions:
+      contents: read
+    outputs:
+      deploy: ${{ steps.gate.outputs.deploy }}
+    steps:
+      - name: Check staging configuration
+        id: gate
+        env:
+          STAGING_PROJECT_ID: ${{ vars.STAGING_PROJECT_ID }}
+          WEB_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -z "$STAGING_PROJECT_ID" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Environnement de test non configuré (variable STAGING_PROJECT_ID absente) — rien à déployer. Voir docs/ENVIRONNEMENTS.md."
+            exit 0
+          fi
+          if [ "$STAGING_PROJECT_ID" = "$PRODUCTION_PROJECT_ID" ] || [ "$WEB_PROJECT_ID" = "$PRODUCTION_PROJECT_ID" ]; then
+            echo "::error::Refusé : l'environnement de test pointe vers le projet de PRODUCTION ($PRODUCTION_PROJECT_ID)."
+            exit 1
+          fi
+          if [ -n "$WEB_PROJECT_ID" ] && [ "$WEB_PROJECT_ID" != "$STAGING_PROJECT_ID" ]; then
+            echo "::error::VITE_FIREBASE_PROJECT_ID ($WEB_PROJECT_ID) ne correspond pas à STAGING_PROJECT_ID ($STAGING_PROJECT_ID)."
+            exit 1
+          fi
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4 (v4.4.0)
+        if: steps.gate.outputs.deploy == 'true'
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2 (v2.2.0)
+        if: steps.gate.outputs.deploy == 'true'
+      - name: Install dependencies
+        if: steps.gate.outputs.deploy == 'true'
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        if: steps.gate.outputs.deploy == 'true'
+        run: bun run lint
+      - name: Unit tests
+        if: steps.gate.outputs.deploy == 'true'
+        run: bun run test
+      - name: Build (test)
+        if: steps.gate.outputs.deploy == 'true'
+        run: bun run build
+        env:
+          VITE_APP_ENV: staging
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
+      - name: Upload built site
+        if: steps.gate.outputs.deploy == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4 (v4.6.2)
+        with:
+          name: staging-dist
+          path: dist
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      STAGING_PROJECT_ID: ${{ vars.STAGING_PROJECT_ID }}
+    steps:
+      - name: Refuse production
+        run: |
+          if [ "$STAGING_PROJECT_ID" = "$PRODUCTION_PROJECT_ID" ]; then
+            echo "::error::Refusé : projet de production."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4 (v4.4.0)
+        with:
+          persist-credentials: false
+      - name: Download built site
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4 (v4.3.0)
+        with:
+          name: staging-dist
+          path: dist
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v4 (v4.4.0)
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - name: Install function dependencies
+        working-directory: functions
+        run: npm ci
+      - name: Write functions/.env
+        env:
+          V_DOMAINS: ${{ vars.NOTIFY_ALLOWED_RECIPIENT_DOMAINS }}
+          V_APPURL: ${{ vars.NOTIFY_APP_URL }}
+        run: |
+          {
+            echo "NOTIFY_ALLOWED_RECIPIENT_DOMAINS=${V_DOMAINS:-group-activa.com}"
+            echo "ENFORCE_APP_CHECK=false"
+            [ -n "$V_APPURL" ] && echo "NOTIFY_APP_URL=${V_APPURL}"
+            true
+          } > functions/.env
+          cat functions/.env
+      - name: Authenticate to Google Cloud (Workload Identity Federation, projet de test)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3 (v3.0.0)
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - name: Ensure RESEND_API_KEY exists (projet de test)
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          if npx --yes "$FIREBASE_TOOLS" functions:secrets:get RESEND_API_KEY --project "$STAGING_PROJECT_ID" --non-interactive > /dev/null 2>&1; then
+            exit 0
+          fi
+          # Sans clé de test, une valeur factice : les e-mails échouent
+          # proprement (tracés « EMAIL_NOTIFICATION_FAILED »), rien n'est envoyé.
+          printf '%s' "${RESEND_API_KEY:-not-configured}" | npx --yes "$FIREBASE_TOOLS" functions:secrets:set RESEND_API_KEY \
+            --data-file - --project "$STAGING_PROJECT_ID" --non-interactive
+      - name: Deploy to the TEST project
+        run: |
+          npx --yes "$FIREBASE_TOOLS" deploy --only hosting,functions,firestore:rules,firestore:indexes \
+            --project "$STAGING_PROJECT_ID" --non-interactive --force
+      - name: Ensure functions are invokable from the browser
+        run: |
+          for svc in $(gcloud run services list --region "$REGION" --project "$STAGING_PROJECT_ID" \
+              --filter="metadata.labels.goog-managed-by=cloudfunctions" --format="value(metadata.name)"); do
+            gcloud run services get-iam-policy "$svc" --region "$REGION" --project "$STAGING_PROJECT_ID" --format=json | grep -q '"allUsers"' \
+              || gcloud run services add-iam-policy-binding "$svc" --region "$REGION" --project "$STAGING_PROJECT_ID" \
+                   --member=allUsers --role=roles/run.invoker --quiet > /dev/null
+          done
+      - name: Summary
+        if: always()
+        run: echo "### Environnement de test déployé sur \`${STAGING_PROJECT_ID}\`" >> "$GITHUB_STEP_SUMMARY"
