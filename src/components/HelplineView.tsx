@@ -521,8 +521,10 @@ const ChannelTabsCard: React.FC<{ channels: CompactChannel[] }> = ({ channels })
   );
 };
 
-/** Présentation retenue pour les canaux : '2' = lignes de contact empilées. */
-const CHANNEL_PRESENTATION = '2';
+/** Présentation retenue pour les canaux : '4' = cartes épurées empilées. */
+// === AMÉLIORATION AJOUTÉE (cartes allégées) === sur demande explicite :
+// proposition 4 retenue (auparavant '2', lignes de contact empilées).
+const CHANNEL_PRESENTATION: string = '4';
 // === AMÉLIORATION AJOUTÉE (aperçu des propositions 4 à 6) === en
 // développement uniquement : `?presentation=4|5|6` dans l'adresse.
 const metaEnvHelpline = (import.meta as unknown as { env?: Record<string, unknown> }).env ?? {};
