@@ -68,16 +68,22 @@ const [c1, c1bis] = (await Promise.all([reporter('createCaseAsReporter')(submiss
   (r) => r.data as { caseId: string; sessionToken: string }
 );
 check('dépôt envoyé deux fois en même temps : un seul dossier', c1.caseId === c1bis.caseId, [c1.caseId, c1bis.caseId]);
-const caseId = c1.caseId;
-const doc1 = (await db.collection('cases').doc(caseId).get()).data()!;
+const doc1 = (await db.collection('cases').doc(c1.caseId).get()).data()!;
 check('mis en cause écarté dès l’enregistrement (même transaction)', (doc1.implicatedUserIds ?? []).includes(implicated.uid), doc1.implicatedUserIds);
-const persons1 = (await db.collection('cases').doc(caseId).collection('persons').get()).docs.map((d) => d.data());
+const persons1 = (await db.collection('cases').doc(c1.caseId).collection('persons').get()).docs.map((d) => d.data());
 check('personne rattachée à son compte', persons1.some((p) => p.linkedUserId === implicated.uid));
-const created = (await db.collection('audit_logs').where('caseId', '==', caseId).where('action', '==', 'CASE_CREATED_BY_REPORTER').get()).size;
+const created = (await db.collection('audit_logs').where('caseId', '==', c1.caseId).where('action', '==', 'CASE_CREATED_BY_REPORTER').get()).size;
 check('une seule trace de création', created === 1, created);
 const IMP = await client('implicated', implicated.login);
-const seen = ((await IMP('getCaseDetails')({ caseIds: [caseId] })).data as { details?: unknown[] }).details ?? [];
+const seen = ((await IMP('getCaseDetails')({ caseIds: [c1.caseId] })).data as { details?: unknown[] }).details ?? [];
 check('le mis en cause ne peut pas ouvrir le dossier', seen.length === 0);
+
+// Dossier sans personne mise en cause (accessible aux deux opérateurs) pour la suite.
+const c2 = (await reporter('createCaseAsReporter')({ ...submission, submissionId: 'sub-conc2-' + Date.now(), details: {} })).data as {
+  caseId: string;
+  sessionToken: string;
+};
+const caseId = c2.caseId;
 
 // 2. Même champ modifié en même temps par deux personnes
 const [rA, rB] = (await Promise.all([
@@ -112,7 +118,7 @@ const legacy = (await A('applyPortalUpdate')({ caseId, patch: { portal: { invest
 check('envoi sans valeur attendue (ancienne version du site) : accepté', legacy.applied.includes('portal'));
 
 // 6. Message du déclarant renvoyé (réponse perdue) : un seul exemplaire
-const msg = { sessionToken: c1.sessionToken, content: 'Bonjour, une précision.', clientMessageId: 'cm-' + Date.now().toString(36) + 'abcd' };
+const msg = { sessionToken: c2.sessionToken, content: 'Bonjour, une précision.', clientMessageId: 'cm-' + Date.now().toString(36) + 'abcd' };
 const [m1, m2] = (await Promise.all([reporter('addCommunicationAsReporter')(msg), reporter('addCommunicationAsReporter')(msg)])).map(
   (r) => r.data as { messageId: string; duplicate?: boolean }
 );
@@ -126,7 +132,7 @@ try {
 }
 
 // 7. Document renvoyé : un seul exemplaire
-const file = { sessionToken: c1.sessionToken, fileName: 'piece.txt', fileType: 'text/plain', dataBase64: Buffer.from('contenu').toString('base64'), clientUploadId: 'up-' + Date.now().toString(36) + 'abcd' };
+const file = { sessionToken: c2.sessionToken, fileName: 'piece.txt', fileType: 'text/plain', dataBase64: Buffer.from('contenu').toString('base64'), clientUploadId: 'up-' + Date.now().toString(36) + 'abcd' };
 await Promise.all([reporter('addEvidenceAsReporter')(file), reporter('addEvidenceAsReporter')(file)]);
 const evs = (await db.collection('cases').doc(caseId).collection('evidence').where('fileName', '==', 'piece.txt').get()).size;
 check('document envoyé deux fois : un seul exemplaire', evs === 1, evs);

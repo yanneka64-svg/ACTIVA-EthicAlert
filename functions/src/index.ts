@@ -2754,6 +2754,15 @@ export const applyPortalUpdate = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async 
     if (!applied.length) {
       // Uniquement des conflits : rien n'est écrit, le portail est prévenu.
       if (rejected.length && rejected.every((r) => r.reason === 'conflict')) {
+        // Le conflit reste tracé même quand rien d'autre n'est écrit.
+        const au = auditWrite({
+          actorId: user.userId,
+          action: 'PORTAL_UPDATE_CONFLICT',
+          caseId,
+          newValue: { fields: rejected.map((r) => r.part) },
+          reason: 'Champ modifié entre-temps par un autre membre de l’équipe : non écrasé',
+        });
+        tx.set(au.ref, au.data);
         return { kase, persons, context, applied, rejected, newStatus: null, assignment: null, acceptedPortal: null };
       }
       throw new HttpsError('permission-denied', rejected.map((r) => r.reason).join(' ') || 'Nothing to update.');
