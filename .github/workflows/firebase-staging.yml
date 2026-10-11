@@ -15,11 +15,19 @@
 #               RESEND_API_KEY (facultatif : clé de test)
 # Tant que STAGING_PROJECT_ID n'est pas défini, le workflow s'arrête
 # proprement. Il refuse de s'exécuter si ce projet est celui de production.
-name: Deploy staging (test)
+#
+# === AMÉLIORATION AJOUTÉE (environnement de test supprimé — 11/10/2026) ===
+# À la demande de la DARC, l'application tourne uniquement en production :
+# l'environnement de recette n'est plus déployé. Le déclenchement automatique
+# (push sur `staging`) est retiré et le lancement manuel s'arrête aussitôt.
+# Fichier conservé, désactivé, pour pouvoir le réactiver un jour : remettre
+# le bloc `push` et passer STAGING_DISABLED à "false".
+# Les tests automatiques continuent sur émulateurs (projet fictif) dans la CI.
+name: Deploy staging (test) — désactivé
 
 on:
-  push:
-    branches: [staging]
+  # push:
+  #   branches: [staging]
   workflow_dispatch:
 
 concurrency:
@@ -27,6 +35,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  # === AMÉLIORATION AJOUTÉE (environnement de test supprimé) ===
+  STAGING_DISABLED: "true"
   PRODUCTION_PROJECT_ID: activa-ethicalert-47246
   REGION: us-central1
   FIREBASE_TOOLS: firebase-tools@15.31.0
@@ -47,6 +57,12 @@ jobs:
           STAGING_PROJECT_ID: ${{ vars.STAGING_PROJECT_ID }}
           WEB_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
         run: |
+          # === AMÉLIORATION AJOUTÉE (environnement de test supprimé) ===
+          if [ "$STAGING_DISABLED" = "true" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Environnement de test supprimé : l'application tourne uniquement en production. Rien à déployer."
+            exit 0
+          fi
           if [ -z "$STAGING_PROJECT_ID" ]; then
             echo "deploy=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Environnement de test non configuré (variable STAGING_PROJECT_ID absente) — rien à déployer. Voir docs/ENVIRONNEMENTS.md."

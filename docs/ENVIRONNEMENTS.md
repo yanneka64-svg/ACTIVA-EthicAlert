@@ -2,6 +2,16 @@
 
 > === AMÉLIORATION AJOUTÉE (séparation test / production) ===
 
+> **Mise à jour du 11/10/2026 — environnement de test supprimé.** À la
+> demande de la DARC, l'application tourne uniquement en **production**.
+> L'environnement de recette n'est plus déployé : le workflow
+> `firebase-staging.yml` est désactivé (conservé pour pouvoir le réactiver) et
+> l'alias `staging` est retiré de `.firebaserc`. Les dossiers de test ont été
+> retirés de la base de production. Les tests automatiques continuent dans la
+> CI, sur des **émulateurs** (projet fictif `demo-activa`) : ils ne touchent
+> jamais la production. Les sections ci-dessous décrivent la mise en place
+> d'origine, pour mémoire.
+
 | | Local | Test (recette) | Production |
 |---|---|---|---|
 | Où | Poste du développeur, émulateurs | Projet Firebase **distinct** (ex. `activa-ethicalert-staging`) | `activa-ethicalert-47246` (activa-alertes.com) |
