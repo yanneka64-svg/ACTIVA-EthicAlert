@@ -14,6 +14,8 @@ import { storage } from './services/storage';
 import { TRANSLATIONS } from './i18n/translations';
 // === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === bannière d'échec d'enregistrement.
 import { PersistFailureBanner } from './app/PersistFailureBanner';
+// === AMÉLIORATION AJOUTÉE (modifications simultanées et envois en échec) ===
+import { PortalSyncBanner } from './app/PortalSyncBanner';
 // === AMÉLIORATION AJOUTÉE (nouvelle version disponible) ===
 import { UpdateAvailableBanner } from './app/UpdateAvailableBanner';
 // === AMÉLIORATION AJOUTÉE : langue courante partagée avec les petits composants ===
@@ -656,6 +658,8 @@ function AppShell() {
       {/* === AMÉLIORATION AJOUTÉE (Audit DevOps — P0) === alerte visible si le
           navigateur refuse un enregistrement (quota plein) — invisible sinon. */}
       <PersistFailureBanner t={t} />
+      {/* === AMÉLIORATION AJOUTÉE (modifications simultanées et envois en échec) === */}
+      {isStaffSessionActive && <PortalSyncBanner t={t} />}
       <UpdateAvailableBanner t={t} />
 
       {/* QR Code Modal */}

@@ -138,6 +138,16 @@ export function reporterMessagesFromDetail(d: CaseDetail): CaseMessage[] {
     .map((c) => ({ id: c.messageId, sender: 'whistleblower' as const, senderDisplayName: c.senderDisplayName, content: c.content, createdAt: c.createdAt }));
 }
 
+// === AMÉLIORATION AJOUTÉE (modifications simultanées) ===
+// Dossiers dont la version du serveur doit primer au prochain passage, même
+// si la copie locale vient d'être modifiée : utilisé après un conflit
+// (la modification locale n'a pas été enregistrée ; la version d'un collègue
+// doit s'afficher sans attendre la fin du délai de LOCAL_EDIT_GRACE_MS).
+const serverWins = new Set<string>();
+export function preferServerVersion(caseId: string): void {
+  serverWins.add(caseId);
+}
+
 let inFlight: Promise<number | null> | null = null;
 
 /** Synchronise les dossiers Firebase visibles par `activeUser`. Renvoie le nombre de dossiers chargés, ou `null`. */
@@ -234,7 +244,8 @@ async function run(activeUser: UserProfile): Promise<number | null> {
       // plutôt que de faire réapparaître l'ancien état quelques secondes.
       // === AMÉLIORATION AJOUTÉE (messagerie) === comparée à la DERNIÈRE
       // activité du dossier (un message ne change pas `updatedAt`).
-      if (existing && isFreshLocalEdit(existing.updatedAt, latestCloudStamp(d.case), now)) {
+      // === AMÉLIORATION AJOUTÉE (modifications simultanées) === sauf conflit.
+      if (existing && !serverWins.has(d.case.caseId) && isFreshLocalEdit(existing.updatedAt, latestCloudStamp(d.case), now)) {
         keptLocal.add(d.case.caseId);
         return existing;
       }
@@ -250,6 +261,8 @@ async function run(activeUser: UserProfile): Promise<number | null> {
       if (rec) allRecords.push(rec);
     }
     storage.replaceCloudImportedAlerts(allRecords);
+    // === AMÉLIORATION AJOUTÉE (modifications simultanées) ===
+    for (const d of details) serverWins.delete(d.case.caseId);
     const nextFingerprints: Record<string, string> = {};
     for (const c of listedToLoad) {
       if (keptLocal.has(c.caseId)) continue;

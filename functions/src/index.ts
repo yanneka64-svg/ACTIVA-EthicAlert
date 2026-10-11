@@ -39,6 +39,9 @@ import { getStorage } from 'firebase-admin/storage';
 import { CallableRequest, HttpsError, onCall as onCallRaw, onRequest } from 'firebase-functions/v2/https';
 // === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) ===
 import { isReporterAccessCode, isReporterCaseNumber, isSafeDocId, safeStoredMimeType } from '../../src/domain/serverInputGuards';
+// === AMÉLIORATION AJOUTÉE (observabilité) ===
+import * as logger from 'firebase-functions/logger';
+import { buildCallLogEntry, callOutcome, sanitizeCorrelationId } from '../../src/domain/callObservability';
 // === AMÉLIORATION AJOUTÉE : secret Resend pour notifyEmail (Secret Manager, Blaze) ===
 import { defineSecret } from 'firebase-functions/params';
 
@@ -65,7 +68,7 @@ import {
 import { can, implicatedUserIdsFromPersons, Permission } from '../../src/domain/permissions';
 import { checkTransition, deriveOverallFinding } from '../../src/domain/workflow';
 // === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) ===
-import { PortalPatchError, PORTAL_KEYS, portalVisibleCaseStatus, reporterVisibleCaseStatus, sanitizePortalPatch, type PortalPatch, type PortalState } from '../../src/domain/portalUpdate';
+import { PortalPatchError, PORTAL_KEYS, portalConflicts, portalVisibleCaseStatus, reporterVisibleCaseStatus, sanitizePortalPatch, type PortalPatch, type PortalState } from '../../src/domain/portalUpdate';
 import { serializePortalConfigSection, type PortalConfigSection } from '../../src/domain/portalConfig';
 import { sanitizePortalAuditBatch, type PortalAuditInput } from '../../src/domain/auditTrail';
 import {
@@ -177,13 +180,64 @@ type AnyCallableHandler = (request: CallableRequest<any>, response?: any) => any
 function guardedHandler<H extends AnyCallableHandler>(handler: H): H {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (async (request: CallableRequest<any>, response?: any) => {
-    if (request.data === null || typeof request.data !== 'object' || Array.isArray(request.data)) {
-      (request as { data: unknown }).data = {};
+    // === AMÉLIORATION AJOUTÉE (observabilité) === une ligne de journal
+    // structurée par appel (fonction, durée, résultat, rôle, corrélation),
+    // appels lents signalés, erreurs imprévues journalisées avec leur pile.
+    const started = Date.now();
+    let failure: unknown;
+    const headers = (request.rawRequest?.headers ?? {}) as Record<string, unknown>;
+    const correlationId = sanitizeCorrelationId(headers['x-correlation-id']) ?? randomBytes(8).toString('hex');
+    try {
+      if (request.data === null || typeof request.data !== 'object' || Array.isArray(request.data)) {
+        (request as { data: unknown }).data = {};
+      }
+      await assertAdminMfa(request);
+      return await handler(request, response);
+    } catch (e) {
+      failure = e ?? new Error('Unknown failure');
+      throw e;
+    } finally {
+      logCallableOutcome(request, started, failure, correlationId, headers);
     }
-    await assertAdminMfa(request);
-    return handler(request, response);
   }) as H;
 }
+// === AMÉLIORATION AJOUTÉE (observabilité) ===
+// Nom de la fonction : variable posée par Cloud Functions (et l'émulateur).
+function callableName(): string {
+  return process.env.FUNCTION_TARGET || process.env.K_SERVICE || 'callable';
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function logCallableOutcome(request: CallableRequest<any>, started: number, failure: unknown, correlationId: string, headers: Record<string, unknown>): void {
+  try {
+    const fn = callableName();
+    const uid = request.auth?.uid;
+    const entry = buildCallLogEntry({
+      fn,
+      durationMs: Date.now() - started,
+      outcome: callOutcome(failure),
+      role: (request.auth?.token as { role?: string } | undefined)?.role ?? (uid ? 'no-role' : null),
+      // Empreinte courte du compte (jamais l'identifiant ni l'e-mail en clair).
+      actor: uid ? createHash('sha256').update(uid).digest('hex').slice(0, 12) : null,
+      correlationId,
+    });
+    const trace = String(headers['x-cloud-trace-context'] ?? '').split('/')[0];
+    const project = process.env.GCLOUD_PROJECT;
+    if (trace && project) entry['logging.googleapis.com/trace'] = `projects/${project}/traces/${trace}`;
+    if (entry.outcome === 'internal' || entry.severity === 'ERROR') {
+      const err = failure as { message?: unknown; stack?: unknown; name?: unknown } | undefined;
+      entry.error = {
+        name: typeof err?.name === 'string' ? err.name : 'Error',
+        message: String(err?.message ?? failure).slice(0, 500),
+        stack: typeof err?.stack === 'string' ? err.stack.slice(0, 4000) : undefined,
+      };
+    }
+    logger.write(entry as unknown as Parameters<typeof logger.write>[0]);
+  } catch {
+    /* le journal ne doit jamais faire échouer un appel */
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const onCall = ((optsOrHandler: any, maybeHandler?: any) =>
   maybeHandler === undefined ? onCallRaw(guardedHandler(optsOrHandler)) : onCallRaw(optsOrHandler, guardedHandler(maybeHandler))) as typeof onCallRaw;
@@ -380,6 +434,61 @@ async function assertCaseBearingRole(uid: string): Promise<void> {
  */
 async function touchCaseActivity(caseId: string): Promise<void> {
   await db.collection('cases').doc(caseId).update({ lastActivityAt: new Date().toISOString() }).catch(() => {});
+}
+
+// === AMÉLIORATION AJOUTÉE (transactions : écritures tout-ou-rien) ===
+// Versions « à écrire dans une transaction » de appendAudit / appendTimeline :
+// l'entrée d'audit et l'historique sont enregistrés DANS la même transaction
+// que la modification elle-même. Si la base ralentit ou qu'une requête échoue
+// au milieu, soit tout est écrit, soit rien (jamais une modification sans sa
+// trace d'audit, ni une trace d'audit sans modification).
+function auditWrite(entry: { actorId: string; action: string; caseId?: string; objectType?: string; objectId?: string; previousValue?: unknown; newValue?: unknown; reason?: string }) {
+  const id = newId('audv2');
+  return { ref: db.collection('audit_logs').doc(id), data: { ...entry, id, timestamp: new Date().toISOString() } };
+}
+
+function timelineWrite(caseId: string, label: string, actor: string, details?: string) {
+  const eventId = newId('tl');
+  return {
+    ref: db.collection('cases').doc(caseId).collection('timeline').doc(eventId),
+    data: { eventId, caseId, label, actor, timestamp: new Date().toISOString(), details: details ?? null },
+  };
+}
+
+// === AMÉLIORATION AJOUTÉE (envoi rejouable sans doublon) ===
+/** Identifiant d'envoi fourni par le navigateur : absent, ou 8 à 64 caractères sûrs. */
+function optionalClientId(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(value)) throw new HttpsError('invalid-argument', 'Invalid client id.');
+  return value;
+}
+
+// === AMÉLIORATION AJOUTÉE (transactions et concurrence) ===
+/**
+ * Écritures préparées sous forme de lot (`db.batch()`), rejouées dans une
+ * transaction. Permet de garder le code existant qui prépare le lot tel quel
+ * tout en l'enregistrant de façon transactionnelle.
+ */
+type RecordedWrite = { ref: FirebaseFirestore.DocumentReference; data: FirebaseFirestore.DocumentData; merge: boolean };
+const recordedWrites = new WeakMap<FirebaseFirestore.WriteBatch, RecordedWrite[]>();
+function recordingBatch(): FirebaseFirestore.WriteBatch {
+  const writes: RecordedWrite[] = [];
+  const batch = {
+    set(ref: FirebaseFirestore.DocumentReference, data: FirebaseFirestore.DocumentData, opts?: FirebaseFirestore.SetOptions) {
+      writes.push({ ref, data, merge: !!(opts && (opts as { merge?: boolean }).merge) });
+      return batch;
+    },
+  } as unknown as FirebaseFirestore.WriteBatch;
+  recordedWrites.set(batch, writes);
+  return batch;
+}
+function replayBatchInTransaction(tx: FirebaseFirestore.Transaction, batch: FirebaseFirestore.WriteBatch): void {
+  const writes = recordedWrites.get(batch);
+  if (!writes) throw new Error('replayBatchInTransaction: batch was not created with recordingBatch()');
+  for (const w of writes) {
+    if (w.merge) tx.set(w.ref, w.data, { merge: true });
+    else tx.set(w.ref, w.data);
+  }
 }
 
 async function appendTimeline(caseId: string, label: string, actor: string, details?: string) {
@@ -1353,7 +1462,12 @@ export const addCommunicationAsReporter = onCall({ secrets: [NOTIFY_RESEND_KEY] 
     ? await verifyReporterSession(sessionToken)
     : await verifyReporterAccess(caseNumber as string, accessCode as string);
 
-  const messageId = newId('msg');
+  // === AMÉLIORATION AJOUTÉE (envoi rejouable sans doublon) ===
+  // `clientMessageId` (facultatif, choisi par le navigateur) : si la réponse
+  // du serveur s'est perdue (base lente, réseau coupé) et que le navigateur
+  // renvoie le même message, il n'est enregistré — et notifié — qu'une fois.
+  const clientMessageId = optionalClientId((request.data as { clientMessageId?: unknown }).clientMessageId);
+  const messageId = clientMessageId ? `msg-r-${clientMessageId}` : newId('msg');
   const nowIso = new Date().toISOString();
   const message: Communication = {
     messageId,
@@ -1366,10 +1480,21 @@ export const addCommunicationAsReporter = onCall({ secrets: [NOTIFY_RESEND_KEY] 
     updatedAt: nowIso,
     updatedBy: 'reporter',
   };
-  await caseRef.collection('communications').doc(messageId).set(message);
-  // === AMÉLIORATION AJOUTÉE (échanges instantanés) === le déclarant a fini d'écrire.
-  await caseRef.collection('presence').doc('state').set({ reporterTypingAt: null }, { merge: true });
-  await appendTimeline(caseRef.id, 'MESSAGE_SENT', 'reporter');
+  // === AMÉLIORATION AJOUTÉE (transactions : écritures tout-ou-rien) === le
+  // message, la fin de « en train d'écrire », l'historique et la date
+  // d'activité sont écrits ensemble, ou pas du tout.
+  const duplicate = await db.runTransaction(async (tx) => {
+    const msgRef = caseRef.collection('communications').doc(messageId);
+    if (clientMessageId && (await tx.get(msgRef)).exists) return true;
+    tx.set(msgRef, message);
+    // === AMÉLIORATION AJOUTÉE (échanges instantanés) === le déclarant a fini d'écrire.
+    tx.set(caseRef.collection('presence').doc('state'), { reporterTypingAt: null }, { merge: true });
+    const tl = timelineWrite(caseRef.id, 'MESSAGE_SENT', 'reporter');
+    tx.set(tl.ref, tl.data);
+    tx.update(caseRef, { lastActivityAt: nowIso });
+    return false;
+  });
+  if (duplicate) return { messageId, duplicate: true };
   // === AMÉLIORATION AJOUTÉE (message du déclarant) === la personne qui a le
   // dossier en charge est prévenue par e-mail (enquêteur attribué, sinon
   // opérateurs). N'interrompt jamais l'envoi du message.
@@ -1555,14 +1680,19 @@ export const addEvidenceAsReporter = onCall(async (request) => {
   // === AMÉLIORATION AJOUTÉE (tests hors « happy path » et sécurité) === type
   // exécutable par un navigateur (HTML, SVG…) ou mal formé → octet-stream.
   const type = safeStoredMimeType(fileType);
-  const evidenceId = newId('ev');
-  const messageId = newId('msg');
+  // === AMÉLIORATION AJOUTÉE (envoi rejouable sans doublon) === même principe
+  // que les messages : un document renvoyé avec le même `clientUploadId`
+  // n'est enregistré qu'une fois.
+  const clientUploadId = optionalClientId((request.data as { clientUploadId?: unknown }).clientUploadId);
+  const evidenceId = clientUploadId ? `ev-r-${clientUploadId}` : newId('ev');
+  const messageId = clientUploadId ? `msg-r-${clientUploadId}` : newId('msg');
   const nowIso = new Date().toISOString();
   const audit = { createdAt: nowIso, createdBy: 'reporter', updatedAt: nowIso, updatedBy: 'reporter' };
   const sha256Hash = (await import('node:crypto')).createHash('sha256').update(bytes).digest('hex');
   const attachment: MessageAttachment = { evidenceId, fileName: name, fileType: type, fileSize: bytes.length };
 
-  const batch = db.batch();
+  // === AMÉLIORATION AJOUTÉE (transactions et concurrence) === lot enregistré puis rejoué dans la transaction ci-dessous.
+  const batch = recordingBatch();
   for (let i = 0, n = 0; i < bytes.length; i += EVIDENCE_CHUNK_BYTES, n++) {
     batch.set(ref.collection('evidence_chunks').doc(`${evidenceId}_${String(n).padStart(3, '0')}`), {
       evidenceId,
@@ -1583,11 +1713,27 @@ export const addEvidenceAsReporter = onCall(async (request) => {
     attachments: [evidenceId], attachmentFiles: [attachment], ...audit,
   });
   batch.set(ref.collection('presence').doc('state'), { reporterTypingAt: null }, { merge: true });
-  await batch.commit();
-  await appendTimeline(ref.id, 'EVIDENCE_ADDED_BY_REPORTER', 'reporter', name);
-  await appendAudit({ actorId: 'reporter', action: 'EVIDENCE_ADDED_BY_REPORTER', caseId: ref.id, objectType: 'evidence', objectId: evidenceId });
+  // === AMÉLIORATION AJOUTÉE (transactions et concurrence) === la limite de
+  // documents est revérifiée DANS une transaction qui écrit aussi le dossier :
+  // deux envois simultanés ne peuvent plus la dépasser ensemble (l'un est
+  // rejoué après l'autre et voit son document). Fichier, message, historique
+  // et audit sont écrits ensemble, ou pas du tout.
+  const duplicate = await db.runTransaction(async (tx) => {
+    const caseSnap = await tx.get(ref);
+    if (!caseSnap.exists) throw new HttpsError('not-found', 'Case not found.');
+    if (clientUploadId && (await tx.get(ref.collection('evidence').doc(evidenceId))).exists) return true;
+    const mine = await tx.get(ref.collection('evidence').where('createdBy', '==', 'reporter').select());
+    if (mine.size >= REPORTER_FILE_MAX_PER_CASE) throw new HttpsError('resource-exhausted', 'Too many files for this case.');
+    replayBatchInTransaction(tx, batch);
+    const tl = timelineWrite(ref.id, 'EVIDENCE_ADDED_BY_REPORTER', 'reporter', name);
+    tx.set(tl.ref, tl.data);
+    const au = auditWrite({ actorId: 'reporter', action: 'EVIDENCE_ADDED_BY_REPORTER', caseId: ref.id, objectType: 'evidence', objectId: evidenceId });
+    tx.set(au.ref, au.data);
+    tx.update(ref, { lastActivityAt: nowIso });
+    return false;
+  });
 
-  return { messageId, evidenceId };
+  return duplicate ? { messageId, evidenceId, duplicate: true } : { messageId, evidenceId };
 });
 
 /** Contenu d'un document du déclarant, pour l'équipe habilitée (accès audité). */
@@ -1863,6 +2009,37 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
   //   de suivi officiel (CODE-AA-MM-NNNN), unique, via un compteur par
   //   entité et par mois — fini les numéros identiques générés par deux
   //   appareils différents.
+  // === AMÉLIORATION AJOUTÉE (transactions : écritures tout-ou-rien) ===
+  // Les personnes du personnel mises en cause (rattachement par le nom) et les
+  // comptes du niveau mis en cause (escalade) sont calculés AVANT la
+  // transaction et écrits AVEC le dossier. Auparavant, ils étaient posés après
+  // coup, sans bloquer en cas d'échec : une base lente ou une erreur à ce
+  // moment-là laissait le dossier visible par la personne mise en cause, et un
+  // nouvel essai du même dépôt ne le corrigeait jamais. Désormais, si ces
+  // lectures échouent, le dépôt échoue (le formulaire le rejoue) : jamais de
+  // dossier créé sans ses exclusions.
+  const subjectPersons = (data.details?.persons ?? [])
+    .map((p, i) => ({ ...p, personId: `person-${caseId}-${i + 1}` }))
+    .filter((p) => p.kind === 'subject');
+  let autoLinks: { personId: string; uid: string }[] = [];
+  let levelExcludedUids: string[] = [];
+  let implicatedLevelsPlan: unknown = null;
+  if (subjectPersons.length) {
+    const [routingSettings, staff] = await Promise.all([loadEmailNotificationSettingsStrict(), loadStaffRecipientCandidates()]);
+    autoLinks = computeAutoLinks(subjectPersons, staff);
+    const routingFacts: CaseNotificationFacts = {
+      reference: '', category: '', entity: '', country: '', priority: 'low', implicatedLevels: [],
+      implicatedPersons: subjectPersons.map((p) => ({ name: p.name, position: p.position })),
+    };
+    levelExcludedUids = levelExcludedStaffUids(routingSettings, routingFacts, staff);
+    if (levelExcludedUids.length) implicatedLevelsPlan = routingPlan(routingSettings, routingFacts, staff).implicated;
+  }
+  const linkedUids = Array.from(new Set(autoLinks.map((l) => l.uid)));
+  kase.implicatedUserIds = linkedUids;
+  if (levelExcludedUids.length) kase.escalationExcludedUserIds = levelExcludedUids;
+  (kase as Case & { lastActivityAt?: string }).lastActivityAt = nowIso;
+  const linkByPerson = new Map(autoLinks.map((l) => [l.personId, l.uid]));
+
   type CreateOutcome = { caseId: string; caseNumber: string; trackingNumber: string; created: boolean; aliasOf?: string };
   const outcome: CreateOutcome = await db.runTransaction(async (tx) => {
     const caseRef = db.collection('cases').doc(caseId);
@@ -1947,50 +2124,58 @@ export const createCaseAsReporter = onCall({ enforceAppCheck: process.env.ENFORC
     // collections que celles lues par getCaseDetails (personnes, risque,
     // pièces) et getReporterIdentity (identité, accès audité).
     for (const w of reporterDetailsWrites(caseRef, caseId, data.details, data.reportingMode, nowIso)) {
-      tx.set(w.ref, w.data);
+      // === AMÉLIORATION AJOUTÉE (transactions : écritures tout-ou-rien) ===
+      const linked = w.ref.parent.id === 'persons' ? linkByPerson.get(w.ref.id) : undefined;
+      tx.set(w.ref, linked ? { ...w.data, linkedUserId: linked } : w.data);
     }
     if (submissionRef) {
       tx.create(submissionRef, { caseId, caseNumber: kase.caseNumber, trackingNumber, createdAt: nowIso });
     }
+    // === AMÉLIORATION AJOUTÉE (transactions : écritures tout-ou-rien) ===
+    // historique et piste d'audit écrits avec le dossier, dans la même transaction.
+    const traces = [
+      timelineWrite(caseId, 'CASE_CREATED', 'reporter'),
+      auditWrite({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status }),
+    ];
+    if (clientDiagnostics) {
+      traces.push(auditWrite({ actorId: 'reporter', action: 'REPORTER_SUBMISSION_RECOVERED', caseId, newValue: clientDiagnostics, reason: 'Dépôt arrivé après un premier échec sur l’appareil' }));
+    }
+    if (aliasOf) {
+      traces.push(auditWrite({ actorId: 'reporter', action: 'REPORTER_REFERENCE_ALIASED', caseId, previousValue: aliasOf, newValue: trackingNumber, reason: 'Numéro remis hors ligne déjà attribué à un autre dossier' }));
+    }
+    for (const l of autoLinks) {
+      traces.push(auditWrite({ actorId: 'system', action: 'PERSON_AUTO_LINKED_TO_USER', caseId, objectType: 'person', objectId: l.personId, newValue: l.uid }));
+    }
+    if (levelExcludedUids.length) {
+      traces.push(auditWrite({
+        actorId: 'system', action: 'ESCALATION_ACCESS_RESTRICTED', caseId,
+        newValue: { levels: implicatedLevelsPlan, excludedAccounts: levelExcludedUids.length },
+        reason: 'Niveau mis en cause dans le signalement : comptes de ce niveau écartés du dossier',
+      }));
+    }
+    for (const t of traces) tx.set(t.ref, t.data);
     return { caseId, caseNumber: kase.caseNumber, trackingNumber, created: true, ...(aliasOf ? { aliasOf } : {}) };
   });
 
   if (outcome.created) {
-    await appendTimeline(caseId, 'CASE_CREATED', 'reporter');
-    await appendAudit({ actorId: 'reporter', action: 'CASE_CREATED_BY_REPORTER', caseId, newValue: kase.status });
-    // === AMÉLIORATION AJOUTÉE (numéro déjà pris par un autre dossier) ===
-    // === AMÉLIORATION AJOUTÉE (diagnostic des dépôts retardés) === cause du
-    // premier échec sur l'appareil (catégories techniques, rien de personnel).
-    if (clientDiagnostics) {
-      console.warn('REPORTER_SUBMISSION_RECOVERED', JSON.stringify(clientDiagnostics));
-      await appendAudit({ actorId: 'reporter', action: 'REPORTER_SUBMISSION_RECOVERED', caseId, newValue: clientDiagnostics, reason: 'Dépôt arrivé après un premier échec sur l’appareil' });
-    }
-    if (outcome.aliasOf) {
-      await appendAudit({ actorId: 'reporter', action: 'REPORTER_REFERENCE_ALIASED', caseId, previousValue: outcome.aliasOf, newValue: outcome.trackingNumber, reason: 'Numéro remis hors ligne déjà attribué à un autre dossier' });
-    }
-    // === AMÉLIORATION AJOUTÉE (acheminement selon la personne mise en cause) ===
-    // un compte du personnel nommé parmi les personnes mises en cause est
-    // rattaché automatiquement : il ne voit plus le dossier sur le portail.
-    const subjects = (data.details?.persons ?? []).filter((p) => p.kind === 'subject');
-    const implicatedUids = await autoLinkImplicatedStaff(caseId, data.details?.persons ?? []);
-    // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) === le
-    // niveau mis en cause (fonction citée ou membre nommé) perd aussi l'accès
-    // au dossier, comme il est écarté des e-mails.
-    const levelExcludedUids = await restrictImplicatedLevels(caseId, subjects.map((p) => ({ name: p.name, position: p.position })));
+    // === AMÉLIORATION AJOUTÉE (transactions : écritures tout-ou-rien) === dossier,
+    // exclusions, historique et audit sont déjà écrits ensemble (transaction
+    // ci-dessus) ; il ne reste que les e-mails, qui ne bloquent jamais.
+    if (clientDiagnostics) console.warn('REPORTER_SUBMISSION_RECOVERED', JSON.stringify(clientDiagnostics));
     // === AMÉLIORATION AJOUTÉE (notifications e-mail) === superviseurs, DARC,
     // et le cas échéant DGA / DRH (règles de l'administration).
     await notifyCaseEvent('new_report', {
       caseId,
-      excludedUids: [...implicatedUids, ...levelExcludedUids],
+      excludedUids: [...linkedUids, ...levelExcludedUids],
       facts: {
-        implicatedPersons: subjects.map((p) => ({ name: p.name, position: p.position })),
+        implicatedPersons: subjectPersons.map((p) => ({ name: p.name, position: p.position })),
         reference: outcome.trackingNumber,
         category: kase.category,
         subcategory: kase.subcategory,
         entity: kase.entity,
         country: kase.country,
         priority: kase.priority,
-        implicatedLevels: (data.details?.persons ?? []).filter((p) => p.kind === 'subject').map((p) => p.hierarchyLevel),
+        implicatedLevels: subjectPersons.map((p) => p.hierarchyLevel),
       },
     });
   }
@@ -2384,7 +2569,7 @@ export const getCaseDetails = onCall(async (request) => {
 export const applyPortalUpdate = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async (request) => {
   const user = requireAppUser(request);
   const { caseId, patch: rawPatch } = (request.data ?? {}) as { caseId?: string; patch?: unknown };
-  if (typeof caseId !== 'string' || !caseId || caseId.length > 128) throw new HttpsError('invalid-argument', 'caseId is required.');
+  if (!isSafeDocId(caseId)) throw new HttpsError('invalid-argument', 'caseId is required.');
   let patch: PortalPatch;
   try {
     patch = sanitizePortalPatch(rawPatch);
@@ -2392,189 +2577,245 @@ export const applyPortalUpdate = onCall({ secrets: [NOTIFY_RESEND_KEY] }, async 
     throw new HttpsError('invalid-argument', e instanceof PortalPatchError ? e.message : 'Invalid patch.');
   }
 
-  const ref = db.collection('cases').doc(caseId);
-  const snap = await ref.get();
-  if (!snap.exists) throw new HttpsError('not-found', `Case ${caseId} not found.`);
-  const kase = snap.data() as Case;
-  const personsSnap = await ref.collection('persons').get();
-  const persons = personsSnap.docs.map((d) => d.data() as Person);
-  // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
-  const context = { case: kase, implicatedUserIds: caseExcludedUids(kase, persons) };
-  if (!can(user, 'cases.read', context)) throw new HttpsError('permission-denied', 'Not authorized on this case.');
-
-  const applied: string[] = [];
-  const rejected: { part: string; reason: string }[] = [];
-  const nowIso = new Date().toISOString();
-  const update: Record<string, unknown> = {};
-  let newStatus: CaseStatus | null = null; // === AMÉLIORATION AJOUTÉE (notifications e-mail) ===
-
-  // 1. Statut affiché, clôture, réouverture, escalade, routage, rapport.
-  if (patch.portal) {
-    const target = patch.portal.workflowStatus ?? null;
-    const legacy = patch.portal.status ?? null;
-    const needed: Permission =
-      target === 'archived' || legacy === 'archived'
-        ? 'cases.archive'
-        : target === 'reopened' || legacy === 'reopened'
-          ? 'cases.reopen'
-          : target === 'closed' || legacy === 'closed'
-            ? 'cases.close'
-            : 'cases.edit';
-    if (can(user, needed, context)) {
-      for (const key of PORTAL_KEYS) {
-        if (!(key in patch.portal)) continue;
-        const value = (patch.portal as Record<string, unknown>)[key];
-        update[`portal.${key}`] = value === null ? FieldValue.delete() : value;
-      }
-      // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === le statut
-      // officiel du dossier suit le statut tenu par le portail (seul moteur de
-      // workflow utilisé par les équipes ; permission vérifiée ci-dessus).
-      const nextStatus = portalVisibleCaseStatus(kase.status, { ...(kase.portal ?? {}), ...(patch.portal as object) } as PortalState);
-      newStatus = nextStatus;
-      if (nextStatus !== kase.status) {
-        update.status = nextStatus;
-        if (nextStatus === 'closed' && !kase.closedAt) {
-          update.closedAt = nowIso;
-          update.closedBy = user.userId;
-        }
-        if (nextStatus === 'archived') update.archivedAt = nowIso;
-      }
-      applied.push('portal');
-    } else {
-      rejected.push({ part: 'portal', reason: `Permission ${needed} required.` });
+  // === AMÉLIORATION AJOUTÉE (transactions et modifications simultanées) ===
+  // 1. Résolution des comptes (Firebase Auth) AVANT la transaction : ces
+  //    appels ne dépendent pas de l'état du dossier et ne doivent pas être
+  //    rejoués si la transaction est relancée.
+  let resolvedAssignment: { uids: string[] } | { error: string } | null = null;
+  if (patch.assignedInvestigators) {
+    try {
+      const uids = Array.from(new Set(await Promise.all(patch.assignedInvestigators.map(resolveStaffUid))));
+      await Promise.all(uids.map(assertCaseBearingRole));
+      resolvedAssignment = { uids };
+    } catch (e) {
+      resolvedAssignment = { error: e instanceof Error ? e.message : 'Invalid assignment.' };
+    }
+  }
+  const resolvedLinks = new Map<string, string | null | { error: string }>();
+  for (const link of patch.personLinks ?? []) {
+    if (!link.linkedUserId) {
+      resolvedLinks.set(link.personId, null);
+      continue;
+    }
+    try {
+      resolvedLinks.set(link.personId, await resolveStaffUid(link.linkedUserId));
+    } catch {
+      resolvedLinks.set(link.personId, { error: 'Unknown staff account.' });
     }
   }
 
-  // 2. Attribution (liste vide = désattribution).
-  let assignment: { assignee: string | null; additionalInvestigators: string[] } | null = null;
-  if (patch.assignedInvestigators) {
-    if (!can(user, 'cases.assign', context)) {
-      rejected.push({ part: 'assignment', reason: 'Permission cases.assign required.' });
-    } else {
-      try {
-        const uids = Array.from(new Set(await Promise.all(patch.assignedInvestigators.map(resolveStaffUid))));
-        await Promise.all(uids.map(assertCaseBearingRole));
-        if (uids.some((uid) => context.implicatedUserIds.includes(uid))) {
-          throw new HttpsError('failed-precondition', 'A person implicated in this case cannot be assigned to it.');
+  // 2. Transaction : lecture FRAÎCHE du dossier, de ses personnes et des
+  //    tâches visées, contrôles, puis TOUTES les écritures (dossier, personnes,
+  //    tâches, piste d'audit, historique) en une fois. Deux personnes qui
+  //    enregistrent en même temps : Firestore rejoue la transaction de la
+  //    seconde sur l'état laissé par la première (jamais de mélange). Un champ
+  //    texte modifié entre-temps par quelqu'un d'autre n'est pas écrasé :
+  //    il est renvoyé comme « conflit ». Si une requête échoue au milieu, rien
+  //    n'est écrit.
+  const ref = db.collection('cases').doc(caseId);
+  type Outcome = {
+    kase: Case;
+    persons: Person[];
+    context: { case: Case; implicatedUserIds: string[] };
+    applied: string[];
+    rejected: { part: string; reason: string; current?: unknown }[];
+    newStatus: CaseStatus | null;
+    assignment: { assignee: string | null; additionalInvestigators: string[] } | null;
+    acceptedPortal: PortalPatch['portal'] | null;
+  };
+  const outcome: Outcome = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError('not-found', `Case ${caseId} not found.`);
+    const kase = snap.data() as Case;
+    const personsSnap = await tx.get(ref.collection('persons'));
+    const persons = personsSnap.docs.map((d) => d.data() as Person);
+    const taskSnaps = await Promise.all((patch.taskUpdates ?? []).map((u) => tx.get(ref.collection('tasks').doc(u.taskId))));
+    // === AMÉLIORATION AJOUTÉE (escalade respectée sur le portail) ===
+    const context = { case: kase, implicatedUserIds: caseExcludedUids(kase, persons) };
+    if (!can(user, 'cases.read', context)) throw new HttpsError('permission-denied', 'Not authorized on this case.');
+
+    const applied: string[] = [];
+    const rejected: Outcome['rejected'] = [];
+    const nowIso = new Date().toISOString();
+    const update: Record<string, unknown> = {};
+    let newStatus: CaseStatus | null = null; // === AMÉLIORATION AJOUTÉE (notifications e-mail) ===
+    let acceptedPortal: PortalPatch['portal'] | null = null;
+
+    // 1. Statut affiché, clôture, réouverture, escalade, routage, rapport.
+    if (patch.portal) {
+      const target = patch.portal.workflowStatus ?? null;
+      const legacy = patch.portal.status ?? null;
+      const needed: Permission =
+        target === 'archived' || legacy === 'archived'
+          ? 'cases.archive'
+          : target === 'reopened' || legacy === 'reopened'
+            ? 'cases.reopen'
+            : target === 'closed' || legacy === 'closed'
+              ? 'cases.close'
+              : 'cases.edit';
+      if (can(user, needed, context)) {
+        // === AMÉLIORATION AJOUTÉE (modifications simultanées) ===
+        const conflicts = new Set(portalConflicts(kase.portal, patch.expected, patch.portal));
+        const accepted: Record<string, unknown> = {};
+        for (const key of PORTAL_KEYS) {
+          if (!(key in patch.portal)) continue;
+          if (conflicts.has(key)) {
+            rejected.push({ part: `portal.${key}`, reason: 'conflict', current: (kase.portal as Record<string, unknown> | undefined)?.[key] ?? null });
+            continue;
+          }
+          const value = (patch.portal as Record<string, unknown>)[key];
+          accepted[key] = value;
+          update[`portal.${key}`] = value === null ? FieldValue.delete() : value;
         }
+        if (Object.keys(accepted).length) {
+          acceptedPortal = accepted as PortalPatch['portal'];
+          // === AMÉLIORATION AJOUTÉE (vérification de bout en bout) === le statut
+          // officiel suit le statut tenu par le portail (calculé sur l'état FRAIS).
+          const nextStatus = portalVisibleCaseStatus(kase.status, { ...(kase.portal ?? {}), ...accepted } as PortalState);
+          newStatus = nextStatus;
+          if (nextStatus !== kase.status) {
+            update.status = nextStatus;
+            if (nextStatus === 'closed' && !kase.closedAt) {
+              update.closedAt = nowIso;
+              update.closedBy = user.userId;
+            }
+            if (nextStatus === 'archived') update.archivedAt = nowIso;
+          }
+          applied.push('portal');
+        }
+      } else {
+        rejected.push({ part: 'portal', reason: `Permission ${needed} required.` });
+      }
+    }
+
+    // 2. Attribution (liste vide = désattribution).
+    let assignment: Outcome['assignment'] = null;
+    if (patch.assignedInvestigators) {
+      if (!can(user, 'cases.assign', context)) {
+        rejected.push({ part: 'assignment', reason: 'Permission cases.assign required.' });
+      } else if (!resolvedAssignment || 'error' in resolvedAssignment) {
+        rejected.push({ part: 'assignment', reason: resolvedAssignment && 'error' in resolvedAssignment ? resolvedAssignment.error : 'Invalid assignment.' });
+      } else if (resolvedAssignment.uids.some((uid) => context.implicatedUserIds.includes(uid))) {
+        rejected.push({ part: 'assignment', reason: 'A person implicated in this case cannot be assigned to it.' });
+      } else {
+        const uids = resolvedAssignment.uids;
         assignment = { assignee: uids[0] ?? null, additionalInvestigators: uids.slice(1) };
         update.assignee = assignment.assignee ?? FieldValue.delete();
         update.additionalInvestigators = assignment.additionalInvestigators;
         applied.push('assignment');
-      } catch (e) {
-        rejected.push({ part: 'assignment', reason: e instanceof Error ? e.message : 'Invalid assignment.' });
       }
     }
-  }
 
-  // 3. Rattachement d'une personne à un compte (même privilège que addPerson).
-  const linkChanges: { personId: string; previous: string | null; next: string | null }[] = [];
-  if (patch.personLinks?.length) {
-    if (!can(user, 'cases.assign', context)) {
-      rejected.push({ part: 'personLinks', reason: 'Permission cases.assign required.' });
-    } else {
-      const byId = new Map(persons.map((p) => [p.personId, p]));
-      for (const link of patch.personLinks) {
-        const person = byId.get(link.personId);
-        if (!person) continue;
-        let next: string | null = null;
-        if (link.linkedUserId) {
-          try {
-            next = await resolveStaffUid(link.linkedUserId);
-          } catch {
-            rejected.push({ part: `personLinks:${link.personId}`, reason: 'Unknown staff account.' });
+    // 3. Rattachement d'une personne à un compte (même privilège que addPerson).
+    const linkChanges: { personId: string; previous: string | null; next: string | null }[] = [];
+    if (patch.personLinks?.length) {
+      if (!can(user, 'cases.assign', context)) {
+        rejected.push({ part: 'personLinks', reason: 'Permission cases.assign required.' });
+      } else {
+        const byId = new Map(persons.map((p) => [p.personId, p]));
+        for (const link of patch.personLinks) {
+          const person = byId.get(link.personId);
+          if (!person) continue;
+          const next = resolvedLinks.get(link.personId) ?? null;
+          if (next && typeof next === 'object') {
+            rejected.push({ part: `personLinks:${link.personId}`, reason: next.error });
             continue;
           }
+          if ((person.linkedUserId ?? null) === next) continue;
+          linkChanges.push({ personId: person.personId, previous: person.linkedUserId ?? null, next });
+          person.linkedUserId = next ?? undefined;
         }
-        if ((person.linkedUserId ?? null) === next) continue;
-        linkChanges.push({ personId: person.personId, previous: person.linkedUserId ?? null, next });
-        person.linkedUserId = next ?? undefined;
-      }
-      if (linkChanges.length) {
-        update.implicatedUserIds = implicatedUserIdsFromPersons(persons);
-        applied.push('personLinks');
+        if (linkChanges.length) {
+          update.implicatedUserIds = implicatedUserIdsFromPersons(persons);
+          applied.push('personLinks');
+        }
       }
     }
-  }
 
-  // 4. Avancement des tâches.
-  const taskWrites: { taskId: string; data: Record<string, unknown> }[] = [];
-  if (patch.taskUpdates?.length) {
-    if (!can(user, 'cases.edit', context)) {
-      rejected.push({ part: 'taskUpdates', reason: 'Permission cases.edit required.' });
-    } else {
-      for (const u of patch.taskUpdates) {
-        const data: Record<string, unknown> = { updatedAt: nowIso, updatedBy: user.userId };
-        if (u.status) data.status = u.status;
-        if (u.completedAt !== undefined) data.completedAt = u.completedAt === null ? FieldValue.delete() : u.completedAt;
-        if (u.dueDate) data.dueDate = u.dueDate;
-        if (u.owner) data.owner = u.owner;
-        if (u.title) data.title = u.title;
-        taskWrites.push({ taskId: u.taskId, data });
+    // 4. Avancement des tâches.
+    const taskWrites: { taskId: string; data: Record<string, unknown>; exists: boolean }[] = [];
+    if (patch.taskUpdates?.length) {
+      if (!can(user, 'cases.edit', context)) {
+        rejected.push({ part: 'taskUpdates', reason: 'Permission cases.edit required.' });
+      } else {
+        patch.taskUpdates.forEach((u, i) => {
+          const data: Record<string, unknown> = { updatedAt: nowIso, updatedBy: user.userId };
+          if (u.status) data.status = u.status;
+          if (u.completedAt !== undefined) data.completedAt = u.completedAt === null ? FieldValue.delete() : u.completedAt;
+          if (u.dueDate) data.dueDate = u.dueDate;
+          if (u.owner) data.owner = u.owner;
+          if (u.title) data.title = u.title;
+          taskWrites.push({ taskId: u.taskId, data, exists: taskSnaps[i].exists });
+        });
+        applied.push('taskUpdates');
       }
-      applied.push('taskUpdates');
     }
-  }
 
-  if (!applied.length) {
-    throw new HttpsError('permission-denied', rejected.map((r) => r.reason).join(' ') || 'Nothing to update.');
-  }
+    if (!applied.length) {
+      // Uniquement des conflits : rien n'est écrit, le portail est prévenu.
+      if (rejected.length && rejected.every((r) => r.reason === 'conflict')) {
+        return { kase, persons, context, applied, rejected, newStatus: null, assignment: null, acceptedPortal: null };
+      }
+      throw new HttpsError('permission-denied', rejected.map((r) => r.reason).join(' ') || 'Nothing to update.');
+    }
 
-  const batch = db.batch();
-  batch.update(ref, { ...update, updatedAt: nowIso, updatedBy: user.userId, lastActivityAt: nowIso });
-  for (const c of linkChanges) {
-    batch.update(ref.collection('persons').doc(c.personId), {
-      linkedUserId: c.next ?? FieldValue.delete(),
-      updatedAt: nowIso,
-      updatedBy: user.userId,
-    });
-  }
-  for (const w of taskWrites) {
-    const taskRef = ref.collection('tasks').doc(w.taskId);
-    if ((await taskRef.get()).exists) batch.update(taskRef, w.data as FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData>);
-  }
-  await batch.commit();
+    tx.update(ref, { ...update, updatedAt: nowIso, updatedBy: user.userId, lastActivityAt: nowIso });
+    for (const c of linkChanges) {
+      tx.update(ref.collection('persons').doc(c.personId), { linkedUserId: c.next ?? FieldValue.delete(), updatedAt: nowIso, updatedBy: user.userId });
+    }
+    for (const w of taskWrites) if (w.exists) tx.update(ref.collection('tasks').doc(w.taskId), w.data as FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData>);
 
-  if (patch.portal && applied.includes('portal')) {
-    const p = patch.portal;
-    await appendAudit({
-      actorId: user.userId,
-      action: 'PORTAL_CASE_UPDATED',
-      caseId,
-      previousValue: { status: kase.portal?.status ?? null, workflowStatus: kase.portal?.workflowStatus ?? kase.status },
-      newValue: { fields: Object.keys(p), status: p.status ?? null, workflowStatus: p.workflowStatus ?? null },
-    });
-    await appendTimeline(caseId, 'PORTAL_UPDATED', user.userId, Object.keys(p).join(', '));
-  }
-  if (assignment) {
-    await appendAudit({
-      actorId: user.userId,
-      action: 'CASE_ASSIGNED',
-      caseId,
-      previousValue: { assignee: kase.assignee ?? null, additionalInvestigators: kase.additionalInvestigators ?? [] },
-      newValue: assignment,
-    });
-    await appendTimeline(caseId, 'ASSIGNED', user.userId, `Assignee: ${assignment.assignee ?? '-'}`);
-  }
-  for (const c of linkChanges) {
-    await appendAudit({
-      actorId: user.userId,
-      action: c.next ? 'PERSON_LINKED_TO_USER' : 'PERSON_LINK_REMOVED',
-      caseId,
-      objectType: 'person',
-      objectId: c.personId,
-      previousValue: c.previous,
-      newValue: c.next,
-    });
-  }
-  if (taskWrites.length) {
-    await appendAudit({ actorId: user.userId, action: 'TASKS_UPDATED', caseId, newValue: taskWrites.map((w) => w.taskId) });
-  }
+    // Piste d'audit et historique : dans la même transaction.
+    const traces: { ref: FirebaseFirestore.DocumentReference; data: object }[] = [];
+    if (acceptedPortal) {
+      traces.push(auditWrite({
+        actorId: user.userId,
+        action: 'PORTAL_CASE_UPDATED',
+        caseId,
+        previousValue: { status: kase.portal?.status ?? null, workflowStatus: kase.portal?.workflowStatus ?? kase.status },
+        newValue: { fields: Object.keys(acceptedPortal), status: acceptedPortal.status ?? null, workflowStatus: acceptedPortal.workflowStatus ?? null },
+      }));
+      traces.push(timelineWrite(caseId, 'PORTAL_UPDATED', user.userId, Object.keys(acceptedPortal).join(', ')));
+    }
+    if (assignment) {
+      traces.push(auditWrite({
+        actorId: user.userId,
+        action: 'CASE_ASSIGNED',
+        caseId,
+        previousValue: { assignee: kase.assignee ?? null, additionalInvestigators: kase.additionalInvestigators ?? [] },
+        newValue: assignment,
+      }));
+      traces.push(timelineWrite(caseId, 'ASSIGNED', user.userId, `Assignee: ${assignment.assignee ?? '-'}`));
+    }
+    for (const c of linkChanges) {
+      traces.push(auditWrite({
+        actorId: user.userId,
+        action: c.next ? 'PERSON_LINKED_TO_USER' : 'PERSON_LINK_REMOVED',
+        caseId,
+        objectType: 'person',
+        objectId: c.personId,
+        previousValue: c.previous,
+        newValue: c.next,
+      }));
+    }
+    if (taskWrites.length) traces.push(auditWrite({ actorId: user.userId, action: 'TASKS_UPDATED', caseId, newValue: taskWrites.map((w) => w.taskId) }));
+    const conflictParts = rejected.filter((r) => r.reason === 'conflict').map((r) => r.part);
+    if (conflictParts.length) {
+      traces.push(auditWrite({ actorId: user.userId, action: 'PORTAL_UPDATE_CONFLICT', caseId, newValue: { fields: conflictParts }, reason: 'Champ modifié entre-temps par un autre membre de l’équipe : non écrasé' }));
+    }
+    for (const t of traces) tx.set(t.ref, t.data);
 
+    return { kase, persons, context, applied, rejected, newStatus, assignment, acceptedPortal };
+  });
+
+  const { kase, persons, applied, rejected, newStatus, assignment, acceptedPortal } = outcome;
+  if (!applied.length) return { ok: true, applied, rejected };
+
+  // 3. E-mails : après l'enregistrement, ne bloquent jamais.
   // === AMÉLIORATION AJOUTÉE (notifications e-mail : superviseurs, DARC, DGA, DRH) ===
   const events: NotificationEvent[] = [];
   if (assignment?.assignee && assignment.assignee !== (kase.assignee ?? null)) events.push('assigned');
-  if (applied.includes('portal') && patch.portal?.escalatedAt && patch.portal.escalatedAt !== kase.portal?.escalatedAt) events.push('escalated');
+  if (acceptedPortal?.escalatedAt && acceptedPortal.escalatedAt !== kase.portal?.escalatedAt) events.push('escalated');
   if (newStatus && newStatus !== kase.status && (newStatus === 'closed' || newStatus === 'reopened')) events.push(newStatus);
   if (events.length) {
     const facts: CaseNotificationFacts = {
@@ -2885,6 +3126,33 @@ async function loadEmailNotificationSettings(): Promise<EmailNotificationSetting
   } catch {
     return DEFAULT_EMAIL_NOTIFICATION_SETTINGS;
   }
+}
+
+// === AMÉLIORATION AJOUTÉE (transactions : écritures tout-ou-rien) ===
+// Variante stricte pour les décisions d'ACCÈS (exclusion d'un niveau mis en
+// cause) : une lecture qui échoue (base lente, indisponible) fait échouer
+// l'opération au lieu de retomber silencieusement sur les réglages par défaut.
+async function loadEmailNotificationSettingsStrict(): Promise<EmailNotificationSettings> {
+  const json = (await db.collection('config').doc('portal').get()).data()?.sections?.emailNotifications;
+  if (typeof json !== 'string') return DEFAULT_EMAIL_NOTIFICATION_SETTINGS;
+  try {
+    return sanitizeEmailNotificationSettings(JSON.parse(json));
+  } catch {
+    return DEFAULT_EMAIL_NOTIFICATION_SETTINGS;
+  }
+}
+
+/**
+ * Personnes mises en cause rattachées à un compte du personnel (même règle
+ * que autoLinkImplicatedStaff : nom identique, un seul homonyme actif). Pur.
+ */
+function computeAutoLinks(subjects: { personId: string; name: string }[], staff: StaffRecipientCandidate[]): { personId: string; uid: string }[] {
+  const links: { personId: string; uid: string }[] = [];
+  for (const p of subjects) {
+    const match = staff.filter((s) => s.active && s.name && namesMatch(p.name, s.name));
+    if (match.length === 1) links.push({ personId: p.personId, uid: match[0].uid });
+  }
+  return links;
 }
 
 async function loadStaffRecipientCandidates(): Promise<StaffRecipientCandidate[]> {

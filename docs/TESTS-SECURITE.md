@@ -23,6 +23,7 @@ ensuite tous les scénarios, en effaçant les émulateurs entre chacun
 | `e2eReporterReference.emulator.mts` | Numéros de suivi : unicité, alias, passage par le site |
 | `e2eEmailNotifications.emulator.mts` | Destinataires des e-mails et règles d'escalade |
 | `e2eReporterMessageNotifications.emulator.mts` | E-mails « nouveau message du déclarant » |
+| `e2eConcurrency.emulator.mts` | Modifications simultanées, envois rejoués, limites sous concurrence (voir `docs/ROBUSTESSE.md`) |
 
 ## Les 77 contrôles d'attaque (`scripts/e2eSecurity.emulator.mts`)
 

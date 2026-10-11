@@ -28,7 +28,8 @@ for script in \
   scripts/e2eConfigAudit.emulator.mts \
   scripts/e2eReporterReference.emulator.mts \
   scripts/e2eEmailNotifications.emulator.mts \
-  scripts/e2eReporterMessageNotifications.emulator.mts; do
+  scripts/e2eReporterMessageNotifications.emulator.mts \
+  scripts/e2eConcurrency.emulator.mts; do
   echo "::group::$script"
   npx tsx scripts/devops/resetEmulatorData.mts
   if ! npx tsx "$script"; then failed+=("$script"); fi

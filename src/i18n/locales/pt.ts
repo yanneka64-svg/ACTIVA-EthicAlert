@@ -1583,6 +1583,15 @@ export const pt: Record<string, string> = {
   persist_failure_quota: "O armazenamento deste navegador está cheio (anexos demasiado grandes?). Reduza o tamanho dos anexos e tente novamente; em caso de dúvida, contacte a equipa DARC antes de fechar esta página.",
   persist_failure_generic: "O navegador recusou guardar (navegação privada ou armazenamento bloqueado?). Não feche esta página e contacte a equipa DARC.",
   persist_failure_dismiss: "Fechar",
+  // === AMÉLIORATION AJOUTÉE (modifications simultanées et envois en échec) ===
+  portal_sync_conflict_title: "Uma alteração não foi guardada: um colega alterou este campo ao mesmo tempo.",
+  portal_sync_conflict_body: "A versão dele foi mantida para nada ser substituído. Aparece após atualizar; verifique-a e volte a introduzir a sua alteração, se necessário.",
+  portal_sync_rejected_title: "Uma alteração foi recusada pelo servidor.",
+  portal_sync_rejected_body: "As suas permissões não permitem esta ação neste processo, ou os dados são inválidos. Nada foi guardado.",
+  portal_sync_pending_title: "Gravação no servidor pendente.",
+  portal_sync_pending_body: "O servidor não está a responder de momento (rede ou lentidão). O seu trabalho está guardado neste navegador e será reenviado automaticamente: não apague os dados do navegador.",
+  portal_sync_case: "Processo",
+  portal_sync_refresh: "Atualizar",
   // === AMÉLIORATION AJOUTÉE (page de suivi — version B) ===
   track_eyebrow: 'Área de acompanhamento segura',
   track_title_part1: 'Acompanhamento confidencial da',

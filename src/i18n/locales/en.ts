@@ -1583,6 +1583,15 @@ export const en: Record<string, string> = {
   persist_failure_quota: "This browser’s storage is full (attachments too large?). Reduce the size of the attachments and try again; if in doubt, contact the DARC team before closing this page.",
   persist_failure_generic: "The browser refused to save (private browsing or blocked storage?). Do not close this page and contact the DARC team.",
   persist_failure_dismiss: "Dismiss",
+  // === AMÉLIORATION AJOUTÉE (modifications simultanées et envois en échec) ===
+  portal_sync_conflict_title: "A change was not saved: a colleague edited this field at the same time.",
+  portal_sync_conflict_body: "Their version was kept so nothing is overwritten. It appears after refreshing; check it, then re-enter your change if needed.",
+  portal_sync_rejected_title: "A change was rejected by the server.",
+  portal_sync_rejected_body: "Your permissions do not allow this action on this case, or the data is invalid. Nothing was saved.",
+  portal_sync_pending_title: "Saving to the server is pending.",
+  portal_sync_pending_body: "The server is not responding right now (network or slowdown). Your work is kept in this browser and will be sent again automatically: do not clear the browser data.",
+  portal_sync_case: "Case",
+  portal_sync_refresh: "Refresh",
   // === AMÉLIORATION AJOUTÉE (page de suivi — version B) ===
   track_eyebrow: 'Secure tracking area',
   track_title_part1: 'Confidential tracking of',

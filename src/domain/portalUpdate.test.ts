@@ -1,7 +1,7 @@
 /** === AMÉLIORATION AJOUTÉE (Brancher tout le portail au serveur — Phase 1) === */
 import { describe, expect, it } from 'vitest';
 import type { AlertRecord } from '../types';
-import { applyPortalState, diffPortalUpdate, mergePortalPatches, PortalPatchError, sanitizePortalPatch } from './portalUpdate';
+import { applyPortalState, diffPortalUpdate, mergePortalPatches, PortalPatchError, portalConflicts, remainingAfterSend, sanitizePortalPatch } from './portalUpdate';
 
 const base = {
   id: 'a1',
@@ -33,13 +33,15 @@ describe('diffPortalUpdate', () => {
     expect(diffPortalUpdate(base, next)).toEqual({
       portal: { status: 'closed', workflowStatus: 'closed', closureSummary: 'Faits établis', closedAt: '2026-10-05T10:00:00.000Z' },
       assignedInvestigators: ['uid-inv'],
+      // === AMÉLIORATION AJOUTÉE (modifications simultanées) === valeur connue avant la saisie.
+      expected: { portal: { closureSummary: null } },
     });
   });
 
   it('ordre des enquêteurs indifférent ; effacement = null', () => {
     const a = { ...base, assignedInvestigators: ['x', 'y'], reopenReason: 'motif' } as AlertRecord;
     const b = { ...base, assignedInvestigators: ['y', 'x'] } as AlertRecord;
-    expect(diffPortalUpdate(a, b)).toEqual({ portal: { reopenReason: null } });
+    expect(diffPortalUpdate(a, b)).toEqual({ portal: { reopenReason: null }, expected: { portal: { reopenReason: 'motif' } } });
   });
 
   it('avancement d’une tâche existante et rattachement d’une personne', () => {
@@ -113,5 +115,76 @@ describe('reporterVisibleCaseStatus', () => {
     expect(reporterVisibleCaseStatus('new', { status: 'investigation', workflowStatus: 'pending_information' })).toBe('investigation');
     expect(reporterVisibleCaseStatus('new', { status: 'closed', workflowStatus: 'closed' })).toBe('closed');
     expect(reporterVisibleCaseStatus('under_review', undefined)).toBe('under_review');
+  });
+});
+
+// === AMÉLIORATION AJOUTÉE (modifications simultanées) ===
+describe('portalConflicts', () => {
+  it('aucun conflit si le serveur a toujours la valeur attendue', () => {
+    expect(portalConflicts({ investigationReport: 'v1' }, { portal: { investigationReport: 'v1' } }, { investigationReport: 'v2' })).toEqual([]);
+  });
+
+  it('conflit si un collègue a modifié le champ entre-temps', () => {
+    expect(portalConflicts({ investigationReport: 'collègue' }, { portal: { investigationReport: 'v1' } }, { investigationReport: 'moi' })).toEqual([
+      'investigationReport',
+    ]);
+  });
+
+  it('jamais de faux conflit : champ absent du serveur, ou même valeur déjà écrite (envoi rejoué)', () => {
+    expect(portalConflicts({}, { portal: { investigationReport: 'local' } }, { investigationReport: 'moi' })).toEqual([]);
+    expect(portalConflicts({ investigationReport: 'moi' }, { portal: { investigationReport: 'v1' } }, { investigationReport: 'moi' })).toEqual([]);
+    expect(portalConflicts({ reopenReason: '' }, { portal: { reopenReason: null } })).toEqual([]);
+  });
+
+  it('listes comparées sans tenir compte de l’ordre ; statut jamais contrôlé', () => {
+    expect(portalConflicts({ independentRoutingExcludedUserIds: ['b', 'a'] }, { portal: { independentRoutingExcludedUserIds: ['a', 'b'] } })).toEqual([]);
+    expect(portalConflicts({ status: 'closed' }, { portal: { status: 'new' } as never })).toEqual([]);
+  });
+});
+
+describe('expected : fusion et validation', () => {
+  it('la valeur attendue la plus ancienne l’emporte', () => {
+    const merged = mergePortalPatches(
+      { portal: { closureSummary: 'v2' }, expected: { portal: { closureSummary: 'v1' } } },
+      { portal: { closureSummary: 'v3' }, expected: { portal: { closureSummary: 'v2' } } }
+    );
+    expect(merged).toEqual({ portal: { closureSummary: 'v3' }, expected: { portal: { closureSummary: 'v1' } } });
+  });
+
+  it('sanitizePortalPatch accepte expected et refuse un champ inconnu ou un patch vide', () => {
+    expect(sanitizePortalPatch({ portal: { closureSummary: 'x' }, expected: { portal: { closureSummary: null } } }).expected).toEqual({
+      portal: { closureSummary: null },
+    });
+    expect(() => sanitizePortalPatch({ portal: { closureSummary: 'x' }, expected: { portal: { status: 'new' } } })).toThrow(PortalPatchError);
+    expect(() => sanitizePortalPatch({ portal: { closureSummary: 'x' }, expected: { portal: { closureSummary: { a: 1 } } } })).toThrow(PortalPatchError);
+    expect(() => sanitizePortalPatch({ expected: { portal: { closureSummary: 'x' } } })).toThrow(PortalPatchError);
+  });
+});
+
+describe('remainingAfterSend', () => {
+  it('rien ne reste si l’envoi n’a pas changé pendant le trajet', () => {
+    const p = { portal: { closureSummary: 'a' } };
+    expect(remainingAfterSend(p, p)).toBeNull();
+  });
+
+  it('garde la modification ajoutée pendant le trajet, avec la nouvelle valeur attendue', () => {
+    const sent = { portal: { closureSummary: 'v2' }, expected: { portal: { closureSummary: 'v1' } } };
+    const current = { portal: { closureSummary: 'v3', reopenReason: 'r' }, expected: { portal: { closureSummary: 'v1', reopenReason: null } } };
+    expect(remainingAfterSend(sent, current)).toEqual({
+      portal: { closureSummary: 'v3', reopenReason: 'r' },
+      expected: { portal: { closureSummary: 'v2', reopenReason: null } },
+    });
+  });
+
+  it('retire ce qui a déjà été écrit tel quel (tâches, rattachements, attribution)', () => {
+    const sent = { assignedInvestigators: ['u1'], taskUpdates: [{ taskId: 't1', status: 'completed' as const }] };
+    const current = { ...sent, personLinks: [{ personId: 'p1', linkedUserId: 'u2' }] };
+    expect(remainingAfterSend(sent, current)).toEqual({ personLinks: [{ personId: 'p1', linkedUserId: 'u2' }] });
+  });
+
+  it('un champ en conflit garde sa valeur attendue d’origine', () => {
+    const sent = { portal: { closureSummary: 'v2' }, expected: { portal: { closureSummary: 'v1' } } };
+    const current = { portal: { closureSummary: 'v3' }, expected: { portal: { closureSummary: 'v1' } } };
+    expect(remainingAfterSend(sent, current, ['closureSummary'])).toEqual(current);
   });
 });
