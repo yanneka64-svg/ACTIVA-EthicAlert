@@ -1834,7 +1834,7 @@ export const fr: Record<string, string> = {
   helpline_step2_desc: "Vous recevez un message d'accueil avec le lien vers la plateforme en ligne.",
   helpline_step3_title: "Remplissez le formulaire",
   helpline_step3_desc: "Complétez le formulaire de déclaration\u00a0: quoi, où, quand, qui. Vous pouvez rester anonyme.",
-  helpline_step4_title: "Téléchargez l'accusé de réception",
+  helpline_step4_title: "Téléchargez le récépissé",
   helpline_step4_desc: "Il contient vos identifiants (numéro de dossier et code d'accès) pour suivre votre signalement en ligne.",
   helpline_other_label: "Autres façons de signaler",
   helpline_other_online_title: "En ligne",

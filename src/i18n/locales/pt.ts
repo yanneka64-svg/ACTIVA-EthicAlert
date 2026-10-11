@@ -1647,7 +1647,7 @@ export const pt: Record<string, string> = {
   helpline_step2_desc: "Recebe uma mensagem de boas-vindas com a ligação para a plataforma online.",
   helpline_step3_title: "Preencha o formulário",
   helpline_step3_desc: "Preencha o formulário de denúncia: o quê, onde, quando, quem. Pode permanecer anónimo.",
-  helpline_step4_title: "Descarregue o aviso de receção",
+  helpline_step4_title: "Descarregue o recibo",
   helpline_step4_desc: "Contém os seus identificadores (número de processo e código de acesso) para acompanhar a denúncia online.",
   helpline_other_label: "Outras formas de denunciar",
   helpline_other_online_title: "Online",
