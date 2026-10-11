@@ -557,12 +557,68 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
     document.querySelector('.activa-vt-main')?.scrollTo({ top: 0 });
   }, []);
 
+  // === AMÉLIORATION AJOUTÉE (étapes au rythme du défilement) === sur demande
+  // explicite : les étapes ne défilent plus toutes seules ; elles s'allument
+  // une à une quand on descend dans la page et s'éteignent quand on remonte.
+  // L'ancien défilement automatique reste ci-dessous, désactivé.
+  const STEPS_FOLLOW_SCROLL = true;
+  const stepsRef = React.useRef<HTMLDivElement>(null);
+  const [stepsProgress, setStepsProgress] = React.useState(0);
+
   React.useEffect(() => {
-    if (reduced) return;
+    if (reduced || STEPS_FOLLOW_SCROLL) return;
     // === AMÉLIORATION AJOUTÉE (ralenti) === sur demande : tout en « slow motion ».
     const id = window.setInterval(() => setStep((s) => (s + 1) % 4), 4500);
     return () => window.clearInterval(id);
   }, [reduced]);
+
+  React.useEffect(() => {
+    if (!STEPS_FOLLOW_SCROLL) return;
+    const scroller = document.querySelector<HTMLElement>('.activa-vt-main');
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const el = stepsRef.current;
+      if (!el) return;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      const top = el.getBoundingClientRect().top;
+      // Position la plus haute que le bloc peut atteindre (bas de page) :
+      // la dernière étape s'allume toujours, même si la page est courte.
+      const remaining = scroller
+        ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop
+        : document.documentElement.scrollHeight - vh - window.scrollY;
+      // Départ : quand le bloc entre dans l'écran, ou dès le haut de page s'il
+      // y est déjà visible (la première étape seule est alors allumée).
+      const scrolled = scroller ? scroller.scrollTop : window.scrollY;
+      const start = Math.min(vh * 0.9, top + scrolled);
+      const end = Math.min(start - 1, Math.max(vh * 0.3, top - remaining + 8));
+      const p = Math.min(1, Math.max(0, (start - top) / (start - end)));
+      setStepsProgress(p);
+      // Étapes les unes sous les autres (mobile, tablette) : chacune s'allume
+      // quand elle atteint les deux tiers de l'écran ; toutes en bas de page.
+      const items = Array.from(el.querySelectorAll('ol > li')).map((li) => li.getBoundingClientRect().top);
+      const stacked = items.length > 1 && Math.max(...items) - Math.min(...items) > 20;
+      if (stacked) {
+        const reached = items.filter((y) => y < vh * 0.68).length;
+        setStep(remaining < 8 ? 3 : Math.max(0, Math.min(3, reached - 1)));
+      } else {
+        setStep(Math.min(3, Math.floor(p * 4)));
+      }
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    scroller?.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      scroller?.removeEventListener('scroll', onScroll);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, []);
 
   // === AMÉLIORATION AJOUTÉE (titre animé) === déclenché à l'arrivée à l'écran.
   const stepsHeadingRef = React.useRef<HTMLHeadingElement>(null);
@@ -902,12 +958,13 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
             />
           </div>
         </div>
-        <div className="relative">
+        <div ref={stepsRef} className="relative">
           {/* fil qui se remplit d'une étape à l'autre */}
           <div aria-hidden="true" className="hidden lg:block absolute left-[12.5%] right-[12.5%] top-[34px] h-[3px] rounded-full bg-slate-200">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#1449B0] to-[#5A86DD] transition-[width] duration-[1600ms] ease-in-out"
-              style={{ width: `${reduced ? 100 : (step / 3) * 100}%` }}
+              className={`h-full rounded-full bg-gradient-to-r from-[#1449B0] to-[#5A86DD] transition-[width] ease-out ${STEPS_FOLLOW_SCROLL ? 'duration-200' : 'duration-[1600ms]'}`}
+              // === AMÉLIORATION AJOUTÉE (étapes au rythme du défilement) === le fil suit le défilement en continu.
+              style={{ width: `${reduced ? 100 : STEPS_FOLLOW_SCROLL ? Math.min(100, stepsProgress * (4 / 3) * 100) : (step / 3) * 100}%` }}
             />
           </div>
           <ol className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -917,7 +974,7 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
               return (
                 <li key={title} className="flex flex-col items-start lg:items-center lg:text-center">
                   <span
-                    className={`relative w-[70px] h-[70px] rounded-[22px] flex items-center justify-center transition-all duration-[1200ms] ease-in-out ${
+                    className={`relative w-[70px] h-[70px] rounded-[22px] flex items-center justify-center transition-all ${STEPS_FOLLOW_SCROLL ? 'duration-500' : 'duration-[1200ms]'} ease-in-out ${
                       lit
                         ? 'bg-gradient-to-br from-[#2B5FC8] to-[#0F3C93] text-white shadow-[0_16px_30px_-14px_rgb(20_73_176/0.95)]'
                         : 'bg-white text-slate-400 border border-slate-200'
@@ -929,8 +986,8 @@ export const HelplineView: React.FC<HelplineViewProps> = ({ lang, onStartNewAler
                       {i + 1}
                     </span>
                   </span>
-                  <span className={`mt-4 text-[16px] font-extrabold tracking-tight transition-colors duration-[1200ms] ${lit ? 'text-[#0B2545]' : 'text-slate-400'}`}>{title}</span>
-                  <span className={`mt-1 text-[13.5px] leading-relaxed max-w-[17rem] transition-colors duration-[1200ms] ${lit ? 'text-slate-600' : 'text-slate-400'}`}>{linkifySite(desc)}</span>
+                  <span className={`mt-4 text-[16px] font-extrabold tracking-tight transition-colors ${STEPS_FOLLOW_SCROLL ? 'duration-500' : 'duration-[1200ms]'} ${lit ? 'text-[#0B2545]' : 'text-slate-400'}`}>{title}</span>
+                  <span className={`mt-1 text-[13.5px] leading-relaxed max-w-[17rem] transition-colors ${STEPS_FOLLOW_SCROLL ? 'duration-500' : 'duration-[1200ms]'} ${lit ? 'text-slate-600' : 'text-slate-400'}`}>{linkifySite(desc)}</span>
                 </li>
               );
             })}
