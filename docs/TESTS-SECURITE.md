@@ -120,6 +120,11 @@ modèle. Aucune donnée de production n'est envoyée (le scan ne lit que le
 dépôt). Choisir un fournisseur dont le contrat exclut l'entraînement sur vos
 données.
 
+**Scan complet du dépôt (à la demande)** : Actions → « Security scan (Strix) »
+→ Run workflow. Il analyse tout le code (profondeur `standard` par défaut,
+`deep` pour un audit approfondi) avec un budget de 30 USD par défaut, modifiable
+au lancement. Le résultat apparaît aux mêmes endroits.
+
 **Coût** : au plus 10 USD par PR (`STRIX_MAX_BUDGET` dans le workflow). Le coût
 réel de chaque scan est affiché dans le résumé du job.
 

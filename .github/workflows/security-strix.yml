@@ -25,7 +25,19 @@ name: Security scan (Strix)
 
 on:
   pull_request:
+  # === AMÉLIORATION AJOUTÉE (scan complet à la demande) === Actions →
+  # « Security scan (Strix) » → Run workflow : analyse de TOUT le dépôt.
   workflow_dispatch:
+    inputs:
+      scan_mode:
+        description: "Profondeur : quick (rapide), standard, deep (approfondi)"
+        type: choice
+        options: [standard, deep, quick]
+        default: standard
+      max_budget:
+        description: "Budget maximal du modèle (USD)"
+        type: string
+        default: "30"
 
 concurrency:
   group: strix-${{ github.ref }}
@@ -39,12 +51,15 @@ env:
   STRIX_VERSION: '1.7.0'
   # Budget maximal du modèle par scan (USD). Le scan doit FINIR dans ce
   # budget ; sinon le job échoue (voir l'étape « Scan complet ? »).
-  STRIX_MAX_BUDGET: '10'
+  STRIX_MAX_BUDGET: ${{ github.event_name == 'workflow_dispatch' && inputs.max_budget || '10' }}
+  # PR : rapide et limité au code modifié ; lancement manuel : dépôt entier.
+  STRIX_SCAN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.scan_mode || 'quick' }}
+  STRIX_SCOPE: ${{ github.event_name == 'workflow_dispatch' && 'full' || 'diff' }}
 
 jobs:
   strix:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && 180 || 60 }}
     permissions:
       contents: read
       security-events: write # envoi des résultats SARIF dans Code scanning
@@ -69,7 +84,7 @@ jobs:
           pipx install "strix-agent==${STRIX_VERSION}"
           strix --version || true
 
-      - name: Run security scan (diff de la PR)
+      - name: Run security scan
         id: scan
         if: env.HAS_STRIX == 'true'
         env:
@@ -77,14 +92,20 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           BASE_REF: ${{ github.base_ref }}
         run: |
-          # Base de comparaison : la branche visée par la PR (sinon main).
-          DIFF_BASE="origin/${BASE_REF:-main}"
-          if ! git rev-parse --verify --quiet "$DIFF_BASE" >/dev/null; then
-            echo "::error::Base de comparaison introuvable : $DIFF_BASE"
-            exit 1
+          if [ "$STRIX_SCOPE" = "full" ]; then
+            SCOPE_ARGS=(--scope-mode full)
+          else
+            # Base de comparaison : la branche visée par la PR (sinon main).
+            DIFF_BASE="origin/${BASE_REF:-main}"
+            if ! git rev-parse --verify --quiet "$DIFF_BASE" >/dev/null; then
+              echo "::error::Base de comparaison introuvable : $DIFF_BASE"
+              exit 1
+            fi
+            SCOPE_ARGS=(--scope-mode diff --diff-base "$DIFF_BASE")
           fi
+          echo "Mode ${STRIX_SCAN_MODE}, portée ${STRIX_SCOPE}, budget ${STRIX_MAX_BUDGET} USD"
           set +e
-          strix -n -t ./ --scan-mode quick --scope-mode diff --diff-base "$DIFF_BASE" --max-budget "$STRIX_MAX_BUDGET"
+          strix -n -t ./ --scan-mode "$STRIX_SCAN_MODE" "${SCOPE_ARGS[@]}" --max-budget "$STRIX_MAX_BUDGET"
           code=$?
           set -e
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
