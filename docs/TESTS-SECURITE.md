@@ -91,6 +91,51 @@ ensuite tous les scénarios, en effaçant les émulateurs entre chacun
   L'environnement de test les déploie. En production :
   `firebase deploy --only firestore:rules --project production`.
 
+## Test d'intrusion automatique à chaque pull request (Strix)
+
+> === AMÉLIORATION AJOUTÉE (test d'intrusion automatique) ===
+
+Le workflow `.github/workflows/security-strix.yml` lance **Strix** sur chaque
+pull request. Des agents IA lisent le code **modifié**, cherchent des failles
+(injection, XSS, accès non autorisé à un dossier, SSRF, logique métier…) et
+tentent de les exploiter dans un bac à sable Docker du runner GitHub. Seules
+les failles **prouvées** sont signalées, avec leur preuve d'exploitation.
+
+| Résultat | Effet sur la PR |
+|---|---|
+| Aucune faille validée, scan complet | Vert |
+| Faille validée | Rouge (rapport dans l'artefact `strix-report` et dans Security → Code scanning) |
+| Scan interrompu (budget épuisé) | Rouge : un scan incomplet n'est jamais compté comme réussi |
+| Secrets absents | Vert avec une note : rien n'est bloqué tant que ce n'est pas configuré |
+
+**Mise en place (une fois)** : dans Settings → Secrets and variables →
+Actions, créer :
+
+- `STRIX_LLM` : identifiant du modèle utilisé par les agents (par exemple
+  `anthropic/claude-sonnet-5-5`) ;
+- `LLM_API_KEY` : clé API du fournisseur de ce modèle.
+
+**Confidentialité** : le code modifié par la PR est envoyé au fournisseur du
+modèle. Aucune donnée de production n'est envoyée (le scan ne lit que le
+dépôt). Choisir un fournisseur dont le contrat exclut l'entraînement sur vos
+données.
+
+**Scan complet du dépôt (à la demande)** : Actions → « Security scan (Strix) »
+→ Run workflow. Il analyse tout le code (profondeur `standard` par défaut,
+`deep` pour un audit approfondi) avec un budget de 30 USD par défaut, modifiable
+au lancement. Le résultat apparaît aux mêmes endroits.
+
+**Coût** : au plus 10 USD par PR (`STRIX_MAX_BUDGET` dans le workflow). Le coût
+réel de chaque scan est affiché dans le résumé du job.
+
+**Rendre le contrôle obligatoire** : Settings → Branches → règle de
+protection de `main` → « Require status checks » → cocher `strix`.
+
+**Alternative sans infrastructure** : l'application Strix
+(app.strix.ai, GitHub App) analyse chaque PR sans workflow ni clé de modèle,
+et publie ses résultats en commentaire de PR. Le workflow ci-dessus garde au
+contraire l'analyse dans le runner GitHub de l'entreprise.
+
 ## Lancer les tests sur son poste
 
 ```bash
