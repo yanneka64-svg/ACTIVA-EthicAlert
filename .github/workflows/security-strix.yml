@@ -1,0 +1,133 @@
+# === AMÉLIORATION AJOUTÉE (test d'intrusion automatique à chaque pull request) ===
+# Strix (https://github.com/usestrix/strix) : des agents IA lisent le code
+# MODIFIÉ par la pull request, cherchent des failles (injection, XSS, accès
+# non autorisé à un dossier, SSRF, logique métier…) et tentent de les
+# exploiter dans un bac à sable Docker. Seules les failles PROUVÉES sont
+# signalées, avec leur preuve d'exploitation.
+#
+# - Portée : uniquement les fichiers modifiés par la PR (mode « quick »).
+# - Échec du job : faille validée (code 2) ou scan interrompu avant la fin
+#   (budget épuisé) — jamais de « vert » sur un scan incomplet.
+# - Résultats : onglet « Security → Code scanning » (SARIF) + artefact
+#   `strix-report` (rapport complet, conservé 14 jours).
+# - Rien n'est déployé, aucune donnée de production n'est utilisée.
+#
+# Mise en place (une fois) : Settings → Secrets and variables → Actions →
+#   STRIX_LLM    : identifiant du modèle (ex. anthropic/claude-sonnet-5-5)
+#   LLM_API_KEY  : clé API du fournisseur de ce modèle
+# Tant que ces secrets sont absents, le job s'arrête proprement (vert, avec
+# une note) : il ne bloque aucune pull request.
+#
+# Confidentialité : le code modifié est envoyé au fournisseur du modèle
+# (celui de LLM_API_KEY). Choisir un fournisseur et un contrat compatibles
+# avec la politique de l'entreprise. Voir docs/TESTS-SECURITE.md.
+name: Security scan (Strix)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: strix-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Version figée (même principe que les actions épinglées par SHA).
+  STRIX_VERSION: '1.7.0'
+  # Budget maximal du modèle par scan (USD). Le scan doit FINIR dans ce
+  # budget ; sinon le job échoue (voir l'étape « Scan complet ? »).
+  STRIX_MAX_BUDGET: '10'
+
+jobs:
+  strix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write # envoi des résultats SARIF dans Code scanning
+    env:
+      HAS_STRIX: ${{ secrets.STRIX_LLM != '' && secrets.LLM_API_KEY != '' }}
+    steps:
+      - name: Check configuration
+        run: |
+          if [ "$HAS_STRIX" != "true" ]; then
+            echo "::notice::Scan Strix non configuré (secrets STRIX_LLM / LLM_API_KEY absents) — rien à faire. Voir docs/TESTS-SECURITE.md."
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4 (v4.4.0)
+        if: env.HAS_STRIX == 'true'
+        with:
+          fetch-depth: 0 # nécessaire pour calculer les fichiers modifiés
+          persist-credentials: false
+
+      - name: Install Strix
+        if: env.HAS_STRIX == 'true'
+        run: |
+          pipx install "strix-agent==${STRIX_VERSION}"
+          strix --version || true
+
+      - name: Run security scan (diff de la PR)
+        id: scan
+        if: env.HAS_STRIX == 'true'
+        env:
+          STRIX_LLM: ${{ secrets.STRIX_LLM }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          # Base de comparaison : la branche visée par la PR (sinon main).
+          DIFF_BASE="origin/${BASE_REF:-main}"
+          if ! git rev-parse --verify --quiet "$DIFF_BASE" >/dev/null; then
+            echo "::error::Base de comparaison introuvable : $DIFF_BASE"
+            exit 1
+          fi
+          set +e
+          strix -n -t ./ --scan-mode quick --scope-mode diff --diff-base "$DIFF_BASE" --max-budget "$STRIX_MAX_BUDGET"
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          case "$code" in
+            0) echo "Aucune faille validée dans le code modifié." ;;
+            2) echo "::error::Strix a validé au moins une faille dans le code modifié — voir le rapport (artefact strix-report / Code scanning)." ;;
+            *) echo "::error::Strix n'a pas pu s'exécuter (code $code)." ;;
+          esac
+
+      # Un scan arrêté au budget maximal se termine avec le code 0 mais
+      # n'a pas tout couvert : il ne doit jamais passer pour un succès.
+      - name: Scan complet ?
+        if: always() && env.HAS_STRIX == 'true' && steps.scan.outcome != 'skipped'
+        run: |
+          run_json=$(ls -t strix_runs/*/run.json 2>/dev/null | head -1)
+          if [ -z "$run_json" ]; then
+            echo "::error::Aucun rapport Strix trouvé (strix_runs/*/run.json)."
+            exit 1
+          fi
+          status=$(jq -r .status "$run_json")
+          cost=$(jq -r '.llm_usage.cost // "?"' "$run_json")
+          echo "Statut : $status — coût : $cost USD (budget ${STRIX_MAX_BUDGET} USD)"
+          echo "### Strix : statut ${status}, coût ${cost} USD / ${STRIX_MAX_BUDGET} USD" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" != "completed" ]; then
+            echo "::error::Scan interrompu avant la fin (statut « $status », budget probablement épuisé). Augmenter STRIX_MAX_BUDGET."
+            exit 1
+          fi
+
+      - name: Upload SARIF (Code scanning)
+        if: always() && env.HAS_STRIX == 'true' && hashFiles('strix_runs/**/findings.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9f759ee644a3e7c15c1390abf49868036c00067b # v3 (v3.38.3)
+        with:
+          sarif_file: strix_runs
+          category: strix
+
+      - name: Upload report
+        if: always() && env.HAS_STRIX == 'true' && hashFiles('strix_runs/**') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4 (v4.6.2)
+        with:
+          name: strix-report
+          path: strix_runs
+          retention-days: 14
+
+      - name: Fail on validated findings
+        if: env.HAS_STRIX == 'true' && steps.scan.outputs.exit_code != '0'
+        run: exit 1
