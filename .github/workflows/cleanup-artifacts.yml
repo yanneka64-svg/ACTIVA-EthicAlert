@@ -1,0 +1,65 @@
+# === AMÉLIORATION AJOUTÉE : nettoyage des artefacts GitHub Actions ===
+# Le stockage des artefacts est partagé par tous les dépôts du compte : une
+# fois plein, plus aucun workflow (ici ou dans un autre dépôt) ne peut
+# déposer d'artefact ("Artifact storage quota has been hit"). Ce workflow
+# manuel supprime les artefacts plus anciens que le nombre de jours choisi.
+# Laisser "apply" décoché pour un essai à blanc qui liste sans supprimer.
+# Aucune action tierce : uniquement la CLI gh préinstallée sur le runner.
+name: Clean up old artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      older_than_days:
+        description: Supprimer les artefacts plus vieux que ce nombre de jours (1 garde ceux du jour)
+        required: true
+        type: number
+        default: 1
+      apply:
+        description: Supprimer réellement (décoché = essai à blanc, liste seulement)
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: cleanup-artifacts
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete old artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLDER_THAN_DAYS: ${{ inputs.older_than_days }}
+          APPLY: ${{ inputs.apply }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$OLDER_THAN_DAYS" =~ ^[0-9]+$ ]]; then
+            echo "::error::older_than_days doit être un nombre entier de jours."
+            exit 1
+          fi
+          cutoff=$(date -u -d "-${OLDER_THAN_DAYS} days" +%s)
+          count=0
+          bytes=0
+          while IFS=$'\t' read -r id name size created; do
+            [ -n "$id" ] || continue
+            if [ "$(date -u -d "$created" +%s)" -lt "$cutoff" ]; then
+              count=$((count + 1))
+              bytes=$((bytes + size))
+              if [ "$APPLY" = "true" ]; then
+                gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" >/dev/null
+                echo "Supprimé : ${name} (${created}, $((size / 1048576)) Mo)"
+              else
+                echo "À supprimer : ${name} (${created}, $((size / 1048576)) Mo)"
+              fi
+            fi
+          done < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired | not) | [.id, .name, .size_in_bytes, .created_at] | @tsv')
+          verb=$([ "$APPLY" = "true" ] && echo "Supprimé" || echo "Essai à blanc : supprimerait")
+          echo "${verb} ${count} artefact(s), $((bytes / 1048576)) Mo, plus vieux que ${OLDER_THAN_DAYS} jour(s)." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "GitHub peut mettre quelques heures à recalculer le stockage utilisé." >> "$GITHUB_STEP_SUMMARY"
