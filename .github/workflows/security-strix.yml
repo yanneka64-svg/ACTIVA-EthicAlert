@@ -136,14 +136,14 @@ jobs:
 
       - name: Upload SARIF (Code scanning)
         if: always() && env.HAS_STRIX == 'true' && hashFiles('strix_runs/**/findings.sarif') != ''
-        uses: github/codeql-action/upload-sarif@9f759ee644a3e7c15c1390abf49868036c00067b # v3 (v3.38.3)
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v3 (v3.38.3)
         with:
           sarif_file: strix_runs
           category: strix
 
       - name: Upload report
         if: always() && env.HAS_STRIX == 'true' && hashFiles('strix_runs/**') != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4 (v4.6.2)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4 (v4.6.2)
         with:
           name: strix-report
           path: strix_runs
